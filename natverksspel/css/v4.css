@@ -69,3 +69,10 @@ body.touch .term-new { bottom: 96px; }
 .mv-row span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mv-row b.ok { color: #6be39a; } .mv-row b.bad { color: #ff7a6b; } .mv-row b.warn { color: #ffc15a; }
 .mv-row small { opacity: 0.7; font-variant-numeric: tabular-nums; }
+.hud-vpn.up { color: #7ee8a8; } .hud-vpn.partial { color: #ffc15a; } .hud-vpn.down { color: #ff8a7a; }
+.pause-learn { margin-top: 8px; font-size: 0.85em; opacity: 0.8; }
+.menu-sum { margin: 4px 0 8px; font-size: 0.9em; opacity: 0.85; font-variant-numeric: tabular-nums; }
+.week.next { box-shadow: 0 0 0 2px #f0b429 inset; }
+.next-badge, .new-badge { font-size: 0.7em; padding: 1px 6px; border-radius: 8px; margin-left: 6px; vertical-align: middle; }
+.next-badge { background: #f0b429; color: #1b1b1b; }
+.new-badge { background: #8e44ad; color: #fff; }

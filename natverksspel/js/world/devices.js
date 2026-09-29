@@ -99,6 +99,7 @@ NV.devices3d = (function () {
       g.font = '11px sans-serif';
       for (var hi = 0; hi < 4; hi++) {
         var hc = hl[hi] ? (hl[hi] === 'up' ? '#3dff6a' : (hl[hi] === 'down' ? (Math.sin(t * 6) > 0 ? '#ff5a4f' : '#3a1a18') : '#ffb020')) : '#23321f';
+        if (NV.settings && NV.settings.get('colorblind')) hc = { '#3dff6a': '#3da5ff', '#ff5a4f': '#ff8a1f', '#ffb020': '#ffe14a' }[hc] || hc;
         self.led(g, 480 + hi * 60, 44, hc, 6);
         g.fillStyle = '#cfd6dc'; g.fillText('S' + (hi + 1), 472 + hi * 60, 74);
       }

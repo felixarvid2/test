@@ -56,7 +56,13 @@ NV.shared = (function () {
     ['R-Nordvik-1 Gi0/1 (internet)', 'R1', 'GigabitEthernet0/1'],
     ['R-Nordvik-1 Gi0/2 (Borås)', 'R1', 'GigabitEthernet0/2'],
   ];
+  // Vecka 10: den hyrda linan är borta – fjärde grafen visar Borås internet/VPN i stället
+  function fitSeries(state) {
+    var vpn = !!(state.devices.RB && state.devices.RB.config.crypto);
+    SERIES[3] = vpn ? ['R-Boras-1 Gi0/1 (internet + VPN)', 'RB', 'GigabitEthernet0/1'] : ['R-Nordvik-1 Gi0/2 (Borås)', 'R1', 'GigabitEthernet0/2'];
+  }
   function sampleMonitor(state, hist) {
+    fitSeries(state);
     SERIES.forEach(function (s) {
       var h = hist[s[0]] = hist[s[0]] || [];
       h.push(S.linkLoad(state, s[1], s[2]));

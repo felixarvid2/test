@@ -143,14 +143,17 @@
       var open = g.def.tasks.filter(function (t) { return !g.taskState[t.id].reported; }).length;
       base = 'Vecka ' + g.def.week + ' · ' + open + ' ärenden kvar · ' + Math.floor(g.elapsed() / 60000) + ' min · ' + base;
     }
-    sub.innerHTML = esc(base) + '<br><span class="tip">💡 ' + esc(NV.TIPS[Math.floor(Math.random() * NV.TIPS.length)]) + '</span>';
+    sub.innerHTML = esc(base) + '<br><span class="tip">💡 ' + esc(NV.TIPS[Math.floor(Math.random() * NV.TIPS.length)]) + '</span>' +
+      (g.def && g.running ? '<div class="pause-learn">Den här veckan: ' + g.def.learn.map(esc).join(' · ') + '</div>' : '');
     if (!$('[data-pause="mute"]', this.pause)) {
       var b = document.createElement('button'); b.setAttribute('data-pause', 'mute'); $('.pause-buttons', this.pause).appendChild(b);
       b.addEventListener('click', function (e) { NV.settings.set('sound', !NV.settings.get('sound')); b.textContent = NV.settings.get('sound') ? '🔊 Ljud på' : '🔇 Ljud av'; e.stopPropagation(); });
     }
     $('[data-pause="mute"]', this.pause).textContent = NV.settings.get('sound') ? '🔊 Ljud på' : '🔇 Ljud av';
   };
-  NV.TIPS = ['Tryck G för nätverksglasögonen.', 'R spelar upp det senaste pingspåret.', 'Krabban gömmer sig nära ett av veckans fel.', 'Kaffe gör att du går snabbare.', 'Klicka på ett ärende i listan uppe till vänster för att få vägen dit.', 'Frågesporten vid tavlan i fikarummet ger XP.', 'I handboken finns subnätsträning med rekord.', 'Ctrl+W tar bort senaste ordet i terminalen.', 'Klicka på en IP-adress i terminalen för att pinga den.', 'Veckans utmaning ger en extra medalj.'];
+  NV.TIPS = ['Tryck G för nätverksglasögonen.', 'R spelar upp det senaste pingspåret.', 'Krabban gömmer sig nära ett av veckans fel.', 'Kaffe gör att du går snabbare.', 'Klicka på ett ärende i listan uppe till vänster för att få vägen dit.', 'Frågesporten vid tavlan i fikarummet ger XP.', 'I handboken finns subnätsträning med rekord.', 'Ctrl+W tar bort senaste ordet i terminalen.', 'Klicka på en IP-adress i terminalen för att pinga den.', 'Veckans utmaning ger en extra medalj.',
+    'Ctrl+R i terminalen söker bland dina tidigare kommandon.', 'Alt+. klistrar in sista ordet från förra kommandot.', 'tracepath visar den minsta MTU:n på vägen.', 'ping -f -l 1400 hittar MTU-problem på Windows.',
+    'Pinga från rätt källa: ping 192.168.2.1 source gi0/0.10 på routern.', 'show ... | count räknar raderna som matchar.', 'Bara "ping" på routern startar den utökade pingen.', 'curl i en for-slinga visar hur lastbalanseraren fördelar trafiken.'];
 
   // ------------------------------------------------------------------ Kartan: teckenförklaring och markering på minikartan
   var origMap = U.mapDialog;
@@ -185,6 +188,14 @@
     var inner = $('.menu-inner', m);
     if (inner) inner.insertAdjacentHTML('beforeend', '<p class="muted small ver">Krabba-passet ' + VERSION + ' · siffrorna 1–9 och 0 startar en vecka · piltangenterna flyttar mellan veckorna</p>');
     var best = NV.best.all();
+    // Summering och nästa vecka att spela
+    var prog = this.game.progress(), nW = NV.levels.WEEKS.length, doneW = 0, stars = 0, next = null;
+    NV.levels.WEEKS.forEach(function (w) { var p = prog.weeks[w.week]; if (p) { doneW++; stars += p.stars || 0; } else if (next === null) next = w.week; });
+    var wk = $('.weeks', m);
+    if (wk) wk.insertAdjacentHTML('beforebegin', '<div class="menu-sum">' + doneW + ' / ' + nW + ' veckor klara · ' + stars + ' / ' + nW * 3 + ' ★</div>');
+    if (next !== null) { var nb = m.querySelector('.week[data-week="' + next + '"]'); if (nb) { nb.classList.add('next'); nb.querySelector('.wn').insertAdjacentHTML('beforeend', ' <span class="next-badge">Nästa</span>'); } }
+    var w10 = m.querySelector('.week[data-week="10"]');
+    if (w10 && !prog.weeks[10]) w10.querySelector('.wn').insertAdjacentHTML('beforeend', ' <span class="new-badge">NY</span>');
     m.querySelectorAll('.week[data-week]').forEach(function (w) {
       var n = +w.getAttribute('data-week');
       if (NV.challenge.done(n)) w.querySelector('.ws').insertAdjacentHTML('beforeend', ' <span title="Veckans utmaning klar">🏅</span>');
@@ -297,9 +308,12 @@
     function q() {
       var pfx = 24 + Math.floor(Math.random() * 7), a = 10 + Math.floor(Math.random() * 180), b = Math.floor(Math.random() * 255), c = Math.floor(Math.random() * 255), h = 1 + Math.floor(Math.random() * 250);
       var ip = a + '.' + b + '.' + c + '.' + h, mask = U2.prefixToMask(pfx);
-      var kinds = [['Vilket är nätverksadressen för', U2.network(ip, mask)], ['Vilken är broadcastadressen för', U2.broadcast(ip, mask)], ['Hur många värdadresser har', String(Math.pow(2, 32 - pfx) - 2)], ['Vilken nätmask har', mask]];
+      var wild = U2.intToIp((~U2.ipToInt(mask)) >>> 0);
+      var mtu = [1420, 1400, 1438, 1380, 1460][Math.floor(Math.random() * 5)];
+      var kinds = [['Vilket är nätverksadressen för', U2.network(ip, mask)], ['Vilken är broadcastadressen för', U2.broadcast(ip, mask)], ['Hur många värdadresser har', String(Math.pow(2, 32 - pfx) - 2)], ['Vilken nätmask har', mask],
+        ['Vilken wildcard-mask (för ACL) har', wild], ['MSS', String(mtu - 40), 'Tunneln släpper igenom ' + mtu + ' byte (MTU). Vilken TCP-MSS ska du klämma till? (20 byte IP + 20 byte TCP)']];
       var k = kinds[Math.floor(Math.random() * kinds.length)];
-      box.innerHTML = '<p><b>' + k[0] + ' ' + ip + '/' + pfx + '?</b></p><input id="sn-a" class="search" autocomplete="off" placeholder="Ditt svar"><p id="sn-f" class="muted">Svit: ' + streak + ' · rekord: ' + rec + '</p>';
+      box.innerHTML = '<p><b>' + (k[2] || k[0] + ' ' + ip + '/' + pfx + '?') + '</b></p><input id="sn-a" class="search" autocomplete="off" placeholder="Ditt svar"><p id="sn-f" class="muted">Svit: ' + streak + ' · rekord: ' + rec + '</p>';
       var inp = $('#sn-a', box);
       inp.focus();
       inp.addEventListener('keydown', function (e) {
@@ -359,7 +373,7 @@
   // ------------------------------------------------------------------ Karriär: nya prestationer
   var A = NV.career.ACH;
   A.push(['chal1', 'Utmanare', 'Klara en veckoutmaning.', '🏅', function (s) { return s.challenges >= 1; }]);
-  A.push(['chal9', 'Alla utmaningar', 'Klara alla nio veckoutmaningar.', '🎖️', function (s) { return s.challenges >= 9; }]);
+  A.push(['chal9', 'Alla utmaningar', 'Klara alla tio veckoutmaningar.', '🎖️', function (s) { return s.challenges >= NV.levels.WEEKS.length; }]);
   A.push(['quiz1', 'Pluggis', 'Svara rätt på alla frågor i en frågesport.', '🧑‍🎓', function (s) { return s.quizPerfect >= 1; }]);
   A.push(['quiz20', 'Frågemaskin', 'Svara rätt på 20 frågor totalt.', '❓', function (s) { return s.quizRight >= 20; }]);
   A.push(['subnet10', 'Subnätsproffs', 'Tio rätt i rad i subnätsträningen.', '🧮', function (s) { return s.subnetBest >= 10; }]);
@@ -368,6 +382,7 @@
   A.push(['water', 'Vätskebalans', 'Drick vatten från vattenautomaten.', '💧', function (s) { return s.water >= 1; }]);
   A.push(['printer', 'Utskrift', 'Skriv ut något på skrivaren.', '🖨️', function (s) { return s.prints >= 1; }]);
   A.push(['mobile', 'På språng', 'Spela på en pekskärm.', '📱', function (s) { return s.touch >= 1; }]);
+  A.push(['quiz30', 'Hela kursen', 'Svara rätt på 30 frågor i frågesporten.', '🎓', function (s) { return s.quizRight >= 30; }]);
   var origStats = NV.career.stats;
   NV.career.stats = function () {
     var o = origStats();

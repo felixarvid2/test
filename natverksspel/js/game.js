@@ -121,7 +121,7 @@
     opts = opts || {};
     var self = this;
     var r;
-    if (n === 0) r = { state: NV.levels.baseState(9), def: null };
+    if (n === 0) r = { state: NV.levels.baseState(NV.levels.WEEKS.length), def: null };
     else r = NV.levels.start(n);
     this.state = r.state;
     this.def = r.def;
@@ -136,6 +136,7 @@
     this.commands = 0;
     this.startedAt = Date.now();
     this.prevUp = {};
+    this.vpnKey = undefined; this.lbKey = undefined;
     this.done = false;
     this.guideStep = (n === 1 && !NV.settings.get('tutorialDone') && !this.exam) ? 0 : -1;
     this.combo = 0; this.lastFixAt = 0; this.lastProgress = Date.now(); this.nudges = 0; this.coffeeXp = false; this.boostUntil = 0; this.waypoint = null; this.weekXp = 0;
@@ -435,8 +436,39 @@
   };
   G.afterCommand = function () {
     S.refresh(this.state);
+    this.watchWeek10();
     this.checkTasks();
     this.world.updateCables();
+  };
+
+  // Kapitel 10: säg till när tunneln eller lastbalanserarens servrar ändrar läge
+  G.watchWeek10 = function () {
+    var st = this.state;
+    if (!st.devices.R1 || !st.devices.R1.config.crypto) { this.vpnKey = undefined; this.lbKey = undefined; return; }
+    var cs = S.cryptoStatus(st, 'R1');
+    var up = cs.sas.filter(function (a) { return a.up; }).length;
+    var key = (cs.isakmp[0] ? cs.isakmp[0].state : '-') + ':' + up + '/' + cs.sas.length;
+    if (this.vpnKey !== undefined && this.vpnKey !== key) {
+      var prev = parseInt(this.vpnKey.split(':')[1], 10) || 0;
+      if (up === cs.sas.length && up > 0) { this.ui.toast('🔐 Tunneln Göteborg ↔ Borås är uppe för alla nät (' + up + ' par).', 'good'); NV.sfx.success(); }
+      else if (up > prev) this.ui.toast('🔐 Ytterligare ett nät går nu genom tunneln (' + up + ' av ' + cs.sas.length + ').');
+      else if (up < prev) { this.ui.toast('⚠️ Ett nät tappade sin IPsec-SA (' + up + ' av ' + cs.sas.length + ' uppe).', 'warn'); NV.sfx.fail(); }
+    }
+    this.vpnKey = key;
+    if (st.devices.LB && st.devices.LB.lb) {
+      var parts = [];
+      S.lbStatus(st, 'LB').forEach(function (p) { p.members.forEach(function (m) { parts.push(m.m.name + '=' + (!m.m.enabled ? 'off' : (m.up ? 'up' : 'down'))); }); });
+      var lk = parts.join(',');
+      if (this.lbKey !== undefined && this.lbKey !== lk) {
+        var self = this, old = this.lbKey.split(',');
+        parts.forEach(function (x, i) {
+          if (x === old[i]) return;
+          var nm = x.split('=')[0], v = x.split('=')[1];
+          self.ui.toast('⚖️ LB-Nordvik: ' + nm + (v === 'up' ? ' är UP och får trafik.' : (v === 'down' ? ' markeras DOWN – tas ur poolen.' : ' är avstängd.')), v === 'up' ? 'good' : 'warn');
+        });
+      }
+      this.lbKey = lk;
+    }
   };
 
   // Konsolsessioner lever kvar per enhet, precis som på riktig utrustning
@@ -646,7 +678,8 @@
     NV.career.stat('prints');
     if (this.world.printFx) this.world.printFx();
     var open = this.def ? this.def.tasks.filter(function (t) { return !this.taskState[t.id].reported; }, this).length : 0;
-    this.ui.toast('🖨️ Skrivaren skrev ut veckans ärendelista: ' + (this.def ? open + ' ärenden kvar.' : 'fri träning, inga ärenden.'));
+    var vs = NV.shared.vpnState ? NV.shared.vpnState(this.state) : null;
+    this.ui.toast('🖨️ Skrivaren skrev ut veckans ärendelista: ' + (this.def ? open + ' ärenden kvar.' : 'fri träning, inga ärenden.') + (vs ? ' Längst ned: VPN till Borås ' + ({ up: 'uppe', partial: 'delvis uppe', down: 'nere' }[vs]) + '.' : ''));
   };
   G.drinkCoffee = function () {
     if (this.boosted()) { this.ui.toast('Du har redan kaffe i kroppen. Vänta lite.'); return; }

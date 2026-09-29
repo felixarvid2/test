@@ -72,7 +72,7 @@ NV.handbook = (function () {
         [c('ssh drift@192.168.1.193'), 'Logga in över nätet'],
         [c('ip -4 addr show') + ', ' + c('ip route show default') + ', ' + c('ip -4 neigh show'), 'Laptopens egna inställningar'],
         [c('ping -c 4 192.168.1.10') + ', ' + c('resolvectl query filserver'), 'Testa nät och DNS'],
-        [c('ping -s 1400 -M do 192.168.2.1') + ', ' + c('tracepath 192.168.2.1'), 'Stora paket med DF satt och vägens MTU'],
+        [c('ping -s 1400 -M do 192.168.2.193') + ', ' + c('tracepath 192.168.2.193'), 'Stora paket med DF satt och vägens MTU'],
         [c('curl http://tid/') + ', ' + c('for i in 1 2 3 4; do curl -s http://tid/; done'), 'Webbsidor och lastbalanserare'],
         [c('ip route get 192.168.2.1') + ', ' + c('man ping') + ', ' + c('!!'), 'Vilken väg? Hjälp. Kör om senaste kommandot.'],
         [c('ip a | grep inet'), 'Filtrera en utskrift'],

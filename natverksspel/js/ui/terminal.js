@@ -100,6 +100,15 @@ NV.Terminal = (function () {
     else if (k === 'ctrl-z') { ev.key = 'z'; ev.ctrlKey = true; }
     else if (k === 'ctrl-u') { ev.key = 'u'; ev.ctrlKey = true; }
     else if (k === 'ctrl-a-k') { this.onKey({ key: 'a', ctrlKey: true, preventDefault: function () {} }); ev.key = 'k'; }
+    else if (k === 'ctrl-r') { ev.key = 'r'; ev.ctrlKey = true; }
+    else if (k.indexOf('ins:') === 0) {
+      // Tecken som är krångliga att hitta på mobilens tangentbord
+      var inp = this.el.input, txt = k.slice(4), at = inp.selectionStart || inp.value.length;
+      inp.value = inp.value.slice(0, at) + txt + inp.value.slice(at);
+      try { inp.setSelectionRange(at + txt.length, at + txt.length); } catch (e) { /* äldre webbläsare */ }
+      this.updateGhost();
+      return;
+    }
     this.onKey(ev);
   };
   P.applyFont = function () {
@@ -193,7 +202,7 @@ NV.Terminal = (function () {
       if (tgt) chips.push(['screen 9600', 'sudo screen /dev/ttyUSB0 9600']);
       chips.push(['ssh R-Nordvik-1', 'ssh drift@192.168.1.193'], ['ping gateway', 'ping -c 4 192.168.1.193'], ['help', 'help']);
       if (this.game.week === 8) chips.push(['ssh WLC', 'ssh admin@192.168.1.196']);
-      if (this.game.week === 10) chips.push(['ssh R-Boras-1', 'ssh drift@192.168.2.193'], ['ssh LB', 'ssh admin@192.168.1.13'], ['curl ×4', 'for i in 1 2 3 4; do curl -s http://tid/; done'], ['tracepath Borås', 'tracepath 192.168.2.1']);
+      if (this.game.week === 10) chips.push(['ssh R-Boras-1', 'ssh drift@192.168.2.193'], ['ssh LB', 'ssh admin@192.168.1.13'], ['curl ×4', 'for i in 1 2 3 4; do curl -s http://tid/; done'], ['tracepath Borås', 'tracepath 192.168.2.193']);
       chips.forEach(function (c) {
         var b = document.createElement('button');
         b.textContent = c[0];

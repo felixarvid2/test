@@ -1084,7 +1084,7 @@ NV.World2D = (function () {
   W.cableFx = function (l) { var p = this.devPos2d(l.a.dev); if (p) this.sparks(p.x, p.z, p.y, '#ffcf6a', 16); };
   W.consoleFx = function (id) { var p = this.devPos2d(id); if (p) this.sparks(p.x, p.z, p.y, '#7fc6f0', 14); };
   W.setGoggles = function (on) { this.goggles = on; };
-  var REASON = { acl: 'ACL', arp: 'Inget ARP', 'net-unreachable': 'Ingen väg', nolink: 'Ingen länk', noip: 'Ingen IP', nogw: 'Ingen gateway', drop: 'Tappad', noreply: 'Inget svar', refused: 'Stängd port', ttl: 'TTL slut' };
+  var REASON = { acl: 'ACL', arp: 'Inget ARP', 'net-unreachable': 'Ingen väg', nolink: 'Ingen länk', noip: 'Ingen IP', nogw: 'Ingen gateway', drop: 'Tappad', noreply: 'Inget svar', refused: 'Stängd port', ttl: 'TTL slut', ipsec: 'IPsec', frag: 'För stort (DF)' };
   W.pingTrace = function (from, res, count) {
     var self = this;
     if (!this.parts) this.fxInit();
@@ -1112,8 +1112,8 @@ NV.World2D = (function () {
     for (var i = 0; i < (count || 4); i++) {
       (function (k) {
         self.pend.push({ at: self.t + k * 0.45, fn: function () {
-          self.part({ force: true, path: fwd, life: life, size: 3, col: '#7ee0ff', glow: true, trail: true, onEnd: function () {
-            if (res.ok) { self.part({ force: true, path: back, life: life, size: 3, col: '#6dff9a', glow: true }); if (!k) self.pops.push({ text: '✓ svar', col: '#6dff9a', x: last.x, z: last.z, y: last.y, age: 0, life: 1.6 }); }
+          self.part({ force: true, path: fwd, life: life, size: 3, col: res.tunnel ? '#c58bff' : '#7ee0ff', glow: true, trail: true, onEnd: function () {
+            if (res.ok) { self.part({ force: true, path: back, life: life, size: 3, col: '#6dff9a', glow: true }); if (!k) self.pops.push({ text: res.tunnel ? '✓ svar · VPN' : '✓ svar', col: res.tunnel ? '#d9b3ff' : '#6dff9a', x: last.x, z: last.z, y: last.y, age: 0, life: 1.6 }); }
             else { self.poof(last.x, last.z, last.y); if (!k) self.pops.push({ text: '✗ ' + (REASON[res.reason] || 'Inget svar'), col: '#ff7a6a', x: last.x, z: last.z, y: last.y, age: 0, life: 2.2 }); }
           } });
         } });

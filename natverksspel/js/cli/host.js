@@ -109,6 +109,7 @@
       case 'arp': return res(this.arp(a.slice(1)));
       case 'nslookup': return res(this.nslookup(a.slice(1)));
       case 'hostname': return res(h.id);
+      case 'echo': return res(line.trim().slice(5).replace(/%USERNAME%/gi, this.user).replace(/%COMPUTERNAME%/gi, h.id.toUpperCase()) || 'ECHO är aktiverat.');
       case 'cls': return res('', { clear: true });
       case 'exit': return res('', { close: true });
       case 'ver': return res('\nMicrosoft Windows [Version 10.0.19045.4894]\n');
@@ -479,7 +480,7 @@
       case 'uptime': return res(' ' + clock(st) + ' up 3 days,  2:14,  1 user,  load average: 0,08, 0,12, 0,10');
       case 'fortune': return res(FORTUNES[Math.floor(Math.random() * FORTUNES.length)]);
       case 'neofetch': return res(['        .--.         tekniker@laptop', '       |o_o |        ---------------', '       |:_/ |        OS: Ubuntu 24.04 LTS', '      //   \\ \\       Värd: Nordviks teknikerlaptop', '     (|     | )      Skal: bash 5.2', '    /\'\\_   _/`\\      Terminal: Krabba-passet', '    \\___)=(___/      Konsol: /dev/ttyUSB0 (ljusblå kabel)', '                     IP: ' + (((conf(h) || {}).ip) || '–')].join('\n'));
-      case 'history': return res((this.hist || []).map(function (l, i) { return U.padL(i + 1, 5) + '  ' + l; }).join('\n'));
+      case 'history': if (a[1] === '-c') { this.hist = []; return res(''); } return res((this.hist || []).map(function (l, i) { return U.padL(i + 1, 5) + '  ' + l; }).join('\n'));
       case 'ifconfig': return res('Command \'ifconfig\' not found, but can be installed with:\nsudo apt install net-tools\n\nTips: använd ip a (adresser) och ip r (vägar) i stället.');
       case 'arp': return res(this.ip(['neigh']).split('\n').filter(Boolean).map(function (l) { var p = l.split(' '); return U.pad(p[0], 22) + 'ether   ' + p[4] + '   C   enp0s31f6'; }).join('\n') || 'Address                  HWtype  HWaddress           Flags Mask            Iface');
       case 'nc': case 'netcat': return this.nc(a.slice(1));
@@ -519,7 +520,10 @@
       }
       case 'ssh': return this.ssh(a.slice(1));
       case 'telnet': return this.telnet(a.slice(1));
-      case 'cat': if (a[1] === '/etc/resolv.conf') return res('# This is /run/systemd/resolve/stub-resolv.conf managed by man:systemd-resolved(8).\nnameserver 127.0.0.53\noptions edns0 trust-ad\nsearch nordvik.example\n\n# Den riktiga DNS-servern: resolvectl status');
+      case 'uname': return res(a[1] === '-a' ? 'Linux laptop 6.8.0-45-generic #45-Ubuntu SMP PREEMPT_DYNAMIC x86_64 GNU/Linux' : 'Linux');
+      case 'id': return res('uid=1000(tekniker) gid=1000(tekniker) grupper=1000(tekniker),4(adm),20(dialout),27(sudo)');
+      case 'cat': if (a[1] === '/etc/hosts') return res('127.0.0.1\tlocalhost\n127.0.1.1\tlaptop\n\n# Nordvik – bra att ha när DNS krånglar\n192.168.1.193\tr-nordvik-1\n192.168.2.193\tr-boras-1\n192.168.1.13\tlb-nordvik tid');
+        if (a[1] === '/etc/resolv.conf') return res('# This is /run/systemd/resolve/stub-resolv.conf managed by man:systemd-resolved(8).\nnameserver 127.0.0.53\noptions edns0 trust-ad\nsearch nordvik.example\n\n# Den riktiga DNS-servern: resolvectl status');
         if (a[1] === 'felrapport.md') return res('(Felrapporten fyller du i spelet med F.)'); return res('cat: ' + (a[1] || '') + ': Filen eller katalogen finns inte');
     }
     return res(cmd + ': command not found');
@@ -803,6 +807,24 @@
     } };
     return res(head + 'Connected to ' + ip + '.\nEscape character is \'^]\'.\n\n\nUser Access Verification\n');
   };
+
+  // Tab-komplettering av kommandonamn och vanliga argument
+  function completeFrom(words, line) {
+    var m = /^(.*?)(\S*)$/.exec(line);
+    var head = m[1], last = m[2];
+    if (!last) return null;
+    var pool = head.trim() ? ARGS : words;
+    var hits = pool.filter(function (w) { return w.indexOf(last) === 0 && w !== last; });
+    if (!hits.length) return null;
+    var common = hits.reduce(function (a, b) { var i = 0; while (i < a.length && a[i] === b[i]) i++; return a.slice(0, i); });
+    if (common.length <= last.length) return null;
+    return head + common + (hits.length === 1 ? ' ' : '');
+  }
+  var ARGS = ['192.168.1.1', '192.168.1.10', '192.168.1.13', '192.168.1.193', '192.168.2.1', '192.168.2.193', '198.51.100.80', 'drift@192.168.1.193', 'drift@192.168.2.193', 'admin@192.168.1.13', 'admin@192.168.1.196', 'http://tid/', '/dev/ttyUSB0', 'filserver', 'www.example.com'];
+  var LINUX_CMDS = ['ssh', 'screen', 'ping', 'traceroute', 'tracepath', 'curl', 'wget', 'nslookup', 'dig', 'resolvectl', 'ip', 'telnet', 'nc', 'man', 'history', 'clear', 'exit', 'echo', 'help', 'hostname', 'dmesg', 'ls', 'neofetch', 'fortune', 'uptime', 'date', 'whoami', 'sudo', 'for'];
+  var WIN_CMDS = ['ipconfig', 'ping', 'tracert', 'nslookup', 'arp', 'netsh', 'curl', 'copy', 'route', 'netstat', 'getmac', 'hostname', 'whoami', 'systeminfo', 'test-netconnection', 'cls', 'exit', 'help', 'ver', 'date', 'time'];
+  LinuxShell.prototype.complete = function (line) { return this.pending ? null : completeFrom(LINUX_CMDS, line); };
+  WinShell.prototype.complete = function (line) { return completeFrom(WIN_CMDS, line); };
 
   NV.WinShell = WinShell;
   NV.LinuxShell = LinuxShell;

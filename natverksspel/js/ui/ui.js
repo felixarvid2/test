@@ -158,7 +158,9 @@ NV.UI = (function () {
     var clock = S.deviceClock(g.state, g.state.devices.R1);
     var collapsed = NV.settings.get('hudCollapsed');
     var html = '<div class="hud-week">' + (g.def ? 'Vecka ' + g.def.week + ' · ' + esc(g.def.title) : 'Fri träning') + (g.exam ? ' <span class="badge">EXAMEN</span>' : '') + '</div>';
-    html += '<div class="hud-loc">' + esc(z.name) + ' · ' + clock.hms.slice(0, 5) + (g.def && g.running ? ' · ⏱ ' + fmtTime(g.elapsed()) : '') + (g.consoleTargetId ? ' · 🔌 ' + esc(g.state.devices[g.consoleTargetId].config ? g.state.devices[g.consoleTargetId].config.hostname : 'WLC-Nordvik') : '') + '</div>';
+    html += '<div class="hud-loc">' + esc(z.name) + ' · ' + clock.hms.slice(0, 5) + (g.def && g.running ? ' · ⏱ ' + fmtTime(g.elapsed()) : '') + (g.consoleTargetId && g.state.devices[g.consoleTargetId] ? ' · 🔌 ' + esc(g.state.devices[g.consoleTargetId].config ? g.state.devices[g.consoleTargetId].config.hostname : (g.consoleTargetId === 'LB' ? 'LB-Nordvik' : 'WLC-Nordvik')) : '') + '</div>';
+    var vs = NV.shared && NV.shared.vpnState ? NV.shared.vpnState(g.state) : null;
+    if (vs) html += '<div class="hud-loc hud-vpn ' + vs + '">🔐 VPN till Borås: ' + ({ up: 'uppe', partial: 'delvis uppe', down: 'nere' }[vs]) + '</div>';
     if (!collapsed && g.def) {
       html += '<ul class="hud-tasks">';
       g.def.tasks.forEach(function (t) {
@@ -217,7 +219,7 @@ NV.UI = (function () {
       return '<div class="ach' + (got ? '' : ' locked') + '"><span class="ai">' + a[3] + '</span><div><b>' + esc(a[1]) + '</b><span>' + esc(a[2]) + '</span></div></div>';
     }).join('') + '</div>';
     var mins = Math.round(st.playSec / 60);
-    var rows = [['Speltid', mins + ' min'], ['Gått', (st.dist / 1000).toFixed(2) + ' km'], ['Kommandon', st.commands], ['Ping', st.pings], ['Lösta fel', st.fixed], ['Felrapporter', st.reports + ' (' + st.perfect + ' helt rätt)'], ['Ledtrådar', st.hints], ['Kaffe', st.coffees + ' koppar'], ['Krabban fångad', st.crabs], ['Bästa kombo', '×' + st.bestCombo], ['Klara veckor', st.weeks], ['Kablar', st.cables]];
+    var rows = [['Speltid', mins + ' min'], ['Gått', (st.dist / 1000).toFixed(2) + ' km'], ['Kommandon', st.commands], ['Ping', st.pings], ['Lösta fel', st.fixed], ['Felrapporter', st.reports + ' (' + st.perfect + ' helt rätt)'], ['Ledtrådar', st.hints], ['Kaffe', st.coffees + ' koppar'], ['Krabban fångad', st.crabs], ['Bästa kombo', '×' + st.bestCombo], ['Klara veckor', st.weeks], ['Kablar', st.cables], ['Ping med DF-bit', st.dfPings || 0], ['show crypto', st.cryptoShows || 0], ['curl', st.curls || 0], ['Resor Göteborg–Borås', st.trips || 0]];
     html += '<h3>Statistik</h3><div class="stat-grid">' + rows.map(function (x) { return '<div><b>' + esc(String(x[1])) + '</b><span>' + esc(x[0]) + '</span></div>'; }).join('') + '</div>';
     this.showDialog({ title: 'Karriär och prestationer', html: html, wide: true, buttons: [{ label: 'Stäng', primary: true }] });
   };

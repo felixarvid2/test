@@ -981,7 +981,7 @@ NV.extras3d = (function () {
     }
     return path;
   };
-  var REASON = { acl: 'Stoppad av ACL', arp: 'Inget ARP-svar', 'net-unreachable': 'Ingen väg dit', nolink: 'Ingen länk', noip: 'Ingen IP-adress', nogw: 'Ingen gateway', drop: 'Paketet tappades', noreply: 'Inget svar tillbaka', refused: 'Porten är stängd', ttl: 'TTL tog slut' };
+  var REASON = { acl: 'Stoppad av ACL', arp: 'Inget ARP-svar', 'net-unreachable': 'Ingen väg dit', nolink: 'Ingen länk', noip: 'Ingen IP-adress', nogw: 'Ingen gateway', drop: 'Paketet tappades', noreply: 'Inget svar tillbaka', refused: 'Porten är stängd', ttl: 'TTL tog slut', ipsec: 'Stoppad i IPsec-tunneln', frag: 'För stort paket (DF satt)' };
   E.pingTrace = function (from, res, count) {
     var self = this;
     var ids = [from];
@@ -1002,11 +1002,11 @@ NV.extras3d = (function () {
     this.lastTrace = { from: from, res: res, count: count, at: this.t };
     for (var i = 0; i < (count || 4); i++) {
       this.pending.push({ at: this.t + i * 0.45, fn: function (k) {
-        var pk = self.fx.packet(path, { life: life, color: 0x7ee0ff, size: 0.05, hdr: 6, force: true, onEnd: function () {
+        var pk = self.fx.packet(path, { life: life, color: res.tunnel ? 0xc58bff : 0x7ee0ff, size: 0.05, hdr: 6, force: true, onEnd: function () {
           if (res.ok) {
             var rb = self.fx.packet(back, { life: life, color: 0x6dff9a, size: 0.05, hdr: 6, force: true });
             if (rb) self.traces.push(rb);
-            if (k === 0) self.fx.popup('✓ svar', last.clone().add(new V3(0, 0.25, 0)), { color: '#6dff9a', height: 0.12 });
+            if (k === 0) self.fx.popup(res.tunnel ? '✓ svar · 🔒 via VPN' : '✓ svar', last.clone().add(new V3(0, 0.25, 0)), { color: res.tunnel ? '#d9b3ff' : '#6dff9a', height: 0.12 });
           } else {
             self.fx.poof(last);
             if (k === 0) self.fx.popup('✗ ' + (REASON[res.reason] || 'Inget svar'), last.clone().add(new V3(0, 0.25, 0)), { color: '#ff7a6a', height: 0.12, life: 2.4 });

@@ -565,6 +565,14 @@ NV.World = (function () {
       entry.fp.draw(devId ? self.ledFn(devId) : null, self.t);
     });
   };
+  // Vad som syns på kollegornas skärmar (vecka 10 visar felen på riktigt)
+  W.appFor = function (id) {
+    var g = this.game, ts = g.taskState || {};
+    if (g.week === 10 && ts.v10n1 && !ts.v10n1.fixed && id === 'PC-Lisa') return 'Tidrapport – 502 Bad Gateway';
+    if (g.week === 10 && ts.v10k1 && !ts.v10k1.fixed && id === 'PC-Lager') return '\\\\filserver – kan inte nås';
+    if (g.week === 10 && ts.v10k2 && !ts.v10k2.fixed && id === 'PC-Lager') return 'hyllplan.pdf – laddar… 0 %';
+    return { 'PC-Anna': 'Kundärenden', 'PC-Karim': 'Offert.xlsx', 'PC-Sara': 'Projektplan', 'PC-Lisa': g.week === 10 ? 'Tidrapport' : 'Nyhetsbrev', 'PC-Bo': 'Budget 2027', 'PC-Maja': 'Bokföring', 'PC-Lager': 'Plocklista' }[id];
+  };
   W.updateSlow = function () {
     var st = this.game.state, self = this;
     var D = S.get(st);
@@ -584,7 +592,7 @@ NV.World = (function () {
       var status;
       if (!ep || !ep.up) status = { icon: 'err', text: 'Ej ansluten', popup: ['Nätverkskabeln är urkopplad', 'Kontrollera kabeln'] };
       else if (!c || c.apipa) status = { icon: 'warn', text: 'Ingen internetåtkomst', popup: ['Ingen internetåtkomst', 'Adressen började på 169.254'] };
-      else status = { icon: 'ok', text: c.ip, popup: null, app: { 'PC-Anna': 'Kundärenden', 'PC-Karim': 'Offert.xlsx', 'PC-Sara': 'Projektplan', 'PC-Lisa': 'Nyhetsbrev', 'PC-Bo': 'Budget 2027', 'PC-Maja': 'Bokföring', 'PC-Lager': 'Plocklista' }[id] };
+      else status = { icon: 'ok', text: c.ip, popup: null, app: self.appFor(id) };
       NV.devices3d.drawDesktop(pc.monitor.canvas, h.label || id, status, self.t + id.length);
       pc.monitor.tex.needsUpdate = true;
       if (pc.led) pc.led.material.emissiveIntensity = ep && ep.up ? 2 : 0;
