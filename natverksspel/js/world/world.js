@@ -625,7 +625,7 @@ NV.World = (function () {
     var g = wb.canvas.getContext('2d');
     g.fillStyle = '#f7f8f6'; g.fillRect(0, 0, 1024, 640);
     g.fillStyle = '#1f4e79'; g.font = 'bold 52px "Segoe Print", "Comic Sans MS", cursive';
-    g.fillText(def ? 'Vecka ' + def.week + ': ' + def.title : 'Fri träning', 40, 80);
+    g.fillText(def ? NV.levels.name(def) + ': ' + def.title : 'Fri träning', 40, 80);
     g.fillStyle = '#c0392b'; g.font = 'bold 40px "Segoe Print", "Comic Sans MS", cursive';
     g.fillText(def ? 'Krabban har varit här! 🦀' : 'Inga fel. Utforska nätet!', 40, 150);
     g.fillStyle = '#222'; g.font = '32px "Segoe Print", "Comic Sans MS", cursive';

@@ -76,3 +76,8 @@ body.touch .term-new { bottom: 96px; }
 .next-badge, .new-badge { font-size: 0.7em; padding: 1px 6px; border-radius: 8px; margin-left: 6px; vertical-align: middle; }
 .next-badge { background: #f0b429; color: #1b1b1b; }
 .new-badge { background: #8e44ad; color: #fff; }
+
+/* ---- Bygg från grunden ---- */
+.menu-h { font-size: 1.05em; margin: 14px 0 6px; }
+.menu-h small { font-weight: 400; opacity: 0.7; font-size: 0.8em; }
+.week.build { background: rgba(60, 158, 164, 0.12); border: 1px solid rgba(60, 158, 164, 0.35); }

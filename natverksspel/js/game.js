@@ -141,7 +141,8 @@
     this.guideStep = (n === 1 && !NV.settings.get('tutorialDone') && !this.exam) ? 0 : -1;
     this.combo = 0; this.lastFixAt = 0; this.lastProgress = Date.now(); this.nudges = 0; this.coffeeXp = false; this.boostUntil = 0; this.waypoint = null; this.weekXp = 0;
     this.difficulty = NV.settings.get('difficulty');
-    if (this.def) this.def.tasks.forEach(function (t) { self.taskState[t.id] = { fixed: false, reported: false, hints: 0, known: false, score: 0 }; });
+    // I byggena vet du från början vad som ska byggas
+    if (this.def) this.def.tasks.forEach(function (t) { self.taskState[t.id] = { fixed: false, reported: false, hints: 0, known: !!t.build, score: 0 }; });
     this.weather = this.weatherFor(n);
     if (this.weather === 'rain') NV.career.stat('rainWeeks');
     this.afterStateChange(this.def && this.def.site === 'boras' ? 'boras' : 'gbg');
@@ -189,7 +190,7 @@
     if (!r) return;
     this.state = JSON.parse(r.state);
     S.touch(this.state);
-    this.def = NV.levels.WEEKS.filter(function (w) { return w.week === r.week; })[0];
+    this.def = NV.levels.def(r.week);
     this.week = r.week; this.exam = r.exam; this.running = true; this.done = false;
     this.taskState = r.taskState; this.flags = r.flags || {}; this.cmdLog = r.cmdLog || [];
     this.consoles = {}; this.consoleTargetId = r.console || null; this.commands = r.commands || 0;
@@ -204,7 +205,7 @@
     if (r.pos && !this.world.collides(r.pos.x, r.pos.z, 0.3)) { this.world.pos.x = r.pos.x; this.world.pos.z = r.pos.z; if (this.mode === '3d') { this.world.yaw = this.world.tYaw = r.pos.yaw; } }
     this.spawnCrab();
     this.ui.renderHud();
-    this.ui.toast('Välkommen tillbaka! Vecka ' + r.week + ' fortsätter där du var.');
+    this.ui.toast('Välkommen tillbaka! ' + NV.levels.name(r.week) + ' fortsätter där du var.');
   };
 
   G.reloadKeepRun = function () {
@@ -285,7 +286,12 @@
         s.fixed = true; s.known = true; s.fixedAt = Date.now() - self.startedAt;
         NV.sfx.success();
         NV.touch.buzz([30, 40, 60]);
-        self.ui.toast('✔ <b>' + esc(t.title) + '</b> är löst! Skriv felrapporten med <b>F</b>.', 'good');
+        if (t.build) {
+          // Byggsteg behöver ingen felrapport – nätet är beviset
+          s.reported = true; s.score = 2;
+          var left = self.def.tasks.filter(function (x) { return !self.taskState[x.id].fixed; }).length;
+          self.ui.toast('🧱 <b>' + esc(t.title) + '</b> är klart!' + (left ? ' ' + left + ' steg kvar i bygget.' : ''), 'good');
+        } else self.ui.toast('✔ <b>' + esc(t.title) + '</b> är löst! Skriv felrapporten med <b>F</b>.', 'good');
         self.onFixed(t, s);
         self.refreshMarkers();
       }
@@ -329,7 +335,7 @@
   };
   G.reportMarkdown = function () {
     var self = this;
-    var lines = ['# Felrapport – vecka ' + this.def.week + ': ' + this.def.title, '', 'Krabba-passet i spelet. Datum: 2026-09-29.', ''];
+    var lines = ['# ' + (this.def.build ? 'Byggrapport – ' : 'Felrapport – ') + NV.levels.name(this.def).toLowerCase() + ': ' + this.def.title, '', 'Krabba-passet i spelet. Datum: 2026-09-29.', ''];
     this.def.tasks.forEach(function (t, i) {
       var s = self.taskState[t.id];
       if (!s.reported) return;

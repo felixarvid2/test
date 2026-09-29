@@ -429,5 +429,11 @@ NV.model = (function () {
     return null;
   }
 
-  return { buildGolden: buildGolden, linkAt: linkAt, mac: mac };
+  // Fabriksinställningar för en IOS-enhet (som en ny låda från kartongen)
+  function factoryConfig(d) {
+    var fresh = d.kind === 'switch' ? makeSwitch(d.id, d.model, d.site) : makeRouter(d.id, d.model, d.site);
+    return fresh.config;
+  }
+
+  return { buildGolden: buildGolden, linkAt: linkAt, mac: mac, factoryConfig: factoryConfig };
 })();

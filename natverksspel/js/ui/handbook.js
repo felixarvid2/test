@@ -219,6 +219,23 @@ NV.handbook = (function () {
       return '<p class="muted">Börja nerifrån när något inte fungerar. Varje lager är beroende av lagret under.</p>' +
         L.map(function (l) { return '<div class="osi-layer"><b>' + l[0] + '</b><span>' + l[1] + '</span><span class="muted small">Fel i spelet: ' + l[2] + '</span></div>'; }).join('');
     },
+    bygg: function () {
+      return '<p class="muted">Bygg nätet i samma ordning som boken – nerifrån och upp. Testa efter varje steg innan du går vidare.</p>' +
+        table(['Steg', 'Vad', 'Kommandon', 'Testa med'], [
+          ['1', 'Grundkonfiguration', c('hostname') + ', ' + c('enable secret') + ', ' + c('line con 0'), c('show running-config')],
+          ['2', 'VLAN', c('vlan 10') + ' → ' + c('name KONTOR'), c('show vlan brief')],
+          ['3', 'Accessportar', c('switchport mode access') + ', ' + c('switchport access vlan 10'), c('show interfaces status')],
+          ['4', 'Trunkar', c('switchport trunk encapsulation dot1q') + ', ' + c('switchport mode trunk') + ', ' + c('native vlan 999'), c('show interfaces trunk')],
+          ['5', 'Router-on-a-stick', c('interface gi0/0.10') + ' → ' + c('encapsulation dot1Q 10') + ' → ' + c('ip address'), c('show ip interface brief')],
+          ['6', 'DHCP', c('ip dhcp excluded-address') + ', ' + c('ip dhcp pool'), c('show ip dhcp binding') + ', ' + c('ipconfig /renew')],
+          ['7', 'Routing', c('ip route 0.0.0.0 0.0.0.0 …') + ', returvägar', c('show ip route') + ', ' + c('traceroute')],
+          ['8', 'NAT', c('ip nat inside/outside') + ', ' + c('ip nat inside source list 1 interface gi0/1 overload'), c('show ip nat translations')],
+          ['9', 'Drift och säkerhet', c('interface vlan 99') + ', ' + c('ip default-gateway') + ', SSH, ACL, NTP, loggning', c('ssh drift@…') + ', ' + c('show access-lists')],
+          ['10', 'VPN', 'ISAKMP, transform-set, crypto-ACL, crypto map', c('show crypto isakmp sa')],
+          ['11', 'Spara', c('write memory'), c('show startup-config')],
+        ]) +
+        '<h3>Tips</h3><ul><li>En fabriksny enhet har ingen konfiguration: prompten är Switch&gt; eller Router&gt;, och alla routerns interface är avstängda (<code>no shutdown</code>!).</li><li>På en 3560 måste du ange <code>switchport trunk encapsulation dot1q</code> innan <code>switchport mode trunk</code>.</li><li>Skriv <code>?</code> när du är osäker och Tab för att fylla i.</li><li>Datorerna försöker få en DHCP-adress igen av sig själva – eller kör <code>ipconfig /renew</code>.</li><li>Glöm inte <code>write memory</code>: en omstart utan sparad konfiguration tar dig tillbaka till fabriksinställningarna.</li></ul>';
+    },
     vpn: function () {
       return '<p class="muted">Kapitel 10: den hyrda linan Göteborg–Borås kostade 6 000 kr i månaden och användes till 4 %. Nu går trafiken krypterad över internet.</p>' +
         '<h3>Så byggs tunneln</h3>' + table(['Steg', 'Vad händer', 'Kolla med'], [

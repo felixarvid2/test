@@ -390,6 +390,7 @@ NV.iosShow = (function () {
   }
 
   function startupConfig(state, d) {
+    if (!d.startup) return 'startup-config is not present';
     var s = runningConfig(state, d, d.startup).split('\n');
     s.splice(0, 3, 'Using ' + (s.join('\n').length) + ' out of 524288 bytes');
     return s.join('\n');

@@ -441,6 +441,7 @@ NV.IosSession = (function () {
   });
   def('exec', 'copy startup-config running-config', function () {
     var st = this.dev.startup;
+    if (!st) return '%Error opening nvram:/startup-config (No such file or directory)';
     this.dev.config = U.clone(st);
     return 'Destination filename [running-config]? \n' + 'xxxx bytes copied in 0.52 secs';
   });
@@ -465,7 +466,8 @@ NV.IosSession = (function () {
   });
   function doReload(s) {
     var d = s.dev;
-    d.config = U.clone(d.startup);
+    // Utan sparad konfiguration startar enheten med fabriksinställningar
+    d.config = d.startup ? U.clone(d.startup) : NV.model.factoryConfig(d);
     d.rt.logs = [];
     d.rt.dhcpBindings = {};
     d.rt.natTrans = [];

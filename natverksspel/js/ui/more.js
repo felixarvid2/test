@@ -141,7 +141,7 @@
     var base = 'Musen styr blicken när den är låst. Går det inte att låsa: håll ned musknappen och dra.';
     if (g.def && g.running) {
       var open = g.def.tasks.filter(function (t) { return !g.taskState[t.id].reported; }).length;
-      base = 'Vecka ' + g.def.week + ' · ' + open + ' ärenden kvar · ' + Math.floor(g.elapsed() / 60000) + ' min · ' + base;
+      base = NV.levels.name(g.def) + ' · ' + open + (g.def.build ? ' byggsteg kvar · ' : ' ärenden kvar · ') + Math.floor(g.elapsed() / 60000) + ' min · ' + base;
     }
     sub.innerHTML = esc(base) + '<br><span class="tip">💡 ' + esc(NV.TIPS[Math.floor(Math.random() * NV.TIPS.length)]) + '</span>' +
       (g.def && g.running ? '<div class="pause-learn">Den här veckan: ' + g.def.learn.map(esc).join(' · ') + '</div>' : '');
@@ -174,7 +174,7 @@
     b.addEventListener('click', function () {
       var t = $('#notes'); if (!t) return;
       var clock = S.deviceClock(g.state, g.state.devices.R1).hms.slice(0, 5);
-      var line = '\n## ' + clock + ' · ' + g.world.zone().name + (g.def ? ' · vecka ' + g.def.week : '') + '\n';
+      var line = '\n## ' + clock + ' · ' + g.world.zone().name + (g.def ? ' · ' + NV.levels.name(g.def).toLowerCase() : '') + '\n';
       t.value += line; t.focus(); NV.settings.store('krabba-passet.notes', t.value);
     });
     foot.insertBefore(b, foot.firstChild);
@@ -191,7 +191,7 @@
     // Summering och nästa vecka att spela
     var prog = this.game.progress(), nW = NV.levels.WEEKS.length, doneW = 0, stars = 0, next = null;
     NV.levels.WEEKS.forEach(function (w) { var p = prog.weeks[w.week]; if (p) { doneW++; stars += p.stars || 0; } else if (next === null) next = w.week; });
-    var wk = $('.weeks', m);
+    var wk = $('.weeks:not(.builds)', m);
     if (wk) wk.insertAdjacentHTML('beforebegin', '<div class="menu-sum">' + doneW + ' / ' + nW + ' veckor klara · ' + stars + ' / ' + nW * 3 + ' ★</div>');
     if (next !== null) { var nb = m.querySelector('.week[data-week="' + next + '"]'); if (nb) { nb.classList.add('next'); nb.querySelector('.wn').insertAdjacentHTML('beforeend', ' <span class="next-badge">Nästa</span>'); } }
     var w10 = m.querySelector('.week[data-week="10"]');

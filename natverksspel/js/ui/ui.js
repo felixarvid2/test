@@ -157,7 +157,7 @@ NV.UI = (function () {
     var z = g.world.zone();
     var clock = S.deviceClock(g.state, g.state.devices.R1);
     var collapsed = NV.settings.get('hudCollapsed');
-    var html = '<div class="hud-week">' + (g.def ? 'Vecka ' + g.def.week + ' · ' + esc(g.def.title) : 'Fri träning') + (g.exam ? ' <span class="badge">EXAMEN</span>' : '') + '</div>';
+    var html = '<div class="hud-week">' + (g.def ? (g.def.build ? '🧱 ' : '') + NV.levels.name(g.def) + ' · ' + esc(g.def.title) : 'Fri träning') + (g.exam ? ' <span class="badge">EXAMEN</span>' : '') + '</div>';
     html += '<div class="hud-loc">' + esc(z.name) + ' · ' + clock.hms.slice(0, 5) + (g.def && g.running ? ' · ⏱ ' + fmtTime(g.elapsed()) : '') + (g.consoleTargetId && g.state.devices[g.consoleTargetId] ? ' · 🔌 ' + esc(g.state.devices[g.consoleTargetId].config ? g.state.devices[g.consoleTargetId].config.hostname : (g.consoleTargetId === 'LB' ? 'LB-Nordvik' : 'WLC-Nordvik')) : '') + '</div>';
     var vs = NV.shared && NV.shared.vpnState ? NV.shared.vpnState(g.state) : null;
     if (vs) html += '<div class="hud-loc hud-vpn ' + vs + '">🔐 VPN till Borås: ' + ({ up: 'uppe', partial: 'delvis uppe', down: 'nere' }[vs]) + '</div>';
@@ -167,7 +167,7 @@ NV.UI = (function () {
         var s = g.taskState[t.id];
         var cls = s.reported ? 'done' : (s.fixed ? 'fixed' : 'open');
         var icon = s.reported ? '✔' : (s.fixed ? '✎' : '○');
-        var who = t.krabba ? '🦀 ' : '💬 ';
+        var who = t.build ? '🔧 ' : (t.krabba ? '🦀 ' : '💬 ');
         var extra = s.fixed && !s.reported ? ' <span class="hud-cta">– skriv felrapport (F)</span>' : '';
         html += '<li class="' + cls + '"><span class="ico">' + icon + '</span>' + who + esc(s.known ? t.title : (t.krabba ? 'Okänt Krabba-fel' : t.title)) + extra + '</li>';
       });
@@ -488,7 +488,7 @@ NV.UI = (function () {
   P.briefing = function (first) {
     var g = this.game;
     var def = g.def;
-    var html = def ? '<p class="brief">' + esc(def.intro).replace(/\n/g, '<br>') + '</p><p class="muted">Kapitel ' + def.chapter + ' i kursboken. Den här veckan tränar du på:</p><ul>' + def.learn.map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('') + '</ul>'
+    var html = def ? '<p class="brief">' + esc(def.intro).replace(/\n/g, '<br>') + '</p><p class="muted">Kapitel ' + def.chapter + ' i kursboken. ' + (def.build ? 'Allt görs i CLI:t – varje steg bockas av så fort nätet fungerar. Du tränar på:' : 'Den här veckan tränar du på:') + '</p><ul>' + def.learn.map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('') + '</ul>'
       : '<p class="brief">Fri träning: Nordviks nät utan fel. Koppla in dig var du vill, bygg om och testa. Inget du gör här sparas.</p>';
     if (g.exam) html += '<div class="box fastnar"><div class="box-title">EXAMENSLÄGE</div>Inga ledtrådar och ingen guide. Tiden går från nu.</div>';
     var ch = def && !g.exam && NV.challenge ? NV.challenge.of(def.week) : null;
@@ -530,7 +530,7 @@ NV.UI = (function () {
     });
     html += '</table><p class="muted small">Utropstecken över en person betyder att hen har ett ärende. Krabba-felen hittar du genom att lyssna på kollegorna och felsöka.</p>';
     this.showDialog({
-      title: 'Ärenden – vecka ' + g.def.week, html: html, buttons: [{ label: 'Kopiera felrapport.md', onClick: function () { g.copyReport(); return true; } }, { label: 'Stäng', primary: true }],
+      title: (g.def.build ? 'Byggsteg – ' : 'Ärenden – ') + NV.levels.name(g.def).toLowerCase(), html: html, buttons: [{ label: 'Kopiera felrapport.md', onClick: function () { g.copyReport(); return true; } }, { label: 'Stäng', primary: true }],
       onOpen: function (d) { d.querySelectorAll('[data-rep]').forEach(function (b) { b.addEventListener('click', function () { var t = g.def.tasks.filter(function (x) { return x.id === b.getAttribute('data-rep'); })[0]; self.reportView(t); }); }); },
     });
   };
@@ -587,7 +587,7 @@ NV.UI = (function () {
   // ------------------------------------------------------------------ Handbok
   P.handbook = function (tab) {
     var self = this;
-    var tabs = [['cmd', 'Kommandon'], ['mine', 'Mina kommandon'], ['fel', 'Felbibliotek'], ['plan', 'Adressplan'], ['calc', 'Subnätsräknare'], ['vpn', 'VPN och LB'], ['osi', 'OSI-modellen'], ['ord', 'Ordlista'], ['keys', 'Styrning']];
+    var tabs = [['cmd', 'Kommandon'], ['mine', 'Mina kommandon'], ['fel', 'Felbibliotek'], ['plan', 'Adressplan'], ['calc', 'Subnätsräknare'], ['bygg', 'Bygg från grunden'], ['vpn', 'VPN och LB'], ['osi', 'OSI-modellen'], ['ord', 'Ordlista'], ['keys', 'Styrning']];
     tab = tab || this.lastTab || 'cmd';
     this.lastTab = tab;
     var html = '<div class="tabs">' + tabs.map(function (t) { return '<button data-tab="' + t[0] + '" class="' + (t[0] === tab ? 'on' : '') + '">' + t[1] + '</button>'; }).join('') + '</div>' +
@@ -834,11 +834,19 @@ NV.UI = (function () {
     this.hidePause();
     var prog = g.progress();
     var saved = g.savedRun();
-    var html = '<div class="menu-inner"><div class="logo">🦀</div><h1>Krabba-passet</h1><p class="tag">Du är nätverkstekniker på Nordvik. Varje vecka gör Krabban sönder något i racket – hitta felen, rätta dem och skriv felrapporter.</p>' +
+    var html = '<div class="menu-inner"><div class="logo">🦀</div><h1>Krabba-passet</h1><p class="tag">Du är nätverkstekniker på Nordvik. Bygg upp Nordviks nät från fabriksinställda lådor via CLI – eller felsök det som Krabban har gjort sönder och skriv felrapporter.</p>' +
       '<div class="mode-pick"><span>Välj visning:</span><div class="seg big"><button data-mode="3d" class="' + (g.mode === '3d' ? 'on' : '') + '"' + (g.webgl ? '' : ' disabled title="WebGL saknas"') + '><b>3D</b><small>förstaperson</small></button><button data-mode="2d" class="' + (g.mode === '2d' ? 'on' : '') + '"><b>2D</b><small>16-bitars pixelvärld</small></button></div></div>';
     var rk = NV.career.rank();
     html += '<div class="menu-rank"><span>🏅 <b>' + esc(rk.name) + '</b> · ' + rk.xp + ' XP · ' + NV.career.unlockedCount() + '/' + NV.career.ACH.length + ' prestationer</span><button data-ach>Karriär (J)</button></div>';
-    if (saved && !(g.running && g.week === saved.week)) html += '<div class="menu-row"><button class="primary" data-continue>Fortsätt vecka ' + saved.week + ' (' + fmtTime(saved.elapsed || 0) + ')</button></div>';
+    if (saved && !(g.running && g.week === saved.week)) html += '<div class="menu-row"><button class="primary" data-continue>Fortsätt ' + esc(NV.levels.name(saved.week).toLowerCase()) + ' (' + fmtTime(saved.elapsed || 0) + ')</button></div>';
+    // Bygg från grunden: hela nätet via CLI, från fabriksinställda enheter
+    html += '<h2 class="menu-h">🧱 Bygg från grunden <small>– sätt upp Nordviks nät via CLI, steg för steg efter boken</small></h2><div class="weeks builds">';
+    NV.levels.BUILDS.forEach(function (w) {
+      var p = prog.weeks[w.week];
+      var stars = p ? '★★★'.slice(0, p.stars) + '☆☆☆'.slice(p.stars) : '';
+      html += '<button class="week build' + (p ? ' done' : '') + '" data-week="' + w.week + '"><span class="wn">Bygge ' + w.build + ' · kap. ' + esc(w.chapter) + '</span><span class="wt">' + esc(w.title) + '</span><span class="wl">' + w.tasks.length + ' steg · ' + esc(w.learn.slice(0, 2).join(' · ')) + '</span><span class="ws">' + stars + (p && p.minutes ? ' <span class="muted">bästa ' + p.minutes + ' min</span>' : '') + '</span></button>';
+    });
+    html += '</div><h2 class="menu-h">🦀 Felsök veckans fel <small>– Krabban har varit framme</small></h2>';
     html += '<div class="weeks">';
     NV.levels.WEEKS.forEach(function (w) {
       var p = prog.weeks[w.week];
@@ -853,7 +861,7 @@ NV.UI = (function () {
     function start(n, opts) {
       function go() { self.hideMenu(); g.startWeek(n, opts); }
       if (g.running && g.def && !g.done && (g.def.week !== n || opts)) {
-        self.showDialog({ title: 'Lämna veckan?', html: '<p>Du är mitt i vecka ' + g.def.week + '. Den sparas automatiskt, så du kan fortsätta senare från menyn.</p>', buttons: [{ label: 'Byt vecka', primary: true, onClick: function () { g.saveRun(); setTimeout(go, 10); } }, { label: 'Avbryt' }] });
+        self.showDialog({ title: 'Lämna veckan?', html: '<p>Du är mitt i ' + esc(NV.levels.name(g.def).toLowerCase()) + '. Den sparas automatiskt, så du kan fortsätta senare från menyn.</p>', buttons: [{ label: 'Byt vecka', primary: true, onClick: function () { g.saveRun(); setTimeout(go, 10); } }, { label: 'Avbryt' }] });
         return;
       }
       go();
@@ -882,7 +890,7 @@ NV.UI = (function () {
       (res.badges.length ? '<p>Utmärkelser: ' + res.badges.map(function (b) { return '<span class="badge">' + esc(b) + '</span>'; }).join(' ') + '</p>' : '') +
       '<p class="muted">Kopiera felrapport.md och lägg den i veckans mapp i ditt repo, precis som efter ett riktigt Krabba-pass.</p>';
     this.showDialog({
-      title: 'Vecka ' + g.def.week + ' klar!', html: html,
+      title: NV.levels.name(g.def) + ' klar!', html: g.def.build ? html.replace('alla ärenden', 'alla byggsteg').replace(/<p>Felrapporterna:[^<]*<b>[^<]*<\/b>[^<]*<\/p>/, '').replace('Kopiera felrapport.md och lägg den i veckans mapp i ditt repo, precis som efter ett riktigt Krabba-pass.', 'Nätet fungerar – och du byggde det själv. Kopiera byggrapporten med alla kommandon du använde.') : html,
       buttons: [{ label: 'Kopiera felrapport.md', onClick: function () { g.copyReport(); return true; } }, { label: 'Ladda ned', onClick: function () { g.downloadReport(); return true; } }, { label: 'Till menyn', primary: true, onClick: function () { setTimeout(function () { self.showMenu(); }, 10); } }, { label: 'Stanna kvar' }],
     });
   };

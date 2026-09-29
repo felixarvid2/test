@@ -68,6 +68,20 @@ Spelet väljer själv en nivå efter grafikkort, minne och om det är en mobil (
 
 Lösenord (står på lappen vid laptopen): enable `Krabba2026`, ssh `drift` / `Krabba2026`.
 
+## Bygg från grunden
+
+Överst i menyn finns fem byggen där enheterna kommer fabriksinställda (`Switch>` / `Router>`, inga VLAN, alla routerinterface avstängda, ingen sparad konfiguration). Du sätter upp Nordviks nät via CLI, i bokens ordning, och varje steg bockas av så fort nätet faktiskt fungerar – inga felrapporter, nätet är beviset.
+
+| Bygge | Kapitel | Enheter | Steg |
+|---|---|---|---|
+| 1 Switchen från kartongen | 1, 2, 4 | SW-Nordvik-1 | Grundkonfiguration och spara · VLAN · accessportar · trunkar (native 999) · driftadress och SSH |
+| 2 Routern från grunden | 3, 5, 6 | R-Nordvik-1 | Router-on-a-stick · DHCP-pooler · DNS på routern · NAT/PAT och statisk NAT · länken till Borås · namn, lösenord och bara SSH |
+| 3 Lagret i Borås | 4, 5, 8 | SW-Boras-1, R-Boras-1 | VLAN och lagerporten · trunkar till router och accesspunkter · sub-interface och default route · DHCP · Wi-Fi · gäst-ACL |
+| 4 Säkerhet och drift | 6, 7, 9 | R-Nordvik-1, båda switcharna | GAST-ACL · KONTOR-UT · port security · NTP · loggning |
+| 5 VPN från grunden | 10 | R-Nordvik-1, R-Boras-1 | Fas 1 · fas 2 och spegelvända listor · crypto map och NAT-undantag · drift genom tunneln · adjust-mss |
+
+Varje steg har tre ledtrådar med exakta kommandon, och handboken har fliken *Bygg från grunden* med ordningen och testkommandona. Datorerna försöker själva få en ny DHCP-adress. Startar du om en enhet utan `write memory` är den tillbaka på fabriksinställningarna.
+
 ## Veckorna
 
 | Vecka | Tema | Fel |
@@ -684,6 +698,7 @@ natverksspel/
 
 ```
 node natverksspel/test/levels.js   # varje fel syns från start och försvinner med rätt CLI-lösning
+node natverksspel/test/build.js    # varje byggsteg är olöst från start och byggs upp med CLI-kommandon
 node natverksspel/test/smoke.js    # DHCP, ping, NAT, DNS och STP i det felfria nätet
 node natverksspel/test/cli.js SW1 "show vlan brief" "show interfaces trunk"
 ```
