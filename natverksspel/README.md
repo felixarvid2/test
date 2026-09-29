@@ -2,7 +2,7 @@
 
 Ett spel för kursen Nätverksteknik, i 3D eller 2D. Du är ny nätverkstekniker på Nordvik och går runt på huvudkontoret i Göteborg och på lagret i Borås. Varje vecka har "Krabban" gjort sönder två saker i racket, och en kollega har ett ärende till dig. Du kopplar in konsolkabeln i Cisco-utrustningen, felsöker med riktiga CLI-kommandon, rättar felet och skriver en felrapport.
 
-Nätet, adressplanen, utrustningen och felen följer kursboken *Nätverksteknik – Från sladden och uppåt*: kapitel 1–9, bilaga D (felbiblioteket) och bilaga G (racket och Nordviks adressplan).
+Nätet, adressplanen, utrustningen och felen följer kursboken *Nätverksteknik – Från sladden och uppåt*: kapitel 1–10, bilaga D (felbiblioteket) och bilaga G (racket och Nordviks adressplan).
 
 ## Starta
 
@@ -81,8 +81,140 @@ Lösenord (står på lappen vid laptopen): enable `Krabba2026`, ssh `drift` / `K
 | 7 | Drift och övervakning | Broadcaststorm (STP av), flappande port, NTP saknas |
 | 8 | Trådlöst (Borås) | PoE avstängt, SSID mappat mot fel VLAN, samma kanal |
 | 9 | Säkerhet och brandvägg | ACL i fel riktning, implicit deny, port security err-disabled |
+| 10 | VPN, SD-WAN och lastbalansering | Två samtidiga fel i IPsec-tunneln (crypto-ACL:er som inte speglar varandra + NAT före kryptering), MTU i tunneln (`ip tcp adjust-mss`), lastbalanserare med ping-hälsokontroll |
 
-Varje fel är simulerat på riktigt. Symptomen räknas fram ur konfigurationen: länkar, duplex, VLAN och trunkar, STP, routing, ARP, ACL, NAT, DHCP, DNS, PoE och port security. Ett fel försvinner därför bara när orsaken är rättad.
+Varje fel är simulerat på riktigt. Symptomen räknas fram ur konfigurationen: länkar, duplex, VLAN och trunkar, STP, routing, ARP, ACL, NAT, DHCP, DNS, PoE, port security, IPsec, MTU och lastbalansering. Ett fel försvinner därför bara när orsaken är rättad.
+
+## Version 5: kapitel 10 och 100 förbättringar
+
+### Kapitel 10 – VPN, SD-WAN och lastbalansering
+
+Den hyrda linan Göteborg–Borås (6 000 kr i månaden, 4 % använd) är uppsagd. Borås har fått ett eget internetuttag (203.0.113.20) och kontoren pratar genom en IPsec-tunnel över internet.
+
+- **Riktig IPsec i simulatorn.** Crypto map på utsidan, ISAKMP-policy (fas 1), transform-set och crypto-ACL (fas 2). Tunneln byggs först när trafik matchar `VPN-TRAFIK`. Fas 1 kräver samma policy och nyckel, fas 2 samma transform-set och spegelvända ACL-rader. Varje ACL-rad blir ett eget SA-par med räknare.
+- **NAT före kryptering, precis som i IOS.** Saknas deny-raden först i NAT-listan översätts trafiken och krypteras aldrig. En deny-rad i NAT-listan undantar även den statiska NAT:en för filservern.
+- **MTU i tunneln.** Tunneln rymmer 1 420 byte. Stora paket med DF-biten satt fastnar, och fulla TCP-segment hänger tills en router längs vägen har `ip tcp adjust-mss 1360`.
+- **Lastbalanseraren LB-Nordvik** (192.168.1.13, `tid.nordvik.example`) med två tidrapportservrar, round robin och hälsokontroll `icmp`, `tcp` eller `http`. Den har en egen CLI (`show pool`, `show stats`, `show monitor`, `config pool … monitor http`, `config pool … member … disable`, `save config`) via konsolen i rack A eller `ssh admin@192.168.1.13`.
+- **Nya IOS-kommandon:** `crypto isakmp policy/key`, `crypto ipsec transform-set`, `crypto map`, `set peer`, `set transform-set`, `match address`, `crypto map` på interface, `ip tcp adjust-mss`, `show crypto isakmp sa`, `show crypto ipsec sa`, `show crypto map`, `show crypto session`, `show crypto isakmp policy`, `show crypto ipsec transform-set`, `clear crypto sa`. Loggen visar `proxy identities not supported` när ACL:erna inte speglar varandra.
+- **Veckans fel:**
+  - 🦀 *Tunneln är uppe men inget går igenom* – två fel samtidigt: Borås crypto-ACL har /24 i stället för /26, och Göteborgs NAT-lista saknar deny-raden för VPN-trafiken. Rättar du bara det ena fungerar det fortfarande inte.
+  - 🦀 *Små paket går fram, stora inte* – ingen router klämmer MSS. Ping fungerar, men filkopieringen på lagret hänger.
+  - 💬 *Tidrapporten fungerar varannan gång* – webbtjänsten på Tid-2 har kraschat, men lastbalanseraren pingar bara servern.
+- Frågesport, veckans utmaning, ledtrådar, felrapporter, NPC-repliker och handbokssida för kapitel 10, med tabellen *Tio veckor i repris*.
+
+### 100 förbättringar
+
+**Cisco IOS**
+1. `ping` tar `source`, `size`, `df-bit` och `repeat` i valfri ordning, och `source` används nu på riktigt.
+2. Utökad ping: bara `ping` frågar steg för steg (mål, antal, storlek, källa, DF-bit …) som på en riktig router.
+3. Filtret `| count` räknar matchande rader.
+4. `?` efter `|` listar filtren (begin, count, exclude, include, section).
+5. `traceroute <ip> source <interface>`.
+6. `show clock detail` visar tidskällan.
+7. `show ntp associations`.
+8. `show ip cef <ip>` visar vilken väg ett paket tar.
+9. `show ip interface` visar MTU, TCP Adjust MSS och crypto map.
+10. `ntp source <interface>` – routerns egen trafik kan få rätt källadress.
+11. `ip mtu` på interface.
+12. Pingen visar `M` när paketet måste fragmenteras men DF-biten är satt.
+13. `crypto isakmp key 0 …` och `6 …` fungerar som i IOS.
+14. Hjälptexter för alla nya nyckelord när du skriver `?`.
+
+**Windows och Linux**
+15. Windows: `ping -l <storlek>`.
+16. Windows: `ping -f` (DF-biten), med kontroll mot nätkortets egen MTU (1 472 byte data).
+17. Linux: `ping -s <storlek>`.
+18. Linux: `ping -M do`, med ”message too long” lokalt och ”Frag needed” från routern.
+19. Linux: `tracepath` visar vägens minsta MTU (pmtu).
+20. Linux: `ip route get <ip>`.
+21. Linux: `!!` kör om senaste kommandot.
+22. Linux: `| grep` med `-i`, `-v` och `-c`.
+23. Windows: `| findstr` med `/i`, `/v` och `/c`.
+24. Linux: `man` för ping, ssh, curl, tracepath, ip, screen, nc och grep.
+25. Linux: `echo`.
+26. Linux: `dig +short <namn>`.
+27. Linux: `sl` (för den som skriver fel).
+28. Linux: `uname -a` och `id`.
+29. Linux: `cat /etc/hosts`.
+30. Linux: `history -c`.
+31. Windows: `echo` med `%USERNAME%` och `%COMPUTERNAME%`.
+32. `curl` på både Windows och Linux, med `-I` för bara svarshuvudet.
+33. Windows: `copy \\server\share\fil` – en riktig filöverföring.
+34. Linux: `for i in 1 2 3 4; do curl …; done` för att testa en lastbalanserare.
+35. Tab-komplettering av kommandon och vanliga adresser i Linux- och Windows-terminalen.
+
+**Terminalen**
+36. Ctrl+R söker bakåt bland tidigare kommandon.
+37. Ctrl+K tar bort resten av raden.
+38. Alt+. klistrar in sista ordet från förra kommandot.
+39. Ctrl+D på tom rad loggar ut.
+40. Samma kommando två gånger i rad sparas bara en gång i historiken.
+41. Statusraden visar ISAKMP-policy, crypto map, transform-set och åtkomstlista.
+42. Statusraden visar när du är inne i lastbalanseraren eller controllern.
+43. Ny färgning: QM_IDLE, MM_NO_STATE, 502/503, fragmenteringsfel, räknare på noll, lyckade kopieringar.
+44. Egen ikon för lastbalanseraren.
+45. Snabbknappar i vecka 10: ssh till Borås och LB, curl ×4 och tracepath.
+46. Knappen `|` i tangentraden (mobil).
+47. Knappen Ctrl+R i tangentraden (mobil).
+
+**Spelet**
+48. Prestation *Tunnelbyggare*: klara vecka 10.
+49. Prestation *MTU-detektiv*: fem ping med DF-biten satt.
+50. Prestation *Tunnelseende*: tio `show crypto`.
+51. Prestation *Lastbalanserad*: tio webbsidor med curl.
+52. Prestation *Pendlare*: tio resor mellan Göteborg och Borås.
+53. Prestation *Hela kursen*: 30 rätt i frågesporten.
+54. Prestationerna för alla veckor, alla stjärnor, alla fel och alla utmaningar räknar med tio veckor.
+55. Karriärfönstret visar DF-ping, show crypto, curl och resor.
+56. XP första gången du använder curl, tracepath och crypto.
+57. Tangenten 0 startar vecka 10 i menyn.
+58. Menyn visar hur många veckor och stjärnor du har.
+59. Nästa vecka att spela är markerad i menyn.
+60. Vecka 10 är märkt NY tills du klarat den.
+61. Examen kan slumpa alla tio veckor.
+62. Fri träning använder det senaste nätet (med VPN och lastbalanserare).
+63. Kollegorna pratar om VPN, SD-WAN och den uppsagda linan i vecka 10.
+64. Pausen visar veckans lärandemål.
+65. Åtta nya tips (Ctrl+R, tracepath, DF-ping, källa vid ping, `| count` …).
+66. Subnätsträningen frågar efter wildcard-masker.
+67. Subnätsträningen frågar efter MSS utifrån en MTU.
+68. Felrapportens underlag tar med curl, copy, tracepath och crypto-kommandon.
+69. Skrivarens utskrift visar VPN-läget.
+70. Notis när tunneln går upp eller tappar ett SA-par.
+71. Notis när lastbalanseraren markerar en server UP eller DOWN.
+72. HUD:en visar VPN-läget till Borås.
+73. ”Nytt i version 5” första gången.
+74. HUD:en visar rätt namn när konsolkabeln sitter i lastbalanseraren.
+
+**3D och 2D**
+75. Lastbalanseraren i rack A med en lampa per server (grön UP, blinkande röd DOWN).
+76. Lastbalanserarens lampor följer färgblindläget.
+77. Tidrapportservrarna i rack B.
+78. Rackvyn visar lastbalanseraren och servrarna, och ett klick sätter konsolkabeln i LB.
+79. 2D-racken visar bara enheter som finns i veckans nät.
+80. Glasögonen visar lastbalanserarens status över racket.
+81. Glasögonen visar VPN-läget på båda routrarna.
+82. Fiberkabel från R-Boras-1 till väggboxen i Borås.
+83. Skyltarna vid väggboxarna byts till ”Hyrd lina – uppsagd” och ”Fiber → internet (VPN)”.
+84. VPN-lampa på väggboxen i Borås: grön, gul eller röd.
+85. Ping genom tunneln flyger lila i 3D och säger ”via VPN”.
+86. Samma sak i 2D.
+87. Nya felskyltar när pingen stoppas i IPsec eller är för stor.
+88. Tavlans nätskiss ritar tunneln och lastbalanseraren i vecka 10.
+89. Kollegornas skärmar visar felen: 502 hos Lisa, filservern som inte nås och en fil som laddar på lagret.
+90. Övervakningens fjärde graf visar Borås internet och VPN i stället för den uppsagda linan.
+91. Övervakningen har en VPN-panel med fas 1, SA-par och räknare.
+92. Övervakningen har en panel för lastbalanserarens pool.
+
+**Handboken**
+93. Ny flik *VPN och LB*: hur tunneln byggs, felsökningsordning, VPN/SD-WAN och lager 4 mot lager 7.
+94. Tabellen *Tio veckor i repris*.
+95. Fem nya rader i felbiblioteket.
+96. Adressplanen med Borås utsida, tunneln, lastbalanseraren, servrarna och Mölndal.
+97. Tolv nya ord i ordlistan (VPN, IKE, SA, ESP, MTU, MSS, SD-WAN, hälsokontroll …).
+98. Nytt avsnitt för Windows-kommandon.
+99. De nya terminaltangenterna under Styrning.
+100. OSI-sidan tar med felen från vecka 10.
 
 ## Version 4: animationer, modeller, prestanda, mobil och 100 förbättringar
 
@@ -537,7 +669,8 @@ natverksspel/
   lib/three.min.js           three.js r158 (MIT, se lib/THREE-LICENSE)
   lib/fonts/                 VT323 och Press Start 2P (SIL Open Font License, se OFL-*.txt)
   js/net/                    nätverksmodell (model.js) och simulator (sim.js)
-  js/cli/                    Cisco IOS (ios.js, ios_show.js), Windows/Linux (host.js), WLC (wlc.js)
+  js/cli/                    Cisco IOS (ios.js, ios_show.js), Windows/Linux (host.js), WLC (wlc.js),
+                             lastbalanseraren (lb.js)
   js/levels.js               veckorna, felen, kontrollerna och ledtrådarna
   js/world/                  3D-världen (world.js, efterbehandling i post.js, partiklar i fx.js,
                              detaljer i extras.js), 2D-världen (world2d.js), delad kod (shared.js)
@@ -555,4 +688,4 @@ node natverksspel/test/smoke.js    # DHCP, ping, NAT, DNS och STP i det felfria 
 node natverksspel/test/cli.js SW1 "show vlan brief" "show interfaces trunk"
 ```
 
-Webbläsartesterna `test/ui.js`, `test/flow.js`, `test/view.js`, `test/boot.js`, `test/features.js` och `test/v3.js` använder Playwright. Starta en webbserver på port 8765 i `natverksspel/` först.
+Webbläsartesterna `test/ui.js`, `test/flow.js`, `test/view.js`, `test/boot.js`, `test/features.js`, `test/v3.js`, `test/v4.js` och `test/v5.js` använder Playwright. Starta en webbserver på port 8765 i `natverksspel/` först.
