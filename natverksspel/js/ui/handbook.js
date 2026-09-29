@@ -119,6 +119,13 @@ NV.handbook = (function () {
         ['SW-Boras-1 (3560G)', 'Gi0/1–3 accesspunkter (PoE, trunk) · Gi0/5 lagerdatorn · Gi0/24 trunk mot R-Boras-1'],
       ]);
     },
+    mine: function () {
+      var g = NV.game, seen = {}, list = [];
+      function e(s) { return String(s).replace(/[&<>"]/g, function (x) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[x]; }); }
+      (g && g.cmdLog || []).slice().reverse().forEach(function (x) { var l = x.line.trim(); if (l && !seen[l] && list.length < 40) { seen[l] = 1; list.push(x); } });
+      if (!list.length) return '<p class="muted">Här samlas kommandona du skriver under veckan. Klicka på ett för att kopiera det.</p>';
+      return '<p class="muted">Dina senaste unika kommandon. Klicka för att kopiera.</p>' + table(['Var', 'Kommando', ''], list.map(function (x) { return [e(x.where), c(e(x.line.trim())), '<button data-cmd="' + e(x.line.trim()) + '">Kopiera</button>']; }));
+    },
     keys: function () {
       return '<h3>3D</h3>' + table(['Tangent', 'Gör'], [
         ['W A S D / piltangenter', 'Gå (Shift = spring)'], ['Mus', 'Titta – klicka i bilden för att låsa musen'], ['Håll musknappen och dra', 'Titta utan muslås (om låset inte fungerar)'],
@@ -136,6 +143,9 @@ NV.handbook = (function () {
         ['Ctrl+Z', 'Hoppa till # från konfigurationsläge'], ['Ctrl+L', 'Rensa skärmen'], ['PageUp / PageDown', 'Bläddra'], ['Ctrl+Shift+C', 'Kopiera markerad text'],
         ['Ctrl+A K', 'Stäng konsolen (screen)'], ['Esc', 'Stäng terminalfönstret'],
         ['→', 'Ta den grå kompletteringen'], ['Ctrl+F', 'Sök i utskriften (Enter = nästa)'], ['⟲', 'Lista med tidigare kommandon'],
+      ]) + '<h3>Pekskärm</h3>' + table(['Gest', 'Gör'], [
+        ['Styrspaken nere till vänster', 'Gå (knappen 🏃 växlar spring)'], ['Dra med fingret', 'Titta (3D)'], ['Tryck på något', 'Använd det (3D och 2D)'], ['Nyp med två fingrar', 'Zooma (2D)'],
+        ['☰ uppe till höger', 'Alla funktioner: karta, handbok, glasögon, helskärm …'], ['Tangentraden i terminalen', 'Tab, ?, pilar, Ctrl+C, Ctrl+Z och Ctrl+A K'],
       ]) + '<p class="muted">Tips: gå fram till en enhet i racket och tryck E för att sätta i konsolkabeln. Laptopen öppnas då med rätt kommando förifyllt. I 2D öppnas rackvyn där du klickar på enheten.</p>';
     },
     calc: function () {

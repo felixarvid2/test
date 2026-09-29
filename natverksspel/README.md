@@ -13,6 +13,10 @@ Spelet är helt statiskt och behöver ingen installation eller internetuppkoppli
 
 3D-läget kräver WebGL. 2D-läget fungerar i alla moderna webbläsare – saknas WebGL startar spelet i 2D.
 
+Spelet väljer grafiknivå automatiskt (Minimal, Låg, Medel, Hög eller Ultra) efter grafikkort, minne och om det är en mobil. Nivån kan ändras under Inställningar. Går det trögt föreslår spelet självt en lägre nivå och fortsätter veckan efter omladdningen.
+
+På **mobil och surfplatta** styr du med en styrspak nere till vänster och knappar till höger, drar med fingret för att titta i 3D och trycker direkt på saker för att använda dem. ☰ uppe till höger har alla funktioner, och terminalen får en rad med Tab, ?, pilar, Ctrl+C, Ctrl+Z och Ctrl+A K. Mobiler startar i 2D, men 3D finns i menyn. Liggande läge rekommenderas.
+
 ## 3D eller 2D
 
 Välj visning i startmenyn (valet sparas och kan bytas mitt i en vecka via menyn).
@@ -48,9 +52,19 @@ Välj visning i startmenyn (valet sparas och kan bytas mitt i en vecka via menyn
 | J | Karriär, prestationer och statistik |
 | K | Minikarta |
 | P | Fotoläge |
+| Z / X (2D) | Zooma in / ut |
+| 1–9 (menyn) | Starta en vecka |
 | Esc | Paus / stäng |
 
-I terminalen fungerar `?`, Tab, → (ta den grå kompletteringen), ↑/↓, Ctrl+C, Ctrl+Z, Ctrl+A K (stäng `screen`), Ctrl+L (rensa), Ctrl+F (sök), Ctrl+Shift+C (kopiera markering) och PageUp/PageDown.
+I terminalen fungerar `?`, Tab, → (ta den grå kompletteringen), ↑/↓, Ctrl+C, Ctrl+Z, Ctrl+A K (stäng `screen`), Ctrl+L (rensa), Ctrl+U (rensa raden), Ctrl+W (ta bort ordet), Ctrl+F (sök), Ctrl + / Ctrl − (textstorlek), Ctrl+Shift+C (kopiera markering) och PageUp/PageDown. Klicka på en IP-adress för att pinga den och på ett portnamn för `show interfaces`.
+
+### På mobilen
+
+Spelet går att spela på en pekskärm och startar då i 2D. Styrspaken nere till vänster styr, knapparna till höger använder, springer, hoppar och hukar, och ☰ uppe till höger öppnar alla funktioner. I 3D drar du med fingret för att titta och trycker på det du vill använda. Nyp med två fingrar för att zooma i 2D. I terminalen finns en tangentrad med Tab, ?, pilar, Ctrl+C, Ctrl+Z och Ctrl+A K.
+
+### Grafiknivåer
+
+Spelet väljer själv en nivå efter grafikkort, minne och om det är en mobil (Automatiskt). Du kan också välja Minimal, Låg, Medel, Hög eller Ultra i inställningarna. Går spelet trögt föreslår det en lägre nivå, och din vecka fortsätter där du var efter omladdningen.
 
 Lösenord (står på lappen vid laptopen): enable `Krabba2026`, ssh `drift` / `Krabba2026`.
 
@@ -69,6 +83,181 @@ Lösenord (står på lappen vid laptopen): enable `Krabba2026`, ssh `drift` / `K
 | 9 | Säkerhet och brandvägg | ACL i fel riktning, implicit deny, port security err-disabled |
 
 Varje fel är simulerat på riktigt. Symptomen räknas fram ur konfigurationen: länkar, duplex, VLAN och trunkar, STP, routing, ARP, ACL, NAT, DHCP, DNS, PoE och port security. Ett fel försvinner därför bara när orsaken är rättad.
+
+## Version 4: animationer, modeller, prestanda, mobil och 100 förbättringar
+
+### Animationer i 3D
+
+- Kollegorna har leder: höft, rygg, bröst, nacke, huvud, axlar, armbågar, händer, lår, knän och fötter.
+- Alla rörelser glider mjukt mellan poser, lika snabbt oavsett bildfrekvens.
+- De som sitter skriver på tangentbordet med händerna, lutar sig mot skärmen och tittar upp ibland.
+- Omar går med en riktig gångcykel: knäböj, armsving, höftgung och lätt studs – och svänger mjukt.
+- De som står flyttar vikten mellan benen, och alla andas.
+- Huvud, ögon och överkropp vänder sig mot dig i den ordningen när du kommer nära.
+- De blinkar, och munnen och ögonbrynen visar humöret: sura med öppet ärende, glada när det är löst.
+- Gester: vinka (den som har ett ärende), sträcka på sig, klia sig i huvudet, dricka kaffe, titta på klockan, skaka på huvudet, sucka och jubla.
+- Handgester, nickar och munrörelser när de pratar med dig.
+- Krabban går med växelvisa ben, gungar, knäpper med klorna och följer dig med ögonen.
+- Dörrarna till serverrummet (skjutdörr med kortläsare), ekonomi och fikarummet öppnas när du kommer nära.
+- Racken har perforerade frontdörrar som svänger upp när du närmar dig.
+- Trucken startar och bromsar mjukt, svänger, rullar med hjulen, lyfter gafflarna och har en blinkande lampa.
+- Kameran gungar i takt med stegen (fotstegsljudet följer), svajar lite i sidled och fjädrar vid landning.
+- Laptopen i handen släpar efter musen och gungar med stegen.
+- Kollegor långt bort animeras mer sällan, så att det flyter.
+
+### Snyggare modeller
+
+- Nytt modellbibliotek med rundade kanter på möbler, datorer, truck och figurer.
+- Figurerna har formad bål, händer med tumme, skor med sula, öron, näsa, ögon med pupiller, ögonbryn och mun.
+- Olika frisyrer (lång, hästsvans, knut, lockig, kort, tunnhårig, keps), skägg, glasögon, headset, slips och namnbricka.
+- Kontorsstolar med armstöd, gaslyft och femarmat kryss med hjul.
+- Skrivbord med T-ben, kabelränna och hurts med lådor.
+- Tunna skärmar med fot, baksida och logga, tangentbord med tangenter, rundad mus och musmatta.
+- Datorer med ventilationsgaller och lampa.
+- Krukväxter med riktiga böjda blad, jord och krukkant.
+- Soffor med dynor, ryggkuddar och ben.
+- Krabban med knölar, ledade ben och klor med underkäke.
+- Trucken med förarplats, skyddstak, mast, gafflar och hjul med nav.
+- Lastpallar under kartongerna, och kartonger med tejp och fraktsedel.
+
+### Flyter bättre på äldre datorer
+
+- Automatisk grafiknivå utifrån grafikkort, minne, processor och om det är en mobil.
+- Fem nivåer: Minimal, Låg, Medel, Hög och Ultra.
+- Allt som aldrig rör sig slås ihop per material och per ruta på 10 × 10 m (runt 1 300 delar blir drygt 150).
+- Kollegornas delar slås ihop per led, vilket ger ungefär hälften så många ritanrop per figur.
+- Låg och Minimal använder billigare material och tar bort punktljusen.
+- Skuggorna ritas bara om när de behöver det (på Medel var tredje bildruta).
+- Tak för bildfrekvensen (30 eller 60 bilder/s); Minimal har 30 som standard.
+- Frontpanelernas lysdioder ritas bara om för paneler som syns och är nära.
+- Färre partiklar och inga dammkorn på låga nivåer.
+- 2D ritas i lägre upplösning på svagare enheter.
+- Går det trögt föreslår spelet en lägre nivå. Veckan sparas och fortsätter efter omladdningen.
+
+### Mobil och pekskärm
+
+- Styrspak, knappar för att använda, springa, hoppa och huka, och en ☰-meny med alla funktioner.
+- Snabbknappar för laptop, rapport, ledtråd och karta.
+- Dra för att titta i 3D, tryck på saker för att använda dem, nyp för att zooma i 2D.
+- Knappen Använd visar vad du kan göra just nu.
+- Tangentrad i terminalen, terminalen fyller skärmen och texten är stor nog för att telefonen inte ska zooma.
+- Mobiler startar i 2D och på en lägre grafiknivå.
+- Helskärm (låser liggande läge där det går), vibration och skärmen hålls tänd.
+- Tips om att vrida telefonen i 3D, anpassade menyer och dialoger för små skärmar.
+
+### 100 andra förbättringar
+
+**Tillgänglighet och gränssnitt**
+1. Storlek på text och fönster (80–140 %).
+2. Färgblindläge: blått och orange i lysdioder, glasögon, terminal och frågesport.
+3. Hög kontrast.
+4. Minska rörelse: inga skakningar, blixtar, slowmotion eller gungningar.
+5. Textning av ljud (telefon, larm, truck, dörrar, kaffe …).
+6. Inställbar storlek på siktet.
+7. Dialoger tonar och skalar in.
+8. Notiser kan klickas bort.
+9. Högst fyra notiser syns samtidigt.
+10. Klicka på ett ärende uppe till vänster så visar pilen vägen dit.
+11. Nedräkning för kombobonusen i HUD:en.
+12. Veckans utmaning visas i HUD:en.
+13. En liten ”Sparat”-markering när spelet sparar.
+14. Pausen visar vecka, ärenden kvar, tid och ett tips.
+15. Ljud av/på direkt i pausen.
+16. Teckenförklaring på kartan.
+17. Klicka på minikartan för att sätta en markering.
+18. Återställ inställningar.
+19. Exportera framsteg som text.
+20. Importera framsteg på en annan dator.
+21. Nollställ framsteg (med bekräftelse).
+22. Siffrorna 1–9 startar en vecka i menyn.
+23. Piltangenterna flyttar mellan veckorna i menyn.
+24. Versionsnummer i menyn.
+25. ”Nytt i version 4” första gången.
+26. Veckokorten visar 🏅 när veckans utmaning är klarad.
+27. Anteckningar: knapp som infogar tid och plats.
+28. Handboken: fliken Mina kommandon med dina senaste kommandon att kopiera.
+29. Handboken: styrning på pekskärm.
+30. Felrapportens utkast sparas om du stänger den.
+31. Rumsskylt när du går in i ett nytt rum.
+32. Egna volymer för effekter och miljöljud.
+
+**Terminalen**
+33. Klicka på en IP-adress för att skriva ping.
+34. Klicka på ett portnamn för att skriva show interfaces.
+35. Dubbelklicka på ett ord för att skriva in det.
+36. Ctrl+U rensar raden.
+37. Ctrl+W tar bort senaste ordet.
+38. Ctrl + och Ctrl − ändrar textstorleken.
+39. Knappen ”Nya rader ↓” när du läser längre upp.
+40. Kopiera hela sessionen.
+41. Fönstrets storlek sparas.
+42. Statusraden visar när ett kommando arbetar.
+43. Linux: date och uptime.
+44. Linux: neofetch och fortune med nätverkstips.
+45. Windows: ver och whoami.
+46. Windows: date och time.
+47. Windows: systeminfo.
+
+**Spelmekanik**
+48. Veckans utmaning – en per vecka.
+49. Utmaningen står i veckans genomgång.
+50. 75 XP och en medalj när du klarar utmaningen.
+51. Frågesport vid tavlan i fikarummet: tre frågor per vecka, 27 totalt.
+52. XP för nya rätta svar i frågesporten.
+53. Subnätsträning i handboken med svit och rekord.
+54. Betyg A–E när veckan är klar.
+55. Dina bästa tider per vecka i karriärfönstret.
+56. ”Nytt rekord!” när du slår din bästa tid.
+57. Dina mest använda kommandon i veckans sammanfattning.
+58. Tio nya prestationer (30 totalt).
+59. Vädret skiftar mellan veckorna: sol, moln eller regn.
+60. Vädret står i veckans genomgång.
+61. Kollegorna säger ”Tack!” när deras ärende är klart.
+62. Skrivaren skriver ut ärendelistan – bara om den nås i nätet.
+63. Vattenautomat i fikarummet.
+64. Dammsugarroboten Städ-Sture åker runt i kontoret.
+65. Position och blickriktning sparas med autosparningen.
+66. Veckans XP, rapportutkast och väder sparas också.
+67. Kaffemaskinens lampa är röd medan kaffet verkar och visar tiden som är kvar.
+
+**3D-världen**
+68. Regn som rinner på fönstren.
+69. Mulen eller regnig himmel och svagare sol.
+70. Solstrålarna syns bara när solen skiner.
+71. Regnljud.
+72. Veckans nätskiss på tavlan, med det som berörs i rött.
+73. Tre tavlor med konst.
+74. Bokhylla med pärmar i ekonomi.
+75. Mattor i receptionen och kontorslandskapet.
+76. Papper och pärmar på skrivborden.
+77. Upplyst Nordvik-skylt i receptionen.
+78. Kabelrullar på väggen i serverrummet.
+79. Brandvarnare i taket som blinkar.
+80. Trafikljus vid lastkajen som följer trucken.
+81. Truckladdare med pulserande lampa.
+82. Utskriften glider ut ur skrivaren.
+83. Bubblor i vattenautomaten.
+84. Krabban lämnar fotspår.
+85. Glasögonen visar accesspunkternas status.
+86. Fotoläget döljer även skyltar och markeringar i världen.
+
+**2D**
+87. Omar går fram och tillbaka även i 2D.
+88. Regn och moln i 2D.
+89. Mjuk zoom.
+90. Z och X zoomar.
+91. Fotspår när du går utomhus.
+92. Pratbubbla med ”…” över den du pratar med.
+93. Dammsugarroboten i 2D.
+94. Utskrift och bubblor i 2D.
+95. ”Tack!” över kollegor i 2D.
+
+**Ljud**
+96. Skrivarljud.
+97. Bubbelljud från vattenautomaten.
+98. Dammsugarens surr som hörs när du är nära.
+99. Ljud från dörrarna när de öppnas.
+100. En diskret ton när du går in i ett nytt rum.
 
 ## Version 3: 150 förbättringar
 

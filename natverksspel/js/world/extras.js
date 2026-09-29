@@ -46,6 +46,10 @@ NV.extras3d = (function () {
     this.rackFans();
     this.apRings();
     this.crabBuild();
+    this.doors();
+    this.rackDoors();
+    this.truckModel();
+    this.weatherSetup();
     this.marker();
     this.flashlight();
     this.viewmodel();
@@ -94,14 +98,18 @@ NV.extras3d = (function () {
     ct.t.wrapS = THREE.RepeatWrapping;
     ct.t.repeat.set(0.35, 1);
     var m = this.b.mats.skyWin;
-    if (m) { m.map = ct.t; m.emissiveMap = ct.t; m.needsUpdate = true; this.skyMat = m; }
+    if (m) { m.map = ct.t; m.emissiveMap = ct.t; m.needsUpdate = true; m.userData.keep = true; this.skyMat = m; }
   };
   E.drawSky = function (warm) {
     var g = this.skyCv.g;
     var gr = g.createLinearGradient(0, 0, 0, 256);
-    gr.addColorStop(0, warm > 0.5 ? '#9fb6d8' : '#8fbbe6'); gr.addColorStop(0.58, warm > 0.5 ? '#f3d9b8' : '#d8e8f3');
-    gr.addColorStop(0.6, '#7e9670'); gr.addColorStop(1, '#556a4c');
+    var wx = this.weather || 'sun';
+    var top = wx === 'rain' ? '#6f7a86' : (wx === 'clouds' ? '#9aaabb' : (warm > 0.5 ? '#9fb6d8' : '#8fbbe6'));
+    var hor = wx === 'rain' ? '#a9b2bb' : (wx === 'clouds' ? '#cfd8e0' : (warm > 0.5 ? '#f3d9b8' : '#d8e8f3'));
+    gr.addColorStop(0, top); gr.addColorStop(0.58, hor);
+    gr.addColorStop(0.6, wx === 'rain' ? '#5f7258' : '#7e9670'); gr.addColorStop(1, wx === 'rain' ? '#44533d' : '#556a4c');
     g.fillStyle = gr; g.fillRect(0, 0, 1024, 256);
+    if (wx !== 'sun') { g.fillStyle = wx === 'rain' ? 'rgba(90,98,108,0.55)' : 'rgba(255,255,255,0.35)'; for (var q = 0; q < 14; q++) { g.beginPath(); g.ellipse(q * 80 + 20, 30 + (q % 3) * 18, 90, 26, 0, 0, Math.PI * 2); g.fill(); } }
     var r = 7;
     function rn() { r = (r * 16807) % 2147483647; return r / 2147483647; }
     // Moln
@@ -143,7 +151,7 @@ NV.extras3d = (function () {
 
   // ------------------------------------------------------------------ Solstrålar och dammkorn
   E.sunbeams = function () {
-    var self = this;
+    var self = this, P = NV.gfx.profile();
     var mat = new THREE.ShaderMaterial({
       uniforms: { uI: { value: 0.12 }, uCol: { value: new THREE.Color(1, 0.92, 0.75) }, uLen: { value: 4.4 } },
       vertexShader: 'varying vec3 vP; varying vec3 vN; varying vec3 vV; void main(){ vP = position; vN = normalize(normalMatrix * normal); vec4 mv = modelViewMatrix * vec4(position,1.0); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
@@ -160,8 +168,8 @@ NV.extras3d = (function () {
       m.position.copy(c);
       m.lookAt(c.clone().add(dir));
       m.renderOrder = 3;
-      self.scene.add(m);
-      self.fx.emitter(function () { this.mote({ x1: x - 0.8, x2: x + 0.8, y1: 0.4, y2: 2.2, z1: 6.8, z2: 9.7 }); }, 3.2, { x: x, z: 8.5 }, 12);
+      if (P.beams) self.scene.add(m);
+      if (P.motes) self.fx.emitter(function () { this.mote({ x1: x - 0.8, x2: x + 0.8, y1: 0.4, y2: 2.2, z1: 6.8, z2: 9.7 }); }, 3.2, { x: x, z: 8.5 }, 12);
     });
   };
 
@@ -314,6 +322,7 @@ NV.extras3d = (function () {
     var pole = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.12, 8), this.b.std(0x333333, 0.4, 0.6)); pole.position.y = 0.06; tower.add(pole);
     this.towerMats = [0xff3b30, 0xffb020, 0x33ff66].map(function (col, i) {
       var m = new THREE.MeshStandardMaterial({ color: 0x222222, emissive: col, emissiveIntensity: 0, transparent: true, opacity: 0.9, roughness: 0.3 });
+      m.userData.keep = true;
       var seg = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.05, 16), m);
       seg.position.y = 0.3 - i * 0.055; tower.add(seg);
       return m;
@@ -325,9 +334,11 @@ NV.extras3d = (function () {
     var dome = new THREE.Mesh(new THREE.SphereGeometry(0.08, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x551111, emissive: 0xff2010, emissiveIntensity: 0.2, transparent: true, opacity: 0.85 }));
     dome.rotation.x = Math.PI; this.beacon.add(dome);
     this.beaconMat = dome.material;
+    this.beaconMat.userData.keep = true;
     this.beaconLight = new THREE.PointLight(0xff2a10, 0, 7, 2);
     this.beaconLight.position.set(-9.2, 2.6, -3);
-    this.scene.add(this.beacon); this.scene.add(this.beaconLight);
+    this.scene.add(this.beacon);
+    if (NV.gfx.profile().lights) this.scene.add(this.beaconLight);
     this.fx.emitter(function (w) { this.smoke(w, 0x4a3a3a); }, 3, function () { return self.storm ? { x: self.A.rackA.x + 0.3, y: 2.1, z: self.A.rackA.z } : null; }, 16);
   };
 
@@ -343,8 +354,121 @@ NV.extras3d = (function () {
     cup.userData.interact = { type: 'coffee' };
     var led = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.015, 0.005), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.2, 2.5, 0.4) }));
     led.position.set(-2.72, 1.3, -9.42); this.scene.add(led);
+    this.coffeeLed = led.material;
     this.fx.emitter(function (w) { this.steam(w); }, 2.2, { x: -2.8, y: 1.02, z: -9.45 }, 10);
     this.w.collectInteractables();
+  };
+
+  // ------------------------------------------------------------------ Väder, brandvarnare, lastkaj och dammsugare
+  E.weatherSetup = function () {
+    var self = this;
+    // Regn som rinner på fönstren: en rullande textur framför varje fönster
+    var c = T.canvas(128, 256), g = c.getContext('2d');
+    g.clearRect(0, 0, 128, 256);
+    for (var i = 0; i < 70; i++) { var x = Math.random() * 128, y = Math.random() * 256, l = 8 + Math.random() * 22; g.strokeStyle = 'rgba(220,235,255,' + (0.25 + Math.random() * 0.4) + ')'; g.lineWidth = 1 + Math.random(); g.beginPath(); g.moveTo(x, y); g.lineTo(x - 1.5, y + l); g.stroke(); }
+    for (var j = 0; j < 40; j++) { g.fillStyle = 'rgba(230,240,255,0.5)'; g.beginPath(); g.arc(Math.random() * 128, Math.random() * 256, 1 + Math.random() * 2, 0, Math.PI * 2); g.fill(); }
+    var t = T.toTex(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(2, 1);
+    this.rainMat = new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false, opacity: 0.8 });
+    this.rainPlanes = [];
+    this.b.sem.forEach(function (s) {
+      if (s.type !== 'window') return;
+      var m = new THREE.Mesh(new THREE.PlaneGeometry(s.w, s.h), self.rainMat);
+      m.position.set(s.x, s.y, s.z); m.rotation.y = s.ry; m.translateZ(0.012);
+      m.visible = false; m.userData.dynamic = true; m.renderOrder = 2;
+      self.scene.add(m); self.rainPlanes.push(m);
+    });
+    // Brandvarnare i taket med en lampa som blinkar
+    this.smokeMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.5, 0.2, 0.1) });
+    this.smokeMat.userData.keep = true;
+    [[-10.5, -6], [-1.5, -6], [9, -6], [-10, 6], [3, 4], [10, 7], [-10, 0]].forEach(function (p) {
+      var d = NV.models.mesh(NV.models.cyl(0.07, 0.07, 0.035, 16), self.b.std(0xf4f4f2, 0.5, 0), p[0], 2.98, p[1], self.scene, false);
+      var l = new THREE.Mesh(new THREE.SphereGeometry(0.008, 6, 4), self.smokeMat); l.position.set(p[0] + 0.03, 2.96, p[1]); self.scene.add(l);
+    });
+    // Trafikljus vid lastkajen och truckladdare
+    var tl = new THREE.Group(); tl.position.set(111.75, 3.4, 3.4); tl.rotation.y = -Math.PI / 2;
+    NV.models.mesh(NV.models.rbox(0.2, 0.46, 0.12, 0.03), this.b.std(0x1b1b1b, 0.5, 0.3), 0, 0, 0, tl);
+    this.dockRed = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.5, 0.15, 0.1) });
+    this.dockGreen = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.1, 0.4, 0.1) });
+    [[this.dockRed, 0.1], [this.dockGreen, -0.1]].forEach(function (x) { var s = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 8), x[0]); s.position.set(0, x[1], 0.05); tl.add(s); });
+    this.scene.add(tl);
+    this.b.box(0.5, 0.9, 0.35, 110.9, 0.45, 10.5, this.b.std(0x2a3f5a, 0.5, 0.3), { collide: true });
+    this.chargeMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.2, 2.5, 0.4) });
+    var cl = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.04, 0.01), this.chargeMat); cl.position.set(110.9, 0.75, 10.32); this.scene.add(cl);
+    // Dammsugarroboten "Städ-Sture"
+    var M = NV.models, vg = new THREE.Group();
+    M.mesh(M.cyl(0.17, 0.17, 0.07, M.seg(28, 12)), this.b.std(0x2b2d31, 0.35, 0.4), 0, 0.045, 0, vg);
+    M.mesh(M.cyl(0.12, 0.12, 0.012, 20), this.b.std(0x4a4d52, 0.3, 0.6), 0, 0.085, 0, vg);
+    var vled = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 6), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.3, 1.6, 3) })); vled.position.set(0, 0.09, -0.12); vg.add(vled);
+    M.mesh(M.rbox(0.2, 0.03, 0.05, 0.01), this.b.std(0x777c82, 0.4, 0.6), 0, 0.03, -0.13, vg);
+    var vhit = new THREE.Mesh(M.cyl(0.25, 0.25, 0.2, 8), new THREE.MeshBasicMaterial({ visible: false })); vhit.position.y = 0.1; vg.add(vhit);
+    vg.traverse(function (o) { if (o.isMesh) o.userData.interact = { type: 'vacuum' }; });
+    vg.userData.dynamic = true;
+    this.scene.add(vg);
+    this.vac = vg;
+    this.w.collectInteractables();
+  };
+  E.setWeather = function (w) {
+    this.weather = w || 'sun';
+    var rain = this.weather === 'rain';
+    this.rainPlanes.forEach(function (m) { m.visible = rain; });
+    this.drawSky(0);
+    if (this.beamMat) this.beamMat.uniforms.uI.value = this.weather === 'sun' ? 0.12 : (this.weather === 'clouds' ? 0.04 : 0);
+    this.w.sun.intensity = this.weather === 'sun' ? 1.5 : (this.weather === 'clouds' ? 1.1 : 0.8);
+  };
+  E.updateWorldBits = function (dt) {
+    var t = this.t, self = this;
+    if (this.rainMat && this.weather === 'rain') this.rainMat.map.offset.y = (t * 0.35) % 1;
+    NV.sfx.rain(this.weather === 'rain' && this.w.site === 'gbg' && !(this.w.game.ui && this.w.game.ui.captures()) ? 1 : (this.weather === 'rain' ? 0.25 : 0));
+    if (this.smokeMat) this.smokeMat.color.setRGB(t % 3 < 0.12 ? 3 : 0.15, 0.05, 0.02);
+    if (this.coffeeLed) { var busy = this.w.game.boosted && this.w.game.boosted(); this.coffeeLed.color.setRGB(busy ? 2.5 : 0.2, busy ? 0.3 : 2.5, busy ? 0.1 : 0.4); }
+    if (this.dockRed && this.truck) { var go = this.truck.wait > 0; this.dockRed.color.setRGB(go ? 0.3 : 2.5, 0.1, 0.1); this.dockGreen.color.setRGB(0.1, go ? 2.5 : 0.3, 0.1); }
+    if (this.chargeMat) this.chargeMat.color.setRGB(0.2, 1 + Math.sin(t * 2) * 1.2, 0.4);
+    // Dammsugaren
+    var v = this.w.game.vac;
+    if (v && this.vac) {
+      NV.shared.vacStep(v, dt, this.w.collides.bind(this.w));
+      this.vac.visible = this.w.site === 'gbg';
+      this.vac.position.set(v.x, 0, v.z);
+      this.vac.rotation.y = -v.dir + Math.PI / 2;
+      var dv = Math.hypot(this.w.pos.x - v.x, this.w.pos.z - v.z);
+      NV.sfx.vacuum(this.w.site === 'gbg' ? Math.max(0, 1 - dv / 6) : 0);
+    }
+    // Krabbans fotspår
+    var c = this.w.game.crab;
+    if (c && c.active && c.site === this.w.site) {
+      var d = Math.hypot(c.x - (this.lastPrint ? this.lastPrint.x : 1e9), c.z - (this.lastPrint ? this.lastPrint.z : 1e9));
+      if (d > 0.22) { this.lastPrint = { x: c.x, z: c.z }; [-1, 1].forEach(function (s) { self.fx.p(self.fx.norm, { x: c.x + s * 0.06, y: 0.012, z: c.z + s * 0.04, life: 7, size: 0.035, color: 0x5a4a3a, a: 0.5, fadePow: 1.2, force: true }); }); }
+    }
+  };
+  E.printFx = function () {
+    var p = this.w.dev.extra.printer;
+    if (!p) return;
+    var sheet = new THREE.Mesh(new THREE.PlaneGeometry(0.21, 0.297), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, side: THREE.DoubleSide, transparent: true }));
+    sheet.rotation.x = -Math.PI / 2 + 0.2;
+    var start = p.position.clone().add(new V3(0, 0.1, -0.1));
+    sheet.position.copy(start);
+    this.scene.add(sheet);
+    var self = this, t0 = this.t;
+    this.tweens = this.tweens || [];
+    this.tweens.push(function () {
+      var k = (self.t - t0) / 1.6;
+      sheet.position.z = start.z + Math.min(1, k) * 0.35;
+      sheet.position.y = start.y + Math.min(1, k) * 0.02 - Math.max(0, k - 1) * 0.05;
+      if (k > 2.5) sheet.material.opacity = Math.max(0, 1 - (k - 2.5) * 2);
+      if (k > 3) { self.scene.remove(sheet); return false; }
+      return true;
+    });
+  };
+  E.waterFx = function () {
+    var p = this.A.water, self = this;
+    if (!p) return;
+    for (var i = 0; i < 18; i++) this.pending.push({ at: this.t + i * 0.08, fn: function () { self.fx.p(self.fx.add, { x: p.x + (Math.random() - 0.5) * 0.12, y: 1.02, z: p.z + (Math.random() - 0.5) * 0.12, vy: 0.35 + Math.random() * 0.2, life: 0.8, size: 0.02, color: 0xcfefff, hdr: 1.5, force: true }); } });
+  };
+  E.thank = function (name) {
+    var f = this.w.people[name];
+    if (!f || !f.group.visible) return;
+    var p = f.group.position.clone(); p.y = f.sitting ? 1.6 : 2.05;
+    this.fx.popup('Tack! 😊', p, { color: '#6dff9a', height: 0.13, life: 2.4, vy: 0.2 });
   };
   E.mugs = function () {
     var self = this, b = this.b;
@@ -367,17 +491,30 @@ NV.extras3d = (function () {
     if (ft) this.flicker = ft.material;
   };
   E.updateTruck = function (dt) {
-    var tk = this.truck;
+    var tk = this.truck, tp = this.truckParts;
     if (!tk) return;
-    if (tk.wait > 0) { tk.wait -= dt; return; }
+    if (tp) tp.beacon.material.color.setRGB(Math.sin(this.t * 8) > 0 ? 3 : 0.6, Math.sin(this.t * 8) > 0 ? 1.4 : 0.3, 0.1);
+    // Vid ändarna lyfts eller sänks gafflarna medan trucken står still
+    if (tk.wait > 0) {
+      tk.wait -= dt;
+      if (tp) { var want = tk.dir > 0 ? 0.9 : 0.12; tp.fork.position.y += (want - tp.fork.position.y) * (1 - Math.exp(-dt * 1.5)); }
+      return;
+    }
     var p = this.w.pos;
     var ahead = tk.x + tk.dir * 1.4;
-    if (Math.abs(p.x - ahead) < 1.4 && Math.abs(p.z - tk.g.position.z) < 1.2) { tk.honk = (tk.honk || 0) - dt; if (tk.honk <= 0) { NV.sfx.honk(); tk.honk = 3; } return; }
-    tk.x += tk.dir * dt * 0.9;
-    if (tk.x < 98) { tk.x = 98; tk.dir = 1; tk.wait = 3; }
-    if (tk.x > 108) { tk.x = 108; tk.dir = -1; tk.wait = 4; }
+    if (Math.abs(p.x - ahead) < 1.4 && Math.abs(p.z - tk.g.position.z) < 1.2) { tk.honk = (tk.honk || 0) - dt; if (tk.honk <= 0) { NV.sfx.honk(); tk.honk = 3; } tk.v = 0; return; }
+    // Mjuk start och inbromsning
+    var distEnd = tk.dir > 0 ? 108 - tk.x : tk.x - 98;
+    var target = Math.min(0.9, 0.2 + distEnd * 0.4);
+    tk.v = (tk.v || 0) + (target - (tk.v || 0)) * (1 - Math.exp(-dt * 2));
+    tk.x += tk.dir * dt * tk.v;
+    if (tk.x < 98) { tk.x = 98; tk.dir = 1; tk.wait = 3; tk.v = 0; }
+    if (tk.x > 108) { tk.x = 108; tk.dir = -1; tk.wait = 4; tk.v = 0; }
     tk.g.position.x = tk.x;
-    tk.g.rotation.y = tk.dir > 0 ? Math.PI : 0;
+    var wantR = tk.dir > 0 ? Math.PI : 0;
+    var dr = wantR - tk.g.rotation.y; while (dr > Math.PI) dr -= Math.PI * 2; while (dr < -Math.PI) dr += Math.PI * 2;
+    tk.g.rotation.y += dr * (1 - Math.exp(-dt * 1.2));
+    if (tp) tp.wheels.forEach(function (w) { w.rotation.z -= dt * tk.v / 0.2; });
     if (tk.col) { tk.col.minX = tk.x - 0.9; tk.col.maxX = tk.x + 0.9; }
     if (Math.random() < dt * 6 && this.w.site === 'boras') this.fx.dust({ x: tk.x - tk.dir * 0.5, z: tk.g.position.z }, 0x8d8a84);
   };
@@ -417,6 +554,7 @@ NV.extras3d = (function () {
         var blades = new THREE.Group();
         for (var i = 0; i < 5; i++) { var bl = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.004, 0.028), self.b.std(0x2a2d31, 0.5, 0.3)); bl.position.x = 0.04; bl.rotation.x = 0.4; var p = new THREE.Group(); p.rotation.y = i / 5 * Math.PI * 2; p.add(bl); blades.add(p); }
         g.add(blades);
+        g.userData.dynamic = true;
         rack.group.add(g);
         self.fans.push(blades);
       });
@@ -432,6 +570,7 @@ NV.extras3d = (function () {
       for (var i = 0; i < 2; i++) {
         var m = new THREE.Mesh(new THREE.RingGeometry(0.9, 1, 48), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.3, 1.8, 0.8), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
         m.rotation.x = Math.PI / 2;
+        m.userData.dynamic = true;
         m.position.copy(ap.group.position); m.position.y -= 0.06;
         self.scene.add(m);
         self.rings.push({ m: m, id: id, ph: i * 0.5 });
@@ -441,48 +580,203 @@ NV.extras3d = (function () {
 
   // ------------------------------------------------------------------ Krabban
   E.crabBuild = function () {
-    var b = this.b, g = new THREE.Group();
-    var shell = b.std(0xd9442a, 0.45, 0.1), dark = b.std(0x9c2a17, 0.5, 0.1), white = b.std(0xffffff, 0.3, 0), black = b.std(0x111111, 0.3, 0);
-    var body = new THREE.Mesh(new THREE.SphereGeometry(0.1, 20, 12), shell); body.scale.set(1.3, 0.55, 1); body.position.y = 0.08; g.add(body);
+    var b = this.b, M = NV.models, g = new THREE.Group();
+    var shell = b.std(0xd9442a, 0.38, 0.1), dark = b.std(0x9c2a17, 0.45, 0.1), belly = b.std(0xf2c7a0, 0.6, 0), white = b.std(0xffffff, 0.2, 0), black = b.std(0x111111, 0.2, 0);
+    var body = new THREE.Group(); body.position.y = 0.09; g.add(body);
+    var top = M.mesh(M.sphere(0.1, M.seg(22, 10), M.seg(14, 7)), shell, 0, 0, 0, body); top.scale.set(1.35, 0.5, 1.05);
+    var under = M.mesh(M.sphere(0.095, 16, 8), belly, 0, -0.012, 0, body); under.scale.set(1.25, 0.32, 0.95);
+    // Knölar på skalet
+    for (var i = 0; i < M.seg(7, 3); i++) { var a = i / 7 * Math.PI * 2; var k = M.mesh(M.sphere(0.018, 8, 6), dark, Math.cos(a) * 0.07, 0.04, Math.sin(a) * 0.05, body); k.scale.y = 0.5; }
     var legs = [];
     [-1, 1].forEach(function (s) {
-      for (var i = 0; i < 3; i++) {
-        var p = new THREE.Group(); p.position.set(s * 0.1, 0.07, -0.04 + i * 0.045); p.rotation.y = s > 0 ? 0 : Math.PI;
-        var l1 = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.09, 6), dark); l1.rotation.z = -1.1; l1.position.set(0.04, 0.01, 0); p.add(l1);
-        var l2 = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.004, 0.08, 6), dark); l2.rotation.z = 0.5; l2.position.set(0.09, -0.03, 0); p.add(l2);
-        g.add(p); legs.push({ p: p, s: s, i: i });
+      for (var j = 0; j < 4; j++) {
+        var hip = new THREE.Group(); hip.position.set(s * 0.1, 0.0, 0.05 - j * 0.035); hip.rotation.y = s * (0.35 - j * 0.22); body.add(hip);
+        var up = new THREE.Group(); up.rotation.z = s * 0.5; hip.add(up);
+        M.mesh(M.capsule(0.009, 0.06, 3, 6), dark, s * 0.035, 0, 0, up).rotation.z = Math.PI / 2;
+        var knee = new THREE.Group(); knee.position.x = s * 0.075; knee.rotation.z = -s * 1.25; up.add(knee);
+        M.mesh(M.cyl(0.008, 0.003, 0.08, 6), dark, s * 0.035, 0, 0, knee).rotation.z = Math.PI / 2;
+        legs.push({ up: up, knee: knee, s: s, j: j });
       }
-      var arm = new THREE.Group(); arm.position.set(s * 0.08, 0.09, -0.08);
-      var a1 = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.08, 6), shell); a1.rotation.x = Math.PI / 2; a1.rotation.z = s * 0.5; a1.position.set(s * 0.02, 0, -0.03); arm.add(a1);
-      var claw = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 8), shell); claw.scale.set(0.8, 0.6, 1.2); claw.position.set(s * 0.04, 0.01, -0.08); arm.add(claw);
-      var pin = new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.05, 6), dark); pin.rotation.x = -Math.PI / 2; pin.position.set(s * 0.05, 0.015, -0.12); arm.add(pin);
-      g.add(arm); legs.push({ arm: arm, s: s });
-      var stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.05, 6), dark); stalk.position.set(s * 0.03, 0.14, -0.06); g.add(stalk);
-      var eye = new THREE.Mesh(new THREE.SphereGeometry(0.015, 10, 8), white); eye.position.set(s * 0.03, 0.17, -0.065); g.add(eye);
-      var pup = new THREE.Mesh(new THREE.SphereGeometry(0.007, 8, 6), black); pup.position.set(s * 0.03, 0.172, -0.078); g.add(pup);
     });
-    var hit = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.35, 8), new THREE.MeshBasicMaterial({ visible: false }));
+    // Klor med underkäke som öppnas och stängs
+    var claws = [];
+    [-1, 1].forEach(function (s) {
+      var arm = new THREE.Group(); arm.position.set(s * 0.085, 0.01, -0.07); body.add(arm);
+      M.mesh(M.capsule(0.013, 0.05, 3, 6), shell, s * 0.02, 0, -0.025, arm).rotation.set(Math.PI / 2, 0, s * 0.5);
+      var hand = new THREE.Group(); hand.position.set(s * 0.04, 0.01, -0.07); arm.add(hand);
+      var palm = M.mesh(M.sphere(0.034, 12, 8), shell, 0, 0, 0, hand); palm.scale.set(0.9, 0.65, 1.1);
+      var finger = M.mesh(M.geo('crabTip', function () { return new THREE.ConeGeometry(0.014, 0.055, 6); }), shell, 0, 0.008, -0.045, hand); finger.rotation.x = -Math.PI / 2;
+      var jawP = new THREE.Group(); jawP.position.set(0, -0.008, -0.02); hand.add(jawP);
+      var jaw = M.mesh(M.geo('crabTip', null), dark, 0, 0, -0.025, jawP); jaw.rotation.x = -Math.PI / 2; jaw.scale.set(0.8, 0.9, 0.8);
+      claws.push({ arm: arm, jaw: jawP, s: s });
+    });
+    // Ögon på skaft
+    var eyes = [];
+    [-1, 1].forEach(function (s) {
+      var st = new THREE.Group(); st.position.set(s * 0.03, 0.04, -0.07); body.add(st);
+      M.mesh(M.cyl(0.005, 0.006, 0.05, 6), dark, 0, 0.025, 0, st);
+      M.mesh(M.sphere(0.016, 10, 8), white, 0, 0.055, 0, st);
+      M.mesh(M.sphere(0.008, 8, 6), black, 0, 0.057, -0.012, st);
+      eyes.push(st);
+    });
+    var hit = new THREE.Mesh(M.cyl(0.28, 0.28, 0.35, 8), new THREE.MeshBasicMaterial({ visible: false }));
     hit.position.y = 0.15; g.add(hit);
     g.traverse(function (o) { if (o.isMesh) { o.castShadow = true; o.userData.interact = { type: 'crab' }; } });
-    g.visible = false;
+    M.mergeChildren(body, []);
+    g.visible = false; g.userData.dynamic = true;
     this.scene.add(g);
-    this.crab = { g: g, legs: legs, st: null };
+    this.crab = { g: g, body: body, legs: legs, claws: claws, eyes: eyes, gait: 0 };
     this.w.collectInteractables();
   };
   E.updateCrab = function (dt) {
     var c = this.crab, st = this.w.game.crab;
     if (!st || !st.active || st.site !== this.w.site) { c.g.visible = false; return; }
     c.g.visible = true;
+    var ox = st.x, oz = st.z;
     var moving = NV.shared.crabStep(st, dt, this.w.pos, this.w.collides.bind(this.w));
+    var moved = Math.hypot(st.x - ox, st.z - oz);
     c.g.position.set(st.x, 0, st.z);
-    c.g.rotation.y = st.face;
-    var sp = moving ? (st.fleeing ? 26 : 12) : 0;
+    // Vrid kroppen mjukt mot riktningen
+    var d = st.face - c.g.rotation.y; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2;
+    c.g.rotation.y += d * (1 - Math.exp(-dt * 10));
+    // Gång i tripod-takt: varannat ben lyfts
+    c.gait += moved * 55;
+    var amt = moving ? 1 : 0;
     c.legs.forEach(function (l) {
-      if (l.p) l.p.rotation.z = Math.sin(st.anim * sp + l.i * 1.7 + (l.s > 0 ? 0 : Math.PI)) * 0.35;
-      if (l.arm) l.arm.rotation.x = Math.sin(st.anim * 5 + (l.s > 0 ? 0 : 1)) * 0.25 - (st.fleeing ? 0.5 : 0);
+      var ph = c.gait + (l.j % 2 ? Math.PI : 0) + (l.s > 0 ? Math.PI : 0);
+      l.up.rotation.z = l.s * (0.5 + Math.max(0, Math.sin(ph)) * 0.45 * amt);
+      l.up.rotation.y = Math.cos(ph) * 0.3 * amt;
     });
-    st.anim += dt;
+    c.body.position.y = 0.09 + Math.abs(Math.sin(c.gait)) * 0.012 * amt;
+    c.body.rotation.z = Math.sin(c.gait) * 0.06 * amt;
+    // Klorna knäpper, högre och snabbare när krabban flyr
+    var t = this.t;
+    c.claws.forEach(function (cl) {
+      var snap = st.fleeing ? Math.abs(Math.sin(t * 14 + cl.s)) : Math.max(0, Math.sin(t * 2 + cl.s * 2)) * 0.6;
+      cl.jaw.rotation.x = 0.5 * snap;
+      cl.arm.rotation.x = st.fleeing ? -0.6 : Math.sin(t * 1.3 + cl.s) * 0.12;
+    });
+    // Ögonen följer spelaren
+    var toP = Math.atan2(this.w.pos.x - st.x, this.w.pos.z - st.z) - c.g.rotation.y + Math.PI;
+    c.eyes.forEach(function (e) { e.rotation.y += (Math.sin(toP) * 0.6 - e.rotation.y) * 0.2; e.rotation.x = Math.sin(t * 3 + e.position.x * 40) * 0.1; });
     if (moving && st.fleeing && Math.random() < dt * 10) this.fx.dust({ x: st.x, z: st.z }, 0xcfc6b0);
+  };
+
+  // ------------------------------------------------------------------ Dörrar som öppnas när du kommer nära
+  E.doors = function () {
+    var self = this, b = this.b, M = NV.models;
+    this.doorList = [];
+    var wood = b.std(0xc9a57a, 0.55, 0), frame = b.std(0x9aa0a6, 0.4, 0.6), handle = b.std(0xdfe3e6, 0.25, 0.9);
+    // Skjutdörr till serverrummet med kortläsare
+    var sd = new THREE.Group(); sd.position.set(-10.4, 0, -2.09);
+    M.mesh(M.rbox(1.22, 2.08, 0.045, 0.015), b.std(0x7c8590, 0.45, 0.5), 0, 1.04, 0, sd);
+    M.mesh(M.rbox(0.5, 0.7, 0.05, 0.01), b.std(0xcfe3ea, 0.05, 0.1, { transparent: true, opacity: 0.35 }), 0, 1.5, -0.001, sd, false);
+    M.mesh(M.rbox(0.04, 0.35, 0.05, 0.015), handle, 0.5, 1.05, -0.04, sd);
+    this.scene.add(sd);
+    M.mesh(M.rbox(1.5, 0.08, 0.1, 0.01), frame, -10.7, 2.14, -2.1, this.scene);
+    var reader = M.mesh(M.rbox(0.08, 0.12, 0.03, 0.01), b.std(0x222428, 0.4, 0.3), -9.6, 1.25, 1.94 - 4, this.scene);
+    reader.position.set(-9.6, 1.25, -1.93);
+    var rl = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.012, 0.005), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.5, 0.2, 0.2) }));
+    rl.position.set(-9.6, 1.29, -1.913); this.scene.add(rl);
+    this.doorList.push({ g: sd, kind: 'slide', base: -10.4, open: -1.2, cx: -10.4, cz: -2, k: 0, led: rl.material });
+    // Svängdörrar till ekonomi och fikarummet
+    function swing(hx, z, w, dir, side) {
+      var g = new THREE.Group(); g.position.set(hx, 0, z);
+      M.mesh(M.rbox(w - 0.02, 2.06, 0.045, 0.012), wood, w / 2 * side, 1.03, 0, g);
+      M.mesh(M.sphere(0.028, 10, 8), handle, (w - 0.12) * side, 1.0, -0.05, g);
+      M.mesh(M.sphere(0.028, 10, 8), handle, (w - 0.12) * side, 1.0, 0.05, g);
+      self.scene.add(g);
+      self.doorList.push({ g: g, kind: 'swing', open: dir, cx: hx + w / 2 * side, cz: z, k: 0 });
+    }
+    swing(-10, 2, 1.2, -1.45, 1);
+    swing(-2.2, -2, 1.2, 1.45, 1);
+    this.doorList.forEach(function (d) { d.g.userData.dynamic = true; });
+  };
+  E.updateDoors = function (dt) {
+    var p = this.w.pos, self = this;
+    this.doorList.forEach(function (d) {
+      var near = Math.hypot(p.x - d.cx, p.z - d.cz) < 2.3;
+      var want = near ? 1 : 0;
+      if (want && d.k < 0.05 && !d.snd) { d.snd = true; NV.sfx.door(d.kind === 'slide'); }
+      if (!want) d.snd = false;
+      d.k += (want - d.k) * (1 - Math.exp(-dt * (d.kind === 'slide' ? 5 : 4)));
+      var e = d.k * d.k * (3 - 2 * d.k);
+      if (d.kind === 'slide') { d.g.position.x = d.base + d.open * e; if (d.led) d.led.color.setRGB(near ? 0.2 : 2.5, near ? 2.5 : 0.2, 0.2); }
+      else d.g.rotation.y = d.open * e;
+    });
+  };
+
+  // Perforerade frontdörrar på racken som svänger upp när du kommer nära
+  E.rackDoors = function () {
+    var self = this, M = NV.models;
+    var c = T.canvas(128, 128), g = c.getContext('2d');
+    g.fillStyle = '#1b1d21'; g.fillRect(0, 0, 128, 128);
+    g.globalCompositeOperation = 'destination-out';
+    for (var y = 4; y < 128; y += 8) for (var x = 4 + (y / 8 % 2) * 4; x < 128; x += 8) { g.beginPath(); g.arc(x, y, 2.6, 0, Math.PI * 2); g.fill(); }
+    var t = T.toTex(c, [6, 22]);
+    var mat = new THREE.MeshStandardMaterial({ map: t, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.5, metalness: 0.6 });
+    var fr = this.b.std(0x1c1e22, 0.45, 0.6), hd = this.b.std(0xb8bec4, 0.25, 0.9);
+    this.rackDoorList = [];
+    Object.keys(this.w.dev.racks).forEach(function (k) {
+      var rack = self.w.dev.racks[k];
+      var hinge = new THREE.Group(); hinge.position.set(-0.3, 0, 0.515);
+      var panel = new THREE.Mesh(new THREE.PlaneGeometry(0.56, 1.92), mat); panel.position.set(0.3, 1.03, 0); hinge.add(panel);
+      [[0.02, 1.96, 0, 1.03], [0.58, 1.96, 0.28, 1.03]].forEach(function () {});
+      M.mesh(M.rbox(0.03, 1.96, 0.03, 0.008), fr, 0.015, 1.03, 0, hinge);
+      M.mesh(M.rbox(0.03, 1.96, 0.03, 0.008), fr, 0.585, 1.03, 0, hinge);
+      M.mesh(M.rbox(0.6, 0.03, 0.03, 0.008), fr, 0.3, 0.06, 0, hinge);
+      M.mesh(M.rbox(0.6, 0.03, 0.03, 0.008), fr, 0.3, 2.0, 0, hinge);
+      M.mesh(M.rbox(0.025, 0.22, 0.035, 0.01), hd, 0.55, 1.1, 0.03, hinge);
+      rack.group.add(hinge);
+      hinge.userData.dynamic = true;
+      self.rackDoorList.push({ g: hinge, rack: rack, k: 0 });
+    });
+  };
+  E.updateRackDoors = function (dt) {
+    var p = this.w.pos, v = new V3();
+    this.rackDoorList.forEach(function (d) {
+      d.rack.group.getWorldPosition(v);
+      var near = Math.hypot(p.x - v.x, p.z - v.z) < 4.6;
+      if (near && d.k < 0.05 && !d.snd) { d.snd = true; NV.sfx.door(false); }
+      if (!near) d.snd = false;
+      d.k += ((near ? 1 : 0) - d.k) * (1 - Math.exp(-dt * 3.5));
+      var e = d.k * d.k * (3 - 2 * d.k);
+      d.g.rotation.y = -1.9 * e;
+    });
+  };
+
+  // Truck med förarhytt, skyddstak, gafflar som lyfts och hjul som rullar
+  E.truckModel = function () {
+    var tr = this.A.truck;
+    if (!tr) return;
+    var b = this.b, M = NV.models;
+    while (tr.children.length) tr.remove(tr.children[0]);
+    var yellow = b.std(0xe0a82a, 0.45, 0.25), black = b.std(0x1a1a1a, 0.6, 0.2), steel = b.std(0x6d7176, 0.4, 0.8), seat = b.std(0x2a2a2a, 0.8, 0);
+    M.mesh(M.rbox(1.3, 0.55, 0.9, 0.08), yellow, 0.05, 0.5, 0, tr);
+    M.mesh(M.rbox(0.45, 0.6, 0.88, 0.1), black, 0.55, 0.62, 0, tr);
+    M.mesh(M.rbox(0.4, 0.1, 0.45, 0.04), seat, 0.15, 0.82, 0, tr);
+    var back = M.mesh(M.rbox(0.08, 0.4, 0.45, 0.03), seat, 0.35, 1.02, 0, tr); back.rotation.z = -0.15;
+    M.mesh(M.cyl(0.12, 0.12, 0.04, 16), black, -0.2, 1.0, 0, tr).rotation.z = 1.1;
+    [[-0.4, -0.4], [-0.4, 0.4], [0.5, -0.4], [0.5, 0.4]].forEach(function (p) { M.mesh(M.rbox(0.05, 1.3, 0.05, 0.015), black, p[0], 1.4, p[1], tr); });
+    M.mesh(M.rbox(1.0, 0.05, 0.9, 0.02), black, 0.05, 2.06, 0, tr);
+    var beacon = M.mesh(M.sphere(0.06, 12, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(3, 1.4, 0.2) }), 0.4, 2.12, 0, tr, false);
+    // Mast och gafflar
+    [-0.25, 0.25].forEach(function (z) { M.mesh(M.rbox(0.07, 2.3, 0.07, 0.01), steel, -0.7, 1.15, z, tr); });
+    var fork = new THREE.Group(); fork.position.set(-0.78, 0.12, 0); tr.add(fork);
+    M.mesh(M.rbox(0.05, 0.5, 0.7, 0.01), steel, 0, 0.25, 0, fork);
+    [-0.2, 0.2].forEach(function (z) { M.mesh(M.rbox(0.9, 0.04, 0.1, 0.01), steel, -0.45, 0.02, z, fork); });
+    // Hjul
+    var wheels = [];
+    [[-0.45, 0.44], [-0.45, -0.44], [0.55, 0.44], [0.55, -0.44]].forEach(function (p) {
+      var w = new THREE.Group(); w.position.set(p[0], 0.2, p[1]); tr.add(w);
+      M.mesh(M.cyl(0.2, 0.2, 0.16, M.seg(20, 10)), black, 0, 0, 0, w).rotation.x = Math.PI / 2;
+      M.mesh(M.cyl(0.1, 0.1, 0.17, 10), yellow, 0, 0, 0, w).rotation.x = Math.PI / 2;
+      wheels.push(w);
+    });
+    tr.traverse(function (o) { if (o.isMesh) o.castShadow = true; });
+    M.mergeChildren(tr, [beacon]);
+    tr.userData.dynamic = true;
+    this.truckParts = { fork: fork, wheels: wheels, beacon: beacon };
   };
 
   // ------------------------------------------------------------------ Målmarkör
@@ -490,6 +784,7 @@ NV.extras3d = (function () {
     var m = new THREE.Mesh(new THREE.OctahedronGeometry(0.11, 0), glowMat(0xffc53d, 2.6));
     m.scale.y = 1.5;
     m.visible = false;
+    m.userData.dynamic = true;
     this.scene.add(m);
     var halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: radialTex('rgba(255,210,90,0.9)', 'rgba(255,200,60,0)'), color: new THREE.Color(1.2, 1.0, 0.6), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
     halo.scale.set(0.4, 0.4, 1);
@@ -512,6 +807,8 @@ NV.extras3d = (function () {
   E.flashlight = function () {
     var cam = this.w.camera;
     if (!cam.parent) this.scene.add(cam);
+    // På äldre datorer skapas lampan först när den tänds (varje ljus kostar)
+    if (!NV.gfx.profile().lights && !this.torchWanted) { this.torch = { intensity: 0, lazy: true }; return; }
     var l = new THREE.SpotLight(0xfff1dc, 0, 16, 0.42, 0.55, 1.4);
     l.position.set(0.15, -0.1, 0);
     var tgt = new THREE.Object3D(); tgt.position.set(0.1, -0.05, -1);
@@ -520,6 +817,7 @@ NV.extras3d = (function () {
     this.torchOn = false;
   };
   E.toggleTorch = function () {
+    if (this.torch.lazy) { this.torchWanted = true; this.flashlight(); }
     this.torchOn = !this.torchOn;
     this.torch.intensity = this.torchOn ? 14 : 0;
     NV.sfx.click();
@@ -543,16 +841,23 @@ NV.extras3d = (function () {
     this.w.camera.add(g);
     this.vm = g;
   };
+  function rdtK(dt) { return Math.min(0.1, dt); }
   E.updateViewmodel = function (dt) {
     var w = this.w, tgt = w.consoleTarget, show = false;
     if (tgt && w.dev.entries[tgt] && !w.zoomed) {
       var p = new V3(); w.dev.entries[tgt].face.getWorldPosition(p);
       show = Math.hypot(p.x - w.pos.x, p.z - w.pos.z) < 3.2;
     }
-    this.vmK = (this.vmK || 0) + ((show ? 1 : 0) - (this.vmK || 0)) * Math.min(1, dt * 6);
+    this.vmK = (this.vmK || 0) + ((show ? 1 : 0) - (this.vmK || 0)) * (1 - Math.exp(-dt * 6));
     this.vm.visible = this.vmK > 0.02;
-    var bob = w.bob || 0;
-    this.vm.position.set(0.32 + Math.sin(bob) * 0.006, -0.3 - (1 - this.vmK) * 0.4 + Math.abs(Math.cos(bob)) * 0.006, -0.55);
+    // Laptopen släpar efter musen lite och gungar i takt med stegen
+    var bob = w.bob || 0, amp = w.bobAmp || 0, k = 1 - Math.exp(-rdtK(dt) * 8);
+    w.swayX = (w.swayX || 0) * (1 - k); w.swayY = (w.swayY || 0) * (1 - k);
+    this.vmSx = (this.vmSx || 0) + (Math.max(-0.05, Math.min(0.05, w.swayX)) - (this.vmSx || 0)) * k;
+    this.vmSy = (this.vmSy || 0) + (Math.max(-0.05, Math.min(0.05, w.swayY)) - (this.vmSy || 0)) * k;
+    var e = this.vmK * this.vmK * (3 - 2 * this.vmK);
+    this.vm.position.set(0.32 + Math.cos(bob) * 0.01 * amp - this.vmSx, -0.3 - (1 - e) * 0.4 - Math.abs(Math.sin(bob)) * 0.012 * amp + this.vmSy, -0.55);
+    this.vm.rotation.set(0.35 + this.vmSy * 2, -0.35 + this.vmSx * 3, this.vmSx * 2);
   };
 
   // ------------------------------------------------------------------ Nätverksglasögon
@@ -565,6 +870,11 @@ NV.extras3d = (function () {
     var self = this;
     this.gogglesOn = on;
     var links = this.w.game.state.links;
+    // Färgblindläge: blått för uppe, orange för nere, gult för problem
+    var cb = NV.settings.get('colorblind');
+    this.gMats.up.color.setHex(cb ? 0x3da5ff : 0x33ff88).multiplyScalar(1.8);
+    this.gMats.down.color.setHex(cb ? 0xff8a1f : 0xff3b30).multiplyScalar(2.2);
+    this.gMats.warn.color.setHex(cb ? 0xffe14d : 0xffb020).multiplyScalar(2.2);
     Object.keys(this.w.linkMeshes || {}).forEach(function (id) {
       var m = self.w.linkMeshes[id];
       if (!m.userData.baseMat) m.userData.baseMat = m.material;
@@ -610,6 +920,13 @@ NV.extras3d = (function () {
       if (!L) return;
       var p = new V3(); pc.monitor.screen.getWorldPosition(p);
       tag([[L.name, '#e6f7ef'], [L.ip, L.bad ? '#ffb020' : '#9fe8c0']], p.x, p.y + 0.55, p.z, L.bad);
+    });
+    // Accesspunkterna i lagret
+    Object.keys(this.w.dev.aps).forEach(function (id) {
+      var d = st.devices[id], ap = self.w.dev.aps[id];
+      if (!d) return;
+      var ok = d.powered && D.apJoined[id];
+      tag([[id, '#e6f7ef'], [!d.powered ? 'ingen ström (PoE)' : (D.apJoined[id] ? 'ansluten till WLC' : 'söker WLC…'), ok ? '#9fe8c0' : '#ffb020']], ap.group.position.x, ap.group.position.y - 0.6, ap.group.position.z, !ok);
     });
   };
 
@@ -773,9 +1090,13 @@ NV.extras3d = (function () {
       r.m.material.opacity = (1 - ph) * 0.6;
     });
     // Växterna gungar lite
-    (this.b.plants || []).forEach(function (p, i) { p.m.rotation.z = p.rz + Math.sin(t * 1.1 + i) * 0.035; });
+    if (NV.gfx.profile().sway) (this.b.plants || []).forEach(function (p, i) { p.m.rotation.z = p.rz + Math.sin(t * 1.1 + i) * 0.035; });
     this.updateTruck(dt);
+    this.updateWorldBits(dt);
+    if (this.tweens) this.tweens = this.tweens.filter(function (f) { return f(); });
     this.updateCrab(dt);
+    this.updateDoors(dt);
+    this.updateRackDoors(dt);
     this.updateMarker();
     this.updateViewmodel(rdt);
     // Pingspår

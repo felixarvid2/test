@@ -7,7 +7,9 @@ NV.settings = (function () {
     invertY: false,
     fov: 70,
     bob: true,
-    quality: 'high',     // 'ultra' | 'high' | 'low'
+    quality: 'auto',     // 'auto' | 'minimal' | 'low' | 'medium' | 'high' | 'ultra'
+    fpsCap: 0,
+    haptics: true,           // 0 = profilens värde, annars 30/60
     post: true,          // efterbehandling i 3D (glöd, vinjett, färgton)
     particles: true,
     smooth: false,       // mjukare musrörelse
@@ -55,9 +57,17 @@ NV.sfx = (function () {
     return ctx;
   }
   function on() { return NV.settings.get('sound') && ensure(); }
+  // Egna volymer för effekter och miljöljud
+  var fxBus = null, ambBus = null;
+  function bus() {
+    if (!fxBus) { fxBus = ctx.createGain(); fxBus.connect(master); ambBus = ctx.createGain(); ambBus.connect(master); }
+    var vf = NV.settings.get('volFx'), va = NV.settings.get('volAmb');
+    fxBus.gain.value = vf === undefined ? 1 : vf; ambBus.gain.value = va === undefined ? 1 : va;
+  }
   function out(pan) {
-    if (!pan || !ctx.createStereoPanner) return master;
-    var p = ctx.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, pan)); p.connect(master);
+    bus();
+    if (!pan || !ctx.createStereoPanner) return fxBus;
+    var p = ctx.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, pan)); p.connect(fxBus);
     return p;
   }
   function tone(freq, dur, type, vol, when, pan, slide) {
@@ -96,9 +106,11 @@ NV.sfx = (function () {
       var src = ctx.createBufferSource(); src.buffer = noiseBuf; src.loop = true;
       var f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
       var g = ctx.createGain(); g.gain.value = 0;
-      src.connect(f); f.connect(g); g.connect(master); src.start();
+      bus();
+      src.connect(f); f.connect(g); g.connect(ambBus); src.start();
       L = loops[name] = { g: g };
     }
+    if (Math.random() < 0.02) bus();
     var want = Math.max(0, Math.min(1, level)) * max;
     L.g.gain.value += (want - L.g.gain.value) * 0.1;
   }
@@ -149,6 +161,7 @@ NV.sfx = (function () {
     xp: function () { tone(1318, 0.06, 'square', 0.035); tone(1760, 0.08, 'square', 0.03, 0.05); },
     levelUp: function () { [523, 659, 784, 1047, 1319, 1568].forEach(function (f, i) { tone(f, 0.3, 'square', 0.06, i * 0.08); tone(f / 2, 0.3, 'triangle', 0.05, i * 0.08); }); },
     achievement: function () { [784, 988, 1175, 1568].forEach(function (f, i) { tone(f, 0.25, 'triangle', 0.08, i * 0.07); }); tone(2093, 0.6, 'sine', 0.05, 0.3); },
+    door: function (slide) { if (slide) { noise(0.6, 300, 0.05, { type: 'bandpass', sweep: 900, q: 1, attack: 0.1 }); tone(880, 0.06, 'sine', 0.03, 0.05); tone(1320, 0.08, 'sine', 0.03, 0.12); } else { noise(0.35, 250, 0.04, { type: 'lowpass', sweep: 600, attack: 0.05 }); tone(140, 0.12, 'triangle', 0.03, 0.02); } },
     whoosh: function () { noise(0.5, 400, 0.06, { type: 'bandpass', sweep: 2400, q: 1.2, attack: 0.15 }); },
     thud: function () { tone(110, 0.15, 'sine', 0.12, 0, 0, 60); noise(0.08, 300, 0.08); },
     bell: function () { tone(1760, 0.12, 'sine', 0.05); },
@@ -158,6 +171,11 @@ NV.sfx = (function () {
     goggles: function (on) { tone(on ? 600 : 1200, 0.18, 'sine', 0.05, 0, 0, on ? 1200 : 600); },
     // Fläktbrus som följer avståndet till racken (0..1)
     hum: function (level) { loop('hum', 180, 'bandpass', 0.6, level, 0.12); },
+    rain: function (level) { if (level > 0 || loops.rain) loop('rain', 2600, 'bandpass', 0.35, level, 0.05); },
+    vacuum: function (level) { if (level > 0 || loops.vac) loop('vac', 900, 'bandpass', 3, level, 0.04); },
+    printer: function () { for (var i = 0; i < 6; i++) { noise(0.12, 1800, 0.05, { type: 'bandpass', q: 4, when: i * 0.18 }); tone(220 + i * 10, 0.1, 'square', 0.015, i * 0.18); } noise(0.6, 900, 0.03, { type: 'bandpass', when: 1.1, sweep: 400 }); },
+    bubble: function () { for (var i = 0; i < 5; i++) tone(300 + Math.random() * 300, 0.12, 'sine', 0.05, i * 0.13, 0, 700 + Math.random() * 400); },
+    zone: function () { tone(1568, 0.25, 'sine', 0.012); },
     // Rumston: kontorssorl eller lagrets muller
     ambience: function (kind, level) {
       loop('office', 420, 'bandpass', 0.4, kind === 'office' ? level : 0, 0.03);

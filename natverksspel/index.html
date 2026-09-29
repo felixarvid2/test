@@ -2,10 +2,14 @@
 <html lang="sv">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0f1216">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Krabba-passet</title>
   <meta name="description" content="Ett spel i 3D eller 2D där du är nätverkstekniker på Nordvik och felsöker Cisco-utrustning via CLI.">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/v4.css">
 </head>
 <body>
   <canvas id="view"></canvas>
@@ -48,6 +52,7 @@
         <button data-act="font-" title="Mindre text">A−</button>
         <button data-act="font+" title="Större text">A+</button>
         <button data-act="copy" title="Kopiera markerad text (Ctrl+Shift+C)">Kopiera</button>
+        <button data-act="copyall" title="Kopiera hela sessionen">Kopiera allt</button>
         <button data-act="disconnect" title="Ctrl+A K">Koppla från</button>
         <button data-act="close" title="Esc">Stäng</button>
       </div>
@@ -55,6 +60,8 @@
         <pre class="term-out"></pre>
         <div class="term-line"><span class="term-prompt"></span><span class="term-inwrap"><input class="term-input" autocomplete="off" autocapitalize="off" spellcheck="false"><span class="term-ghost"></span><span class="term-cursor"></span></span></div>
       </div>
+      <button class="term-new hidden">Nya rader ↓</button>
+      <div class="term-keys"><button data-k="Tab">Tab</button><button data-k="?">?</button><button data-k="ArrowUp">↑</button><button data-k="ArrowDown">↓</button><button data-k="ArrowRight">→</button><button data-k="ctrl-c">Ctrl+C</button><button data-k="ctrl-z">Ctrl+Z</button><button data-k="ctrl-u">Ctrl+U</button><button data-k="ctrl-a-k">Ctrl+A K</button><button data-k="Enter">⏎</button></div>
       <div class="term-hist hidden"></div>
       <div class="term-status"><span class="ts-conn"></span><span class="ts-mode"></span><input class="term-find" placeholder="Sök… (Ctrl+F)" aria-label="Sök i terminalen" autocomplete="off" spellcheck="false"><span class="ts-time"></span></div>
     </div>
@@ -73,6 +80,8 @@
   <script src="js/cli/wlc.js"></script>
   <script src="js/levels.js"></script>
   <script src="js/world/tex.js"></script>
+  <script src="js/world/gfx.js"></script>
+  <script src="js/world/models.js"></script>
   <script src="js/world/building.js"></script>
   <script src="js/world/devices.js"></script>
   <script src="js/world/people.js"></script>
@@ -85,9 +94,11 @@
   <script src="js/ui/settings.js"></script>
   <script src="js/ui/career.js"></script>
   <script src="js/ui/minimap.js"></script>
+  <script src="js/ui/touch.js"></script>
   <script src="js/ui/handbook.js"></script>
   <script src="js/ui/terminal.js"></script>
   <script src="js/ui/ui.js"></script>
+  <script src="js/ui/more.js"></script>
   <script src="js/game.js"></script>
 </body>
 </html>

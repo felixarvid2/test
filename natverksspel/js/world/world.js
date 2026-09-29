@@ -24,33 +24,37 @@ NV.World = (function () {
   var W = World.prototype;
 
   W.init = function () {
-    var q = NV.settings.get('quality');
-    this.lowQ = q === 'low';
+    var q = NV.gfx.resolve(), P = NV.gfx.profile();
+    this.P = P;
+    this.lowQ = !P.shadows;
     this.ultra = q === 'ultra';
-    this.usePost = !this.lowQ && NV.settings.get('post');
-    var r = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: !this.usePost, powerPreference: 'high-performance' });
-    this.basePR = this.lowQ ? 1 : Math.min(window.devicePixelRatio || 1, this.ultra ? 2 : 1.75);
+    this.usePost = P.post && NV.settings.get('post');
+    var r = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: !this.usePost && q !== 'minimal' && q !== 'low', powerPreference: 'high-performance', stencil: false });
+    var dpr = window.devicePixelRatio || 1;
+    this.basePR = q === 'minimal' ? Math.min(dpr, 1) * P.pr : Math.min(dpr, P.pr);
     this.prScale = 1;
     r.setPixelRatio(this.basePR);
-    r.shadowMap.enabled = !this.lowQ;
-    r.shadowMap.type = THREE.PCFSoftShadowMap;
+    r.shadowMap.enabled = !!P.shadows;
+    r.shadowMap.type = P.shadowSoft ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+    r.shadowMap.autoUpdate = false;
     r.toneMapping = THREE.ACESFilmicToneMapping;
     r.toneMappingExposure = 1.05;
     r.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer = r;
     if (this.usePost) {
-      try { this.post = new NV.Post(r, { samples: this.ultra ? 4 : 2 }); } catch (e) { this.post = null; this.usePost = false; }
+      try { this.post = new NV.Post(r, { samples: P.msaa }); } catch (e) { this.post = null; this.usePost = false; }
     }
     var scene = new THREE.Scene();
     scene.background = new THREE.Color(0x1a1e24);
     this.scene = scene;
     this.camera = new THREE.PerspectiveCamera(NV.settings.get('fov'), 1, 0.05, 200);
-    this.hemi = new THREE.HemisphereLight(0xf2f5ff, 0x8a8070, this.lowQ ? 0.95 : 0.88);
+    // Utan punktljus behövs mer allmänljus
+    this.hemi = new THREE.HemisphereLight(0xf2f5ff, 0x8a8070, P.lights ? 0.88 : 1.35);
     scene.add(this.hemi);
-    scene.add(new THREE.AmbientLight(0xffffff, 0.12));
+    scene.add(new THREE.AmbientLight(0xffffff, P.lights ? 0.12 : 0.32));
     var sun = new THREE.DirectionalLight(0xfff0dc, 1.5);
-    sun.castShadow = !this.lowQ;
-    sun.shadow.mapSize.set(this.ultra ? 4096 : 2048, this.ultra ? 4096 : 2048);
+    sun.castShadow = !!P.shadows;
+    sun.shadow.mapSize.set(P.shadowSize || 1024, P.shadowSize || 1024);
     sun.shadow.camera.left = -14; sun.shadow.camera.right = 14; sun.shadow.camera.top = 14; sun.shadow.camera.bottom = -14;
     sun.shadow.camera.near = 1; sun.shadow.camera.far = 60;
     sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.02;
@@ -68,16 +72,21 @@ NV.World = (function () {
     b.pointLight(-12, 2.2, -7.6, 0xdfe9ff, 7, 5);
     b.pointLight(89.8, 2.2, -10.3, 0xdfe9ff, 6, 5);
     [[94, -4], [104, -4], [94, 6], [104, 6], [90.5, -9]].forEach(function (l) { b.pointLight(l[0], 5.8, l[1], 0xf4f8ff, 40, 16); });
+    // Äldre grafikkort: varje punktljus kostar i varje bildpunkt, så de tas bort
+    if (!P.lights) b.lights.forEach(function (l) { scene.remove(l); });
 
     this.dev = NV.devices3d.build(this);
     this.people = NV.people.build(this);
     this.fx = new NV.fx3d.FX(this);
     this.fx.enabled = NV.settings.get('particles');
+    this.fx.scale = P.particles;
     this.buildCables();
     this.collectInteractables();
     this.ex = new NV.extras3d.Extras(this);
     this.ex.build();
-    if (!this.lowQ) { try { this.ex.reflections(); } catch (e) { /* reflektioner är en bonus */ } }
+    if (P.lambert) NV.gfx.cheapMaterials(scene, b);
+    this.mergeInfo = NV.gfx.mergeStatic(scene, { keepSway: P.sway });
+    if (P.env) { try { this.ex.reflections(); } catch (e) { /* reflektioner är en bonus */ } }
     this.raycaster = new THREE.Raycaster();
     this.raycaster.far = 3.8;
     this.hl = new THREE.BoxHelper(undefined, 0xf0b429);
@@ -237,6 +246,7 @@ NV.World = (function () {
     // Klick: lås musen, eller använd det du tittar på. Ett drag räknas inte som klick.
     this.canvas.addEventListener('click', function () {
       if (self.game.ui && self.game.ui.captures()) return;
+      if (NV.touch && NV.touch.active()) return;
       if (self.dragMoved) { self.dragMoved = false; return; }
       if (!self.locked) self.lock();
       else self.use();
@@ -277,17 +287,53 @@ NV.World = (function () {
       var k = self.sens * NV.settings.get('sens') * (self.zoomed ? 0.45 : 1);
       self.tYaw -= dx * k;
       self.tPitch -= dy * k * (NV.settings.get('invertY') ? -1 : 1);
+      self.swayX = (self.swayX || 0) + dx * 0.0004; self.swayY = (self.swayY || 0) + dy * 0.0004;
       self.tPitch = Math.max(-1.45, Math.min(1.45, self.tPitch));
     });
-    // Pekskärm: dra för att titta, två fingrar för att gå, tryck för att använda
-    var last = null, moved = 0;
-    this.canvas.addEventListener('touchstart', function (e) { last = e.touches[0]; moved = 0; self.touchWalk = e.touches.length > 1; }, { passive: true });
-    this.canvas.addEventListener('touchmove', function (e) {
-      var t = e.touches[0];
-      if (last) { moved += Math.abs(t.clientX - last.clientX) + Math.abs(t.clientY - last.clientY); self.tYaw -= (t.clientX - last.clientX) * 0.005; self.tPitch = Math.max(-1.4, Math.min(1.4, self.tPitch - (t.clientY - last.clientY) * 0.005)); }
-      last = t; self.touchWalk = e.touches.length > 1;
+    // Pekskärm: dra med ett finger för att titta, tryck på något för att använda det.
+    // Styrspaken (touch.js) är ett eget element, så fingrarna håller isär sig via identifier.
+    var look = null;
+    this.canvas.addEventListener('touchstart', function (e) {
+      if (look) return;
+      var t = e.changedTouches[0];
+      look = { id: t.identifier, x: t.clientX, y: t.clientY, sx: t.clientX, sy: t.clientY, moved: 0, t0: performance.now() };
     }, { passive: true });
-    this.canvas.addEventListener('touchend', function (e) { if (!e.touches.length) { self.touchWalk = false; if (moved < 8 && self.hover) self.use(); } last = null; }, { passive: true });
+    this.canvas.addEventListener('touchmove', function (e) {
+      for (var i = 0; i < e.changedTouches.length; i++) {
+        var t = e.changedTouches[i];
+        if (!look || t.identifier !== look.id) continue;
+        var dx = t.clientX - look.x, dy = t.clientY - look.y;
+        look.moved += Math.abs(dx) + Math.abs(dy);
+        var k = 0.0055 * NV.settings.get('sens');
+        self.tYaw -= dx * k;
+        self.tPitch = Math.max(-1.4, Math.min(1.4, self.tPitch - dy * k * (NV.settings.get('invertY') ? -1 : 1)));
+        look.x = t.clientX; look.y = t.clientY;
+      }
+    }, { passive: true });
+    this.canvas.addEventListener('touchend', function (e) {
+      for (var i = 0; i < e.changedTouches.length; i++) {
+        var t = e.changedTouches[i];
+        if (!look || t.identifier !== look.id) continue;
+        if (look.moved < 10 && performance.now() - look.t0 < 400) self.tapAt(t.clientX, t.clientY);
+        look = null;
+      }
+    }, { passive: true });
+    this.canvas.addEventListener('touchcancel', function () { look = null; }, { passive: true });
+  };
+  // Tryck på skärmen: använd det som finns där fingret är, om det är inom räckhåll
+  W.tapAt = function (x, y) {
+    if (this.game.ui && this.game.ui.captures()) return;
+    var v = new THREE.Vector2(x / window.innerWidth * 2 - 1, -(y / window.innerHeight) * 2 + 1);
+    this.raycaster.setFromCamera(v, this.camera);
+    var hits = this.raycaster.intersectObjects(this.interactables, false);
+    for (var i = 0; i < hits.length; i++) {
+      var o = hits[i].object, vis = o.visible, p = o.parent;
+      while (p && vis) { vis = p.visible; p = p.parent; }
+      if (!vis || !o.userData.interact) continue;
+      NV.touch && NV.touch.buzz(15);
+      this.game.onInteract(o.userData.interact);
+      return;
+    }
   };
   W.lock = function () {
     if (!this.canvas.requestPointerLock || this.lockFailed) return;
@@ -338,16 +384,18 @@ NV.World = (function () {
     var k = this.keys;
     var ui = this.game.ui;
     var free = !(ui && ui.captures());
-    var fwd = (k.KeyW || k.ArrowUp ? 1 : 0) - (k.KeyS || k.ArrowDown ? 1 : 0) + (this.touchWalk ? 1 : 0);
-    var str = (k.KeyD || k.ArrowRight ? 1 : 0) - (k.KeyA || k.ArrowLeft ? 1 : 0);
-    this.crouch = free && !!(k.KeyC || k.ControlLeft);
-    var sprint = (k.ShiftLeft || k.ShiftRight) && !this.crouch;
+    var joy = NV.touch ? NV.touch.joy : { x: 0, y: 0 };
+    var fwd = (k.KeyW || k.ArrowUp ? 1 : 0) - (k.KeyS || k.ArrowDown ? 1 : 0) - (free ? joy.y : 0);
+    var str = (k.KeyD || k.ArrowRight ? 1 : 0) - (k.KeyA || k.ArrowLeft ? 1 : 0) + (free ? joy.x : 0);
+    this.crouch = free && !!(k.KeyC || k.ControlLeft || this.game.touchCrouch);
+    var sprint = (k.ShiftLeft || k.ShiftRight || this.game.touchRun) && !this.crouch;
+    var analog = Math.min(1, Math.hypot(joy.x, joy.y));
     var speed = sprint ? 5.2 : 3.0;
     if (this.crouch) speed = 1.4;
     if (this.game.boosted && this.game.boosted()) speed *= 1.3;
     var dir = new THREE.Vector3(-Math.sin(this.yaw) * fwd + Math.cos(this.yaw) * str, 0, -Math.cos(this.yaw) * fwd - Math.sin(this.yaw) * str);
-    if (dir.lengthSq() > 0) dir.normalize().multiplyScalar(speed);
-    this.vel.lerp(dir, Math.min(1, dt * 10));
+    if (dir.lengthSq() > 0) dir.normalize().multiplyScalar(speed * (analog > 0.05 && !(k.KeyW || k.KeyS || k.KeyA || k.KeyD) ? Math.max(0.35, analog) : 1));
+    this.vel.lerp(dir, 1 - Math.exp(-dt * (dir.lengthSq() > 0 ? 9 : 12)));
     var r = 0.28;
     var ox = this.pos.x, oz = this.pos.z;
     var nx = this.pos.x + this.vel.x * dt;
@@ -367,31 +415,39 @@ NV.World = (function () {
     this.land = Math.max(0, (this.land || 0) - dt * 0.3);
     // Huka: ögonhöjden sjunker mjukt
     this.eye = this.eye || 1.65;
-    this.eye += ((this.crouch ? 1.02 : 1.65) - this.eye) * Math.min(1, dt * 10);
-    this.bob = (this.bob || 0) + dt * moving * 2.4;
-    this.stepAcc += moving * dt;
+    this.eye += ((this.crouch ? 1.02 : 1.65) - this.eye) * (1 - Math.exp(-dt * 9));
+    // Gungningen följer stegen: ett fotsteg per halv period, amplituden följer farten mjukt
+    var prevB = this.bob || 0;
+    this.bob = prevB + dt * moving * (sprint ? 2.1 : 2.5);
+    this.bobAmp = (this.bobAmp || 0) + (Math.min(1, moving / 3) - (this.bobAmp || 0)) * (1 - Math.exp(-dt * 6));
     var zoneName = this.zoneName || '';
-    if (this.stepAcc > (sprint ? 0.9 : 0.75) && this.jumpY === 0) {
-      this.stepAcc = 0;
+    if (Math.floor(this.bob / Math.PI) !== Math.floor(prevB / Math.PI) && this.jumpY === 0 && moving > 0.4) {
       NV.sfx.step(SURFACE[zoneName] || 'carpet');
       if (this.site === 'boras' && sprint) this.fx.dust({ x: this.pos.x, z: this.pos.z });
     }
-    var bobY = NV.settings.get('bob') ? Math.sin(this.bob * 2) * 0.018 * Math.min(1, moving / 3) : 0;
+    var bobOn = NV.settings.get('bob') && !NV.settings.get('reduceMotion');
+    var bobY = bobOn ? -Math.abs(Math.sin(this.bob)) * 0.03 * this.bobAmp + 0.015 * this.bobAmp : 0;
+    var bobX = bobOn ? Math.cos(this.bob) * 0.012 * this.bobAmp : 0;
     // Skakning (larm, nivå upp)
     this.shakeA = Math.max(0, (this.shakeA || 0) - dt * 1.5);
     var sh = this.shakeA * this.shakeA;
-    this.camera.position.set(this.pos.x + (Math.random() - 0.5) * sh * 0.1, this.eye + bobY + this.jumpY - this.land + (Math.random() - 0.5) * sh * 0.1, this.pos.z);
+    // Landningen fjädrar tillbaka i stället för att hoppa
+    this.landV = (this.landV || 0) + (-(this.landY || 0) * 120 - (this.landV || 0) * 14) * dt;
+    this.landY = (this.landY || 0) + this.landV * dt;
+    if (this.land > 0.05) { this.landV -= 1.4; this.land = 0; }
+    var rx = Math.cos(this.yaw) * bobX, rz = -Math.sin(this.yaw) * bobX;
+    this.camera.position.set(this.pos.x + rx + (Math.random() - 0.5) * sh * 0.1, this.eye + bobY + this.jumpY + this.landY + (Math.random() - 0.5) * sh * 0.1, this.pos.z + rz);
     // Zoom (högerklick eller Z) för att läsa frontpaneler; lite vidare vy när man springer
     this.zoomed = this.zoomHeld || (this.keys.KeyZ && free);
     var want = NV.settings.get('fov') * (this.zoomed ? 0.42 : (sprint && moving > 3.5 ? 1.08 : 1));
-    if (Math.abs(this.camera.fov - want) > 0.05) { this.camera.fov += (want - this.camera.fov) * Math.min(1, dt * 10); this.camera.updateProjectionMatrix(); }
+    if (Math.abs(this.camera.fov - want) > 0.05) { this.camera.fov += (want - this.camera.fov) * (1 - Math.exp(-dt * 10)); this.camera.updateProjectionMatrix(); }
     // Mjuk eller direkt musrörelse
     if (this.tYaw === undefined) { this.tYaw = this.yaw; this.tPitch = this.pitch; }
-    if (NV.settings.get('smooth')) { var a = Math.min(1, dt * 16); this.yaw += (this.tYaw - this.yaw) * a; this.pitch += (this.tPitch - this.pitch) * a; }
+    if (NV.settings.get('smooth')) { var a = 1 - Math.exp(-dt * 18); this.yaw += (this.tYaw - this.yaw) * a; this.pitch += (this.tPitch - this.pitch) * a; }
     else { this.yaw = this.tYaw; this.pitch = this.tPitch; }
     // Lätt lutning när man går i sidled
     var side = (Math.cos(this.yaw) * this.vel.x - Math.sin(this.yaw) * this.vel.z) / 5;
-    this.roll = (this.roll || 0) + ((NV.settings.get('bob') ? -side * 0.035 : 0) - (this.roll || 0)) * Math.min(1, dt * 6);
+    this.roll = (this.roll || 0) + ((bobOn ? -side * 0.035 : 0) - (this.roll || 0)) * (1 - Math.exp(-dt * 6));
     this.camera.rotation.order = 'YXZ';
     this.camera.rotation.set(this.pitch + (Math.random() - 0.5) * sh * 0.02, this.yaw, this.roll);
   };
@@ -426,9 +482,14 @@ NV.World = (function () {
   W.crabCaught = function (c) { var p = new THREE.Vector3(c.x, 0.2, c.z); this.fx.poof(p, 0xff7a4a); this.fx.confetti(p, 50); };
   W.cableFx = function (l) { var p = this.portPoint(l.a.dev, l.a.port, 0.03); if (p) this.fx.sparks(p, 22); };
   W.consoleFx = function (id) { var p = this.portPoint(id, 'console', 0.03); if (p) { this.fx.sparks(p, 16, 0x7fc6f0); this.fx.ring(p, 0x7fc6f0, 0.3); } };
-  W.shake = function (a) { this.shakeA = Math.max(this.shakeA || 0, a); };
-  W.flash = function (hex, a) { this.flashA = (a || 0.5) * 0.6; if (this.post) this.post.u.uFlash.value.set(hex || 0xffe08a); };
-  W.slowmo = function (sec) { this.slowT = sec || 0.7; };
+  W.setWeather = function (w) { this.ex.setWeather(w); };
+  W.printFx = function () { this.ex.printFx(); };
+  W.waterFx = function () { this.ex.waterFx(); };
+  W.thank = function (n) { this.ex.thank(n); };
+  // Minska rörelse: inga skakningar, blixtar eller slowmotion
+  W.shake = function (a) { if (NV.settings.get('reduceMotion')) return; this.shakeA = Math.max(this.shakeA || 0, a); };
+  W.flash = function (hex, a) { if (NV.settings.get('reduceMotion')) return; this.flashA = (a || 0.5) * 0.6; if (this.post) this.post.u.uFlash.value.set(hex || 0xffe08a); };
+  W.slowmo = function (sec) { if (NV.settings.get('reduceMotion')) return; this.slowT = sec || 0.7; };
 
   W.zone = function () {
     var z = this.builder.zones;
@@ -479,9 +540,12 @@ NV.World = (function () {
   W.ledFn = function (devId) { return NV.shared.ledFn(this.game.state, devId); };
   W.updateLeds = function () {
     var e = this.dev.entries, self = this;
+    var fr = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse));
+    var lim = this.P.lambert ? 8 : 12;
+    // Bara frontpaneler som syns och är nära ritas om
     var near = function (entry) {
       var p = new THREE.Vector3(); entry.face.getWorldPosition(p);
-      return p.distanceTo(self.camera.position) < 14;
+      return p.distanceTo(self.camera.position) < lim && fr.containsPoint(p);
     };
     Object.keys(e).forEach(function (id) {
       var entry = e[id];
@@ -544,6 +608,15 @@ NV.World = (function () {
     (def ? def.learn : ['show running-config', 'show ip interface brief', 'ping / traceroute']).forEach(function (l) { g.fillText('• ' + l, 60, y); y += 50; });
     g.fillStyle = '#2e7d32'; g.font = '28px "Segoe Print", "Comic Sans MS", cursive';
     g.fillText('Slå upp symptomet, inte kapitlet. (H = handbok)', 40, 590);
+    // Veckans nätskiss: det som berörs av veckans tema ritas i rött
+    var hot = { 1: ['SW1'], 2: ['trunk', 'PC'], 3: ['PC', 'R1'], 4: ['trunk'], 5: ['WAN', 'RB'], 6: ['R1', 'ISP'], 7: ['SW2', 'trunk'], 8: ['AP', 'SWB'], 9: ['R1', 'SW1'] }[def ? def.week : 0] || [];
+    function node(x, y, w, t, id) { g.strokeStyle = hot.indexOf(id) >= 0 ? '#c0392b' : '#1f4e79'; g.lineWidth = hot.indexOf(id) >= 0 ? 6 : 4; g.strokeRect(x, y, w, 46); g.fillStyle = g.strokeStyle; g.font = 'bold 22px "Segoe Print", "Comic Sans MS", cursive'; g.fillText(t, x + 10, y + 31); }
+    function line(x1, y1, x2, y2, id, dash) { g.strokeStyle = hot.indexOf(id) >= 0 ? '#c0392b' : '#555'; g.lineWidth = hot.indexOf(id) >= 0 ? 6 : 3; g.setLineDash(dash ? [10, 8] : []); g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); g.setLineDash([]); }
+    line(740, 238, 740, 290, 'ISP'); line(740, 336, 740, 390, 'R1'); line(790, 313, 900, 313, 'WAN', true); line(700, 413, 640, 470, 'trunk'); line(780, 413, 840, 470, 'trunk');
+    line(940, 336, 940, 390, 'RB'); line(640, 516, 640, 560, 'PC'); line(940, 436, 940, 480, 'AP');
+    node(690, 192, 110, 'ISP', 'ISP'); node(690, 290, 110, 'R1', 'R1'); node(890, 290, 110, 'RB', 'RB');
+    node(690, 390, 110, 'SW1', 'SW1'); node(590, 470, 110, 'SW2', 'SW2'); node(890, 390, 110, 'SWB', 'SWB'); node(890, 480, 110, 'AP', 'AP');
+    g.fillStyle = '#555'; g.font = '20px "Segoe Print", "Comic Sans MS", cursive'; g.fillText('PC', 628, 585); g.fillText('WAN', 812, 305);
     wb.tex.needsUpdate = true;
   };
 
@@ -561,9 +634,12 @@ NV.World = (function () {
     var z = this.zone();
     this.zoneName = z.name;
     this.move(dt);
-    // Skuggorna följer spelaren
-    this.sun.position.set(this.pos.x - 8, 16, this.pos.z + 9);
-    this.sun.target.position.set(this.pos.x, 0, this.pos.z);
+    // Skuggorna följer spelaren i hela meter, och ritas om bara när det behövs
+    var sx = Math.round(this.pos.x), sz = Math.round(this.pos.z);
+    this.sun.position.set(sx - 8, 16, sz + 9);
+    this.sun.target.position.set(sx, 0, sz);
+    this.shadowN = (this.shadowN || 0) + 1;
+    if (this.P.shadows && (this.shadowN % this.P.shadowEvery === 0 || sx !== this.shX || sz !== this.shZ)) { this.renderer.shadowMap.needsUpdate = true; this.shX = sx; this.shZ = sz; }
     this.hover = this.pick();
     NV.people.update(this.people, dt, this.t, this.pos, this.game.week, this.game.ui ? this.game.ui.talkingTo : null);
     // Glasdörrarna vid entrén glider isär när man närmar sig
@@ -573,7 +649,7 @@ NV.World = (function () {
       var open = dd < 2.6 ? 0.85 : 0;
       if (open && !this.doorOpen) NV.sfx.whoosh();
       this.doorOpen = !!open;
-      ed.forEach(function (m, i) { var want = m.userData.baseX + (i ? open : -open); m.position.x += (want - m.position.x) * Math.min(1, dt * 5); });
+      ed.forEach(function (m, i) { var want = m.userData.baseX + (i ? open : -open); m.position.x += (want - m.position.x) * (1 - Math.exp(-dt * 4)); });
     }
     // Ljud: fläktar, rumston, kollegor som skriver, telefoner som ringer
     var near = 99, self2 = this;
@@ -587,7 +663,7 @@ NV.World = (function () {
     var warm = Math.max(0, Math.min(1, (hour - 8) / 8));
     this.sun.color.setRGB(1, 0.94 - warm * 0.12, 0.86 - warm * 0.22);
     this.ledTimer += dt; this.slowTimer += dt;
-    if (this.ledTimer > 0.16) { this.ledTimer = 0; this.updateLeds(); }
+    if (this.ledTimer > this.P.ledEvery) { this.ledTimer = 0; this.updateLeds(); }
     if (this.slowTimer > 1) { this.slowTimer = 0; this.updateSlow(); }
     this.ex.update(dt, rdt);
     // Gnistrande markering runt det du tittar på
@@ -597,6 +673,14 @@ NV.World = (function () {
     }
     this.hl.material.opacity = 0.6 + Math.sin(this.t * 6) * 0.4; this.hl.material.transparent = true;
     this.fx.update(dt, this.camera);
+    // Fotoläget döljer även namnskyltar och markeringar i världen
+    var photo = document.body.classList.contains('photo');
+    if (photo !== this.photoWas) {
+      this.photoWas = photo;
+      var self3 = this;
+      Object.keys(this.people).forEach(function (n) { var f = self3.people[n]; [f.tag, f.roleTag, f.marker, f.done].forEach(function (s) { s.material.visible = !photo; }); });
+      this.ex.mark.material.visible = !photo;
+    }
     this.render(rdt, z);
   };
   W.npcSounds = function (dt) {
@@ -617,6 +701,8 @@ NV.World = (function () {
   };
   W.render = function (rdt, z) {
     var P = this.post;
+    this.renderer.info.autoReset = false;
+    this.renderer.info.reset();
     if (P) {
       var gr = GRADE[z.name] || GRADE.Korridoren;
       var u = P.u, k = Math.min(1, rdt * 1.5);
@@ -631,6 +717,7 @@ NV.World = (function () {
       u.uVignette.value = this.zoomed ? 0.7 : 0.35;
       P.render(this.scene, this.camera);
     } else this.renderer.render(this.scene, this.camera);
+    this.drawCalls = this.renderer.info.render.calls;
     this.perf(rdt);
   };
   // Sänk upplösningen om bildfrekvensen blir för låg, och höj den igen när det går bra
@@ -643,6 +730,9 @@ NV.World = (function () {
     var el = document.getElementById('fps');
     if (el) { el.style.display = NV.settings.get('showFps') ? 'block' : 'none'; el.textContent = Math.round(fps) + ' fps · ' + Math.round(this.basePR * this.prScale * 100) + '% · ' + this.fx.count() + ' partiklar'; }
     if (this.game.ui && this.game.ui.captures()) return;
+    // Går det fortfarande trögt på lägsta upplösning: föreslå en lägre grafiknivå en gång
+    this.slowCount = fps < 24 && this.prScale <= 0.56 ? (this.slowCount || 0) + 1 : 0;
+    if (this.slowCount >= 4 && !this.perfAsked && NV.gfx.lower() && this.game.running) { this.perfAsked = true; this.game.ui.perfPrompt(NV.gfx.lower()); }
     var old = this.prScale;
     if (fps < 38 && this.prScale > 0.55) this.prScale = Math.max(0.55, this.prScale - 0.12);
     else if (fps > 57 && this.prScale < 1) this.prScale = Math.min(1, this.prScale + 0.06);

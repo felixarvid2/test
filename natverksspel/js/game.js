@@ -32,7 +32,13 @@
     this.terminal = new NV.Terminal(this, document.getElementById('terminal'));
     this.ui = new NV.UI(this);
     this.webgl = hasWebGL();
-    var mode = NV.settings.get('mode') || (this.webgl ? '3d' : '2d');
+    this.vac = { x: 5, z: 1.2, dir: 0.3, turn: 0, spin: 1 };
+    NV.gfx.resolve();
+    NV.touch.init(this);
+    NV.applyA11y();
+    if (NV.touch.active()) NV.career.stat('touch');
+    // Mobiler startar i 2D (lättast att styra och snabbast), men 3D finns i menyn
+    var mode = NV.settings.get('mode') || (this.webgl && !NV.gfx.isMobile() ? '3d' : '2d');
     if (mode === '3d' && !this.webgl) mode = '2d';
     this.setMode(mode, true);
     NV.onCommand = function (devId, line) { self.onCommand(devId, line); };
@@ -51,9 +57,13 @@
     document.addEventListener('pointerdown', function () { NV.sfx.unlock(); }, { once: false });
     window.addEventListener('beforeunload', function () { self.saveRun(); });
     document.getElementById('loading').classList.add('hidden');
-    this.ui.showMenu();
+    if (NV.settings.get('resumeOnLoad') && this.savedRun()) { NV.settings.set('resumeOnLoad', false); this.resumeRun(); }
+    else this.ui.showMenu();
     this.lastFrame = performance.now();
     requestAnimationFrame(function f(now) {
+      // Tak för bildfrekvensen (sparar batteri och värme på äldre datorer)
+      var cap = NV.settings.get('fpsCap') || (NV.gfx.p ? NV.gfx.p.fpsCap : 0);
+      if (cap && now - self.lastFrame < 1000 / cap - 3) { requestAnimationFrame(f); return; }
       var dt = Math.min(0.05, (now - self.lastFrame) / 1000);
       self.lastFrame = now;
       // Ingen rendering när fliken är dold
@@ -67,7 +77,7 @@
         self.ui.setHint(self.ui.captures() ? null : self.world.hover, self.world.hoverDetail);
         self.ui.updateCompass();
       }
-      if (self.frameNo % 6 === 0) NV.minimap.draw(self);
+      if (self.frameNo % 6 === 0) { NV.minimap.draw(self); NV.touch.tick(); NV.zoneBanner(self); }
       requestAnimationFrame(f);
     });
     setInterval(function () { if (!document.hidden) self.tick(); }, 1000);
@@ -131,13 +141,27 @@
     this.combo = 0; this.lastFixAt = 0; this.lastProgress = Date.now(); this.nudges = 0; this.coffeeXp = false; this.boostUntil = 0; this.waypoint = null; this.weekXp = 0;
     this.difficulty = NV.settings.get('difficulty');
     if (this.def) this.def.tasks.forEach(function (t) { self.taskState[t.id] = { fixed: false, reported: false, hints: 0, known: false, score: 0 }; });
+    this.weather = this.weatherFor(n);
+    if (this.weather === 'rain') NV.career.stat('rainWeeks');
     this.afterStateChange(this.def && this.def.site === 'boras' ? 'boras' : 'gbg');
     this.spawnCrab();
     this.ui.renderHud();
     this.ui.briefing(true);
     NV.settings.remove(RUN_KEY);
   };
+  // Vädret skiftar mellan veckorna (samma vecka har alltid samma väder)
+  G.weatherFor = function (n) { return ['sun', 'clouds', 'rain', 'sun', 'rain', 'clouds', 'sun', 'rain', 'clouds'][(n || 1) - 1] || 'sun'; };
+  // Var i världen hör ett visst ärende hemma?
+  G.taskSpot = function (t) {
+    var A = this.world.builder.anchors, s = this.taskState[t.id];
+    var rackOf = { SW1: A.rackA, SW2: A.rackA, R1: A.rackA, WLC: A.rackA, RB: A.borasRack, SWB: A.borasRack };
+    if (!s.known) { var c = NV.people.CAST[t.npc]; if (c.desk) { var d = A.desks[c.desk]; return { x: d.x, z: d.z + 0.9 }; } return { x: c.stand.x, z: c.stand.z + 0.8 }; }
+    if (rackOf[t.target]) return { x: rackOf[t.target].x + (rackOf[t.target].x > 50 ? 1 : 0), z: rackOf[t.target].z + (rackOf[t.target].x > 50 ? 0 : 1) };
+    if (A.desks[t.target]) return { x: A.desks[t.target].x, z: A.desks[t.target].z - 0.6 };
+    return null;
+  };
   G.afterStateChange = function (site) {
+    if (this.world.setWeather) this.world.setWeather(this.def ? this.weather : 'sun');
     this.world.consoleTarget = this.consoleTargetId;
     this.world.buildCables();
     this.world.collectInteractables();
@@ -154,7 +178,9 @@
     NV.settings.store(RUN_KEY, {
       week: this.week, exam: this.exam, state: st, taskState: this.taskState, flags: this.flags, cmdLog: this.cmdLog.slice(-200),
       elapsed: Date.now() - this.startedAt, console: this.consoleTargetId, site: this.world.site, commands: this.commands, savedAt: Date.now(),
+      pos: { x: this.world.pos.x, z: this.world.pos.z, yaw: this.world.yaw || 0 }, weekXp: this.weekXp || 0, drafts: this.drafts || {}, weather: this.weather,
     });
+    this.savedFlash = Date.now();
   };
   G.savedRun = function () { var r = NV.settings.store(RUN_KEY); return r && r.week ? r : null; };
   G.resumeRun = function () {
@@ -171,12 +197,20 @@
     this.combo = 0; this.lastFixAt = 0; this.lastProgress = Date.now(); this.nudges = 0; this.boostUntil = 0; this.waypoint = null;
     this.difficulty = NV.settings.get('difficulty');
     S.refresh(this.state);
+    this.weekXp = r.weekXp || 0; this.drafts = r.drafts || {}; this.weather = r.weather || this.weatherFor(r.week);
     this.afterStateChange(r.site || 'gbg');
+    // Tillbaka där du stod och åt det håll du tittade
+    if (r.pos && !this.world.collides(r.pos.x, r.pos.z, 0.3)) { this.world.pos.x = r.pos.x; this.world.pos.z = r.pos.z; if (this.mode === '3d') { this.world.yaw = this.world.tYaw = r.pos.yaw; } }
     this.spawnCrab();
     this.ui.renderHud();
     this.ui.toast('Välkommen tillbaka! Vecka ' + r.week + ' fortsätter där du var.');
   };
 
+  G.reloadKeepRun = function () {
+    this.saveRun();
+    NV.settings.set('resumeOnLoad', !!(this.running && this.def && !this.done));
+    setTimeout(function () { location.reload(); }, 60);
+  };
   G.progress = function () {
     try { var p = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}'); p.weeks = p.weeks || {}; return p; } catch (e) { return { weeks: {} }; }
   };
@@ -249,6 +283,7 @@
       if (ok) {
         s.fixed = true; s.known = true; s.fixedAt = Date.now() - self.startedAt;
         NV.sfx.success();
+        NV.touch.buzz([30, 40, 60]);
         self.ui.toast('✔ <b>' + esc(t.title) + '</b> är löst! Skriv felrapporten med <b>F</b>.', 'good');
         self.onFixed(t, s);
         self.refreshMarkers();
@@ -334,7 +369,7 @@
       f.hasTicket = open;
       f.ringing = tasks.some(function (t) { return !self.taskState[t.id].known; });
       var mood = open ? 'open' : (fixed ? 'happy' : null);
-      if (mood !== f.mood) { f.mood = mood; f.happyDone = false; }
+      if (mood !== f.mood) { if (mood === 'happy' && f.mood === 'open' && self.world.thank) self.world.thank(n); f.mood = mood; f.happyDone = false; }
     });
   };
 
@@ -418,6 +453,7 @@
   G.onRemoteLogin = function () {};
   G.openLaptop = function () { this.terminal.openLaptop(); };
   G.connectConsole = function (id) {
+    this.flags.touchedRack = true;
     this.consoleTargetId = id;
     this.world.consoleTarget = id;
     this.world.updateCables();
@@ -445,7 +481,10 @@
       case 'monitor': return 'Titta på övervakningen';
       case 'whiteboard': return 'Läs tavlan';
       case 'info': return i.label;
-      case 'coffee': return this.boosted() ? 'Du har redan fått kaffe' : 'Ta en kopp kaffe';
+      case 'coffee': return this.boosted() ? 'Du har redan fått kaffe (' + Math.ceil((this.boostUntil - Date.now()) / 1000) + ' s kvar)' : 'Ta en kopp kaffe';
+      case 'water': return 'Ta ett glas vatten';
+      case 'printer': return 'Skriv ut veckans ärendelista (192.168.1.11)';
+      case 'vacuum': return 'Säg hej till dammsugarroboten';
       case 'crab': return 'Fånga Krabban!';
     }
     return '';
@@ -496,8 +535,11 @@
         }
         break;
       case 'phone': this.ui.phoneDialog(); break;
-      case 'monitor': this.ui.monitorDialog(); break;
-      case 'whiteboard': this.ui.briefing(false); break;
+      case 'monitor': if (!this.flags.touchedRack) this.flags.monitorFirst = true; this.ui.monitorDialog(); break;
+      case 'whiteboard': this.ui.whiteboardDialog(); break;
+      case 'water': this.drinkWater(); break;
+      case 'printer': this.printPage(); break;
+      case 'vacuum': this.ui.toast('🤖 Dammsugarroboten "Städ-Sture" piper glatt och fortsätter städa.'); NV.career.stat('vacuum'); break;
       case 'info': this.ui.toast(esc(i.label)); break;
       case 'coffee': this.drinkCoffee(); break;
       case 'crab': this.catchCrab(); break;
@@ -583,6 +625,23 @@
     if (this.distAcc >= 5) { NV.career.stat('dist', this.distAcc); this.distAcc = 0; }
   };
   G.boosted = function () { return this.boostUntil > Date.now(); };
+  G.drinkWater = function () {
+    NV.sfx.bubble();
+    NV.career.stat('water');
+    this.ui.toast('💧 Uppfriskande! Glöm inte att dricka vatten mellan felsökningarna.');
+    if (this.world.waterFx) this.world.waterFx();
+  };
+  // Skrivaren skriver bara ut om den nås i nätet – ett litet test i sig
+  G.printPage = function () {
+    var ok = true;
+    try { ok = S.ping(this.state, 'PC-Lisa', '192.168.1.11').ok; } catch (e) { ok = true; }
+    if (!ok) { this.ui.toast('🖨️ Skrivaren svarar inte. Något i nätet är trasigt mellan kontoret och skrivaren.', 'warn'); NV.sfx.fail(); return; }
+    NV.sfx.printer();
+    NV.career.stat('prints');
+    if (this.world.printFx) this.world.printFx();
+    var open = this.def ? this.def.tasks.filter(function (t) { return !this.taskState[t.id].reported; }, this).length : 0;
+    this.ui.toast('🖨️ Skrivaren skrev ut veckans ärendelista: ' + (this.def ? open + ' ärenden kvar.' : 'fri träning, inga ärenden.'));
+  };
   G.drinkCoffee = function () {
     if (this.boosted()) { this.ui.toast('Du har redan kaffe i kroppen. Vänta lite.'); return; }
     NV.sfx.pour();

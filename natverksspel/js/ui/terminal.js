@@ -34,8 +34,40 @@ NV.Terminal = (function () {
     root.querySelector('[data-act="font-"]').addEventListener('click', function () { NV.settings.set('termFont', Math.max(11, NV.settings.get('termFont') - 1)); self.applyFont(); self.focus(); });
     root.querySelector('[data-act="font+"]').addEventListener('click', function () { NV.settings.set('termFont', Math.min(20, NV.settings.get('termFont') + 1)); self.applyFont(); self.focus(); });
     root.querySelector('[data-act="copy"]').addEventListener('click', function () { self.copySelection(); });
+    root.querySelector('[data-act="copyall"]').addEventListener('click', function () { self.game.ui.copyText(self.el.out.textContent + (self.el.prompt.textContent || '')); });
+    // Klicka på en adress eller ett portnamn i utskriften för att använda det
+    this.el.out.addEventListener('click', function (e) {
+      var t = e.target;
+      if (!t.classList || String(window.getSelection ? window.getSelection() : '')) return;
+      var top = self.top(), ios = top && top.ios;
+      if (t.classList.contains('t-ip')) { self.el.input.value = (top && top.kind === 'win' ? 'ping ' : 'ping ') + t.textContent.replace(/\/\d+$/, ''); self.focus(); self.updateGhost(); }
+      else if (t.classList.contains('t-if') && ios) { self.el.input.value = 'show interfaces ' + t.textContent; self.focus(); self.updateGhost(); }
+    });
+    // Dubbelklick på ett ord skriver in det i prompten
+    this.el.out.addEventListener('dblclick', function () {
+      var w = String(window.getSelection ? window.getSelection() : '').trim();
+      if (!w || /\s/.test(w)) return;
+      var v = self.el.input.value;
+      self.el.input.value = v + (v && !/\s$/.test(v) ? ' ' : '') + w;
+      self.focus(); self.updateGhost();
+    });
+    // Knapp som hoppar ned när nya rader kommit medan du läser längre upp
+    this.el.newlines = root.querySelector('.term-new');
+    this.el.newlines.addEventListener('click', function () { self.el.screen.scrollTop = self.el.screen.scrollHeight; self.el.newlines.classList.add('hidden'); self.focus(); });
+    this.el.screen.addEventListener('scroll', function () { self.userUp = !self.atBottom(); if (!self.userUp) self.el.newlines.classList.add('hidden'); });
+    // Fönstrets storlek sparas
+    if (window.ResizeObserver) new ResizeObserver(function () {
+      if (!self.open || window.innerWidth < 760) return;
+      var r = self.el.term.getBoundingClientRect();
+      if (r.width > 300) NV.settings.set('termSize', [Math.round(r.width), Math.round(r.height)]);
+    }).observe(this.el.term);
     this.applyFont();
     root.querySelector('[data-act="hist"]').addEventListener('click', function () { self.toggleHistory(); });
+    // Tangentraden för mobiler (och den som vill klicka)
+    root.querySelectorAll('.term-keys [data-k]').forEach(function (b) {
+      b.addEventListener('mousedown', function (e) { e.preventDefault(); });
+      b.addEventListener('click', function (e) { e.preventDefault(); self.pressKey(b.getAttribute('data-k')); self.focus(); });
+    });
     this.el.input.addEventListener('input', function () { self.updateGhost(); });
     this.el.input.addEventListener('keyup', function () { self.updateCursor(); });
     this.el.input.addEventListener('click', function () { self.updateCursor(); });
@@ -61,6 +93,15 @@ NV.Terminal = (function () {
   var P = Terminal.prototype;
 
   P.top = function () { return this.stack[this.stack.length - 1]; };
+  // Skicka en tangent som om den trycktes på tangentbordet
+  P.pressKey = function (k) {
+    var ev = { key: k, ctrlKey: false, shiftKey: false, metaKey: false, preventDefault: function () {} };
+    if (k === 'ctrl-c') { ev.key = 'c'; ev.ctrlKey = true; }
+    else if (k === 'ctrl-z') { ev.key = 'z'; ev.ctrlKey = true; }
+    else if (k === 'ctrl-u') { ev.key = 'u'; ev.ctrlKey = true; }
+    else if (k === 'ctrl-a-k') { this.onKey({ key: 'a', ctrlKey: true, preventDefault: function () {} }); ev.key = 'k'; }
+    this.onKey(ev);
+  };
   P.applyFont = function () {
     var pix = this.theme() === 'snes';
     this.el.screen.style.fontSize = (NV.settings.get('termFont') + (pix ? 6 : 0)) + 'px';
@@ -88,6 +129,8 @@ NV.Terminal = (function () {
   P.show = function () {
     var was = this.open;
     this.applyTheme();
+    var sz = NV.settings.get('termSize');
+    if (sz && window.innerWidth >= 760) { this.el.term.style.width = Math.min(sz[0], window.innerWidth - 16) + 'px'; this.el.term.style.height = Math.min(sz[1], window.innerHeight - 16) + 'px'; }
     this.root.classList.remove('hidden');
     this.open = true;
     if (!was) {
@@ -183,7 +226,12 @@ NV.Terminal = (function () {
     if (out.childNodes.length > 1500) { for (var i = 0; i < 300; i++) out.removeChild(out.firstChild); }
     this.scroll();
   };
-  P.scroll = function () { this.el.screen.scrollTop = this.el.screen.scrollHeight; };
+  P.atBottom = function () { var s = this.el.screen; return s.scrollHeight - s.scrollTop - s.clientHeight < 40; };
+  // Rulla bara ned om du redan är längst ned – annars visas knappen "Nya rader"
+  P.scroll = function (force) {
+    if (force || !this.userUp) { this.el.screen.scrollTop = this.el.screen.scrollHeight; if (this.el.newlines) this.el.newlines.classList.add('hidden'); }
+    else if (this.el.newlines) this.el.newlines.classList.remove('hidden');
+  };
   // Kommandot som skrevs: prompten och texten får egna färger
   P.echo = function (prompt, cmd) {
     var t = this.top();
@@ -286,7 +334,7 @@ NV.Terminal = (function () {
     } else mode = t.kind === 'win' ? 'cmd.exe' : 'bash';
     var clock = this.game.state ? NV.sim.deviceClock(this.game.state, this.game.state.devices.R1).hms : '';
     el.querySelector('.ts-conn').textContent = conn;
-    el.querySelector('.ts-mode').textContent = mode;
+    el.querySelector('.ts-mode').textContent = (this.busy ? '⏳ arbetar… (Ctrl+C avbryter) · ' : '') + mode;
     el.querySelector('.ts-time').textContent = clock;
   };
   // Liten pixelikon för sessionen
@@ -384,8 +432,11 @@ NV.Terminal = (function () {
     if (e.key === 'Escape') { e.preventDefault(); if (!this.el.histBox.classList.contains('hidden')) { this.el.histBox.classList.add('hidden'); return; } this.hide(); return; }
     if (e.ctrlKey && (e.key === 'f' || e.key === 'F')) { e.preventDefault(); this.el.find.focus(); this.el.find.select(); return; }
     if (e.key === 'ArrowRight' && this.ghostText && this.el.input.selectionStart === this.el.input.value.length) { e.preventDefault(); this.el.input.value += this.ghostText; this.updateGhost(); return; }
+    if (e.ctrlKey && (e.key === 'u' || e.key === 'U')) { e.preventDefault(); this.el.input.value = ''; this.updateGhost(); return; }
+    if (e.ctrlKey && (e.key === 'w' || e.key === 'W')) { e.preventDefault(); this.el.input.value = this.el.input.value.replace(/\s*\S+\s*$/, ''); this.updateGhost(); return; }
     if (e.ctrlKey && (e.key === 'l' || e.key === 'L')) { e.preventDefault(); this.el.out.textContent = ''; this.renderPrompt(); return; }
     if (e.ctrlKey && e.shiftKey && (e.key === 'c' || e.key === 'C')) { e.preventDefault(); this.copySelection(); return; }
+    if (e.ctrlKey && (e.key === '+' || e.key === '=' || e.key === '-')) { e.preventDefault(); NV.settings.set('termFont', Math.max(11, Math.min(20, NV.settings.get('termFont') + (e.key === '-' ? -1 : 1)))); this.applyFont(); return; }
     if (e.key === 'PageUp' || e.key === 'PageDown') { e.preventDefault(); this.el.screen.scrollTop += (e.key === 'PageUp' ? -1 : 1) * this.el.screen.clientHeight * 0.85; return; }
     if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) NV.sfx.key();
     if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) {
@@ -515,7 +566,9 @@ NV.Terminal = (function () {
     if (!chunks.length) { finish(); return; }
     this.busy = true;
     this.abort = false;
+    this.userUp = false;
     this.el.prompt.textContent = '';
+    this.updateStatus();
     var i = 0;
     function next() {
       if (self.abort) { self.busy = false; self.abort = false; finish(); return; }

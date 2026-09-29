@@ -39,6 +39,7 @@ NV.career = (function () {
 
   function stats() {
     var s = data.stats, out = {};
+    Object.keys(s).forEach(function (k) { out[k] = s[k] || 0; });
     ['dist', 'commands', 'pings', 'fixed', 'reports', 'perfect', 'coffees', 'crabs', 'hints', 'playSec', 'goggles', 'torch', 'cables', 'bestCombo', 'noHintWeeks', 'fastWeeks', 'exams', 'hardWeeks', 'weeks'].forEach(function (k) { out[k] = s[k] || 0; });
     return out;
   }

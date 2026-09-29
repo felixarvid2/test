@@ -2,6 +2,7 @@
 NV.minimap = (function () {
   var FLOOR = { carpet: '#3d4a63', wood: '#7d5634', raised: '#7d8792', concrete: '#666560', concreteDark: '#5a5c5e' };
   var PX = 7; // pixlar per meter
+  var last = null;
 
   function npcPos(world, n) {
     var p = world.people[n];
@@ -21,6 +22,19 @@ NV.minimap = (function () {
     var b = w.builder, site = w.site, boras = site === 'boras';
     var rot = game.mode === '3d' ? w.yaw : 0;
     var px = w.pos.x, pz = w.pos.z;
+    last = { rot: rot, px: px, pz: pz, mode: game.mode, game: game, W: W, H: H };
+    if (!cv.dataset.bound) {
+      // Klick på minikartan sätter en markering där
+      cv.dataset.bound = '1';
+      cv.addEventListener('click', function (e) {
+        if (!last) return;
+        var r = cv.getBoundingClientRect();
+        var dx = (e.clientX - r.left) / r.width * last.W - last.W / 2, dy = (e.clientY - r.top) / r.height * last.H - last.H / 2;
+        var c = Math.cos(-last.rot), s = Math.sin(-last.rot);
+        var mx = dx * c - dy * s, my = dx * s + dy * c;
+        last.game.setWaypoint(last.px + mx / PX, last.mode === '3d' ? last.pz + my / PX : last.pz - my / PX);
+      });
+    }
     g.save();
     g.fillStyle = '#10151b'; g.fillRect(0, 0, W, H);
     g.translate(W / 2, H / 2);

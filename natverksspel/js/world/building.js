@@ -168,16 +168,28 @@ NV.building = (function () {
   // ------------------------------------------------------------------ Möbler
   B.desk = function (x, z, ry, color) {
     this.sem.push({ type: 'desk', x: x, z: z, ry: ry || 0, color: color || 0xf1efe9 });
+    var M = NV.models;
     var g = new THREE.Group();
     g.position.set(x, 0, z); g.rotation.y = ry || 0;
-    var top = this.std(color || 0xf1efe9, 0.55, 0);
-    var leg = this.std(0x2c2f34, 0.4, 0.7);
-    var t = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.04, 0.8), top); t.position.y = 0.74; t.castShadow = t.receiveShadow = true; g.add(t);
-    [[-0.75, -0.35], [0.75, -0.35], [-0.75, 0.35], [0.75, 0.35]].forEach(function (p) {
-      var l = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.72, 0.05), leg); l.position.set(p[0], 0.36, p[1]); l.castShadow = true; g.add(l);
+    var top = this.std(color || 0xf1efe9, 0.5, 0);
+    var edge = this.std(0x3a3f45, 0.5, 0.3);
+    var leg = this.std(0x2c2f34, 0.35, 0.75);
+    M.mesh(M.rbox(1.6, 0.035, 0.8, 0.012), top, 0, 0.745, 0, g);
+    M.mesh(M.rbox(1.605, 0.012, 0.805, 0.005), edge, 0, 0.726, 0, g, false);
+    // T-ben med fötter och kabelränna
+    [-0.72, 0.72].forEach(function (lx) {
+      M.mesh(M.rbox(0.06, 0.7, 0.06, 0.012), leg, lx, 0.37, 0, g);
+      M.mesh(M.rbox(0.08, 0.03, 0.72, 0.012), leg, lx, 0.015, 0, g);
+      M.mesh(M.rbox(0.07, 0.03, 0.7, 0.01), leg, lx, 0.715, 0, g, false);
     });
-    var screen = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.35, 0.02), this.std(0x6f7f78, 0.9, 0));
-    screen.position.set(0, 0.95, -0.4); g.add(screen);
+    M.mesh(M.rbox(1.4, 0.05, 0.12, 0.01), leg, 0, 0.66, -0.3, g, false);
+    // Låda med hurts
+    var ped = this.std(0xd9d6cf, 0.5, 0.05);
+    M.mesh(M.rbox(0.42, 0.55, 0.55, 0.015), ped, 0.52, 0.29, -0.08, g);
+    [0.45, 0.28, 0.12].forEach(function (y) { M.mesh(M.rbox(0.14, 0.015, 0.015, 0.005), leg, 0.52, y, 0.197, g, false); });
+    // Skärmvägg
+    var screen = M.mesh(M.rbox(1.5, 0.36, 0.035, 0.015), this.std(0x6f7f78, 0.95, 0), 0, 0.95, -0.4, g);
+    M.mesh(M.rbox(1.52, 0.02, 0.04, 0.008), edge, 0, 1.135, -0.4, g, false);
     this.scene.add(g);
     var w = Math.abs(Math.sin(ry || 0)) > 0.5 ? 0.8 : 1.6, d = Math.abs(Math.sin(ry || 0)) > 0.5 ? 1.6 : 0.8;
     this.collide(x, z, w, d);
@@ -185,17 +197,29 @@ NV.building = (function () {
   };
   B.chair = function (x, z, ry, color) {
     this.sem.push({ type: 'chair', x: x, z: z, ry: ry || 0, color: color || 0x30343b });
+    var M = NV.models;
     var g = new THREE.Group();
     g.position.set(x, 0, z); g.rotation.y = ry || 0;
-    var seatM = this.std(color || 0x30343b, 0.8, 0);
-    var metal = this.std(0x1d1f22, 0.4, 0.8);
-    var seat = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.07, 0.46), seatM); seat.position.y = 0.47; seat.castShadow = true; g.add(seat);
-    var back = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.55, 0.06), seatM); back.position.set(0, 0.8, 0.22); back.castShadow = true; g.add(back);
-    var post = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.4), metal); post.position.y = 0.25; g.add(post);
+    var seatM = this.std(color || 0x30343b, 0.85, 0);
+    var plastic = this.std(0x1d1f22, 0.45, 0.2);
+    var metal = this.std(0x8a8f96, 0.3, 0.9);
+    M.mesh(M.rbox(0.5, 0.08, 0.48, 0.035), seatM, 0, 0.48, 0, g);
+    var back = M.mesh(M.rbox(0.46, 0.56, 0.07, 0.04), seatM, 0, 0.84, 0.25, g); back.rotation.x = 0.1;
+    M.mesh(M.rbox(0.06, 0.3, 0.03, 0.012), plastic, 0, 0.6, 0.27, g);
+    // Armstöd
+    [-0.26, 0.26].forEach(function (ax) {
+      M.mesh(M.rbox(0.035, 0.18, 0.035, 0.01), plastic, ax, 0.6, 0.02, g);
+      M.mesh(M.rbox(0.06, 0.03, 0.24, 0.012), plastic, ax, 0.7, 0.0, g);
+    });
+    M.mesh(M.cyl(0.03, 0.03, 0.3, 10), metal, 0, 0.29, 0, g);
+    M.mesh(M.cyl(0.045, 0.045, 0.08, 10), plastic, 0, 0.16, 0, g);
+    // Femarmat kryss med hjul
     for (var i = 0; i < 5; i++) {
       var a = i / 5 * Math.PI * 2;
-      var arm = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.03, 0.04), metal);
-      arm.position.set(Math.cos(a) * 0.15, 0.05, Math.sin(a) * 0.15); arm.rotation.y = -a; g.add(arm);
+      var arm = M.mesh(M.rbox(0.3, 0.03, 0.045, 0.012), plastic, Math.cos(a) * 0.15, 0.08, Math.sin(a) * 0.15, g);
+      arm.rotation.y = -a;
+      var wheel = M.mesh(M.sphere(0.028, 10, 8), plastic, Math.cos(a) * 0.29, 0.03, Math.sin(a) * 0.29, g);
+      wheel.scale.set(1, 1, 0.7);
     }
     this.scene.add(g);
     return g;
@@ -203,16 +227,25 @@ NV.building = (function () {
   B.plant = function (x, z, s) {
     s = s || 1;
     this.sem.push({ type: 'plant', x: x, z: z, s: s });
+    var M = NV.models;
     this._mute++;
-    var pot = this.std(0xe7e2d8, 0.6, 0);
+    var pot = this.std(0xe7e2d8, 0.55, 0);
     this.cyl(0.18 * s, 0.14 * s, 0.4 * s, x, 0.2 * s, z, pot, { collide: true });
-    var leaf = this.std(0x3f7a47, 0.8, 0);
-    var leaf2 = this.std(0x2f6238, 0.8, 0);
-    for (var i = 0; i < 7; i++) {
-      var m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.2 * s + (i % 3) * 0.03, 0), i % 2 ? leaf : leaf2);
-      m.position.set(x + Math.sin(i * 2.1) * 0.13 * s, 0.55 * s + (i % 4) * 0.15 * s, z + Math.cos(i * 2.1) * 0.13 * s);
-      m.rotation.set(i, i * 2, 0);
+    var rim = new THREE.Mesh(M.geo('potRim', function () { return new THREE.TorusGeometry(1, 0.08, 6, 20); }), pot);
+    rim.scale.set(0.18 * s, 0.18 * s, 0.18 * s); rim.rotation.x = Math.PI / 2; rim.position.set(x, 0.4 * s, z);
+    this.scene.add(rim);
+    var soil = new THREE.Mesh(M.cyl(0.17 * s, 0.17 * s, 0.02, 16), this.std(0x3b2a1e, 1, 0));
+    soil.position.set(x, 0.38 * s, z); this.scene.add(soil);
+    var leafM = [this.std(0x3f7a47, 0.7, 0, { side: THREE.DoubleSide }), this.std(0x2f6238, 0.7, 0, { side: THREE.DoubleSide }), this.std(0x55924f, 0.7, 0, { side: THREE.DoubleSide })];
+    var n = M.detail() === 0 ? 7 : 16;
+    for (var i = 0; i < n; i++) {
+      var m = new THREE.Mesh(M.leaf(0.42 * s * (0.8 + (i % 4) * 0.12), 0.13 * s), leafM[i % 3]);
+      var a = i * 2.4;
+      m.position.set(x + Math.cos(a) * 0.03 * s, 0.38 * s, z + Math.sin(a) * 0.03 * s);
+      m.rotation.set(0, -a + Math.PI / 2, 0);
+      m.rotateX(-(0.25 + (i % 5) * 0.14));
       m.castShadow = true;
+      m.userData.sway = true;
       this.scene.add(m);
       (this.plants = this.plants || []).push({ m: m, rz: m.rotation.z });
     }
@@ -220,14 +253,16 @@ NV.building = (function () {
   };
   B.sofa = function (x, z, ry, tex) {
     this.sem.push({ type: 'sofa', x: x, z: z, ry: ry || 0, tex: tex || 'fabricMustard' });
+    var M = NV.models;
     var g = new THREE.Group();
     g.position.set(x, 0, z); g.rotation.y = ry || 0;
     var m = T.mat(tex || 'fabricMustard', {}, 2, 1);
-    var base = new THREE.Mesh(new THREE.BoxGeometry(2, 0.42, 0.85), m); base.position.y = 0.25; g.add(base);
-    var back = new THREE.Mesh(new THREE.BoxGeometry(2, 0.5, 0.2), m); back.position.set(0, 0.62, 0.33); g.add(back);
-    var a1 = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.3, 0.85), m); a1.position.set(-0.95, 0.55, 0); g.add(a1);
-    var a2 = a1.clone(); a2.position.x = 0.95; g.add(a2);
-    g.traverse(function (o) { o.castShadow = o.receiveShadow = true; });
+    var leg = this.std(0x3a2a1c, 0.5, 0.1);
+    M.mesh(M.rbox(2, 0.22, 0.85, 0.06), m, 0, 0.2, 0, g);
+    [-0.47, 0.47].forEach(function (cx) { M.mesh(M.rbox(0.9, 0.16, 0.66, 0.07), m, cx, 0.38, -0.06, g); });
+    [-0.47, 0.47].forEach(function (cx) { var bc = M.mesh(M.rbox(0.9, 0.44, 0.18, 0.08), m, cx, 0.62, 0.3, g); bc.rotation.x = -0.12; });
+    [-0.95, 0.95].forEach(function (ax) { M.mesh(M.rbox(0.18, 0.4, 0.85, 0.07), m, ax, 0.42, 0, g); });
+    [[-0.9, -0.35], [0.9, -0.35], [-0.9, 0.35], [0.9, 0.35]].forEach(function (p) { M.mesh(M.cyl(0.025, 0.02, 0.1, 8), leg, p[0], 0.05, p[1], g); });
     this.scene.add(g);
     this.collide(x, z, Math.abs(Math.sin(ry || 0)) > 0.5 ? 0.85 : 2, Math.abs(Math.sin(ry || 0)) > 0.5 ? 2 : 0.85);
   };
@@ -275,6 +310,7 @@ NV.building = (function () {
     var mat2 = b.std(0x2d3238, 0.9, 0);
     b.box(2.2, 0.01, 1.2, 10.5, 0.005, -9.3, mat2, { cast: false });
     d1.userData.baseX = 10; d2.userData.baseX = 11;
+    d1.userData.dynamic = d2.userData.dynamic = true;
     b.anchors.entranceDoors = [d1, d2];
     b.interact.push({ mesh: d1, type: 'travel', to: 'boras', label: 'Åk till lagret i Borås' });
     b.interact.push({ mesh: d2, type: 'travel', to: 'boras', label: 'Åk till lagret i Borås' });
@@ -368,8 +404,84 @@ NV.building = (function () {
     b.cabinet(-14.6, 9.5, 1.2, 1.2, 0.45, 0xd8d4cb);
     b.cabinet(-5.8, 9.6, 0.8, 1.9, 0.4, 0x9aa0a6);
     b.cabinet(4.8, 9.6, 1.2, 0.75, 0.45, 0xd8d4cb);
+    decorGbg(b);
 
     b.anchors.spawn = { x: -9.5, z: -1.2, ry: Math.PI };
+  }
+
+  // Detaljer som gör kontoret levande: vattenautomat, bokhylla, mattor, tavlor, pärmar och skylt
+  function decorGbg(b) {
+    var M = NV.models;
+    // Vattenautomat i fikarummet
+    b.anchors.water = { x: 0.97, z: -9.62 };
+    b.box(0.34, 1.0, 0.34, 0.97, 0.5, -9.62, b.std(0xe9ecef, 0.4, 0.2), { collide: true });
+    var bottle = b.cyl(0.13, 0.13, 0.42, 0.97, 1.22, -9.62, b.std(0x9fd3f0, 0.05, 0, { transparent: true, opacity: 0.55 }));
+    bottle.userData.interact = { type: 'water' };
+    b.box(0.08, 0.05, 0.06, 0.97, 0.78, -9.43, b.std(0x2f6fd6, 0.4, 0.2)).userData.interact = { type: 'water' };
+    b.anchors.waterMesh = bottle;
+    // Bokhylla med pärmar i ekonomi
+    var wood = b.std(0x8a6a48, 0.6, 0);
+    b.box(0.36, 1.9, 1.4, -14.78, 0.95, 4.6, wood, { collide: true });
+    var binders = [0x2f6fd6, 0xc0392b, 0x3fbf6f, 0xf0b429, 0x8e5ea2, 0x444a52];
+    b._mute++;
+    [0.35, 0.8, 1.25, 1.7].forEach(function (y, row) {
+      b.box(0.34, 0.025, 1.36, -14.77, y - 0.2, 4.6, wood);
+      for (var i = 0; i < 9; i++) {
+        if ((i + row) % 7 === 3) continue;
+        var h = 0.3 + ((i * 3 + row) % 3) * 0.03;
+        b.box(0.26, h, 0.07, -14.74, y - 0.19 + h / 2, 4.02 + i * 0.14, b.std(binders[(i + row * 2) % binders.length], 0.55, 0));
+      }
+    });
+    // Pärmar och papper på skrivborden
+    ['PC-Anna', 'PC-Karim', 'PC-Sara', 'PC-Bo', 'PC-Maja'].forEach(function (id, k) {
+      var d = b.anchors.desks[id];
+      if (!d) return;
+      for (var j = 0; j < 3; j++) b.box(0.3, 0.012, 0.22, d.x - 0.5 + (k % 2) * 0.1, 0.775 + j * 0.013, d.z - 0.12, b.std(0xfafaf7, 0.8, 0), { cast: false });
+      b.box(0.07, 0.3, 0.24, d.x - 0.72, 0.92, d.z - 0.25, b.std(binders[k], 0.55, 0));
+    });
+    b._mute--;
+    // Mattor
+    function rug(x, z, w, d, c1, c2) {
+      var c = T.canvas(256, 256), g = c.getContext('2d');
+      g.fillStyle = c1; g.fillRect(0, 0, 256, 256);
+      g.strokeStyle = c2; g.lineWidth = 14; g.strokeRect(18, 18, 220, 220);
+      g.lineWidth = 4; g.strokeRect(40, 40, 176, 176);
+      for (var i = 0; i < 3000; i++) { g.fillStyle = 'rgba(0,0,0,' + Math.random() * 0.06 + ')'; g.fillRect(Math.random() * 256, Math.random() * 256, 2, 2); }
+      var m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshStandardMaterial({ map: T.toTex(c), roughness: 1, polygonOffset: true, polygonOffsetFactor: -1 }));
+      m.rotation.x = -Math.PI / 2; m.position.set(x, 0.006, z); m.receiveShadow = true;
+      b.scene.add(m);
+      b.sem.push({ type: 'box', x: x, z: z, w: w, d: d, y: 0.003, h: 0.006, color: c1, collide: false });
+    }
+    rug(12.8, -8.1, 3, 2, '#5a6e8a', '#d9c8ae');
+    rug(10.8, 5.6, 3.4, 2.6, '#8a5a4a', '#e9dcc4');
+    // Tavlor med abstrakt konst
+    function art(x, y, z, ry, seed, w, h) {
+      var c = T.canvas(256, 192), g = c.getContext('2d'), r = seed;
+      function rnd() { r = (r * 16807) % 2147483647; return r / 2147483647; }
+      var pal = [['#f4efe6', '#1f4e79', '#e07b24', '#3c7478', '#f0b429'], ['#20252b', '#c8553d', '#f3d0b5', '#7b9e3a', '#5a7fa6'], ['#eae4d8', '#2f6238', '#d9a441', '#8e5ea2', '#c0392b']][seed % 3];
+      g.fillStyle = pal[0]; g.fillRect(0, 0, 256, 192);
+      for (var i = 0; i < 7; i++) { g.fillStyle = pal[1 + (i % 4)]; if (i % 2) { g.beginPath(); g.arc(rnd() * 256, rnd() * 192, 20 + rnd() * 50, 0, Math.PI * 2); g.fill(); } else g.fillRect(rnd() * 200, rnd() * 150, 30 + rnd() * 90, 20 + rnd() * 70); }
+      var g2 = new THREE.Group(); g2.position.set(x, y, z); g2.rotation.y = ry;
+      var frame = new THREE.Mesh(M.rbox(w + 0.08, h + 0.08, 0.04, 0.01), b.std(0x2a211c, 0.4, 0.2)); g2.add(frame);
+      var pic = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: T.toTex(c), roughness: 0.7 })); pic.position.z = 0.021; g2.add(pic);
+      b.scene.add(g2);
+    }
+    art(14.94, 1.65, -0.9, -Math.PI / 2, 11, 1.0, 0.75);
+    art(-9, 1.7, 9.94, Math.PI, 23, 1.2, 0.8);
+    art(-13, 1.6, 1.93, Math.PI, 37, 0.9, 0.65);
+    // Nordvik-skylt i receptionen som lyser
+    var lc = T.canvas(512, 128), lg = lc.getContext('2d');
+    lg.fillStyle = '#ffffff'; lg.font = 'bold 86px "Segoe UI", sans-serif'; lg.fillText('NORDVIK', 40, 96);
+    lg.font = '80px sans-serif'; lg.fillText('🦀', 420, 98);
+    var logo = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.4), new THREE.MeshBasicMaterial({ map: T.toTex(lc), transparent: true, color: new THREE.Color(1.6, 1.8, 1.9) }));
+    logo.position.set(7.2, 2.35, -9.92); b.scene.add(logo);
+    // Kabelrullar på kroken i serverrummet
+    [0x2f6fd6, 0xe8c23a, 0x3daa5b, 0xf08a2c].forEach(function (col, i) {
+      b.box(0.04, 0.04, 0.12, -14.93, 1.75, -6.9 + i * 0.35, b.std(0x777c82, 0.4, 0.8), { cast: false });
+      var coil = new THREE.Mesh(M.geo('coil', function () { return new THREE.TorusGeometry(0.12, 0.012, 6, 24); }), b.std(col, 0.6, 0));
+      coil.position.set(-14.9, 1.62, -6.9 + i * 0.35); coil.rotation.y = Math.PI / 2; coil.castShadow = true;
+      b.scene.add(coil);
+    });
   }
 
   // ------------------------------------------------------------------ Borås
@@ -395,12 +507,26 @@ NV.building = (function () {
     var tube = b.m('tube', function () { return new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xf4f8ff, emissiveIntensity: 2 }); });
     for (var x = 92; x <= 108; x += 4) for (var z = -9; z <= 9; z += 6) {
       var tm = b.box(1.5, 0.05, 0.12, x, H - 0.4, z, x === 108 && z === 3 ? tube.clone() : tube, { cast: false, receive: false });
-      if (x === 108 && z === 3) b.anchors.flickerTube = tm;
+      if (x === 108 && z === 3) { b.anchors.flickerTube = tm; tm.material.userData.keep = true; }
     }
     for (var bx = 90; bx <= 110; bx += 5) b.box(0.25, 0.35, Z2 - Z1, bx, H - 0.18, 0, roof, { cast: false });
     // Pallställ
     var upright = b.std(0xd96b1f, 0.5, 0.3), beam = b.std(0x2b5aa0, 0.5, 0.3);
     var boxC = [0xb58a5a, 0xa47b4d, 0xc49b69, 0x8f6a44];
+    // Kartong med tejp och fraktsedel, och lastpallar av trä
+    var cc = T.canvas(128, 128), cg = cc.getContext('2d');
+    cg.fillStyle = '#ffffff'; cg.fillRect(0, 0, 128, 128);
+    cg.fillStyle = 'rgba(0,0,0,0.06)'; for (var fi = 0; fi < 128; fi += 3) cg.fillRect(fi, 0, 1, 128);
+    cg.fillStyle = '#d8c7a4'; cg.fillRect(0, 54, 128, 20);
+    cg.fillStyle = '#f7f7f2'; cg.fillRect(78, 84, 36, 26);
+    cg.fillStyle = '#333'; for (var li2 = 0; li2 < 4; li2++) cg.fillRect(82, 88 + li2 * 5, 18 + (li2 % 2) * 8, 2);
+    var cardTex = T.toTex(cc);
+    var boxMats = boxC.map(function (c) { return b.m('card' + c, function () { var m = new THREE.MeshStandardMaterial({ color: c, map: cardTex, roughness: 0.9 }); return m; }); });
+    var pc2 = T.canvas(128, 32), pg2 = pc2.getContext('2d');
+    pg2.fillStyle = '#b08a58'; pg2.fillRect(0, 0, 128, 32);
+    pg2.fillStyle = '#5a4128'; [[14, 12, 22], [53, 12, 22], [92, 12, 22]].forEach(function (r) { pg2.fillRect(r[0], r[1], r[2], 20); });
+    pg2.fillStyle = 'rgba(0,0,0,0.25)'; pg2.fillRect(0, 10, 128, 2);
+    var palletM = b.m('pallet', function () { return new THREE.MeshStandardMaterial({ map: T.toTex(pc2), roughness: 0.95 }); });
     b._mute++;
     [-7.5, -1.5, 5].forEach(function (rz, ri) {
       b.sem.push({ type: 'pallet', x0: 95, z: rz, bays: 5, bay: 2.8, h: 4.2, seed: ri });
@@ -412,7 +538,8 @@ NV.building = (function () {
           for (var k = 0; k < 2; k++) {
             if ((bay + li + k + ri) % 5 === 0) continue;
             var hgt = 0.6 + ((bay * 7 + li * 3 + k) % 4) * 0.15;
-            b.box(1.1, hgt, 0.9, x0 + 0.7 + k * 1.3, y + 0.08 + hgt / 2, rz, b.std(boxC[(bay + k + li) % 4], 0.9, 0));
+            b.box(1.2, 0.12, 0.95, x0 + 0.7 + k * 1.3, y + 0.11, rz, palletM);
+            b.box(1.1, hgt, 0.9, x0 + 0.7 + k * 1.3, y + 0.17 + hgt / 2, rz, boxMats[(bay + k + li) % 4]);
           }
         });
       }

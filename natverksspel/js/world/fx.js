@@ -201,7 +201,7 @@ NV.fx3d = (function () {
         var w = typeof e.where === 'function' ? e.where() : e.where;
         if (!w) return;
         if (Math.abs(w.x - cam.position.x) + Math.abs(w.z - cam.position.z) > e.range) return;
-        e.acc += dt * e.rate;
+        e.acc += dt * e.rate * (self.scale === undefined ? 1 : self.scale);
         while (e.acc >= 1) { e.acc -= 1; e.fn.call(self, w); }
       });
     }

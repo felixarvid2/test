@@ -317,3 +317,65 @@ body.mode-2d .dlg-body textarea, body.mode-2d .dlg-body input:not([type=radio]):
 .term-status .term-find { width: 150px; padding: 2px 8px; }
 .term-input:focus-visible, .term-find:focus-visible { outline: none; }
 .load-tip { margin-top: 14px; color: #ffe9a8; font-size: 13px; max-width: 320px; }
+#toast { pointer-events: none; }
+.toast { pointer-events: auto; }
+.toast button { margin-left: 8px; padding: 5px 10px; font-size: 13px; }
+
+/* ===================== v4: mobil och pekskärm ===================== */
+.tc-joy, .tc-btns, .tc-menu, .tc-quick, .tc-rotate, .term-keys { display: none; }
+body.touch { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+body.touch .dlg-body, body.touch .term-screen, body.touch .menu-inner, body.touch .term-hist { touch-action: pan-y; -webkit-user-select: text; user-select: text; }
+body.touch button { touch-action: manipulation; }
+body.touch .tc-joy { display: block; position: fixed; left: calc(18px + env(safe-area-inset-left, 0px)); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); width: 130px; height: 130px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.25); z-index: 8; }
+.tc-joy i { position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px; border-radius: 50%; background: rgba(255,255,255,0.35); box-shadow: 0 4px 14px rgba(0,0,0,0.4); }
+.tc-joy.on { background: rgba(255,255,255,0.14); }
+body.touch .tc-btns { display: grid; grid-template-columns: repeat(2, 58px); grid-template-rows: 58px 58px 58px; gap: 10px; position: fixed; right: calc(18px + env(safe-area-inset-right, 0px)); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 8; }
+.tc-btn { border-radius: 50%; background: rgba(20,24,30,0.6); border: 2px solid rgba(255,255,255,0.3); color: #fff; font-size: 22px; padding: 0; display: flex; align-items: center; justify-content: center; }
+.tc-btn.down { transform: scale(0.92); background: rgba(240,180,41,0.45); }
+.tc-btn.on { background: rgba(63,191,111,0.5); border-color: #6ee787; }
+.tc-use { grid-column: 1 / span 2; grid-row: 3; border-radius: 30px; flex-direction: row; gap: 6px; font-size: 14px; font-weight: 700; }
+.tc-use .ico { font-size: 22px; }
+.tc-use.ready { background: rgba(240,180,41,0.85); color: #1a1406; border-color: #ffe08a; animation: pulse 1.4s infinite; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 8px rgba(240,180,41,0.18); } }
+body.touch.mode-2d .only3d { visibility: hidden; }
+body.touch .tc-menu { display: block; position: fixed; right: calc(14px + env(safe-area-inset-right, 0px)); top: calc(12px + env(safe-area-inset-top, 0px)); width: 48px; height: 48px; border-radius: 12px; font-size: 24px; padding: 0; z-index: 12; background: rgba(12,15,19,0.75); }
+body.touch .tc-quick { display: flex; gap: 6px; position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(14px + env(safe-area-inset-bottom, 0px)); z-index: 8; }
+.tc-quick button { display: flex; flex-direction: column; align-items: center; padding: 5px 10px; font-size: 18px; background: rgba(12,15,19,0.7); border-radius: 12px; }
+.tc-quick small { font-size: 10px; color: var(--muted); }
+body.touch.tc-hidden .tc-joy, body.touch.tc-hidden .tc-btns, body.touch.tc-hidden .tc-quick { display: none; }
+body.touch #xpbar { right: 72px; top: 14px; }
+body.touch #minimap { top: 70px; width: 120px; height: 120px; }
+body.touch #compass { top: 64px; }
+body.touch #hud { max-width: min(320px, calc(100vw - 110px)); font-size: 13px; padding: 8px 10px; }
+body.touch .hud-keys { display: none; }
+body.touch #crosshair::after { display: none; }
+body.touch #hint { top: auto; bottom: 170px; }
+body.touch #toast { bottom: 160px; max-width: min(360px, calc(100vw - 32px)); }
+.tc-sheet { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.tc-sheet button { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 6px; font-size: 13px; }
+.tc-sheet button span { font-size: 24px; }
+.tc-rotate { position: fixed; inset: 0; z-index: 60; background: rgba(8,10,13,0.95); flex-direction: column; align-items: center; justify-content: center; text-align: center; font-size: 15px; }
+.tc-rotate div { font-size: 54px; }
+@media (orientation: portrait) { body.touch.mode-3d.playing .tc-rotate { display: flex; } }
+body.touch .term-keys { display: flex; gap: 6px; overflow-x: auto; padding: 6px 8px; background: #13161b; border-top: 1px solid #2a2f36; }
+.term-keys button { flex: none; min-width: 44px; padding: 8px 10px; font-family: "Cascadia Mono", Consolas, monospace; font-size: 13px; }
+#terminal.theme-snes .term-keys { background: #0d1a5c; border-top: 3px solid #f4f4ff; }
+#terminal.theme-snes .term-keys button { font-family: "Press Start 2P", monospace; font-size: 9px; color: #fff; background: #3a4fd0; border: 2px solid #f4f4ff; }
+body.touch .term-input { font-size: 16px; }
+body.touch .term-quick { display: none; }
+@media (max-width: 760px), (max-height: 520px) {
+  #terminal { padding: 0; }
+  .term { width: 100vw; height: 100%; max-height: none; border-radius: 0; resize: none; min-width: 0; min-height: 0; }
+  .term-head { flex-wrap: wrap; gap: 6px; padding: 6px 8px; }
+  .term-head button[data-act="font-"], .term-head button[data-act="font+"], .term-head button[data-act="copy"] { display: none; }
+  .term-status .ts-mode { display: none; }
+  .overlay { padding: 8px; }
+  .dlg { max-height: calc(100vh - 16px); }
+  .overlay.wide .dlg { width: 100%; }
+  .dlg-body { font-size: 14px; }
+  .menu-inner h1 { font-size: 32px; }
+  .menu-inner .logo { font-size: 40px; }
+  .weeks { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; }
+  .week { padding: 8px 10px; }
+  .wl { display: none; }
+}

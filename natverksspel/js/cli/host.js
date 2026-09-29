@@ -11,6 +11,17 @@
   }
   function fe80(h) { var m = h.nic.mac; return 'fe80::' + m.slice(0, 4) + ':' + m.slice(4, 8) + ':' + m.slice(8, 12) + ':1'; }
   function splitArgs(line) { return line.trim().split(/\s+/).filter(Boolean); }
+  // Klockan i spelet (dagen börjar 08:00)
+  function clock(st) { var s = 8 * 3600 + Math.floor(st.time || 0); return [Math.floor(s / 3600) % 24, Math.floor(s / 60) % 60, s % 60].map(function (n) { return ('0' + n).slice(-2); }).join(':'); }
+  var FORTUNES = [
+    'Det är alltid DNS. Utom när det är kabeln.',
+    'Glöm inte write memory – strömmen går alltid när du minst anar det.',
+    'Pinga gatewayen först. Sedan allt annat.',
+    'En switchport i fel VLAN ser helt frisk ut. Det är det som är problemet.',
+    'Den som dokumenterar slipper felsöka samma sak två gånger.',
+    'show logging vet mer än du tror.',
+    'Om det fungerade i går: vad ändrades i natt?',
+  ];
 
   // ================================================================ Windows
   function WinShell(state, hostId) {
@@ -37,13 +48,18 @@
       case 'hostname': return res(h.id);
       case 'cls': return res('', { clear: true });
       case 'exit': return res('', { close: true });
+      case 'ver': return res('\nMicrosoft Windows [Version 10.0.19045.4894]\n');
+      case 'whoami': return res('nordvik\\' + this.user);
+      case 'date': return res('Aktuellt datum: 2026-09-29');
+      case 'time': return res('Aktuell tid: ' + clock(st));
+      case 'systeminfo': return res(['', 'Värdnamn:                  ' + h.id.toUpperCase(), 'OS-namn:                   Microsoft Windows 10 Pro', 'Registrerad ägare:         Nordvik AB', 'Domän:                     nordvik.local', 'Nätverkskort:              1 NIC(s) installerade.', '                           [01]: Intel(R) Ethernet Connection', '                                 DHCP aktiverat: ' + (h.nic && h.nic.dhcp ? 'Ja' : 'Nej'), '                                 IP-adresser: ' + (((NV.sim.hostIpConf(h) || {}).ip) || '–'), ''].join('\n'));
       case 'route': return res(this.routePrint());
       case 'netstat': return res(/-r/i.test(line) ? this.routePrint() : 'Aktiva anslutningar\n\n  Proto  Lokal adress           Utländsk adress        Tillstånd');
       case 'test-netconnection': case 'tnc': return this.tnc(a.slice(1));
       case 'getmac': return res('\nFysisk adress       Transportnamn\n=================== ==========================================================\n' + U.macDash(h.nic.mac) + '   \\Device\\Tcpip_{4E2B9A1C-7D11-4F2E-9B3A-1C5E7D9F0A21}');
       case 'netsh': return res(this.netsh(line));
       case 'help': case '/?':
-        return res('Kommandon som fungerar här:\n  ipconfig [/all | /release | /renew]\n  ping <adress|namn> [-n antal]\n  tracert <adress|namn>\n  arp -a\n  nslookup <namn>\n  netsh interface ip set address "Ethernet" static <ip> <mask> <gateway>\n  netsh interface ip set address "Ethernet" dhcp\n  netsh interface ip set dns "Ethernet" static <ip>\n  hostname, getmac, cls, exit');
+        return res('Kommandon som fungerar här:\n  ipconfig [/all | /release | /renew]\n  ping <adress|namn> [-n antal]\n  tracert <adress|namn>\n  arp -a\n  nslookup <namn>\n  netsh interface ip set address "Ethernet" static <ip> <mask> <gateway>\n  netsh interface ip set address "Ethernet" dhcp\n  netsh interface ip set dns "Ethernet" static <ip>\n  hostname, getmac, whoami, ver, date, time, systeminfo, cls, exit');
     }
     return res('\'' + a[0] + '\' känns inte igen som ett internt eller externt kommando,\nkörbart program eller kommandofil.');
   };
@@ -338,10 +354,15 @@
           '  ping -c 4 <ip|namn>          ip -4 addr show     ip route show default',
           '  ip link show                 ip -4 neigh show    resolvectl query <namn>',
           '  traceroute <ip>              nslookup <namn>     clear',
+          '  date   uptime   whoami   neofetch   fortune   history',
         ].join('\n'));
       case 'clear': return res('', { clear: true });
       case 'exit': case 'logout': return res('', { close: true });
       case 'whoami': return res('tekniker');
+      case 'date': return res('tis 29 sep 2026 ' + clock(st) + ' CEST');
+      case 'uptime': return res(' ' + clock(st) + ' up 3 days,  2:14,  1 user,  load average: 0,08, 0,12, 0,10');
+      case 'fortune': return res(FORTUNES[Math.floor(Math.random() * FORTUNES.length)]);
+      case 'neofetch': return res(['        .--.         tekniker@laptop', '       |o_o |        ---------------', '       |:_/ |        OS: Ubuntu 24.04 LTS', '      //   \\ \\       Värd: Nordviks teknikerlaptop', '     (|     | )      Skal: bash 5.2', '    /\'\\_   _/`\\      Terminal: Krabba-passet', '    \\___)=(___/      Konsol: /dev/ttyUSB0 (ljusblå kabel)', '                     IP: ' + (((conf(h) || {}).ip) || '–')].join('\n'));
       case 'history': return res((this.hist || []).map(function (l, i) { return U.padL(i + 1, 5) + '  ' + l; }).join('\n'));
       case 'ifconfig': return res('Command \'ifconfig\' not found, but can be installed with:\nsudo apt install net-tools\n\nTips: använd ip a (adresser) och ip r (vägar) i stället.');
       case 'arp': return res(this.ip(['neigh']).split('\n').filter(Boolean).map(function (l) { var p = l.split(' '); return U.pad(p[0], 22) + 'ether   ' + p[4] + '   C   enp0s31f6'; }).join('\n') || 'Address                  HWtype  HWaddress           Flags Mask            Iface');

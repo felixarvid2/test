@@ -1,0 +1,62 @@
+/* ===================== v4: tillgänglighet, frågesport, rumsskylt m.m. ===================== */
+:root { --ui: 1; --ch: 1; }
+#hud, .dlg, #toast, #xpbar, #compass, .pause-card { zoom: var(--ui); }
+#crosshair { transform: scale(var(--ch)); }
+#crosshair.active { transform: scale(calc(var(--ch) * 1.8)); }
+
+/* Dialoger tonar och skalar in */
+#dialog:not(.hidden) .dlg { animation: dlgin 0.18s ease-out; }
+@keyframes dlgin { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
+
+/* Minska rörelse */
+body.rm *, body.rm *::before, body.rm *::after { animation-duration: 0.001s !important; animation-iteration-count: 1 !important; transition-duration: 0.001s !important; }
+
+/* Hög kontrast */
+body.hc { --panel: #000; --panel-solid: #000; --line: #ffffff; --muted: #e0e0e0; --text: #ffffff; }
+body.hc #hud, body.hc .dlg, body.hc .toast, body.hc #xpbar, body.hc .pause-card, body.hc #compass { background: #000 !important; border: 2px solid #fff !important; backdrop-filter: none; }
+body.hc button { border: 2px solid #fff; }
+body.hc .hud-keys, body.hc .muted { color: #f0f0f0; }
+
+/* Färgblindläge i terminalen */
+body.cb .t-ok, body.cb .t-prompt.p-priv { color: #5fb8ff !important; }
+body.cb .t-bad, body.cb .t-err { color: #ff9a3c !important; }
+body.cb .t-warn { color: #ffe14d !important; }
+body.cb .fb.ok { border-left-color: #3da5ff; }
+body.cb .fb.no { border-left-color: #ff8a1f; }
+
+/* HUD-tillägg */
+.hud-tasks li:hover { color: #fff; text-decoration: underline dotted; }
+.hud-combo { color: #ffd54a !important; }
+.hud-chal { color: #cfe3ff !important; }
+.hud-saved { position: absolute; right: 10px; bottom: 8px; font-size: 11px; color: var(--muted); animation: fadeout 1.5s forwards; }
+#hud { position: fixed; }
+@keyframes fadeout { 70% { opacity: 1; } 100% { opacity: 0; } }
+.toast.cap { font-size: 12.5px; padding: 5px 10px; border-left-color: #8a96a3; }
+.toast { cursor: pointer; }
+
+/* Rumsskylt */
+#zone-banner { position: fixed; left: 50%; top: 18%; transform: translateX(-50%); font-size: 26px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #fff; text-shadow: 0 2px 12px rgba(0,0,0,0.7); pointer-events: none; opacity: 0; z-index: 6; }
+#zone-banner.show { animation: zone 2.2s ease-out forwards; }
+@keyframes zone { 0% { opacity: 0; transform: translate(-50%, 10px); } 15% { opacity: 1; transform: translate(-50%, 0); } 70% { opacity: 1; } 100% { opacity: 0; } }
+body.mode-2d #zone-banner { font-family: "Press Start 2P", "Segoe UI", sans-serif; font-size: 16px; text-shadow: 3px 3px 0 #0a0f3a; }
+
+/* Karta, frågesport, betyg och nyheter */
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+.legend i.line { width: 18px; height: 0; border-top: 2px dashed #f0b429; border-radius: 0; }
+.quiz { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.quiz button { text-align: left; padding: 10px 14px; font-size: 15px; }
+.quiz button.right { background: rgba(63,191,111,0.35); border-color: #3fbf6f; }
+.quiz button.wrong { background: rgba(255,90,79,0.3); border-color: #ff5a4f; }
+body.cb .quiz button.right { background: rgba(61,165,255,0.35); border-color: #3da5ff; }
+.grade { text-align: center; font-size: 18px; margin-bottom: 6px; }
+.grade b { font-size: 34px; color: var(--accent); margin-left: 6px; }
+.news li { margin: 6px 0; }
+.trainer { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 6px; }
+.ver { margin-top: 10px; }
+
+/* Terminal: nya rader */
+.term-new { position: absolute; right: 24px; bottom: 44px; z-index: 3; padding: 6px 12px; font-size: 12.5px; background: var(--accent); color: #1a1406; border: none; border-radius: 99px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+.t-ip, .t-if { cursor: pointer; }
+.t-ip:hover, .t-if:hover { text-decoration: underline; }
+body.touch .term-new { bottom: 96px; }

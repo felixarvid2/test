@@ -120,11 +120,12 @@ NV.UI = (function () {
   P.hidePause = function () { this.pause.classList.add('hidden'); };
   P.onLockChange = function (locked) {
     if (locked) { this.hidePause(); return; }
+    if (NV.touch.active()) return;
     if (!this.captures() && this.game.mode === '3d') this.showPause();
   };
   P.afterOverlay = function () {
     if (this.captures()) return;
-    if (this.game.mode === '3d') {
+    if (this.game.mode === '3d' && !NV.touch.active()) {
       this.showPause();
       this.game.world.lock();
     }
@@ -158,6 +159,21 @@ NV.UI = (function () {
     if (!collapsed) html += '<div class="hud-keys">' + (g.mode === '2d' ? 'WASD/pilar gå · klicka för att gå · <b>E</b> använd · <b>+/−</b> zoom' : 'WASD gå · mus titta · <b>E</b> använd · högerklick zoom · <b>C</b> huka · <b>V</b> ficklampa') + ' · <b>T</b> laptop · <b>F</b> felrapport · <b>L</b> ledtråd · <b>G</b> glasögon · <b>M</b> karta · <b>J</b> prestationer · <b>H</b> handbok · <b>F1</b> hjälp · <b>U</b> dölj</div>';
     this.hud.innerHTML = html;
     this.renderXp();
+  };
+  // Grafiknivån byts vid omladdning; veckan sparas och fortsätter automatiskt
+  P.reloadOffer = function () {
+    var g = this.game;
+    this.showDialog({ title: 'Byt grafiknivå', html: '<p>Den nya grafiknivån används när spelet laddas om. Din vecka sparas och fortsätter där du var.</p>', buttons: [{ label: 'Ladda om nu', primary: true, onClick: function () { g.reloadKeepRun(); } }, { label: 'Senare' }] });
+  };
+  P.perfPrompt = function (lower) {
+    var self = this;
+    var d = document.createElement('div');
+    d.className = 'toast warn big';
+    d.innerHTML = '🐢 Spelet går trögt på den här datorn. <button class="primary">Byt till ' + esc(NV.gfx.NAMES[lower].split(' (')[0].toLowerCase()) + ' grafik</button>';
+    d.querySelector('button').addEventListener('click', function () { NV.settings.set('quality', lower); self.game.reloadKeepRun(); });
+    this.toastEl.appendChild(d);
+    setTimeout(function () { d.classList.add('out'); }, 14000);
+    setTimeout(function () { d.remove(); }, 15000);
   };
   P.renderXp = function () {
     var el = $('#xpbar'), r = NV.career.rank();
@@ -415,12 +431,22 @@ NV.UI = (function () {
       },
     });
   };
+  // Tavlan: veckans genomgång och frågesport
+  P.whiteboardDialog = function () {
+    var g = this.game, self = this;
+    var st = NV.settings.store('krabba-passet.quiz') || {};
+    var w = g.week || 1;
+    this.showDialog({ title: 'Tavlan', html: '<p>På tavlan står veckans tema och en skiss över nätet. Vill du testa dig själv med tre frågor?</p>' + (st[w] ? '<p class="muted">Ditt bästa resultat för vecka ' + w + ': ' + st[w] + ' / 3</p>' : ''), buttons: [{ label: 'Frågesport', primary: true, onClick: function () { setTimeout(function () { self.quiz(w); }, 10); } }, { label: 'Läs tavlan', onClick: function () { setTimeout(function () { self.briefing(false); }, 10); } }, { label: 'Stäng' }] });
+  };
   P.briefing = function (first) {
     var g = this.game;
     var def = g.def;
     var html = def ? '<p class="brief">' + esc(def.intro).replace(/\n/g, '<br>') + '</p><p class="muted">Kapitel ' + def.chapter + ' i kursboken. Den här veckan tränar du på:</p><ul>' + def.learn.map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('') + '</ul>'
       : '<p class="brief">Fri träning: Nordviks nät utan fel. Koppla in dig var du vill, bygg om och testa. Inget du gör här sparas.</p>';
     if (g.exam) html += '<div class="box fastnar"><div class="box-title">EXAMENSLÄGE</div>Inga ledtrådar och ingen guide. Tiden går från nu.</div>';
+    var ch = def && !g.exam && NV.challenge ? NV.challenge.of(def.week) : null;
+    if (ch) html += '<div class="box"><div class="box-title">VECKANS UTMANING 🏅</div>' + esc(ch.title) + (NV.challenge.done(def.week) ? ' <span class="muted">(redan klarad)</span>' : ' – ger 75 XP och en medalj.') + '</div>';
+    if (def) html += '<p class="muted small">Väder i dag: ' + ({ sun: '☀️ sol', clouds: '⛅ molnigt', rain: '🌧️ regn' }[g.weather] || '☀️ sol') + '</p>';
     html += '<p class="muted small">Lösenord (står på lappen vid laptopen): enable <code>Krabba2026</code>, ssh <code>drift</code> / <code>Krabba2026</code>. Pilen högst upp visar vägen till nästa mål.</p>';
     this.showDialog({ title: first ? '🦀 Krabba-passet' : 'Tavlan', html: html, buttons: [{ label: first ? 'Sätt igång' : 'Stäng', primary: true }] });
   };
@@ -514,7 +540,7 @@ NV.UI = (function () {
   // ------------------------------------------------------------------ Handbok
   P.handbook = function (tab) {
     var self = this;
-    var tabs = [['cmd', 'Kommandon'], ['fel', 'Felbibliotek'], ['plan', 'Adressplan'], ['calc', 'Subnätsräknare'], ['osi', 'OSI-modellen'], ['ord', 'Ordlista'], ['keys', 'Styrning']];
+    var tabs = [['cmd', 'Kommandon'], ['mine', 'Mina kommandon'], ['fel', 'Felbibliotek'], ['plan', 'Adressplan'], ['calc', 'Subnätsräknare'], ['osi', 'OSI-modellen'], ['ord', 'Ordlista'], ['keys', 'Styrning']];
     tab = tab || this.lastTab || 'cmd';
     this.lastTab = tab;
     var html = '<div class="tabs">' + tabs.map(function (t) { return '<button data-tab="' + t[0] + '" class="' + (t[0] === tab ? 'on' : '') + '">' + t[1] + '</button>'; }).join('') + '</div>' +
@@ -530,7 +556,13 @@ NV.UI = (function () {
           d.querySelectorAll('.tab-body tr').forEach(function (tr, i) { if (tr.querySelector('th')) return; tr.style.display = !q || tr.textContent.toLowerCase().indexOf(q) >= 0 ? '' : 'none'; });
           d.querySelectorAll('.tab-body .osi-layer').forEach(function (el) { el.style.display = !q || el.textContent.toLowerCase().indexOf(q) >= 0 ? '' : 'none'; });
         });
-        if (tab === 'calc') NV.handbook.bindCalc(d);
+        if (tab === 'calc') {
+          NV.handbook.bindCalc(d);
+          var tb = document.createElement('div'); tb.className = 'trainer'; tb.innerHTML = '<h3>Subnätsträning</h3><p class="muted small">Slumpade frågor om nätverksadress, broadcast, antal värdar och nätmask. Svara och tryck Enter.</p><button class="primary" id="sn-go">Starta träning</button>';
+          $('.tab-body', d).appendChild(tb);
+          $('#sn-go', d).addEventListener('click', function () { self.subnetTrainer(tb); });
+        }
+        if (tab === 'mine') d.querySelectorAll('[data-cmd]').forEach(function (b) { b.addEventListener('click', function () { self.copyText(b.getAttribute('data-cmd')); }); });
       },
     });
   };
@@ -684,7 +716,8 @@ NV.UI = (function () {
       '<label for="s-inv">Invertera Y-axeln</label><input type="checkbox" id="s-inv"' + (s.get('invertY') ? ' checked' : '') + '>' +
       '<label for="s-fov">Synvinkel (FOV)</label><input type="range" id="s-fov" min="55" max="95" step="1" value="' + s.get('fov') + '">' +
       '<label for="s-bob">Gungande kamera</label><input type="checkbox" id="s-bob"' + (s.get('bob') ? ' checked' : '') + '>' +
-      '<label for="s-q">Grafik (3D)</label><select id="s-q"><option value="ultra"' + (s.get('quality') === 'ultra' ? ' selected' : '') + '>Ultra (skarpa skuggor, 4× kantutjämning)</option><option value="high"' + (s.get('quality') === 'high' ? ' selected' : '') + '>Hög (skuggor, reflektioner)</option><option value="low"' + (s.get('quality') === 'low' ? ' selected' : '') + '>Snabb (inga skuggor)</option></select>' +
+      '<label for="s-q">Grafik (3D)</label><select id="s-q">' + [['auto', 'Automatiskt' + (NV.gfx.auto ? ' (' + NV.gfx.NAMES[NV.gfx.auto.level].split(' (')[0].toLowerCase() + ')' : '')]].concat(NV.gfx.LEVELS.slice().reverse().map(function (l) { return [l, NV.gfx.NAMES[l]]; })).map(function (x) { return '<option value="' + x[0] + '"' + ((s.get('quality') || 'auto') === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select>' +
+      '<label for="s-cap">Max bildfrekvens</label><select id="s-cap">' + [[0, 'Obegränsad'], [60, '60 bilder/s'], [30, '30 bilder/s (sparar batteri)']].map(function (x) { return '<option value="' + x[0] + '"' + (+s.get('fpsCap') === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select>' +
       '<label for="s-post">Efterbehandling (glöd, vinjett, färgton)</label><input type="checkbox" id="s-post"' + (s.get('post') ? ' checked' : '') + '>' +
       '<label for="s-part">Partiklar</label><input type="checkbox" id="s-part"' + (s.get('particles') ? ' checked' : '') + '>' +
       '<label for="s-smooth">Mjuk musrörelse</label><input type="checkbox" id="s-smooth"' + (s.get('smooth') ? ' checked' : '') + '>' +
@@ -715,6 +748,8 @@ NV.UI = (function () {
         bind('s-font', 'termFont', function (e) { return +e.value; });
         bind('s-zoom', 'zoom2d', function (e) { return +e.value; });
         bind('s-post', 'post', function (e) { return e.checked; });
+        bind('s-cap', 'fpsCap', function (e) { return +e.value; });
+        $('#s-q', d).addEventListener('change', function () { self.reloadOffer(); });
         bind('s-part', 'particles', function (e) { return e.checked; });
         bind('s-smooth', 'smooth', function (e) { return e.checked; });
         bind('s-fps', 'showFps', function (e) { return e.checked; });

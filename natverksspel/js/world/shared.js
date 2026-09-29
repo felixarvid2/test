@@ -7,7 +7,12 @@ NV.shared = (function () {
     var D = S.get(state);
     var d = state.devices[devId];
     var storm = Object.keys(D.storm).some(function (v) { return D.storm[v].indexOf(devId) >= 0; });
-    return function (port, t) {
+    // Färgblindläge: grönt blir blått och bärnsten blir orange
+    var cb = NV.settings && NV.settings.get('colorblind');
+    var MAP = { '#3dff6a': '#3da5ff', '#1d4a26': '#1d3a5a', '#16301b': '#12243a', '#ffb020': '#ff8a1f', '#3a2a10': '#3a1f08' };
+    var inner = led;
+    return cb ? function (port, t) { var c = inner(port, t); return MAP[c] || c; } : inner;
+    function led(port, t) {
       if (!d || !d.powered) return '#1d261f';
       if (d.os === 'ios') {
         var i = d.config.ifaces[port];
@@ -29,7 +34,7 @@ NV.shared = (function () {
       var la = NV.model.linkAt(state, devId, 'nic');
       var up = la && D.links[la.link.id] && D.links[la.link.id].up;
       return up ? (Math.random() < 0.2 ? '#1d4a26' : '#3dff6a') : '#1d261f';
-    };
+    }
   }
 
   // Beskrivning av en port för verktygstips: "Gi0/7 · Bo · connected · VLAN 20"
@@ -178,5 +183,14 @@ NV.shared = (function () {
     return { name: h.label || id, ip: c ? c.ip : 'ingen adress', bad: !c || !!c.apipa };
   }
 
-  return { crabStep: crabStep, linkStatus: linkStatus, deviceLine: deviceLine, hostLine: hostLine, ledFn: ledFn, portInfo: portInfo, sampleMonitor: sampleMonitor, drawMonitor: drawMonitor, SERIES: SERIES, rackSpots: rackSpots };
+  // Dammsugarroboten: kör rakt fram och svänger när den stöter i något (inom kontorslandskapet)
+  function vacStep(v, dt, collides) {
+    var sp = 0.32;
+    if (v.turn > 0) { v.turn -= dt; v.dir += dt * 2.2 * v.spin; return; }
+    var nx = v.x + Math.cos(v.dir) * sp * dt, nz = v.z + Math.sin(v.dir) * sp * dt;
+    if (collides(nx, nz, 0.2) || nx < -4.6 || nx > 14.5 || nz < 0.3 || nz > 9.6) { v.turn = 0.6 + Math.random() * 1.2; v.spin = Math.random() < 0.5 ? -1 : 1; return; }
+    v.x = nx; v.z = nz;
+  }
+
+  return { crabStep: crabStep, vacStep: vacStep, linkStatus: linkStatus, deviceLine: deviceLine, hostLine: hostLine, ledFn: ledFn, portInfo: portInfo, sampleMonitor: sampleMonitor, drawMonitor: drawMonitor, SERIES: SERIES, rackSpots: rackSpots };
 })();

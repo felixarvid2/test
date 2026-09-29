@@ -305,7 +305,8 @@ NV.devices3d = (function () {
     var pr = b.box(0.6, 0.45, 0.5, A.printer.x, 0.9, A.printer.z, b.std(0xe9e9e6, 0.5, 0.1));
     b.box(0.7, 0.68, 0.6, A.printer.x, 0.34, A.printer.z, b.std(0xcfd2d4, 0.5, 0.1), { collide: true });
     b.box(0.4, 0.02, 0.3, A.printer.x, 1.13, A.printer.z + 0.05, b.std(0xffffff, 0.8, 0));
-    pr.userData.interact = { type: 'info', id: 'Skrivare', label: 'Skrivaren (192.168.1.11)' };
+    pr.userData.interact = { type: 'printer' };
+    out.extra.printer = pr;
     // Teknikerns laptop
     var lap = laptop(world, A.bench.x + 0.05, 0.76, A.bench.z);
     out.extra.laptop = lap;
@@ -321,20 +322,39 @@ NV.devices3d = (function () {
     return out;
   }
 
+  var kbTex = null;
+  function keyboardTex() {
+    if (kbTex) return kbTex;
+    var c = T.canvas(256, 80), g = c.getContext('2d');
+    g.fillStyle = '#23262b'; g.fillRect(0, 0, 256, 80);
+    for (var r = 0; r < 5; r++) for (var k = 0; k < 15; k++) {
+      var w = (r === 4 && k === 5) ? 70 : 14;
+      if (r === 4 && k > 5 && k < 10) continue;
+      g.fillStyle = '#3b3f46'; g.fillRect(6 + k * 16.5, 6 + r * 14.5, w, 12);
+      g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(6 + k * 16.5, 6 + r * 14.5, w, 2);
+    }
+    kbTex = T.toTex(c);
+    return kbTex;
+  }
   function monitor(world, x, z, id) {
-    var b = world.builder;
+    var b = world.builder, M = NV.models;
     var g = new THREE.Group();
     g.position.set(x, 0.76, z);
-    var stand = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.02, 0.16), b.std(0x222428, 0.4, 0.6)); g.add(stand);
-    var neck = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.2, 0.03), b.std(0x222428, 0.4, 0.6)); neck.position.set(0, 0.1, -0.03); g.add(neck);
-    var frame = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.36, 0.03), b.std(0x16181b, 0.4, 0.3)); frame.position.set(0, 0.36, -0.03); frame.castShadow = true; g.add(frame);
+    var metal = b.std(0x2a2c30, 0.35, 0.7), plastic = b.std(0x16181b, 0.35, 0.3);
+    M.mesh(M.rbox(0.24, 0.015, 0.17, 0.006), metal, 0, 0.008, -0.03, g);
+    var neck = M.mesh(M.rbox(0.05, 0.24, 0.025, 0.008), metal, 0, 0.13, -0.06, g); neck.rotation.x = -0.08;
+    M.mesh(M.rbox(0.58, 0.36, 0.022, 0.012), plastic, 0, 0.36, -0.03, g);
+    M.mesh(M.rbox(0.36, 0.22, 0.03, 0.02), plastic, 0, 0.36, -0.05, g);
+    M.mesh(M.rbox(0.05, 0.01, 0.005, 0.002), b.std(0x9aa3ad, 0.3, 0.8), 0, 0.195, -0.018, g, false);
     var c = T.canvas(512, 300);
     var tex = T.toTex(c);
-    var scr = new THREE.Mesh(new THREE.PlaneGeometry(0.54, 0.32), new THREE.MeshStandardMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.9, roughness: 0.4 }));
-    scr.position.set(0, 0.36, -0.013);
+    var scr = new THREE.Mesh(new THREE.PlaneGeometry(0.555, 0.325), new THREE.MeshStandardMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.9, roughness: 0.25 }));
+    scr.position.set(0, 0.365, -0.0185);
     g.add(scr);
-    var kb = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.015, 0.14), b.std(0x2a2d31, 0.6, 0.2)); kb.position.set(0, 0.008, 0.2); g.add(kb);
-    var mouse = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.02, 0.1), b.std(0x2a2d31, 0.6, 0.2)); mouse.position.set(0.3, 0.01, 0.2); g.add(mouse);
+    var kbm = new THREE.MeshStandardMaterial({ map: keyboardTex(), roughness: 0.6 });
+    var kb = M.mesh(M.rbox(0.42, 0.018, 0.14, 0.006), kbm, 0, 0.01, 0.2, g); kb.rotation.x = 0.04;
+    var mouse = M.mesh(M.sphere(0.03, 12, 8), plastic, 0.3, 0.012, 0.2, g); mouse.scale.set(0.8, 0.45, 1.3);
+    M.mesh(M.rbox(0.22, 0.004, 0.2, 0.004), b.std(0x2e3a4a, 0.9, 0), 0.3, 0.002, 0.2, g, false);
     world.scene.add(g);
     drawDesktop(c, id, null);
     tex.needsUpdate = true;
@@ -384,9 +404,12 @@ NV.devices3d = (function () {
     }
   }
   function pc(world, id, p) {
-    var b = world.builder;
+    var b = world.builder, M = NV.models;
     var m = monitor(world, p.x + 0.1, p.z - 0.15, id);
-    var tower = b.box(0.2, 0.44, 0.45, p.x + 0.6, 0.22, p.z - 0.1, b.std(0x1c1e22, 0.4, 0.4));
+    var tower = b.box(0.2, 0.44, 0.45, p.x + 0.6, 0.22, p.z - 0.1, b.std(0x1c1e22, 0.35, 0.4));
+    tower.geometry = M.rbox(0.2, 0.44, 0.45, 0.02);
+    var vent = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.3), T.mat('perforated', { roughness: 0.5, metalness: 0.5 }, 1, 2));
+    vent.position.set(p.x + 0.6, 0.2, p.z + 0.126); world.scene.add(vent);
     b.box(0.02, 0.02, 0.02, p.x + 0.6, 0.38, p.z + 0.13, b.std(0x2d8cff, 0.3, 0, { emissive: 0x2d8cff, emissiveIntensity: 2 }));
     var inter = { type: 'pc', id: id };
     m.screen.userData.interact = inter;
@@ -396,7 +419,8 @@ NV.devices3d = (function () {
     var box = b.box(0.12, 0.08, 0.05, p.x + 0.75, 0.2, p.z - 0.38, b.std(0xf2f2ef, 0.5, 0));
     box.userData.interact = { type: 'deskcable', id: id };
     var c = cable(world, [new THREE.Vector3(p.x + 0.68, 0.3, p.z + 0.12), new THREE.Vector3(p.x + 0.75, 0.05, p.z + 0.05), new THREE.Vector3(p.x + 0.8, 0.05, p.z - 0.25), new THREE.Vector3(p.x + 0.75, 0.2, p.z - 0.35)], 'blue', 0.006, { interact: { type: 'deskcable', id: id } });
-    var led = b.box(0.012, 0.012, 0.01, p.x + 0.72, 0.22, p.z - 0.352, new THREE.MeshStandardMaterial({ color: 0x113311, emissive: 0x33ff55, emissiveIntensity: 0 }));
+    var ledM = new THREE.MeshStandardMaterial({ color: 0x113311, emissive: 0x33ff55, emissiveIntensity: 0 }); ledM.userData.keep = true;
+    var led = b.box(0.012, 0.012, 0.01, p.x + 0.72, 0.22, p.z - 0.352, ledM);
     return { monitor: m, tower: tower, cable: c, led: led, id: id };
   }
   function guestLaptop(world, a) {
@@ -492,6 +516,7 @@ NV.devices3d = (function () {
     var body = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.14, 0.05, 32), b.std(0xf4f4f2, 0.4, 0.1));
     g.add(body);
     var ledMat = new THREE.MeshStandardMaterial({ color: 0x222222, emissive: 0x33ff66, emissiveIntensity: 0 });
+    ledMat.userData.keep = true;
     var led = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.01, 16), ledMat);
     led.position.y = -0.027;
     g.add(led);
