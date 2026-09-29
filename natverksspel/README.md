@@ -17,7 +17,7 @@ Spelet är helt statiskt och behöver ingen installation eller internetuppkoppli
 
 Välj visning i startmenyn (valet sparas och kan bytas mitt i en vecka via menyn).
 
-- **3D** – förstaperson i ett stiliserat kontor. Klicka i bilden för att styra med musen. Fungerar inte pekarlåset (t.ex. i en inbäddad vy) kan du i stället hålla ned vänster musknapp och dra för att titta. Högerklick eller Z zoomar in, t.ex. för att läsa portnummer.
+- **3D** – förstaperson i ett stiliserat kontor med glöd, reflektioner, solstrålar och partiklar. Klicka i bilden för att styra med musen. Fungerar inte pekarlåset (t.ex. i en inbäddad vy) kan du i stället hålla ned vänster musknapp och dra för att titta. Högerklick eller Z zoomar in, t.ex. för att läsa portnummer.
 - **2D** – en 16-bitars pixelvärld sedd snett uppifrån, i stil med SNES-rollspel. Samma kontor, rack, kollegor och fel, men du går med WASD eller klickar där du vill gå. Klicka på ett rack, en dator eller en person för att gå dit och använda det. Pratbubblor visar vem som har ett ärende (!) och vem du har hjälpt (✓). Väggar tonas ut när du går bakom dem.
 
 ## Styrning
@@ -40,9 +40,17 @@ Välj visning i startmenyn (valet sparas och kan bytas mitt i en vecka via menyn
 | O | Kommandologg |
 | U | Dölj/visa HUD |
 | F1 | Hjälp |
+| C / Ctrl (3D) | Huka |
+| Mellanslag (3D) | Hoppa |
+| V (3D) | Ficklampa |
+| G | Nätverksglasögon |
+| R | Spela upp senaste pingspåret |
+| J | Karriär, prestationer och statistik |
+| K | Minikarta |
+| P | Fotoläge |
 | Esc | Paus / stäng |
 
-I terminalen fungerar `?`, Tab, ↑/↓, Ctrl+C, Ctrl+Z, Ctrl+A K (stäng `screen`), Ctrl+L (rensa), Ctrl+Shift+C (kopiera markering) och PageUp/PageDown.
+I terminalen fungerar `?`, Tab, → (ta den grå kompletteringen), ↑/↓, Ctrl+C, Ctrl+Z, Ctrl+A K (stäng `screen`), Ctrl+L (rensa), Ctrl+F (sök), Ctrl+Shift+C (kopiera markering) och PageUp/PageDown.
 
 Lösenord (står på lappen vid laptopen): enable `Krabba2026`, ssh `drift` / `Krabba2026`.
 
@@ -61,6 +69,184 @@ Lösenord (står på lappen vid laptopen): enable `Krabba2026`, ssh `drift` / `K
 | 9 | Säkerhet och brandvägg | ACL i fel riktning, implicit deny, port security err-disabled |
 
 Varje fel är simulerat på riktigt. Symptomen räknas fram ur konfigurationen: länkar, duplex, VLAN och trunkar, STP, routing, ARP, ACL, NAT, DHCP, DNS, PoE och port security. Ett fel försvinner därför bara när orsaken är rättad.
+
+## Version 3: 150 förbättringar
+
+Fokus på grafik och spelkänsla i 3D, med partiklar och efterbehandling, en snyggare terminal i 2D och ett karriärsystem med XP och prestationer.
+
+**Efterbehandling i 3D**
+1. HDR-rendering till en flyttalsbuffert med en egen efterbehandlingskedja.
+2. Glöd (bloom) i fyra nivåer från lysdioder, skärmar, lampor och skyltar.
+3. Mjuk tröskel för glöden, så att bara riktigt ljusa ytor lyser.
+4. Egen filmisk tonmappning (ACES) i sista steget.
+5. Vinjett som blir starkare när du zoomar.
+6. Diskret filmkorn.
+7. Lätt kromatisk aberration mot bildens kanter.
+8. Färgton per rum: kallt serverrum, varmt fikarum och ett blekare lager.
+9. Mättnad och kontrast per rum.
+10. Exponeringen glider mjukt när du går mellan rum.
+11. Rött larmsken i bildkanten under broadcaststorm i serverrummet.
+12. Guldblixt i bilden när ett fel löses.
+13. Kantutjämning (MSAA) i efterbehandlingen: 2× på Hög och 4× på Ultra.
+14. Ny kvalitetsnivå Ultra med 4096-skuggkarta och högre upplösning.
+15. Upplösningen sänks automatiskt när bildfrekvensen sjunker och höjs igen när det går bra.
+16. Bildfrekvensmätare som kan slås på i inställningarna.
+17. Efterbehandlingen och partiklarna kan stängas av var för sig.
+18. Nätverksglasögonen ger 3D-bilden en grön ton med rörliga scanlines.
+19. Världen blir suddig och mörkare bakom dialoger och menyer (i både 3D och 2D).
+
+**Ljus och miljö i 3D**
+20. Reflektioner från en förberäknad miljökarta per plats.
+21. Metall och glas reflekterar mer än matta ytor.
+22. Skarpare golv- och väggtexturer på avstånd (anisotrop filtrering).
+23. Solstrålar genom fönstren som ljuskäglor.
+24. Dammkorn som svävar i solstrålarna.
+25. Moln som glider förbi i fönstren, med stadssiluett och träd.
+26. Himlen och solstrålarna blir varmare under dagen.
+27. Kontaktskuggor under skrivbord, stolar, soffor, växter, skåp och rack.
+28. Lätt dimma i lagret i Borås.
+29. Ett lysrör i lagret som flimrar.
+30. Växterna gungar lite.
+31. Nödutgångsskyltar som lyser grönt.
+32. Ljusare utropstecken och bockar över kollegorna, så att de glöder.
+
+**Partiklar i 3D**
+33. Partikelsystem på grafikkortet med både additivt ljus och vanlig blandning.
+34. Gnistor när du drar ur eller sätter i en kabel.
+35. Blå ring och gnistor när konsolkabeln kopplas in.
+36. Paket som färdas längs kablarna – fler ju mer trafik länken har.
+37. Röda och snabba paket under broadcaststorm.
+38. Rök ur racket under broadcaststorm.
+39. Ljusring när en port går upp och en röd puff när den går ner.
+40. Pulserande bärnstensglöd på portar som är err-disabled.
+41. Konfetti när ett fel löses.
+42. Fyrverkerier när veckan är klar, vid ny rang och vid prestationer.
+43. Ånga från kaffemaskinen och kopparna på skrivborden.
+44. Kall luft från golvplattorna och kylaggregatet i serverrummet.
+45. Damm när du springer i lagret och bakom trucken.
+46. Glitter runt det du tittar på.
+47. Flytande "+XP"-text i världen.
+48. Wifi-ringar som pulserar under anslutna accesspunkter.
+
+**Pingspår**
+49. Ping från terminalen syns som paket som hoppar mellan enheterna i världen.
+50. Svaret flyger tillbaka i grönt när pingen lyckas.
+51. När pingen misslyckas puffar paketet rött där det stoppades, med orsaken (ACL, ingen väg, inget ARP-svar …).
+52. R spelar upp det senaste pingspåret igen.
+53. Pingspåren finns i både 3D och 2D.
+
+**Nya saker i 3D-världen**
+54. Klockor som visar speltiden i fikarummet, kontoret, serverrummet och lagret.
+55. Tv i receptionen med nyheter, nätstatus, lunch och väder – och rullande text.
+56. Affisch med OSI-modellen och en med Nordviks värderingar.
+57. Varningsram framför racken och perforerade golvplattor.
+58. Statustorn på rack A: grönt när allt fungerar, orange när Krabba-fel finns kvar, rött vid storm.
+59. Larmlampa vid serverrumsdörren som blinkar och lyser rött under storm.
+60. Fläktar som snurrar ovanpå racken – snabbare under storm.
+61. Kaffemaskin med lampa och kopp.
+62. Kaffekoppar på skrivborden.
+63. Trucken i lagret kör fram och tillbaka och tutar om du står i vägen.
+64. Varningsskyltar i lagret.
+65. Skärmsläckare på de tomma skärmarna.
+66. Kollegornas skärmar visar program där text skrivs medan de arbetar.
+67. Glödande målmarkör över nästa mål (inte över kollegor som redan har ett utropstecken).
+
+**Kollegorna i 3D**
+68. De blinkar.
+69. Munnen rör sig och de nickar när de pratar med dig.
+70. De vinkar när du kommer nära första gången.
+71. De sträcker på sig och dricker kaffe då och då.
+72. De skakar på huvudet när deras ärende inte är löst.
+73. De hoppar av glädje när ärendet är klart.
+74. Omar går fram och tillbaka vid kaffemaskinen, med kaffekopp i handen.
+75. Namnskylten visar rollen när du står nära.
+
+**Kamera och styrning i 3D**
+76. Huka med C eller Ctrl för att läsa de nedersta enheterna.
+77. Hoppa med mellanslag, med en duns när du landar.
+78. Kameran lutar lite när du går i sidled.
+79. Lite vidare synfält när du springer.
+80. Mjuk musrörelse som tillval.
+81. Ficklampa (V).
+82. Laptopen syns i handen när du står vid enheten med konsolkabeln.
+83. Markeringen färgas efter typ (konsol blå, person gul, kabel orange …) och pulserar.
+84. En ikon vid siktet visar vad E gör.
+85. Bilden skakar vid ny rang och när ett fel löses.
+86. Kort slowmotion när ett fel löses.
+
+**Ljud**
+87. Fotsteg som låter olika på matta, trägolv, metallgolv och betong (även i 2D).
+88. Kontorssorl och lagrets muller.
+89. Kollegorna knattrar på tangentbordet.
+90. Telefonen ringer hos den som väntar på dig, i stereo från rätt håll.
+91. Larmet hörs från serverrummets håll.
+92. Glasdörrarna hörs när de glider upp.
+93. Nya ljud för kaffe, krabbpip, truckens tuta, XP, ny rang, prestationer, ficklampa och glasögon.
+94. Lugn bakgrundsmusik som tillval, med egen volym.
+
+**Spelmekanik**
+95. XP för lösta fel, felrapporter, nya kommandon, krabban och kaffe.
+96. Sex ranger från Praktikant till Krabbans ärkefiende.
+97. XP-mätare uppe till höger som studsar när du får poäng.
+98. Ny rang firas med fanfar, blixt och fyrverkeri.
+99. Kombobonus när du löser fel i rad inom tre minuter.
+100. Ledtrådar kostar 15 XP (utom på Lätt).
+101. Bonus för att klara veckan och för att bli klar före fikat (högst 15 minuter).
+102. Veckosammanfattningen visar hur mycket XP du tjänade.
+103. 20 prestationer.
+104. Karriärfönster (J) med rang, prestationer och statistik.
+105. Statistik: speltid, sträcka, kommandon, ping, fel, rapporter, ledtrådar, kaffe, krabbor, kombo, veckor och kablar.
+106. Svårighetsgrad: Lätt, Normal och Svår (ingen pil, markör eller utropstecken – men 50 % mer XP).
+107. Krabban gömmer sig nära ett av veckans fel och springer undan när du kommer nära.
+108. Fångar du krabban tappar den en lapp med namnet på enheten den pillat på.
+109. Kaffe gör att du går 30 % snabbare i 90 sekunder.
+110. Nätverksglasögon (G): kablarna lyser grönt, rött eller orange efter status, med statusskyltar över rack och datorer.
+111. Minikarta (K) som roterar med dig i 3D.
+112. Minikartan visar kollegor med ärenden som gula prickar, målet som en stjärna och rummet du står i.
+113. Klicka på kartan (M) för att sätta en egen markering som pilen leder dig till.
+114. Krabban och din markering syns på kartan när de är nära.
+115. Omar skickar en knuff om inget händer på fem minuter (inte på Svår eller under examen).
+116. Fotoläge (P) som döljer gränssnittet.
+117. Tips i huvudmenyn och på laddningsskärmen.
+118. Rang och prestationer syns i huvudmenyn.
+119. Kaffeboost och glasögon visas i HUD:en.
+
+**Terminalen**
+120. Färgade utskrifter: uppe och nere, adresser, portnamn, MAC-adresser, loggar, varningar och fel.
+121. Kommandot du skrev syns i fetstil, och prompten färgas efter läge (>, #, config).
+122. Grå spökkomplettering som tas med →.
+123. Statusrad med anslutning, läge och klocka.
+124. Sök i utskriften med Ctrl+F; Enter hoppar till nästa träff.
+125. Knapp med dina tidigare kommandon.
+126. Terminalfönstret går att ändra i storlek.
+127. Kort pling och röd blink vid ogiltigt kommando.
+128. Fyra utseenden: klassiskt, grön fosfor, bärnsten och pixel.
+129. Automatiskt utseende: pixel i 2D och klassiskt i 3D.
+130. Pixelikon för enheten du är ansluten till i titelraden.
+131. CRT-animation när terminalen startar.
+132. Blinkande blockmarkör.
+
+**Terminalen i 2D (16-bit)**
+133. Blått SNES-fönster med vita pixelramar och skugga.
+134. Pixeltypsnitten VT323 och Press Start 2P, inbakade i spelet (SIL Open Font License).
+135. Scanlines, fosforglöd och lätt flimmer.
+136. SNES-knappar med ▶-pekare.
+137. Statusrad i pixelstil.
+
+**2D-läget**
+138. HUD, dialoger, paus, notiser, XP-mätare och minikarta i SNES-stil.
+139. Partiklar i 2D: damm, glitter, konfetti, gnistor, puffar och ånga.
+140. Krabban som pixelfigur med viftande klor.
+141. Kaffemaskinen går att använda i 2D.
+142. Nätverksglasögonen i 2D: länkarna som färgade, rörliga linjer och statusskyltar över racken.
+143. Molnskuggor som glider över gräset.
+144. Fåglar som flyger förbi.
+145. Varmare ljus under dagen.
+146. Glöd kring racken, som blir röd under storm.
+147. Fyrverkerier och blixt.
+148. Skakning och slowmotion när ett fel löses.
+149. Flytande XP-text i pixeltypsnitt.
+150. Pausrutan från 3D visas inte längre efter byte till 2D.
 
 ## Version 2: 80 förbättringar
 
@@ -160,11 +346,14 @@ Varje fel är simulerat på riktigt. Symptomen räknas fram ur konfigurationen: 
 natverksspel/
   index.html, css/style.css
   lib/three.min.js           three.js r158 (MIT, se lib/THREE-LICENSE)
+  lib/fonts/                 VT323 och Press Start 2P (SIL Open Font License, se OFL-*.txt)
   js/net/                    nätverksmodell (model.js) och simulator (sim.js)
   js/cli/                    Cisco IOS (ios.js, ios_show.js), Windows/Linux (host.js), WLC (wlc.js)
   js/levels.js               veckorna, felen, kontrollerna och ledtrådarna
-  js/world/                  3D-världen (world.js m.fl.), 2D-världen (world2d.js), delad kod (shared.js)
-  js/ui/                     terminal, dialoger, handbok, inställningar och ljud
+  js/world/                  3D-världen (world.js, efterbehandling i post.js, partiklar i fx.js,
+                             detaljer i extras.js), 2D-världen (world2d.js), delad kod (shared.js)
+  js/ui/                     terminal, dialoger, handbok, inställningar, ljud, karriär (career.js)
+                             och minikarta (minimap.js)
   js/game.js                 spelloopen
   test/                      tester
 ```
@@ -177,4 +366,4 @@ node natverksspel/test/smoke.js    # DHCP, ping, NAT, DNS och STP i det felfria 
 node natverksspel/test/cli.js SW1 "show vlan brief" "show interfaces trunk"
 ```
 
-Webbläsartesterna `test/ui.js`, `test/flow.js`, `test/view.js`, `test/boot.js` och `test/features.js` använder Playwright. Starta en webbserver på port 8765 i `natverksspel/` först.
+Webbläsartesterna `test/ui.js`, `test/flow.js`, `test/view.js`, `test/boot.js`, `test/features.js` och `test/v3.js` använder Playwright. Starta en webbserver på port 8765 i `natverksspel/` först.

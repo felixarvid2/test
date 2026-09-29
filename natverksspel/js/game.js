@@ -36,7 +36,15 @@
     if (mode === '3d' && !this.webgl) mode = '2d';
     this.setMode(mode, true);
     NV.onCommand = function (devId, line) { self.onCommand(devId, line); };
-    NV.onHostCommand = function () { self.commands++; };
+    NV.onHostCommand = function (id, line) { self.commands++; self.countCommand(line); };
+    // Ping från terminalen syns som paket som färdas genom nätet
+    var origPing = S.ping;
+    S.ping = function (st, from, ip, opts) {
+      var r = origPing.apply(S, arguments);
+      if (self.cmdActive && st === self.state) self.onPing(from, ip, r, opts);
+      return r;
+    };
+    NV.career.onUnlock = function (a) { self.ui.achievement(a); self.xp(50, 'Prestation', true); };
     NV.onReload = function (devId) { self.ui.toast(esc(self.state.devices[devId].config.hostname) + ' startar om…'); };
     NV.onTelnet = function () {};
     NV.onSetting = function (k) { if (self.world && self.world.applySettings) self.world.applySettings(); if (k === 'volume') NV.sfx.setVolume(NV.settings.get('volume')); };
@@ -59,6 +67,7 @@
         self.ui.setHint(self.ui.captures() ? null : self.world.hover, self.world.hoverDetail);
         self.ui.updateCompass();
       }
+      if (self.frameNo % 6 === 0) NV.minimap.draw(self);
       requestAnimationFrame(f);
     });
     setInterval(function () { if (!document.hidden) self.tick(); }, 1000);
@@ -85,12 +94,15 @@
     this.mode = mode;
     NV.settings.set('mode', mode);
     document.body.classList.toggle('mode-2d', mode === '2d');
+    if (mode === '2d') this.ui.hidePause();
+    this.terminal.applyTheme && this.terminal.open && this.terminal.applyTheme();
     document.body.classList.toggle('mode-3d', mode === '3d');
     this.world.consoleTarget = this.consoleTargetId || null;
     this.world.buildCables();
     this.world.collectInteractables();
     this.world.drawWhiteboard(this.def);
     if (!first) this.world.teleport(prevSite);
+    if (this.world.setGoggles) this.world.setGoggles(!!this.goggles);
     this.refreshMarkers();
   };
 
@@ -116,8 +128,11 @@
     this.prevUp = {};
     this.done = false;
     this.guideStep = (n === 1 && !NV.settings.get('tutorialDone') && !this.exam) ? 0 : -1;
+    this.combo = 0; this.lastFixAt = 0; this.lastProgress = Date.now(); this.nudges = 0; this.coffeeXp = false; this.boostUntil = 0; this.waypoint = null; this.weekXp = 0;
+    this.difficulty = NV.settings.get('difficulty');
     if (this.def) this.def.tasks.forEach(function (t) { self.taskState[t.id] = { fixed: false, reported: false, hints: 0, known: false, score: 0 }; });
     this.afterStateChange(this.def && this.def.site === 'boras' ? 'boras' : 'gbg');
+    this.spawnCrab();
     this.ui.renderHud();
     this.ui.briefing(true);
     NV.settings.remove(RUN_KEY);
@@ -153,8 +168,11 @@
     this.consoles = {}; this.consoleTargetId = r.console || null; this.commands = r.commands || 0;
     this.startedAt = Date.now() - (r.elapsed || 0);
     this.guideStep = -1;
+    this.combo = 0; this.lastFixAt = 0; this.lastProgress = Date.now(); this.nudges = 0; this.boostUntil = 0; this.waypoint = null;
+    this.difficulty = NV.settings.get('difficulty');
     S.refresh(this.state);
     this.afterStateChange(r.site || 'gbg');
+    this.spawnCrab();
     this.ui.renderHud();
     this.ui.toast('Välkommen tillbaka! Vecka ' + r.week + ' fortsätter där du var.');
   };
@@ -180,6 +198,8 @@
   // ------------------------------------------------------------------ Klockan går
   G.tick = function () {
     if (!this.state) return;
+    if (this.running) NV.career.stat('playSec', 1);
+    this.nudge();
     S.tick(this.state, 1);
     this.hostBehaviour();
     S.refresh(this.state);
@@ -230,6 +250,7 @@
         s.fixed = true; s.known = true; s.fixedAt = Date.now() - self.startedAt;
         NV.sfx.success();
         self.ui.toast('✔ <b>' + esc(t.title) + '</b> är löst! Skriv felrapporten med <b>F</b>.', 'good');
+        self.onFixed(t, s);
         self.refreshMarkers();
       }
     });
@@ -238,6 +259,7 @@
       this.done = true;
       var res = this.result();
       this.saveWeek(res);
+      this.onWeekDone(res);
       setTimeout(function () { self.ui.weekDone(res); }, 900);
     }
   };
@@ -261,6 +283,10 @@
     var s = this.taskState[t.id];
     s.reported = true; s.score = r.score; s.report = r;
     if (r.score === 2) NV.sfx.success(); else NV.sfx.fail();
+    NV.career.stat('reports');
+    if (r.score === 2) { NV.career.stat('perfect'); this.xp(60, 'Helt rätt felrapport'); }
+    else if (r.score === 1) this.xp(25, 'Felrapport');
+    this.lastProgress = Date.now();
     this.refreshMarkers();
     this.ui.renderHud();
     this.checkTasks();
@@ -302,8 +328,13 @@
       var tasks = self.def ? self.def.tasks.filter(function (t) { return t.npc === n; }) : [];
       var open = tasks.some(function (t) { return !self.taskState[t.id].fixed; });
       var fixed = tasks.length && tasks.every(function (t) { return self.taskState[t.id].reported; });
-      f.marker.visible = open;
+      var hard = NV.settings.get('difficulty') === 'hard';
+      f.marker.visible = open && !hard;
       f.done.visible = !open && !!fixed;
+      f.hasTicket = open;
+      f.ringing = tasks.some(function (t) { return !self.taskState[t.id].known; });
+      var mood = open ? 'open' : (fixed ? 'happy' : null);
+      if (mood !== f.mood) { f.mood = mood; f.happyDone = false; }
     });
   };
 
@@ -323,6 +354,13 @@
   };
   // Var i världen ligger nästa mål?
   G.objective = function () {
+    if (this.waypoint) {
+      var wp = this.waypoint;
+      if ((wp.x > 50) === (this.world.site === 'boras')) {
+        if (Math.hypot(wp.x - this.world.pos.x, wp.z - this.world.pos.z) < 1.5) { this.waypoint = null; this.ui.toast('Du är framme vid din markering.'); }
+        else return { x: wp.x, z: wp.z, label: 'Din markering' };
+      }
+    }
     if (!this.def) return null;
     var A = this.world.builder.anchors;
     var cast = NV.people.CAST;
@@ -348,6 +386,7 @@
   // ------------------------------------------------------------------ Kommandon
   G.onCommand = function (devId, line) {
     this.commands++;
+    this.countCommand(line);
     if (devId === 'SW2' && /^\s*(do\s+)?sh\w*\s+sp/i.test(line)) this.flags.stpLooked = true;
   };
   G.logCommand = function (entry, line) {
@@ -382,6 +421,7 @@
     this.consoleTargetId = id;
     this.world.consoleTarget = id;
     this.world.updateCables();
+    if (this.world.consoleFx) this.world.consoleFx(id);
     var d = this.state.devices[id];
     this.ui.toast('Den ljusblå konsolkabeln sitter nu i <b>' + esc(d.config ? d.config.hostname : 'WLC-Nordvik') + '</b>.');
     this.terminal.stack = [];
@@ -405,6 +445,8 @@
       case 'monitor': return 'Titta på övervakningen';
       case 'whiteboard': return 'Läs tavlan';
       case 'info': return i.label;
+      case 'coffee': return this.boosted() ? 'Du har redan fått kaffe' : 'Ta en kopp kaffe';
+      case 'crab': return 'Fånga Krabban!';
     }
     return '';
   };
@@ -422,6 +464,8 @@
     S.touch(st); S.refresh(st);
     this.world.updateCables();
     NV.sfx.click();
+    NV.career.stat('cables');
+    if (this.world.cableFx) this.world.cableFx(l);
     this.ui.toast((l.state === 'unplugged' ? 'Du drog ur kabeln ' : 'Du satte tillbaka kabeln ') + esc(this.linkName(l)) + '.');
   };
   G.onInteract = function (i) {
@@ -455,6 +499,8 @@
       case 'monitor': this.ui.monitorDialog(); break;
       case 'whiteboard': this.ui.briefing(false); break;
       case 'info': this.ui.toast(esc(i.label)); break;
+      case 'coffee': this.drinkCoffee(); break;
+      case 'crab': this.catchCrab(); break;
     }
   };
   G.replaceCable = function (hostId) {
@@ -463,8 +509,144 @@
     if (!l) return;
     var was = l.state;
     l.state = 'ok';
+    NV.career.stat('cables');
     S.touch(st); S.refresh(st);
     this.ui.toast(was === 'ok' ? 'Du bytte kabeln. Ingen skillnad – den gamla var hel.' : 'Du bytte patchkabeln hos ' + esc(st.devices[hostId].label) + '.');
+  };
+
+  // ------------------------------------------------------------------ Karriär: XP, kombo, krabban, kaffe
+  G.xp = function (n, why, silent) {
+    var d = NV.settings.get('difficulty');
+    if (n > 0) n = Math.round(n * (d === 'hard' ? 1.5 : (d === 'easy' ? 0.75 : 1)));
+    var r = NV.career.addXP(n);
+    this.weekXp = (this.weekXp || 0) + n;
+    if (!silent || n) {
+      if (this.world && this.world.popup) this.world.popup((n >= 0 ? '+' : '−') + Math.abs(n) + ' XP', n >= 0 ? '#ffd54a' : '#ff8a7a');
+      if (n > 0) NV.sfx.xp();
+    }
+    if (why && n) this.ui.xpToast(n, why);
+    if (r.up) this.levelUp(r.rank);
+    this.ui.renderHud();
+    return r;
+  };
+  G.levelUp = function (rank) {
+    NV.sfx.levelUp();
+    this.ui.toast('🎉 <b>Ny rang: ' + esc(rank.name) + '</b>' + (rank.nextName ? ' · nästa: ' + esc(rank.nextName) : ''), 'good big');
+    if (this.world.flash) this.world.flash(0xfff0b0, 0.55);
+    if (this.world.shake) this.world.shake(0.7);
+    if (this.world.fireworks) this.world.fireworks(3);
+  };
+  G.onFixed = function (t, s) {
+    var now = Date.now();
+    this.combo = now - this.lastFixAt < 180000 ? this.combo + 1 : 1;
+    this.lastFixAt = now;
+    this.lastProgress = now;
+    NV.career.stat('fixed');
+    NV.career.max('bestCombo', this.combo);
+    this.xp(100 + (s.hints === 0 ? 50 : 0), s.hints === 0 ? 'Fel löst utan ledtråd' : 'Fel löst');
+    if (this.combo >= 2) { var self = this; setTimeout(function () { self.xp(40 * (self.combo - 1), 'Kombo ×' + self.combo); }, 700); }
+    if (this.world.celebrate) this.world.celebrate(t.target);
+  };
+  G.onWeekDone = function (res) {
+    var st = NV.career;
+    st.stat('weeks');
+    if (res.hints === 0) st.stat('noHintWeeks');
+    if (res.minutes <= 10) st.stat('fastWeeks');
+    if (this.exam) st.stat('exams');
+    if (NV.settings.get('difficulty') === 'hard') st.stat('hardWeeks');
+    this.xp(200 + 50 * res.stars, 'Veckan klar');
+    if (res.minutes <= 15) { var self = this; setTimeout(function () { self.xp(100, 'Klar före fikat'); }, 600); }
+    if (this.world.fireworks) this.world.fireworks(6);
+    st.check();
+  };
+  G.onHint = function () {
+    NV.career.stat('hints');
+    this.lastProgress = Date.now();
+    if (NV.settings.get('difficulty') !== 'easy') this.xp(-15, 'Ledtråd');
+  };
+  var FAMILY = { show: 'show', sh: 'show', ping: 'ping', traceroute: 'traceroute', tracert: 'traceroute', configure: 'configure', conf: 'configure', write: 'write', copy: 'write', ipconfig: 'ipconfig', nslookup: 'nslookup', ssh: 'ssh', debug: 'debug', clear: 'clear' };
+  G.countCommand = function (line) {
+    NV.career.stat('commands');
+    var w = String(line || '').trim().split(/\s+/)[0].toLowerCase();
+    var fam = FAMILY[w];
+    if (fam && NV.career.firstUse(fam)) this.xp(10, 'Nytt kommando: ' + fam);
+  };
+  G.onPing = function (from, ip, r, opts) {
+    if (this.pingShown) return;
+    this.pingShown = true;
+    NV.career.stat('pings');
+    this.lastPing = { from: from, r: r, n: opts && opts.proto === 'tcp' ? 1 : 4 };
+    if (this.world.pingTrace) this.world.pingTrace(from, r, this.lastPing.n);
+  };
+  G.addDistance = function (d) {
+    this.distAcc = (this.distAcc || 0) + d;
+    if (this.distAcc >= 5) { NV.career.stat('dist', this.distAcc); this.distAcc = 0; }
+  };
+  G.boosted = function () { return this.boostUntil > Date.now(); };
+  G.drinkCoffee = function () {
+    if (this.boosted()) { this.ui.toast('Du har redan kaffe i kroppen. Vänta lite.'); return; }
+    NV.sfx.pour();
+    this.boostUntil = Date.now() + 90000;
+    NV.career.stat('coffees');
+    this.ui.toast('☕ <b>Kaffe!</b> Du går 30 % snabbare i 90 sekunder.', 'good');
+    if (!this.coffeeXp) { this.coffeeXp = true; this.xp(5, 'Kaffepaus'); }
+  };
+  // Krabban gömmer sig nära ett av veckans fel – en liten ledtråd för den som hittar den
+  G.crabSpot = function () {
+    var A = this.world.builder.anchors, self = this;
+    var rackOf = { SW1: A.rackA, SW2: A.rackA, R1: A.rackA, WLC: A.rackA, RB: A.borasRack, SWB: A.borasRack };
+    var t = this.def ? this.def.tasks.filter(function (x) { return x.krabba && !self.taskState[x.id].fixed; })[0] : null;
+    if (t && rackOf[t.target]) { var a = rackOf[t.target]; return a.x > 50 ? { x: a.x + 1.25, z: a.z + 0.6 } : { x: a.x + 0.3, z: a.z + 1.3 }; }
+    if (t && A.desks[t.target]) { var d = A.desks[t.target]; return { x: d.x + 1.25, z: d.z }; }
+    return this.def && this.def.site === 'boras' ? { x: 90.5, z: -4 } : { x: -10, z: -5.5 };
+  };
+  G.spawnCrab = function () {
+    var p = this.crabSpot();
+    this.crab = { active: true, site: p.x > 50 ? 'boras' : 'gbg', x: p.x, z: p.z, homeX: p.x, homeZ: p.z, face: 0, anim: 0 };
+  };
+  G.catchCrab = function () {
+    var c = this.crab;
+    if (!c || !c.active) return;
+    var d = Math.hypot(c.x - this.world.pos.x, c.z - this.world.pos.z);
+    if (d > 2.1) { this.ui.toast('Krabban är för långt bort. Smyg närmare – huka med C i 3D.'); return; }
+    c.active = false;
+    NV.sfx.squeak(); NV.sfx.success();
+    NV.career.stat('crabs');
+    if (this.world.crabCaught) this.world.crabCaught(c);
+    var self = this;
+    var t = this.def ? this.def.tasks.filter(function (x) { return x.krabba && !self.taskState[x.id].fixed; })[0] : null;
+    var dev = t && this.state.devices[t.target];
+    var note = dev ? ' Den tappade en lapp: <i>"Jag har pillat på ' + esc(dev.config ? dev.config.hostname : (dev.label || t.target)) + '…"</i>' : ' Den verkar ha varit sysslolös den här veckan.';
+    this.ui.toast('🦀 <b>Du fångade Krabban!</b>' + note, 'good big');
+    this.xp(75, 'Krabban fångad');
+  };
+  G.toggleGoggles = function () {
+    this.goggles = !this.goggles;
+    if (this.world.setGoggles) this.world.setGoggles(this.goggles);
+    NV.sfx.goggles(this.goggles);
+    if (this.goggles) {
+      NV.career.stat('goggles');
+      if (!NV.settings.get('gogglesSeen')) { NV.settings.set('gogglesSeen', true); this.ui.toast('🥽 <b>Nätverksglasögon:</b> gröna kablar är uppe, röda nere och orange har problem (err-disabled, blockerad eller duplexfel). G stänger av.', 'good big'); }
+    }
+  };
+  G.replayPing = function () {
+    if (!this.lastPing) { this.ui.toast('Inget pingspår ännu. Kör ping i terminalen först.'); return; }
+    this.world.pingTrace(this.lastPing.from, this.lastPing.r, this.lastPing.n);
+    this.ui.toast('Spelar upp senaste pingspåret (R).');
+  };
+  G.setWaypoint = function (x, z) { this.waypoint = { x: x, z: z }; this.ui.toast('Markering satt. Pilen visar vägen dit.'); };
+  // Knuff från Omar om inget händer på länge (aldrig på svår nivå eller under examen)
+  G.nudge = function () {
+    if (!this.def || this.done || this.exam || !this.running || NV.settings.get('difficulty') === 'hard') return;
+    if (this.ui.captures() || Date.now() - this.lastProgress < 300000 || this.nudges >= 3) return;
+    var self = this;
+    var t = this.def.tasks.filter(function (x) { return !self.taskState[x.id].fixed; })[0];
+    if (!t) return;
+    var s = this.taskState[t.id];
+    var msg = !s.known ? 'Har du pratat med ' + t.npc + '? Det lyser ett utropstecken där.' : (s.hints === 0 ? 'Börja i symptomet: vilket show-kommando visar det ' + t.npc + ' beskrev? L ger en ledtråd.' : 'Jämför med ett ställe som fungerar. Vad skiljer sig i show-utskriften?');
+    this.ui.toast('📱 <b>Omar:</b> ' + esc(msg));
+    this.nudges++;
+    this.lastProgress = Date.now();
   };
 
   window.addEventListener('load', function () {

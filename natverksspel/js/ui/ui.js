@@ -20,6 +20,18 @@ NV.UI = (function () {
     Nils: ['"Truckarna går på el, streckkodsläsarna på Wi-Fi."', '"Här ute är det kallt, men accesspunkterna ska vara varma."', '"Göteborg har fina kontor. Vi har pallar."'],
   };
 
+  var TIPS = [
+    'Tryck G för nätverksglasögonen: kablarna lyser grönt, rött eller orange efter status.',
+    'Kör ping i terminalen och se paketen flyga genom nätet i 3D.',
+    'Krabban gömmer sig nära ett av veckans fel. Fånga den för en ledtråd och XP.',
+    'Kaffe i fikarummet gör att du går snabbare en stund.',
+    'Huka med C för att läsa de nedersta enheterna i racket.',
+    'Tre lösta fel i rad inom tre minuter ger kombobonus.',
+    'Klicka på kartan (M) för att sätta en egen markering.',
+    'Ctrl+F söker i terminalen och → tar den grå kompletteringen.',
+    'P döljer allt gränssnitt – perfekt för skärmdumpar.',
+    'Lyser statustornet på rack A orange finns det Krabba-fel kvar.',
+  ];
   // Frontpaneler i rackvyn
   function hostName(game, id) { return function () { var d = game.state.devices[id]; return d && d.config ? d.config.hostname : id; }; }
   function rackSpecs(game) {
@@ -70,6 +82,11 @@ NV.UI = (function () {
         else if (k === 'KeyN') { self.notesDialog(); e.preventDefault(); }
         else if (k === 'KeyO') { self.logDialog(); e.preventDefault(); }
         else if (k === 'KeyU') { NV.settings.set('hudCollapsed', !NV.settings.get('hudCollapsed')); self.renderHud(); }
+        else if (k === 'KeyG') { self.game.toggleGoggles(); e.preventDefault(); }
+        else if (k === 'KeyJ') { self.achievementsDialog(); e.preventDefault(); }
+        else if (k === 'KeyR') { self.game.replayPing(); e.preventDefault(); }
+        else if (k === 'KeyK') { NV.settings.set('minimap', !NV.settings.get('minimap')); self.toast(NV.settings.get('minimap') ? 'Minikartan visas (K).' : 'Minikartan är dold (K).'); }
+        else if (k === 'KeyP') { var on = document.body.classList.toggle('photo'); $('#photo-tip').classList.toggle('hidden', !on); }
         else if (k === 'Escape' && self.game.mode === '2d') { self.showPause(); e.preventDefault(); }
       } else if (e.code === 'Escape' && self.dialogOpen() && !self.dialogLocked) {
         self.closeDialog();
@@ -92,7 +109,13 @@ NV.UI = (function () {
   P.dialogOpen = function () { return !this.dialog.classList.contains('hidden'); };
   P.menuOpen = function () { return !this.menu.classList.contains('hidden'); };
   P.pauseOpen = function () { return !this.pause.classList.contains('hidden'); };
-  P.captures = function () { return this.dialogOpen() || this.menuOpen() || this.game.terminal.open || (this.game.mode === '2d' && this.pauseOpen()); };
+  P.captures = function () {
+    var c = this.dialogOpen() || this.menuOpen() || this.game.terminal.open || (this.game.mode === '2d' && this.pauseOpen());
+    // Världen bakom fönster blir suddig (utom bakom terminalen, där pingpaketen ska synas)
+    var blur = c && !this.game.terminal.open;
+    if (blur !== this._blur) { this._blur = blur; document.body.classList.toggle('covered', blur); }
+    return c;
+  };
   P.showPause = function () { this.pause.classList.remove('hidden'); };
   P.hidePause = function () { this.pause.classList.add('hidden'); };
   P.onLockChange = function (locked) {
@@ -130,8 +153,38 @@ NV.UI = (function () {
     }
     var gt = g.guideText && g.guideText();
     if (gt) html += '<div class="hud-guide">👉 ' + esc(gt) + '</div>';
-    if (!collapsed) html += '<div class="hud-keys">' + (g.mode === '2d' ? 'WASD/pilar gå · klicka för att gå · <b>E</b> använd · <b>+/−</b> zoom' : 'WASD gå · mus titta · <b>E</b> använd · högerklick zoom') + ' · <b>T</b> laptop · <b>F</b> felrapport · <b>L</b> ledtråd · <b>M</b> karta · <b>H</b> handbok · <b>F1</b> hjälp · <b>U</b> dölj</div>';
+    if (g.boosted && g.boosted()) html += '<div class="hud-loc">☕ Kaffeboost: ' + Math.ceil((g.boostUntil - Date.now()) / 1000) + ' s</div>';
+    if (g.goggles) html += '<div class="hud-loc" style="color:#6ee787">🥽 Nätverksglasögon på (G)</div>';
+    if (!collapsed) html += '<div class="hud-keys">' + (g.mode === '2d' ? 'WASD/pilar gå · klicka för att gå · <b>E</b> använd · <b>+/−</b> zoom' : 'WASD gå · mus titta · <b>E</b> använd · högerklick zoom · <b>C</b> huka · <b>V</b> ficklampa') + ' · <b>T</b> laptop · <b>F</b> felrapport · <b>L</b> ledtråd · <b>G</b> glasögon · <b>M</b> karta · <b>J</b> prestationer · <b>H</b> handbok · <b>F1</b> hjälp · <b>U</b> dölj</div>';
     this.hud.innerHTML = html;
+    this.renderXp();
+  };
+  P.renderXp = function () {
+    var el = $('#xpbar'), r = NV.career.rank();
+    el.classList.toggle('hidden', !this.game.running);
+    el.querySelector('.xp-rank').textContent = r.name;
+    el.querySelector('.xp-track i').style.width = Math.round(r.frac * 100) + '%';
+    el.querySelector('.xp-num').textContent = r.to ? r.xp + ' / ' + r.to + ' XP' : r.xp + ' XP';
+    if (this._lastXp !== undefined && r.xp > this._lastXp) { el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
+    this._lastXp = r.xp;
+  };
+  P.xpToast = function (n, why) { this.toast((n >= 0 ? '<b>+' + n + ' XP</b> · ' : '<b>−' + Math.abs(n) + ' XP</b> · ') + esc(why), 'xp'); };
+  P.achievement = function (a) {
+    NV.sfx.achievement();
+    this.toast('<span class="ai">' + a.icon + '</span><span><b>Prestation: ' + esc(a.name) + '</b><br><span class="muted">' + esc(a.desc) + '</span></span>', 'ach big');
+    if (this.game.world && this.game.world.fireworks) this.game.world.fireworks(2);
+  };
+  P.achievementsDialog = function () {
+    var r = NV.career.rank(), st = NV.career.stats();
+    var html = '<div class="rank-card"><div class="big">🏅</div><div><b>' + esc(r.name) + '</b> · ' + r.xp + ' XP<div class="bar"><i style="width:' + Math.round(r.frac * 100) + '%"></i></div><span class="muted small">' + (r.to ? 'Nästa rang: ' + esc(r.nextName) + ' vid ' + r.to + ' XP' : 'Högsta rangen!') + '</span></div></div>';
+    html += '<h3>Prestationer (' + NV.career.unlockedCount() + ' av ' + NV.career.ACH.length + ')</h3><div class="ach-grid">' + NV.career.ACH.map(function (a) {
+      var got = NV.career.unlocked(a[0]);
+      return '<div class="ach' + (got ? '' : ' locked') + '"><span class="ai">' + a[3] + '</span><div><b>' + esc(a[1]) + '</b><span>' + esc(a[2]) + '</span></div></div>';
+    }).join('') + '</div>';
+    var mins = Math.round(st.playSec / 60);
+    var rows = [['Speltid', mins + ' min'], ['Gått', (st.dist / 1000).toFixed(2) + ' km'], ['Kommandon', st.commands], ['Ping', st.pings], ['Lösta fel', st.fixed], ['Felrapporter', st.reports + ' (' + st.perfect + ' helt rätt)'], ['Ledtrådar', st.hints], ['Kaffe', st.coffees + ' koppar'], ['Krabban fångad', st.crabs], ['Bästa kombo', '×' + st.bestCombo], ['Klara veckor', st.weeks], ['Kablar', st.cables]];
+    html += '<h3>Statistik</h3><div class="stat-grid">' + rows.map(function (x) { return '<div><b>' + esc(String(x[1])) + '</b><span>' + esc(x[0]) + '</span></div>'; }).join('') + '</div>';
+    this.showDialog({ title: 'Karriär och prestationer', html: html, wide: true, buttons: [{ label: 'Stäng', primary: true }] });
   };
   P.setHint = function (inter, detail) {
     var txt = inter ? this.game.describe(inter) : '';
@@ -139,12 +192,14 @@ NV.UI = (function () {
     else if (!txt && detail) txt = detail;
     this.hint.textContent = txt ? (inter ? 'E – ' : '') + txt : '';
     this.hint.style.display = txt ? '' : 'none';
-    $('#crosshair').classList.toggle('active', !!txt);
+    var ch = $('#crosshair');
+    ch.classList.toggle('active', !!txt);
+    ch.setAttribute('data-icon', inter ? ({ console: '🔌', npc: '💬', cable: '⚡', deskcable: '⚡', pc: '🖥', laptop: '💻', travel: '🚗', coffee: '☕', crab: '🦀', rack: '🗄', monitor: '📈', whiteboard: '📋', phone: '📱', miniswitch: '📦' }[inter.type] || '') : '');
   };
   // Pilen mot nästa mål
   P.updateCompass = function () {
     var g = this.game;
-    var o = g.world && g.running && !this.captures() ? g.objective() : null;
+    var o = g.world && g.running && !this.captures() && NV.settings.get('difficulty') !== 'hard' && !document.body.classList.contains('photo') ? g.objective() : null;
     if (!o) { this.compass.classList.add('hidden'); return; }
     var dx = o.x - g.world.pos.x, dz = o.z - g.world.pos.z;
     var dist = Math.hypot(dx, dz);
@@ -237,8 +292,11 @@ NV.UI = (function () {
       var lines = CHAT[name] || ['"Allt verkar lugnt här i dag."'];
       html += '<p class="quote">' + lines[(U.hash(name) + (g.week || 0) + Math.floor(g.state.time / 60)) % lines.length] + '</p>';
     }
+    this.talkingTo = name;
+    this.onDialogClose = function () { self.talkingTo = null; };
     open.forEach(function (t) {
       var s = g.taskState[t.id];
+      if (!s.known) g.lastProgress = Date.now();
       s.known = true;
       if (s.reported) html += '<p class="quote">"Tack! Nu fungerar det igen."</p>';
       else if (s.fixed) html += '<p class="quote">"Det verkar fungera nu! Glöm inte att skriva felrapporten."</p>';
@@ -385,7 +443,7 @@ NV.UI = (function () {
     t.hints.forEach(function (h, i) { html += '<li>' + (i < s.hints ? esc(h) : '<span class="muted">(dold ledtråd)</span>') + '</li>'; });
     html += '</ol></div><p class="muted small">Fler än två ledtrådar under veckan kostar en stjärna.</p>';
     var buttons = [];
-    if (s.hints < t.hints.length) buttons.push({ label: 'Visa nästa ledtråd', primary: true, onClick: function () { s.hints++; g.save(); setTimeout(function () { self.hintDialog(t); }, 10); } });
+    if (s.hints < t.hints.length) buttons.push({ label: 'Visa nästa ledtråd' + (NV.settings.get('difficulty') === 'easy' ? '' : ' (−15 XP)'), primary: true, onClick: function () { s.hints++; g.onHint(t); g.save(); setTimeout(function () { self.hintDialog(t); }, 10); } });
     buttons.push({ label: 'Stäng' });
     this.showDialog({ title: 'Ledtråd – ' + esc(t.title), html: html, buttons: buttons });
   };
@@ -484,7 +542,7 @@ NV.UI = (function () {
     var b = g.world.builder;
     var bounds = site === 'boras' ? { x0: 86, x1: 114, z0: -14, z1: 14 } : { x0: -16, x1: 16, z0: -11, z1: 11 };
     var zones = b.zones.filter(function (z) { return z.site === site; });
-    var html = '<canvas id="map-cv" width="960" height="' + Math.round(960 * (bounds.z1 - bounds.z0) / (bounds.x1 - bounds.x0)) + '" style="width:100%;border-radius:10px;background:#1b2229"></canvas><div class="map-go">' +
+    var html = '<p class="muted small">Klicka på kartan för att sätta en egen markering som pilen leder dig till.</p><canvas id="map-cv" width="960" height="' + Math.round(960 * (bounds.z1 - bounds.z0) / (bounds.x1 - bounds.x0)) + '" style="width:100%;border-radius:10px;background:#1b2229"></canvas><div class="map-go">' +
       zones.map(function (z, i) { return '<button data-zone="' + i + '">Gå till ' + esc(z.name.toLowerCase()) + '</button>'; }).join('') +
       '<button data-site="' + (site === 'boras' ? 'gbg' : 'boras') + '">' + (site === 'boras' ? 'Åk till Göteborg' : 'Åk till Borås') + '</button></div>';
     this.showDialog({
@@ -527,11 +585,19 @@ NV.UI = (function () {
           gg.strokeStyle = '#fff'; gg.lineWidth = 3; gg.beginPath(); gg.moveTo(px, py);
           gg.lineTo(px - Math.sin(g.world.yaw) * 22, py + Math.cos(g.world.yaw) * 22); gg.stroke();
           gg.fillStyle = '#fff'; gg.fillText('Du', px, py + 26);
+          if (g.crab && g.crab.active && g.crab.site === site && Math.hypot(g.crab.x - g.world.pos.x, g.crab.z - g.world.pos.z) < 7) { gg.font = '20px sans-serif'; gg.fillText('🦀', X(g.crab.x), Y(g.crab.z) + 6); }
+          if (g.waypoint) { gg.fillStyle = '#4fc3f7'; gg.beginPath(); gg.arc(X(g.waypoint.x), Y(g.waypoint.z), 7, 0, Math.PI * 2); gg.fill(); gg.fillStyle = '#fff'; gg.font = '13px "Segoe UI", sans-serif'; gg.fillText('Markering', X(g.waypoint.x), Y(g.waypoint.z) - 12); }
           var o = g.objective();
           if (o) { gg.strokeStyle = '#f0b429'; gg.setLineDash([6, 6]); gg.beginPath(); gg.moveTo(px, py); gg.lineTo(X(o.x), Y(o.z)); gg.stroke(); gg.setLineDash([]); }
         }
         draw();
         self.dialogTimer = setInterval(draw, 400);
+        cv.style.cursor = 'crosshair';
+        cv.addEventListener('click', function (e) {
+          var r = cv.getBoundingClientRect();
+          var x = bounds.x0 + (e.clientX - r.left) / r.width * cv.width / sc, z = bounds.z1 - (e.clientY - r.top) / r.height * cv.height / sc;
+          g.setWaypoint(x, z); draw();
+        });
         d.querySelectorAll('[data-zone]').forEach(function (btn) {
           btn.addEventListener('click', function () {
             var z = zones[+btn.getAttribute('data-zone')];
@@ -618,13 +684,22 @@ NV.UI = (function () {
       '<label for="s-inv">Invertera Y-axeln</label><input type="checkbox" id="s-inv"' + (s.get('invertY') ? ' checked' : '') + '>' +
       '<label for="s-fov">Synvinkel (FOV)</label><input type="range" id="s-fov" min="55" max="95" step="1" value="' + s.get('fov') + '">' +
       '<label for="s-bob">Gungande kamera</label><input type="checkbox" id="s-bob"' + (s.get('bob') ? ' checked' : '') + '>' +
-      '<label for="s-q">Grafik (3D)</label><select id="s-q"><option value="high"' + (s.get('quality') === 'high' ? ' selected' : '') + '>Hög (skuggor)</option><option value="low"' + (s.get('quality') === 'low' ? ' selected' : '') + '>Snabb (inga skuggor)</option></select>' +
+      '<label for="s-q">Grafik (3D)</label><select id="s-q"><option value="ultra"' + (s.get('quality') === 'ultra' ? ' selected' : '') + '>Ultra (skarpa skuggor, 4× kantutjämning)</option><option value="high"' + (s.get('quality') === 'high' ? ' selected' : '') + '>Hög (skuggor, reflektioner)</option><option value="low"' + (s.get('quality') === 'low' ? ' selected' : '') + '>Snabb (inga skuggor)</option></select>' +
+      '<label for="s-post">Efterbehandling (glöd, vinjett, färgton)</label><input type="checkbox" id="s-post"' + (s.get('post') ? ' checked' : '') + '>' +
+      '<label for="s-part">Partiklar</label><input type="checkbox" id="s-part"' + (s.get('particles') ? ' checked' : '') + '>' +
+      '<label for="s-smooth">Mjuk musrörelse</label><input type="checkbox" id="s-smooth"' + (s.get('smooth') ? ' checked' : '') + '>' +
+      '<label for="s-fps">Visa bildfrekvens</label><input type="checkbox" id="s-fps"' + (s.get('showFps') ? ' checked' : '') + '>' +
+      '<span>Svårighetsgrad</span><div class="seg" id="s-diff">' + [['easy', 'Lätt'], ['normal', 'Normal'], ['hard', 'Svår']].map(function (x) { return '<button data-diff="' + x[0] + '" class="' + (s.get('difficulty') === x[0] ? 'on' : '') + '">' + x[1] + '</button>'; }).join('') + '</div>' +
+      '<label for="s-mini">Minikarta (K)</label><input type="checkbox" id="s-mini"' + (s.get('minimap') ? ' checked' : '') + '>' +
+      '<label for="s-music">Bakgrundsmusik</label><input type="checkbox" id="s-music"' + (s.get('music') ? ' checked' : '') + '>' +
+      '<label for="s-mvol">Musikvolym</label><input type="range" id="s-mvol" min="0" max="1" step="0.05" value="' + s.get('musicVol') + '">' +
+      '<label for="s-theme">Terminalens utseende</label><select id="s-theme">' + [['auto', 'Automatiskt (pixel i 2D)'], ['classic', 'Klassiskt'], ['green', 'Grön fosfor'], ['amber', 'Bärnsten'], ['snes', 'Pixel (16-bit)']].map(function (x) { return '<option value="' + x[0] + '"' + (s.get('termTheme') === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select>' +
       '<label for="s-snd">Ljud</label><input type="checkbox" id="s-snd"' + (s.get('sound') ? ' checked' : '') + '>' +
       '<label for="s-vol">Volym</label><input type="range" id="s-vol" min="0" max="1" step="0.05" value="' + s.get('volume') + '">' +
       '<label for="s-type">Tangentljud i terminalen</label><input type="checkbox" id="s-type"' + (s.get('typeSound') ? ' checked' : '') + '>' +
       '<label for="s-font">Terminalens textstorlek</label><input type="range" id="s-font" min="11" max="20" step="1" value="' + s.get('termFont') + '">' +
       '<label for="s-zoom">Pixelzoom (2D, 0 = auto)</label><input type="range" id="s-zoom" min="0" max="7" step="1" value="' + s.get('zoom2d') + '">' +
-      '</div><p class="muted small">Grafikläget ändras när sidan laddas om. Allt annat gäller direkt.</p>';
+      '</div><p class="muted small">Grafikläge och efterbehandling ändras när sidan laddas om. Allt annat gäller direkt. Lätt: ledtrådar kostar inga poäng. Svår: ingen pil, markör eller utropstecken – men 50 % mer XP.</p>';
     this.showDialog({
       title: 'Inställningar', html: html, buttons: [{ label: 'Klar', primary: true }],
       onOpen: function (d) {
@@ -639,6 +714,15 @@ NV.UI = (function () {
         bind('s-type', 'typeSound', function (e) { return e.checked; });
         bind('s-font', 'termFont', function (e) { return +e.value; });
         bind('s-zoom', 'zoom2d', function (e) { return +e.value; });
+        bind('s-post', 'post', function (e) { return e.checked; });
+        bind('s-part', 'particles', function (e) { return e.checked; });
+        bind('s-smooth', 'smooth', function (e) { return e.checked; });
+        bind('s-fps', 'showFps', function (e) { return e.checked; });
+        bind('s-mini', 'minimap', function (e) { return e.checked; });
+        bind('s-music', 'music', function (e) { NV.sfx.unlock(); setTimeout(function () { NV.sfx.music(); }, 0); return e.checked; });
+        bind('s-mvol', 'musicVol', function (e) { return +e.value; });
+        bind('s-theme', 'termTheme', function (e) { return e.value; });
+        d.querySelectorAll('[data-diff]').forEach(function (b) { b.addEventListener('click', function () { s.set('difficulty', b.getAttribute('data-diff')); g.refreshMarkers(); self.settingsDialog(); }); });
         d.querySelectorAll('[data-mode]').forEach(function (b) { b.addEventListener('click', function () { g.setMode(b.getAttribute('data-mode')); self.settingsDialog(); }); });
       },
     });
@@ -670,6 +754,8 @@ NV.UI = (function () {
     var saved = g.savedRun();
     var html = '<div class="menu-inner"><div class="logo">🦀</div><h1>Krabba-passet</h1><p class="tag">Du är nätverkstekniker på Nordvik. Varje vecka gör Krabban sönder något i racket – hitta felen, rätta dem och skriv felrapporter.</p>' +
       '<div class="mode-pick"><span>Välj visning:</span><div class="seg big"><button data-mode="3d" class="' + (g.mode === '3d' ? 'on' : '') + '"' + (g.webgl ? '' : ' disabled title="WebGL saknas"') + '><b>3D</b><small>förstaperson</small></button><button data-mode="2d" class="' + (g.mode === '2d' ? 'on' : '') + '"><b>2D</b><small>16-bitars pixelvärld</small></button></div></div>';
+    var rk = NV.career.rank();
+    html += '<div class="menu-rank"><span>🏅 <b>' + esc(rk.name) + '</b> · ' + rk.xp + ' XP · ' + NV.career.unlockedCount() + '/' + NV.career.ACH.length + ' prestationer</span><button data-ach>Karriär (J)</button></div>';
     if (saved && !(g.running && g.week === saved.week)) html += '<div class="menu-row"><button class="primary" data-continue>Fortsätt vecka ' + saved.week + ' (' + fmtTime(saved.elapsed || 0) + ')</button></div>';
     html += '<div class="weeks">';
     NV.levels.WEEKS.forEach(function (w) {
@@ -678,6 +764,7 @@ NV.UI = (function () {
       html += '<button class="week' + (p ? ' done' : '') + '" data-week="' + w.week + '"><span class="wn">Vecka ' + w.week + '</span><span class="wt">' + esc(w.title) + '</span><span class="wl">' + esc(w.learn.slice(0, 2).join(' · ')) + '</span><span class="ws">' + stars + (p && p.minutes ? ' <span class="muted">bästa ' + p.minutes + ' min</span>' : '') + (p && p.badges && p.badges.length ? ' <span class="muted">· ' + p.badges.length + ' utm.</span>' : '') + '</span></button>';
     });
     html += '</div><div class="menu-row"><button data-week="0">Fri träning (inga fel)</button><button data-exam>Examen (slumpad vecka, inga ledtrådar)</button><button data-settings>Inställningar</button>' + (g.running ? '<button class="primary" data-resume>Tillbaka till spelet</button>' : '') + '</div>' +
+      '<p class="tip">💡 ' + esc(TIPS[Math.floor(Math.random() * TIPS.length)]) + '</p>' +
       '<p class="muted small">Byggt för kursen Nätverksteknik. Utrustningen och Nordviks adressplan följer kursboken; felen kommer från bokens avsnitt "Så ser det ut när det är trasigt". Spelet kräver tangentbord – och mus i 3D.</p></div>';
     this.menu.innerHTML = html;
     this.menu.classList.remove('hidden');
@@ -695,6 +782,8 @@ NV.UI = (function () {
     if (ex) ex.addEventListener('click', function () { start(1 + Math.floor(Math.random() * 9), { exam: true }); });
     var c = $('[data-continue]', this.menu);
     if (c) c.addEventListener('click', function () { self.hideMenu(); g.resumeRun(); self.afterOverlay(); });
+    var ac = $('[data-ach]', this.menu);
+    if (ac) ac.addEventListener('click', function () { self.achievementsDialog(); });
     var st = $('[data-settings]', this.menu);
     if (st) st.addEventListener('click', function () { self.settingsDialog(); });
     var r = $('[data-resume]', this.menu);
@@ -707,6 +796,7 @@ NV.UI = (function () {
     var html = '<div class="done-stars">' + '★★★'.slice(0, res.stars) + '<span class="muted">' + '☆☆☆'.slice(res.stars) + '</span></div>' +
       '<p>Du löste alla ärenden på <b>' + res.minutes + ' min</b> med <b>' + res.commands + '</b> kommandon och <b>' + res.hints + '</b> ledtrådar.</p>' +
       '<p>Felrapporterna: <b>' + res.reportScore + ' av ' + res.reportMax + '</b> rätt.</p>' +
+      '<p>Du tjänade <b>' + Math.max(0, g.weekXp || 0) + ' XP</b> den här veckan och är nu <b>' + esc(NV.career.rank().name) + '</b>.</p>' +
       (res.badges.length ? '<p>Utmärkelser: ' + res.badges.map(function (b) { return '<span class="badge">' + esc(b) + '</span>'; }).join(' ') + '</p>' : '') +
       '<p class="muted">Kopiera felrapport.md och lägg den i veckans mapp i ditt repo, precis som efter ett riktigt Krabba-pass.</p>';
     this.showDialog({

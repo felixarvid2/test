@@ -230,6 +230,7 @@ NV.devices3d = (function () {
     var mesh = new THREE.Mesh(geo, world.builder.std(CABLE_COLORS[color] || color || 0x2f6fd6, 0.55, 0.05));
     mesh.castShadow = true;
     if (userData) mesh.userData = userData;
+    mesh.userData.curve = curve;
     world.scene.add(mesh);
     return mesh;
   }
@@ -295,7 +296,7 @@ NV.devices3d = (function () {
       b.desk(p.x, p.z, 0);
       b.chair(p.x, p.z + 0.75, 0, id === 'PC-Bo' || id === 'PC-Maja' ? 0x5b3d6b : 0x30343b);
       if (id.indexOf('PC-') !== 0) {
-        monitor(world, p.x + 0.1, p.z - 0.15, null);
+        (out.extra.idleMonitors = out.extra.idleMonitors || []).push(monitor(world, p.x + 0.1, p.z - 0.15, null));
         return;
       }
       out.pcs[id] = pc(world, id, p);
@@ -339,7 +340,7 @@ NV.devices3d = (function () {
     tex.needsUpdate = true;
     return { group: g, screen: scr, canvas: c, tex: tex };
   }
-  function drawDesktop(c, id, status) {
+  function drawDesktop(c, id, status, t) {
     var g = c.getContext('2d');
     var gr = g.createLinearGradient(0, 0, 512, 300);
     gr.addColorStop(0, '#1f4e79'); gr.addColorStop(1, '#3c7478');
@@ -350,6 +351,21 @@ NV.devices3d = (function () {
     g.fillText('Nordvik', 30, 60);
     g.font = '15px "Segoe UI", sans-serif';
     if (id) g.fillText(id, 30, 84);
+    // Ett program där text skrivs medan personen arbetar
+    if (status && status.icon === 'ok' && t !== undefined) {
+      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(34, 104, 300, 150);
+      g.fillStyle = '#f6f7f9'; g.fillRect(30, 100, 300, 150);
+      g.fillStyle = '#2f6fd6'; g.fillRect(30, 100, 300, 18);
+      g.fillStyle = '#fff'; g.font = 'bold 11px "Segoe UI", sans-serif'; g.fillText(status.app || 'Dokument', 36, 113);
+      var n = Math.floor(t * 3) % 60;
+      g.fillStyle = '#9aa3ad';
+      for (var i = 0; i < 9; i++) {
+        var w = Math.min(270, Math.max(0, n * 14 - i * 270));
+        if (w <= 0) break;
+        g.fillRect(40, 128 + i * 13, (i * 53 % 70) + 200 > w ? w : (i * 53 % 70) + 200, 6);
+      }
+      if (Math.floor(t * 2) % 2) { g.fillStyle = '#1b1b1b'; g.fillRect(40 + Math.min(262, (n * 14) % 270), 126 + Math.min(8, Math.floor(n * 14 / 270)) * 13, 2, 10); }
+    }
     // Aktivitetsfält
     g.fillStyle = 'rgba(15,18,22,0.92)'; g.fillRect(0, 266, 512, 34);
     g.fillStyle = '#6fb3ff'; g.fillRect(10, 274, 18, 18);

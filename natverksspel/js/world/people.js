@@ -59,7 +59,9 @@ NV.people = (function () {
     var hr = new THREE.Mesh(new THREE.SphereGeometry(0.148, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.55), hair); hr.position.y = 0.12; hr.rotation.x = 0.25; head.add(hr);
     if (def.long) { var back = new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.18, 4, 8), hair); back.position.set(0, -0.02, 0.07); head.add(back); }
     var eyeM = mat(b, 0x1b1b1b, 0.3);
-    [-0.05, 0.05].forEach(function (x) { var e = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 8), eyeM); e.position.set(x, 0.13, -0.13); head.add(e); });
+    var eyes = [];
+    [-0.05, 0.05].forEach(function (x) { var e = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 8), eyeM); e.position.set(x, 0.13, -0.13); head.add(e); eyes.push(e); });
+    var mouth = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.008, 0.01), mat(b, 0x8a3b32, 0.6)); mouth.position.set(0, 0.045, -0.135); head.add(mouth);
     var nose = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 8), skin); nose.position.set(0, 0.09, -0.145); head.add(nose);
     torso.add(head);
     g.add(torso);
@@ -68,11 +70,17 @@ NV.people = (function () {
     var tag = T.label(name, { height: 0.09, bg: 'rgba(20,24,32,0.75)' });
     tag.position.y = hip + 1.08;
     g.add(tag);
+    var roleTag = T.label(name + ' · ' + def.role, { height: 0.09, bg: 'rgba(20,24,32,0.85)' });
+    roleTag.position.y = hip + 1.08;
+    roleTag.material.opacity = 0;
+    g.add(roleTag);
     var marker = T.label('!', { height: 0.2, bg: 'rgba(245,190,40,0.95)', color: '#1d1d1d', size: 60, weight: '900' });
     marker.position.y = hip + 1.32;
     marker.visible = false;
+    marker.material.color.setScalar(1.8);
     g.add(marker);
     var done = T.label('✓', { height: 0.16, bg: 'rgba(60,170,90,0.95)', size: 52, weight: '900' });
+    done.material.color.setScalar(1.5);
     done.position.y = hip + 1.3;
     done.visible = false;
     g.add(done);
@@ -82,7 +90,9 @@ NV.people = (function () {
     hit.userData.interact = { type: 'npc', id: name };
     g.add(hit);
     world.scene.add(g);
-    return { name: name, def: def, group: g, torso: torso, head: head, arms: arms, marker: marker, done: done, tag: tag, sitting: sitting, phase: Math.random() * 10 };
+    // Omar håller en kaffekopp
+    if (name === 'Omar') { var mug = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.03, 0.08, 12), mat(b, 0xffffff, 0.4)); mug.position.set(0, -0.56, -0.03); arms[1].add(mug); }
+    return { name: name, def: def, group: g, torso: torso, head: head, arms: arms, legs: legs, eyes: eyes, mouth: mouth, marker: marker, done: done, tag: tag, roleTag: roleTag, sitting: sitting, phase: Math.random() * 10, blinkT: 2 + Math.random() * 3, gestT: 8 + Math.random() * 15, gest: 0, gestKind: null, waved: false };
   }
 
   function build(world) {
@@ -102,23 +112,84 @@ NV.people = (function () {
         f.group.rotation.y = d.stand.ry;
         f.baseRy = d.stand.ry;
         world.builder.collide(d.stand.x, d.stand.z, 0.5, 0.5);
+        f.collider = world.builder.colliders[world.builder.colliders.length - 1];
+        f.home = { x: d.stand.x, z: d.stand.z };
       }
       list[n] = f;
     });
     return list;
   }
 
-  function update(list, dt, t, camPos, week) {
+  // Omar går fram och tillbaka vid kaffemaskinen
+  var PACE = { Omar: [{ x: -3.4, z: -7.8 }, { x: -4.9, z: -8.6 }] };
+
+  function update(list, dt, t, camPos, week, talkingTo) {
     Object.keys(list).forEach(function (n) {
       var f = list[n];
       var show = !f.def.weeks || f.def.weeks.indexOf(week) >= 0;
       f.group.visible = show;
+      if (!show) return;
       f.phase += dt;
       f.torso.children[0].scale.y = 1 + Math.sin(f.phase * 2.2) * 0.012;
-      if (f.sitting) f.arms.forEach(function (a, i) { a.rotation.x = -0.9 + Math.sin(f.phase * 7 + i * 2) * 0.05; });
-      // Titta mot spelaren när hen är nära
       var dx = camPos.x - f.group.position.x, dz = camPos.z - f.group.position.z;
       var dist = Math.sqrt(dx * dx + dz * dz);
+      var talking = talkingTo === n;
+      // Blinkar
+      f.blinkT -= dt;
+      var blink = f.blinkT < 0.12;
+      if (f.blinkT < 0) f.blinkT = 2 + Math.random() * 4;
+      f.eyes.forEach(function (e) { e.scale.y = blink ? 0.15 : 1; });
+      // Munnen rör sig när personen pratar med dig
+      f.mouth.scale.y = talking ? 1 + Math.abs(Math.sin(t * 14)) * 4 : 1;
+      // Vandring (bara Omar) när du inte pratar med honom
+      var walking = false;
+      var path = PACE[n];
+      if (path && !talking && dist > 2.2) {
+        f.paceT = (f.paceT || 0) - dt;
+        f.paceIx = f.paceIx || 0;
+        var tgt = path[f.paceIx];
+        var ex = tgt.x - f.group.position.x, ez = tgt.z - f.group.position.z, el = Math.sqrt(ex * ex + ez * ez);
+        if (f.paceT <= 0) {
+          if (el > 0.05) {
+            walking = true;
+            var sp = Math.min(el, dt * 0.8);
+            f.group.position.x += ex / el * sp; f.group.position.z += ez / el * sp;
+            var face = Math.atan2(-ex, -ez);
+            f.group.rotation.y += (face - f.group.rotation.y) * Math.min(1, dt * 6);
+          } else { f.paceIx = (f.paceIx + 1) % path.length; f.paceT = 4 + Math.random() * 5; }
+        }
+        if (f.collider) { f.collider.minX = f.group.position.x - 0.25; f.collider.maxX = f.group.position.x + 0.25; f.collider.minZ = f.group.position.z - 0.25; f.collider.maxZ = f.group.position.z + 0.25; }
+      } else if (path && talking) {
+        var fc = Math.atan2(-dx, -dz);
+        f.group.rotation.y += (fc - f.group.rotation.y) * Math.min(1, dt * 4);
+      }
+      if (!f.sitting) f.legs.children.forEach(function (l, i) { l.rotation.x = walking ? Math.sin(t * 7 + (i % 2 ? 0 : Math.PI)) * 0.35 : l.rotation.x * 0.8; });
+      // Gester: vinka, sträcka på sig, dricka kaffe, skaka på huvudet
+      if (!f.waved && dist < 3.6 && !talking) { f.waved = true; f.gestKind = 'wave'; f.gest = 1.6; }
+      f.gestT -= dt;
+      if (f.gestT <= 0 && f.gest <= 0) {
+        f.gestT = 10 + Math.random() * 18;
+        f.gestKind = f.mood === 'open' && Math.random() < 0.6 ? 'shake' : (f.sitting ? 'stretch' : 'sip');
+        f.gest = f.gestKind === 'stretch' ? 2.2 : 1.6;
+      }
+      if (f.mood === 'happy' && !f.happyDone) { f.happyDone = true; f.gestKind = 'jump'; f.gest = 1.2; }
+      var armL = f.sitting ? -0.9 : 0, armR = f.sitting ? -0.9 : 0, armZR = 0, headShake = 0, lift = 0;
+      if (f.gest > 0) {
+        f.gest -= dt;
+        var e = Math.min(1, f.gest * 3, (f.gestKind === 'stretch' ? 2.2 : 1.6) - f.gest);
+        if (f.gestKind === 'wave') { armR = -2.6 * e; armZR = Math.sin(t * 12) * 0.35 * e; }
+        else if (f.gestKind === 'stretch') { armL = armR = -0.9 - 2.1 * e; }
+        else if (f.gestKind === 'sip') { armR = -1.9 * e; }
+        else if (f.gestKind === 'shake') { headShake = Math.sin(t * 16) * 0.35 * e; }
+        else if (f.gestKind === 'jump') { lift = Math.abs(Math.sin(f.gest * 8)) * 0.12 * e; }
+      } else if (f.sitting) {
+        armL = -0.9 + Math.sin(f.phase * 7) * 0.05; armR = -0.9 + Math.sin(f.phase * 7 + 2) * 0.05;
+      }
+      f.arms[0].rotation.x += (armL - f.arms[0].rotation.x) * Math.min(1, dt * 10);
+      f.arms[1].rotation.x += (armR - f.arms[1].rotation.x) * Math.min(1, dt * 10);
+      f.arms[1].rotation.z = armZR;
+      f.torso.position.y = (f.sitting ? 0.5 : 0.92) + lift;
+      // Titta mot spelaren när hen är nära
       var want = 0;
       if (dist < 4) {
         var ang = Math.atan2(-dx, -dz) - f.group.rotation.y;
@@ -126,12 +197,20 @@ NV.people = (function () {
         while (ang < -Math.PI) ang += Math.PI * 2;
         want = Math.max(-1.1, Math.min(1.1, ang));
       } else want = Math.sin(f.phase * 0.3) * 0.3;
-      f.head.rotation.y += (want - f.head.rotation.y) * Math.min(1, dt * 4);
+      f.head.rotation.y += (want + headShake - f.head.rotation.y) * Math.min(1, dt * (headShake ? 14 : 4));
+      f.head.rotation.x = talking ? Math.sin(t * 5) * 0.06 : 0;
       // Vänd överkroppen mot dig när du står nära, och tona ut namnet på avstånd
       var tw = dist < 2.2 ? want * 0.55 : 0;
       f.torso.rotation.y += (tw - f.torso.rotation.y) * Math.min(1, dt * 3);
-      f.tag.material.opacity = Math.max(0, Math.min(1, (9 - dist) / 3));
-      f.marker.position.y = (f.sitting ? 0.5 : 0.92) + 1.32 + Math.sin(t * 3) * 0.04;
+      var close = dist < 3;
+      f.tag.material.opacity = close ? 0 : Math.max(0, Math.min(1, (9 - dist) / 3));
+      f.roleTag.material.opacity += ((close ? 1 : 0) - f.roleTag.material.opacity) * Math.min(1, dt * 6);
+      var base = (f.sitting ? 0.5 : 0.92) + lift;
+      f.marker.position.y = base + 1.32 + Math.sin(t * 3) * 0.04;
+      var pul = 1 + Math.sin(t * 5) * 0.08;
+      f.marker.scale.set(f.marker.userData.sx || (f.marker.userData.sx = f.marker.scale.x), f.marker.userData.sy || (f.marker.userData.sy = f.marker.scale.y), 1).multiplyScalar(pul);
+      f.done.position.y = base + 1.3;
+      f.tag.position.y = f.roleTag.position.y = base + 1.08;
     });
   }
 

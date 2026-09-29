@@ -123,16 +123,19 @@ NV.handbook = (function () {
       return '<h3>3D</h3>' + table(['Tangent', 'Gör'], [
         ['W A S D / piltangenter', 'Gå (Shift = spring)'], ['Mus', 'Titta – klicka i bilden för att låsa musen'], ['Håll musknappen och dra', 'Titta utan muslås (om låset inte fungerar)'],
         ['Högerklick (håll) eller Z', 'Zooma in – läs frontpaneler och portar'], ['E eller klick', 'Använd det du tittar på'], ['Esc', 'Släpp musen och öppna pausmenyn'],
+        ['C eller Ctrl', 'Huka – läs de nedersta enheterna'], ['Mellanslag', 'Hoppa'], ['V', 'Ficklampa'],
       ]) + '<h3>2D</h3>' + table(['Tangent', 'Gör'], [
         ['W A S D / piltangenter', 'Gå (Shift = spring)'], ['Klick på golvet', 'Gå dit'], ['Klick på en sak eller person', 'Gå dit och använd den'],
         ['E / mellanslag / Enter', 'Använd det du står vid'], ['+ / − eller mushjulet', 'Zooma'], ['Esc', 'Pausmeny'],
       ]) + '<h3>Alltid</h3>' + table(['Tangent', 'Gör'], [
         ['T', 'Öppna laptopen'], ['F', 'Skriv felrapport för ett löst ärende'], ['L', 'Ledtråd'], ['H', 'Handboken'], ['M', 'Karta och snabbresa'],
         ['Tab', 'Ärendelistan och dina rapporter'], ['N', 'Anteckningar'], ['O', 'Notislogg'], ['U', 'Fäll ihop HUD'], ['F1', 'Den här hjälpen'],
+        ['G', 'Nätverksglasögon: kablar i statusfärg'], ['R', 'Spela upp senaste pingspåret'], ['J', 'Karriär, prestationer och statistik'], ['K', 'Visa eller dölj minikartan'], ['P', 'Fotoläge (döljer gränssnittet)'],
       ]) + '<h3>I terminalen</h3>' + table(['Tangent', 'Gör'], [
         ['?', 'Hjälp direkt (IOS)'], ['Tab', 'Fyll i kommandot eller interfacetypen'], ['↑ ↓', 'Tidigare kommandon'], ['Ctrl+C', 'Avbryt ping och liknande'],
         ['Ctrl+Z', 'Hoppa till # från konfigurationsläge'], ['Ctrl+L', 'Rensa skärmen'], ['PageUp / PageDown', 'Bläddra'], ['Ctrl+Shift+C', 'Kopiera markerad text'],
         ['Ctrl+A K', 'Stäng konsolen (screen)'], ['Esc', 'Stäng terminalfönstret'],
+        ['→', 'Ta den grå kompletteringen'], ['Ctrl+F', 'Sök i utskriften (Enter = nästa)'], ['⟲', 'Lista med tidigare kommandon'],
       ]) + '<p class="muted">Tips: gå fram till en enhet i racket och tryck E för att sätta i konsolkabeln. Laptopen öppnas då med rätt kommando förifyllt. I 2D öppnas rackvyn där du klickar på enheten.</p>';
     },
     calc: function () {

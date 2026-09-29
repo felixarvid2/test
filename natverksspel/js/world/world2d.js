@@ -587,6 +587,9 @@ NV.World2D = (function () {
     add(88.3, 0, { type: 'travel', to: 'gbg', label: 'Åk tillbaka till Göteborg' }, 1.4);
     var self = this;
     Object.keys(this.people).forEach(function (n) { var p = self.people[n]; list.push({ x: p.x, z: p.z, inter: { type: 'npc', id: n }, r: 1.1, npc: n }); });
+    add(-2.8, -9.2, { type: 'coffee' }, 0.9);
+    this.crabInter = { x: 0, z: -100, inter: { type: 'crab' }, r: 0.9, crab: true };
+    list.push(this.crabInter);
     this.inters = list;
   };
   W.buildCables = function () { this.collectInteractables(); };
@@ -675,6 +678,7 @@ NV.World2D = (function () {
       } else { dx = tx / d; dz = tz / d; }
     }
     var speed = (k.ShiftLeft || k.ShiftRight) ? 5 : 3.2;
+    if (this.game.boosted && this.game.boosted()) speed *= 1.3;
     var len = Math.hypot(dx, dz);
     var moving = false;
     if (len > 0) {
@@ -692,7 +696,13 @@ NV.World2D = (function () {
       this.animT += dt * speed * 2.2;
       this.frame = Math.floor(this.animT) % 4;
       this.stepAcc += dt * speed;
-      if (this.stepAcc > 0.8) { this.stepAcc = 0; NV.sfx.step(); }
+      if (this.stepAcc > 0.8) {
+        this.stepAcc = 0;
+        var zn = this.zone().name;
+        NV.sfx.step({ Serverrummet: 'metal', Fikarummet: 'wood', Receptionen: 'wood', Lagerkontoret: 'wood', 'Lagret i Borås': 'concrete' }[zn] || (/Utanför/.test(zn) ? 'concrete' : 'carpet'));
+        if (speed > 4 || /Utanför|Borås/.test(zn)) this.dust(this.pos.x, this.pos.z);
+      }
+      if (this.game.addDistance) this.game.addDistance(Math.hypot(dx, dz) * speed * dt);
     } else { this.frame = 0; this.animT = 0; }
     this.yaw = [0, Math.PI, Math.PI / 2, -Math.PI / 2][this.dir];
   };
@@ -719,6 +729,7 @@ NV.World2D = (function () {
     (this.inters || []).forEach(function (c) {
       if (c.inter.type === 'npc' && self.people[c.npc] && !self.npcVisible(c.npc)) return;
       if (c.inter.type === 'miniswitch' && !st.devices['Mini-switch']) return;
+      if (c.crab && !(self.game.crab && self.game.crab.active && self.game.crab.site === self.site)) return;
       var dx = c.x - self.pos.x, dz = c.z - self.pos.z;
       var d = Math.hypot(dx, dz);
       if (d > c.r + 0.6) return;
@@ -777,6 +788,9 @@ NV.World2D = (function () {
     this.cam.x += (want.x - this.cam.x) * 0.18;
     this.cam.z += (want.z - this.cam.z) * 0.18;
     g.imageSmoothingEnabled = false;
+    this.shakeA = Math.max(0, (this.shakeA || 0) - 0.03);
+    var shx = (Math.random() - 0.5) * this.shakeA * this.shakeA * 0.6, shz = (Math.random() - 0.5) * this.shakeA * this.shakeA * 0.6;
+    this.cam.x += shx; this.cam.z += shz;
     g.fillStyle = '#3f8a25'; g.fillRect(0, 0, cw, ch);
     // Mark
     var gr = this.ground[siteKey];
@@ -797,9 +811,12 @@ NV.World2D = (function () {
       list.push({ person: p, x: p.x, z: p.z, key: p.z - 0.001 });
     });
     list.push({ player: true, x: this.pos.x, z: this.pos.z, key: this.pos.z - 0.002 });
+    var cr = this.game.crab;
+    if (cr && cr.active && cr.site === this.site) list.push({ crab: true, x: cr.x, z: cr.z, key: cr.z - 0.003 });
     list.sort(function (a, b) { return b.key - a.key; });
     list.forEach(function (s) {
       if (s.player) { self.drawChar(g, self.playerSpr(self.dir, self.frame, false), self.pos.x, self.pos.z, sc, false); return; }
+      if (s.crab) { self.drawCrab(g, sc); return; }
       if (s.person) {
         var p = s.person;
         var d = p.sit ? 1 : 0;
@@ -831,7 +848,10 @@ NV.World2D = (function () {
     });
     this.drawRackLeds(g, sc);
     this.drawAps(g, sc);
+    this.drawSky(g, sc);
+    this.drawFx(g, sc);
     this.drawOverlay(g, sc);
+    this.drawPost(g, sc);
   };
   W.drawChar = function (g, spr, x, z, sc, sitting) {
     var s = this.toScreen(x, z, 0);
@@ -961,8 +981,11 @@ NV.World2D = (function () {
   W.monitorCanvas = function () { return this.monitorCv; };
 
   W.update = function (dt) {
+    var rdt = dt;
+    if (this.slowT > 0) { this.slowT -= dt; dt *= 0.4; }
     this.t += dt;
     if (!(this.game.ui && this.game.ui.captures())) this.move(dt);
+    this.updateFx(dt, rdt);
     this.hover = this.pick();
     this.slowTimer += dt;
     if (this.slowTimer > 1) {
@@ -974,6 +997,266 @@ NV.World2D = (function () {
     NV.shared.rackSpots(this.builder).forEach(function (r) { near = Math.min(near, Math.hypot(self.pos.x - r.x, self.pos.z - r.z)); });
     NV.sfx.hum(this.game.ui && this.game.ui.captures() ? 0 : 1 - near / 7);
     this.render();
+  };
+
+
+  // ================================================================== Effekter i 2D
+  // Partiklar i världskoordinater (x, z och höjd y), ritade som pixelrutor
+  W.fxInit = function () {
+    this.parts = []; this.pops = []; this.pend = []; this.traces = [];
+    this.birds = []; this.clouds = [];
+    for (var i = 0; i < 7; i++) this.clouds.push({ x: -40 + Math.random() * 180, z: -25 + Math.random() * 50, r: 3 + Math.random() * 4, v: 0.3 + Math.random() * 0.4 });
+  };
+  W.part = function (o) {
+    if (!NV.settings.get('particles') && !o.force) return null;
+    if (!this.parts) this.fxInit();
+    var p = { x: o.x, z: o.z, y: o.y || 0, vx: o.vx || 0, vz: o.vz || 0, vy: o.vy || 0, g: o.g || 0, life: o.life || 1, age: 0, size: o.size || 1, col: o.col || '#fff', glow: !!o.glow, grow: o.grow || 0, a: o.a === undefined ? 1 : o.a, path: o.path, onEnd: o.onEnd, drag: o.drag || 0 };
+    if (this.parts.length > 900) this.parts.shift();
+    this.parts.push(p);
+    return p;
+  };
+  function R(a, b) { return a + Math.random() * (b - a); }
+  W.dust = function (x, z) { for (var i = 0; i < 3; i++) this.part({ x: x + R(-0.2, 0.2), z: z + R(-0.1, 0.1), y: 0.05, vx: R(-0.4, 0.4), vy: R(0.2, 0.6), g: 1.2, life: R(0.4, 0.7), size: 2, col: 'rgba(200,190,160,0.7)', grow: 1 }); };
+  W.sparkle = function (x, z, y) { this.part({ x: x + R(-0.3, 0.3), z: z + R(-0.2, 0.2), y: (y || 1) + R(-0.2, 0.4), vy: 0.3, life: R(0.4, 0.8), size: 1, col: '#ffe08a', glow: true }); };
+  W.confetti = function (x, z, n) {
+    var cols = ['#f0b429', '#3fbf6f', '#4fc3f7', '#ff5a4f', '#b77ee0', '#ffffff'];
+    for (var i = 0; i < (n || 70); i++) { var a = Math.random() * Math.PI * 2, sp = R(0.8, 3); this.part({ x: x, z: z, y: 1.2, vx: Math.cos(a) * sp, vz: Math.sin(a) * sp * 0.6, vy: R(2, 5), g: 6, drag: 0.02, life: R(1.2, 2.2), size: 2, col: cols[i % cols.length] }); }
+  };
+  W.sparks = function (x, z, y, col, n) { for (var i = 0; i < (n || 14); i++) { var a = Math.random() * Math.PI * 2; this.part({ x: x, z: z, y: y || 1, vx: Math.cos(a) * R(0.5, 2), vz: Math.sin(a) * R(0.3, 1), vy: R(0.5, 2.5), g: 8, life: R(0.3, 0.6), size: 1, col: col || '#ffcf6a', glow: true }); } };
+  W.poof = function (x, z, y, col) { for (var i = 0; i < 16; i++) { var a = Math.random() * Math.PI * 2; this.part({ x: x, z: z, y: y || 1, vx: Math.cos(a) * 1.2, vz: Math.sin(a) * 0.8, vy: R(-0.5, 1), drag: 0.08, life: R(0.4, 0.7), size: 3, grow: 1, col: col || '#ff5a4f', glow: true }); } };
+  W.steam = function (x, z, y) { this.part({ x: x + R(-0.05, 0.05), z: z, y: y, vx: R(-0.05, 0.05), vy: R(0.25, 0.4), life: R(1.2, 1.8), size: 2, grow: 1.5, col: 'rgba(255,255,255,0.45)' }); };
+  W.firework = function (x, z) {
+    var col = ['#ffd54a', '#4fc3f7', '#ff5a4f', '#6dff9a', '#ff9cf0'][Math.floor(Math.random() * 5)];
+    var y = R(4, 6);
+    for (var i = 0; i < 40; i++) { var a = i / 40 * Math.PI * 2, sp = R(1.5, 2.4); this.part({ x: x, z: z, y: y, vx: Math.cos(a) * sp, vz: 0, vy: Math.sin(a) * sp, g: 1.5, drag: 0.03, life: R(0.9, 1.4), size: 2, col: col, glow: true }); }
+    NV.sfx.thud();
+  };
+  W.popup = function (text, color) { if (!this.parts) this.fxInit(); this.pops.push({ text: text, col: color || '#ffd54a', x: this.pos.x, z: this.pos.z, age: 0, life: 1.6 }); };
+
+  // Spelets anrop
+  W.devPos2d = function (id) {
+    var A = this.builder.anchors;
+    var rackOf = { SW1: A.rackA, SW2: A.rackA, R1: A.rackA, WLC: A.rackA, RB: A.borasRack, SWB: A.borasRack };
+    if (rackOf[id]) return { x: rackOf[id].x, z: rackOf[id].z + (rackOf[id].x > 50 ? 0 : 0.6), y: 1.6 };
+    if (id === 'ISP' || String(id).indexOf('INTERNET') === 0) return { x: A.fiber.x, z: A.fiber.z + 0.2, y: 1.4 };
+    if (A.desks[id]) return { x: A.desks[id].x + 0.1, z: A.desks[id].z - 0.2, y: 1.2 };
+    if (id === 'Tekniker') return { x: A.bench.x, z: A.bench.z, y: 1.1 };
+    if (id === 'Gast-laptop') return { x: A.guestTable.x, z: A.guestTable.z, y: 1 };
+    if (id === 'Gast-mobil') return { x: A.phoneCounter.x, z: A.phoneCounter.z, y: 1.2 };
+    if (A.aps[id]) return { x: A.aps[id].x, z: A.aps[id].z, y: 3.2 };
+    if (id === 'Filserver' || id === 'NTP-server' || id === 'Loggserver' || id === 'Ekonomisystem') return { x: A.rackB.x, z: A.rackB.z + 0.6, y: 1.6 };
+    return null;
+  };
+  W.celebrate = function (devId) {
+    var p = devId ? this.devPos2d(devId) : null;
+    if (!p || Math.hypot(p.x - this.pos.x, p.z - this.pos.z) > 8) p = { x: this.pos.x, z: this.pos.z };
+    this.confetti(p.x, p.z, 90);
+    this.flash('#fff3c0', 0.35);
+    this.slowT = 0.6;
+    this.shake(0.4);
+  };
+  W.fireworks = function (n) { var self = this; if (!this.parts) this.fxInit(); for (var i = 0; i < (n || 3); i++) this.pend.push({ at: this.t + i * 0.45, fn: function () { self.firework(self.pos.x + R(-4, 4), self.pos.z + R(-1, 2)); } }); };
+  W.shake = function (a) { this.shakeA = Math.max(this.shakeA || 0, a * 3); };
+  W.flash = function (col, a) { this.flashCol = col || '#ffffff'; this.flashA = a || 0.4; };
+  W.slowmo = function (t) { this.slowT = t; };
+  W.crabCaught = function (c) { this.poof(c.x, c.z, 0.2, '#ff7a4a'); this.confetti(c.x, c.z, 40); };
+  W.cableFx = function (l) { var p = this.devPos2d(l.a.dev); if (p) this.sparks(p.x, p.z, p.y, '#ffcf6a', 16); };
+  W.consoleFx = function (id) { var p = this.devPos2d(id); if (p) this.sparks(p.x, p.z, p.y, '#7fc6f0', 14); };
+  W.setGoggles = function (on) { this.goggles = on; };
+  var REASON = { acl: 'ACL', arp: 'Inget ARP', 'net-unreachable': 'Ingen väg', nolink: 'Ingen länk', noip: 'Ingen IP', nogw: 'Ingen gateway', drop: 'Tappad', noreply: 'Inget svar', refused: 'Stängd port', ttl: 'TTL slut' };
+  W.pingTrace = function (from, res, count) {
+    var self = this;
+    if (!this.parts) this.fxInit();
+    var ids = [from];
+    (res.hops || []).forEach(function (h) { if (ids[ids.length - 1] !== h.dev) ids.push(h.dev); });
+    var end = res.ok ? res.at : res.where;
+    if (end && ids[ids.length - 1] !== end) ids.push(end);
+    var pts = ids.map(function (id) { return self.devPos2d(id); }).filter(Boolean);
+    pts = pts.filter(function (p, i) { return i === 0 || Math.hypot(p.x - pts[i - 1].x, p.z - pts[i - 1].z) > 0.1; });
+    if (pts.length < 2) { if (pts.length && !res.ok) this.poof(pts[0].x, pts[0].z, pts[0].y); return; }
+    function path(list) {
+      var segs = [], total = 0;
+      for (var i = 0; i < list.length - 1; i++) { var d = Math.hypot(list[i + 1].x - list[i].x, list[i + 1].z - list[i].z); segs.push({ a: list[i], b: list[i + 1], d: d }); total += d; }
+      return { at: function (u) {
+        var want = u * total;
+        for (var k = 0; k < segs.length; k++) {
+          var sg = segs[k];
+          if (want <= sg.d || k === segs.length - 1) { var f = sg.d ? Math.min(1, want / sg.d) : 1; return { x: sg.a.x + (sg.b.x - sg.a.x) * f, z: sg.a.z + (sg.b.z - sg.a.z) * f, y: sg.a.y + (sg.b.y - sg.a.y) * f + Math.sin(f * Math.PI) * (0.6 + sg.d * 0.12) }; }
+          want -= sg.d;
+        }
+      }, total: total };
+    }
+    var fwd = path(pts), back = path(pts.slice().reverse()), last = pts[pts.length - 1];
+    var life = Math.max(0.7, Math.min(3, fwd.total / 6));
+    for (var i = 0; i < (count || 4); i++) {
+      (function (k) {
+        self.pend.push({ at: self.t + k * 0.45, fn: function () {
+          self.part({ force: true, path: fwd, life: life, size: 3, col: '#7ee0ff', glow: true, trail: true, onEnd: function () {
+            if (res.ok) { self.part({ force: true, path: back, life: life, size: 3, col: '#6dff9a', glow: true }); if (!k) self.pops.push({ text: '✓ svar', col: '#6dff9a', x: last.x, z: last.z, y: last.y, age: 0, life: 1.6 }); }
+            else { self.poof(last.x, last.z, last.y); if (!k) self.pops.push({ text: '✗ ' + (REASON[res.reason] || 'Inget svar'), col: '#ff7a6a', x: last.x, z: last.z, y: last.y, age: 0, life: 2.2 }); }
+          } });
+        } });
+      })(i);
+    }
+  };
+
+  W.updateFx = function (dt, rdt) {
+    if (!this.parts) this.fxInit();
+    var self = this;
+    this.pend = this.pend.filter(function (p) { if (self.t >= p.at) { p.fn(); return false; } return true; });
+    this.parts = this.parts.filter(function (p) {
+      p.age += dt;
+      if (p.age >= p.life) { if (p.onEnd) p.onEnd(); return false; }
+      if (p.path) { var q = p.path.at(p.age / p.life); p.x = q.x; p.z = q.z; p.y = q.y; if (Math.random() < 0.7) self.part({ force: true, x: p.x, z: p.z, y: p.y, life: 0.35, size: 2, col: p.col, glow: true, a: 0.6 }); return true; }
+      var dr = Math.pow(1 - p.drag, dt * 60);
+      p.vx *= dr; p.vz *= dr; p.vy = p.vy * dr - p.g * dt;
+      p.x += p.vx * dt; p.z += p.vz * dt; p.y += p.vy * dt;
+      if (p.y < 0) { p.y = 0; p.vy *= -0.3; p.vx *= 0.5; }
+      return true;
+    });
+    this.pops = this.pops.filter(function (p) { p.age += rdt; return p.age < p.life; });
+    // Ånga från kaffemaskinen och kopparna
+    this.steamAcc = (this.steamAcc || 0) + dt;
+    if (this.steamAcc > 0.35) {
+      this.steamAcc = 0;
+      if (this.site === 'gbg' && Math.abs(this.pos.x + 2.8) + Math.abs(this.pos.z + 9.6) < 14) this.steam(-2.8, -9.45, 1.1);
+    }
+    // Glitter runt det du kan använda
+    if (this.hoverSpot && Math.random() < rdt * 5) this.sparkle(this.hoverSpot.x, this.hoverSpot.z, 1.1);
+    // Krabban
+    var c = this.game.crab;
+    if (c && c.active && c.site === this.site) {
+      var moving = NV.shared.crabStep(c, dt, this.pos, this.collides.bind(this));
+      c.anim = (c.anim || 0) + dt * (moving ? (c.fleeing ? 3 : 1.5) : 0);
+      if (moving && c.fleeing && Math.random() < dt * 8) this.dust(c.x, c.z);
+      if (this.crabInter) { this.crabInter.x = c.x; this.crabInter.z = c.z; }
+    } else if (this.crabInter) this.crabInter.z = -100;
+    // Fåglar utomhus
+    if (this.birds.length < 4 && Math.random() < dt * 0.15) {
+      var S0 = SITES[this.site], left = Math.random() < 0.5;
+      this.birds.push({ x: left ? S0.x0 : S0.x1, z: R(S0.z0, S0.z1), y: R(5, 8), vx: (left ? 1 : -1) * R(2.5, 4), vz: R(-0.5, 0.5), ph: Math.random() * 6 });
+    }
+    this.birds = this.birds.filter(function (b) { b.x += b.vx * dt; b.z += b.vz * dt; b.ph += dt * 10; var S1 = SITES[self.site]; return b.x > S1.x0 - 2 && b.x < S1.x1 + 2; });
+    this.clouds.forEach(function (cl) { cl.x += cl.v * dt; if (cl.x > 130) cl.x = -40; });
+    this.flashA = Math.max(0, (this.flashA || 0) - rdt * 1.4);
+  };
+
+  // Krabban som pixelfigur
+  W.drawCrab = function (g, sc) {
+    var c = this.game.crab;
+    var s = this.toScreen(c.x, c.z, 0);
+    var k = Math.floor(c.anim * 8) % 2;
+    function px(x, y, w, h, col) { g.fillStyle = col; g.fillRect(Math.round(s.x + x * sc), Math.round(s.y + y * sc), Math.ceil(w * sc), Math.ceil(h * sc)); }
+    g.fillStyle = 'rgba(0,0,0,0.25)'; g.beginPath(); g.ellipse(s.x, s.y, 7 * sc, 2 * sc, 0, 0, Math.PI * 2); g.fill();
+    // Ben
+    for (var i = 0; i < 3; i++) { var o = (i + k) % 2; px(-8, -4 + i * 1.5 - o, 3, 1, OUT); px(5, -4 + i * 1.5 - (1 - o), 3, 1, OUT); }
+    // Klor
+    var lift = c.fleeing ? -2 : 0;
+    px(-9, -10 + lift, 4, 4, OUT); px(-8, -9 + lift, 2, 2, '#e84a2c');
+    px(5, -10 + lift, 4, 4, OUT); px(6, -9 + lift, 2, 2, '#e84a2c');
+    // Kropp
+    px(-6, -8, 12, 6, OUT); px(-5, -7, 10, 4, '#e84a2c'); px(-4, -7, 8, 1, '#ff7a55');
+    // Ögon
+    px(-3, -11, 2, 3, OUT); px(1, -11, 2, 3, OUT); px(-3, -11, 1, 1, '#fff'); px(1, -11, 1, 1, '#fff');
+  };
+
+  // Moln, fåglar och dagsljus
+  W.drawSky = function (g, sc) {
+    var self = this, S0 = SITES[this.site];
+    var cw = this.canvas.width, ch = this.canvas.height;
+    var b = this.site === 'boras' ? [88, -12, 112, 12] : [-15, -10, 15, 10];
+    var tl = this.toScreen(b[0], b[3], 0), br = this.toScreen(b[2], b[1], 0);
+    g.save();
+    g.beginPath(); g.rect(0, 0, cw, ch); g.rect(tl.x, tl.y - WALL_H * PPM * HS * this.zoom(), br.x - tl.x, br.y - tl.y + WALL_H * PPM * HS * this.zoom()); g.clip('evenodd');
+    g.fillStyle = 'rgba(20,40,20,0.13)';
+    this.clouds.forEach(function (cl) {
+      var p = self.toScreen(cl.x + (self.site === 'boras' ? 70 : 0), cl.z, 0);
+      g.beginPath(); g.ellipse(p.x, p.y, cl.r * PPM * sc, cl.r * PPM * ZS * 0.6 * sc, 0, 0, Math.PI * 2); g.fill();
+    });
+    g.restore();
+    this.birds.forEach(function (bd) {
+      var p = self.toScreen(bd.x, bd.z, bd.y);
+      var up = Math.sin(bd.ph) > 0;
+      g.fillStyle = '#2b2f36';
+      g.fillRect(p.x - 3 * sc, p.y + (up ? -1 : 1) * sc, 2 * sc, sc); g.fillRect(p.x - sc, p.y, 2 * sc, sc); g.fillRect(p.x + sc, p.y + (up ? -1 : 1) * sc, 2 * sc, sc);
+    });
+  };
+  W.drawFx = function (g, sc) {
+    var self = this;
+    if (!this.parts) return;
+    // Glöd i serverrummet
+    if (this.site === 'gbg') {
+      g.save(); g.globalCompositeOperation = 'lighter';
+      var storm = Object.keys(S.get(this.game.state).storm).length > 0;
+      (this.rackSpots || []).forEach(function (r) {
+        if (r.x > 50) return;
+        var p = self.toScreen(r.x, r.z, 1.2);
+        var gr = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, 22 * sc);
+        gr.addColorStop(0, storm ? 'rgba(255,60,40,' + (0.25 + Math.sin(self.t * 8) * 0.12) + ')' : 'rgba(60,255,120,0.12)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+        g.fillStyle = gr; g.fillRect(p.x - 22 * sc, p.y - 22 * sc, 44 * sc, 44 * sc);
+      });
+      g.restore();
+    }
+    this.parts.forEach(function (p) {
+      var s = self.toScreen(p.x, p.z, p.y);
+      var f = p.age / p.life, sz = Math.max(1, Math.round(p.size * (1 + p.grow * f) * sc * 0.6));
+      g.globalAlpha = p.a * (1 - f * f);
+      if (p.glow) { g.globalCompositeOperation = 'lighter'; g.fillStyle = p.col; g.fillRect(s.x - sz, s.y - sz, sz * 2, sz * 2); g.globalCompositeOperation = 'source-over'; }
+      else { g.fillStyle = p.col; g.fillRect(s.x - sz / 2, s.y - sz / 2, sz, sz); }
+    });
+    g.globalAlpha = 1;
+    // Glasögonen: länkarna som färgade linjer och status över racken
+    if (this.goggles) this.drawGoggles(g, sc);
+    // Flytande text
+    this.pops.forEach(function (p) {
+      var s = self.toScreen(p.x, p.z, (p.y || 1.8) + p.age * 0.8);
+      g.globalAlpha = Math.max(0, 1 - Math.pow(p.age / p.life, 3));
+      var size = Math.max(10, Math.round(4.5 * sc));
+      g.font = size + 'px "Press Start 2P", "Trebuchet MS", monospace'; g.textAlign = 'center';
+      g.fillStyle = OUT; g.fillText(p.text, s.x + 2, s.y + 2);
+      g.fillStyle = p.col; g.fillText(p.text, s.x, s.y);
+      g.textAlign = 'left'; g.globalAlpha = 1;
+    });
+  };
+  W.drawGoggles = function (g, sc) {
+    var self = this, st = this.game.state;
+    var col = { up: '#33ff88', down: '#ff3b30', warn: '#ffb020', off: '#667080' };
+    g.save(); g.globalCompositeOperation = 'lighter'; g.lineWidth = Math.max(2, sc);
+    st.links.forEach(function (l) {
+      var a = self.devPos2d(l.a.dev), b = self.devPos2d(l.b.dev);
+      if (!a || !b || (a.x > 50) !== (self.site === 'boras') || (b.x > 50) !== (a.x > 50)) return;
+      if (Math.hypot(a.x - b.x, a.z - b.z) < 0.2) return;
+      var pa = self.toScreen(a.x, a.z, a.y), pb = self.toScreen(b.x, b.z, b.y);
+      var stt = NV.shared.linkStatus(st, l);
+      g.strokeStyle = col[stt]; g.setLineDash(stt === 'down' ? [4 * sc, 3 * sc] : []);
+      g.lineDashOffset = -self.t * 20;
+      g.beginPath(); g.moveTo(pa.x, pa.y); g.quadraticCurveTo((pa.x + pb.x) / 2, Math.min(pa.y, pb.y) - 20 * sc, pb.x, pb.y); g.stroke();
+    });
+    g.restore();
+    var racks = { A: ['SW1', 'SW2', 'R1', 'WLC'], BO: ['RB', 'SWB'] };
+    (this.rackSpots || []).forEach(function (r) {
+      if (!racks[r.id] || (r.x > 50) !== (self.site === 'boras')) return;
+      var p = self.toScreen(r.x, r.z, 3.1), y = p.y;
+      racks[r.id].forEach(function (id) {
+        var L = NV.shared.deviceLine(st, id);
+        if (!L) return;
+        self.label(g, L.text, p.x, y, sc * 1.05, 'rgba(4,30,26,0.9)', L.bad ? '#ffb020' : '#9fe8c0');
+        y -= 8.5 * sc;
+      });
+    });
+  };
+  // Dagsljus, glasögonton och blixt över hela bilden
+  W.drawPost = function (g) {
+    var cw = this.canvas.width, ch = this.canvas.height;
+    var hour = 8 + (this.game.state ? this.game.state.time : 0) / 3600;
+    var warm = Math.max(0, Math.min(1, (hour - 8) / 8));
+    if (warm > 0.02) { g.fillStyle = 'rgba(255,150,60,' + (warm * 0.12) + ')'; g.fillRect(0, 0, cw, ch); }
+    if (this.goggles) {
+      g.fillStyle = 'rgba(0,255,140,0.07)'; g.fillRect(0, 0, cw, ch);
+      g.fillStyle = 'rgba(0,0,0,0.12)';
+      for (var y = (Math.floor(this.t * 30) % 4); y < ch; y += 4) g.fillRect(0, y, cw, 1);
+    }
+    if (this.flashA > 0) { g.globalAlpha = this.flashA; g.fillStyle = this.flashCol || '#fff'; g.fillRect(0, 0, cw, ch); g.globalAlpha = 1; }
   };
 
   return World2D;

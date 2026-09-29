@@ -214,6 +214,7 @@ NV.building = (function () {
       m.rotation.set(i, i * 2, 0);
       m.castShadow = true;
       this.scene.add(m);
+      (this.plants = this.plants || []).push({ m: m, rz: m.rotation.z });
     }
     this._mute--;
   };
@@ -330,7 +331,7 @@ NV.building = (function () {
     // --- Fikarum
     b.box(4, 0.9, 0.62, -1.5, 0.45, -9.6, b.std(0xf3f1ec, 0.5, 0), { collide: true });
     b.box(4, 0.04, 0.66, -1.5, 0.92, -9.6, b.std(0x2c2f35, 0.3, 0.1));
-    b.box(0.35, 0.42, 0.35, -2.8, 1.15, -9.6, b.std(0x1f2124, 0.3, 0.6));
+    b.anchors.coffee = b.box(0.35, 0.42, 0.35, -2.8, 1.15, -9.6, b.std(0x1f2124, 0.3, 0.6));
     b.box(0.7, 1.85, 0.66, 1.8, 0.925, -9.55, b.std(0xdfe2e4, 0.3, 0.3), { collide: true });
     b.cyl(0.6, 0.6, 0.04, -1.5, 0.74, -5.8, b.std(0xf5f3ee, 0.4, 0), { collide: true });
     b.cyl(0.05, 0.08, 0.72, -1.5, 0.36, -5.8, b.std(0x2c2f34, 0.4, 0.7));
@@ -392,7 +393,10 @@ NV.building = (function () {
     var roof = b.std(0x6d7176, 0.9, 0.2);
     b.plane(X2 - X1, Z2 - Z1, roof, 100, H, 0, Math.PI / 2, 0);
     var tube = b.m('tube', function () { return new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xf4f8ff, emissiveIntensity: 2 }); });
-    for (var x = 92; x <= 108; x += 4) for (var z = -9; z <= 9; z += 6) b.box(1.5, 0.05, 0.12, x, H - 0.4, z, tube, { cast: false, receive: false });
+    for (var x = 92; x <= 108; x += 4) for (var z = -9; z <= 9; z += 6) {
+      var tm = b.box(1.5, 0.05, 0.12, x, H - 0.4, z, x === 108 && z === 3 ? tube.clone() : tube, { cast: false, receive: false });
+      if (x === 108 && z === 3) b.anchors.flickerTube = tm;
+    }
     for (var bx = 90; bx <= 110; bx += 5) b.box(0.25, 0.35, Z2 - Z1, bx, H - 0.18, 0, roof, { cast: false });
     // Pallställ
     var upright = b.std(0xd96b1f, 0.5, 0.3), beam = b.std(0x2b5aa0, 0.5, 0.3);
@@ -441,6 +445,8 @@ NV.building = (function () {
     truck.traverse(function (o) { o.castShadow = true; });
     b.scene.add(truck);
     b.collide(106, -4.3, 1.8, 1.1);
+    b.anchors.truck = truck;
+    b.anchors.truckCollider = b.colliders[b.colliders.length - 1];
     // Dörren tillbaka
     var door = b.std(0x3c7478, 0.6, 0.1);
     var dm = b.box(0.06, 2.25, 1.8, X1 + 0.12, 1.125, 0, door, { cast: false });

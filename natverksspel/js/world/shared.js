@@ -112,5 +112,71 @@ NV.shared = (function () {
     return [A.rackA, A.rackB, A.borasRack].filter(Boolean);
   }
 
-  return { ledFn: ledFn, portInfo: portInfo, sampleMonitor: sampleMonitor, drawMonitor: drawMonitor, SERIES: SERIES, rackSpots: rackSpots };
+  // Krabban: vandrar runt sitt hem och springer undan när du kommer nära (samma logik i 3D och 2D)
+  function crabStep(c, dt, player, collides) {
+    c.anim = c.anim || 0;
+    c.t = (c.t || 0) - dt;
+    var dx = c.x - player.x, dz = c.z - player.z, d = Math.sqrt(dx * dx + dz * dz);
+    var vx = 0, vz = 0, speed = 0;
+    if (c.tired > 0) c.tired -= dt;
+    if (d < 2.6 && !(c.tired > 0)) {
+      if (!c.fleeing) { c.fleeing = true; c.fleeT = 0; if (NV.sfx && NV.sfx.squeak) NV.sfx.squeak(); }
+      c.fleeT += dt;
+      if (c.fleeT > 1.8) { c.fleeing = false; c.tired = 1.4; }
+      vx = dx / (d || 1); vz = dz / (d || 1); speed = 1.7;
+    } else {
+      c.fleeing = false;
+      if (c.t <= 0 || !c.tx) {
+        var a = Math.random() * Math.PI * 2, r = Math.random() * 1.8;
+        c.tx = c.homeX + Math.cos(a) * r; c.tz = c.homeZ + Math.sin(a) * r;
+        c.t = 2 + Math.random() * 3; c.pause = Math.random() * 1.5;
+      }
+      if (c.pause > 0) { c.pause -= dt; return false; }
+      var ex = c.tx - c.x, ez = c.tz - c.z, el = Math.sqrt(ex * ex + ez * ez);
+      if (el < 0.05) return false;
+      vx = ex / el; vz = ez / el; speed = 0.45;
+    }
+    var nx = c.x + vx * speed * dt, nz = c.z + vz * speed * dt;
+    var moved = false;
+    if (!collides(nx, c.z, 0.12)) { c.x = nx; moved = true; }
+    if (!collides(c.x, nz, 0.12)) { c.z = nz; moved = true; }
+    if (!moved) { c.tx = null; c.t = 0; if (c.fleeing) { c.fleeing = false; c.tired = 1.2; } }
+    // Krabbor går i sidled: kroppen vinkelrätt mot färdriktningen
+    if (moved) c.face = Math.atan2(vx, vz) + Math.PI / 2;
+    return moved;
+  }
+
+  // Status för glasögonen: en länk (up/down/warn/off) och en sammanfattning per enhet
+  function linkStatus(state, l) {
+    var D = S.get(state);
+    if (l.state === 'unplugged') return 'off';
+    var L = D.links[l.id];
+    if (!L || !L.up) return 'down';
+    var bad = [l.a, l.b].some(function (s) {
+      var d = state.devices[s.dev];
+      if (!d || d.os !== 'ios') return false;
+      if (SH.portState(state, d, s.port) === 'err-disabled') return true;
+      var p = D.ports[S.key(s.dev, s.port)];
+      if (p && (p.mismatch || p.link.state === 'flapping')) return true;
+      return Object.keys(D.blocked).some(function (k) { return k.indexOf(s.dev + '|' + s.port + '#') === 0; });
+    });
+    return bad ? 'warn' : 'up';
+  }
+  function deviceLine(state, id) {
+    var d = state.devices[id];
+    if (!d) return null;
+    if (d.os !== 'ios') return { text: (d.label || id) + '  ' + (d.powered === false ? 'av' : 'på'), bad: d.powered === false };
+    var ports = Object.keys(d.config.ifaces).filter(function (p) { return !d.config.ifaces[p].parent && !/^Vlan|^Loop/.test(p); });
+    var up = ports.filter(function (p) { return SH.portState(state, d, p) === 'connected'; }).length;
+    var err = ports.filter(function (p) { return SH.portState(state, d, p) === 'err-disabled'; }).length;
+    return { text: d.config.hostname + '  ' + up + '/' + ports.length + ' uppe' + (err ? '  ' + err + ' err' : ''), bad: err > 0 };
+  }
+  function hostLine(state, id) {
+    var h = state.devices[id];
+    if (!h) return null;
+    var c = S.hostIpConf(h);
+    return { name: h.label || id, ip: c ? c.ip : 'ingen adress', bad: !c || !!c.apipa };
+  }
+
+  return { crabStep: crabStep, linkStatus: linkStatus, deviceLine: deviceLine, hostLine: hostLine, ledFn: ledFn, portInfo: portInfo, sampleMonitor: sampleMonitor, drawMonitor: drawMonitor, SERIES: SERIES, rackSpots: rackSpots };
 })();
