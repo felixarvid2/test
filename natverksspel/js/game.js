@@ -13,7 +13,7 @@
     this.flags = {};
     this.cmdLog = [];
     this.consoles = {};
-    this.prevUp = {};
+    this.prevUp = {}; this.prevSeg = {};
     this.startedAt = 0;
     this.worlds = {};
     this.mode = null;
@@ -43,6 +43,12 @@
     this.setMode(mode, true);
     NV.onCommand = function (devId, line) { self.onCommand(devId, line); };
     NV.onHostCommand = function (id, line) { self.commands++; self.countCommand(line); };
+    // En dator som får en giltig adress av sig själv säger till med en liten notis
+    NV.onAutoRenew = function (id) {
+      var h = self.state.devices[id], c = S.hostIpConf(h);
+      if (!c || c.apipa || !self.running) return;
+      self.ui.toast('🔄 ' + esc(h.label || id) + ' fick en ny adress av sig själv: ' + c.ip);
+    };
     // Ping från terminalen syns som paket som färdas genom nätet
     var origPing = S.ping;
     S.ping = function (st, from, ip, opts) {
@@ -135,7 +141,7 @@
     this.consoleTargetId = null;
     this.commands = 0;
     this.startedAt = Date.now();
-    this.prevUp = {};
+    this.prevUp = {}; this.prevSeg = {};
     this.vpnKey = undefined; this.lbKey = undefined; this.reportNag = null;
     this.done = false;
     this.guideStep = (n === 1 && !NV.settings.get('tutorialDone') && !this.exam) ? 0 : -1;
@@ -248,7 +254,7 @@
   };
   G.snapshotUp = function () {
     var D = S.get(this.state), self = this;
-    this.prevUp = {};
+    this.prevUp = {}; this.prevSeg = {};
     Object.keys(this.state.devices).forEach(function (id) {
       var e = D.eps['E:' + id + ':nic'];
       if (e) self.prevUp[id] = !!e.up;
@@ -267,7 +273,16 @@
       var was = self.prevUp[id];
       self.prevUp[id] = up;
       if (up && !was) { S.dhcp(st, id); changed = true; return; }
-      if (up && h.lease && h.lease.apipa && Math.floor(st.time) % 20 === 0) { S.dhcp(st, id); changed = true; }
+      // Vilka routrar (DHCP-servrar) finns i datorns segment? Ändras det – t.ex. när porten
+      // flyttas till rätt VLAN – märker datorn det och ber om en ny adress direkt.
+      var seg = up ? D.comp[e.key] : undefined;
+      var sig = seg === undefined ? '' : (D.bySeg[seg] || []).filter(function (x) { return x.up && st.devices[x.dev].kind === 'router'; }).map(function (x) { return x.ip; }).sort().join(',');
+      self.prevSeg = self.prevSeg || {};
+      var segChanged = self.prevSeg[id] !== undefined && self.prevSeg[id] !== sig;
+      self.prevSeg[id] = sig;
+      if (up && segChanged) { S.dhcp(st, id); changed = true; if (NV.onAutoRenew) NV.onAutoRenew(id); return; }
+      // Utan svar försöker datorn igen var femte sekund
+      if (up && h.lease && h.lease.apipa && Math.floor(st.time) % 5 === 0) { S.dhcp(st, id); changed = true; if (!h.lease.apipa && NV.onAutoRenew) NV.onAutoRenew(id); }
       if (up && !h.lease) { S.dhcp(st, id); changed = true; }
     });
     if (changed) S.touch(st);

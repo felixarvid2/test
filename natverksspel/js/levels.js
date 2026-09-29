@@ -156,7 +156,7 @@ NV.levels = (function () {
           hints: [
             'Kör ipconfig hos Bo. Börjar adressen på 169.254 fick datorn inget DHCP-svar.',
             'Leta upp Bos MAC-adress i show mac address-table på SW-Nordvik-1. Vilket VLAN står den i jämfört med Majas port (Gi0/8)?',
-            'interface gi0/7 → switchport access vlan 20. Kör sedan ipconfig /renew hos Bo.',
+            'interface gi0/7 → switchport access vlan 20. Bos dator ber då om en ny adress av sig själv (eller kör ipconfig /renew hos Bo).',
           ],
           check: function (st) { return ok(st, 'PC-Bo', '192.168.1.70'); },
           report: {
