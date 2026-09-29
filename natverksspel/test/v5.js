@@ -19,7 +19,7 @@ const { chromium } = require('playwright');
   // Menyn med vecka 10
   const p = await page('3d');
   await shot(p, 'menu');
-  const menu = await p.evaluate(() => ({ weeks: document.querySelectorAll('#menu .week[data-week]').length, sum: (document.querySelector('.menu-sum') || {}).textContent, next: !!document.querySelector('.week.next') }));
+  const menu = await p.evaluate(() => ({ weeks: document.querySelectorAll('#menu .week[data-week]:not(.build)').length, sum: (document.querySelector('.menu-sum') || {}).textContent, next: !!document.querySelector('.week.next') }));
   console.log('meny', JSON.stringify(menu));
   if (menu.weeks !== 10) errs.push('menyn har ' + menu.weeks + ' veckor');
 
