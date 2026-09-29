@@ -173,12 +173,17 @@ NV.UI = (function () {
       });
       html += '</ul>';
     }
+    // Lösta fel utan felrapport syns tydligt – veckan blir inte klar utan dem
+    var pend = g.pendingReports ? g.pendingReports() : [];
+    if (pend.length) html += '<div class="hud-report" data-report>📝 ' + (pend.length === 1 ? '1 felrapport' : pend.length + ' felrapporter') + ' att skicka in – tryck <b>F</b> eller klicka här</div>';
     var gt = g.guideText && g.guideText();
     if (gt) html += '<div class="hud-guide">👉 ' + esc(gt) + '</div>';
     if (g.boosted && g.boosted()) html += '<div class="hud-loc">☕ Kaffeboost: ' + Math.ceil((g.boostUntil - Date.now()) / 1000) + ' s</div>';
     if (g.goggles) html += '<div class="hud-loc" style="color:#6ee787">🥽 Nätverksglasögon på (G)</div>';
     if (!collapsed) html += '<div class="hud-keys">' + (g.mode === '2d' ? 'WASD/pilar gå · klicka för att gå · <b>E</b> använd · <b>+/−</b> zoom' : 'WASD gå · mus titta · <b>E</b> använd · högerklick zoom · <b>C</b> huka · <b>V</b> ficklampa') + ' · <b>T</b> laptop · <b>F</b> felrapport · <b>L</b> ledtråd · <b>G</b> glasögon · <b>M</b> karta · <b>J</b> prestationer · <b>H</b> handbok · <b>F1</b> hjälp · <b>U</b> dölj</div>';
     this.hud.innerHTML = html;
+    var rb = this.hud.querySelector('[data-report]'), self = this;
+    if (rb) rb.addEventListener('click', function (e) { e.stopPropagation(); self.reportPicker(); });
     this.renderXp();
   };
   // Grafiknivån byts vid omladdning; veckan sparas och fortsätter automatiskt

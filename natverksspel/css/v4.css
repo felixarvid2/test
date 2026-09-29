@@ -81,3 +81,8 @@ body.touch .term-new { bottom: 96px; }
 .menu-h { font-size: 1.05em; margin: 14px 0 6px; }
 .menu-h small { font-weight: 400; opacity: 0.7; font-size: 0.8em; }
 .week.build { background: rgba(60, 158, 164, 0.12); border: 1px solid rgba(60, 158, 164, 0.35); }
+
+/* ---- Felrapporter att skicka in ---- */
+.hud-report { pointer-events: auto; cursor: pointer; margin: 6px 0 2px; padding: 6px 10px; border-radius: 8px; background: rgba(240, 180, 41, 0.18); border: 1px solid rgba(240, 180, 41, 0.7); color: #ffd87a; font-weight: 600; animation: hudReportPulse 1.8s ease-in-out infinite; }
+.hud-report:hover { background: rgba(240, 180, 41, 0.3); }
+@keyframes hudReportPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(240, 180, 41, 0); } 50% { box-shadow: 0 0 0 4px rgba(240, 180, 41, 0.25); } }

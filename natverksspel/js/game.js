@@ -13,7 +13,7 @@
     this.flags = {};
     this.cmdLog = [];
     this.consoles = {};
-    this.prevUp = {};
+    this.prevUp = {}; this.prevSeg = {};
     this.startedAt = 0;
     this.worlds = {};
     this.mode = null;
@@ -43,6 +43,12 @@
     this.setMode(mode, true);
     NV.onCommand = function (devId, line) { self.onCommand(devId, line); };
     NV.onHostCommand = function (id, line) { self.commands++; self.countCommand(line); };
+    // En dator som får en giltig adress av sig själv säger till med en liten notis
+    NV.onAutoRenew = function (id) {
+      var h = self.state.devices[id], c = S.hostIpConf(h);
+      if (!c || c.apipa || !self.running) return;
+      self.ui.toast('🔄 ' + esc(h.label || id) + ' fick en ny adress av sig själv: ' + c.ip);
+    };
     // Ping från terminalen syns som paket som färdas genom nätet
     var origPing = S.ping;
     S.ping = function (st, from, ip, opts) {
@@ -135,8 +141,8 @@
     this.consoleTargetId = null;
     this.commands = 0;
     this.startedAt = Date.now();
-    this.prevUp = {};
-    this.vpnKey = undefined; this.lbKey = undefined;
+    this.prevUp = {}; this.prevSeg = {};
+    this.vpnKey = undefined; this.lbKey = undefined; this.reportNag = null;
     this.done = false;
     this.guideStep = (n === 1 && !NV.settings.get('tutorialDone') && !this.exam) ? 0 : -1;
     this.combo = 0; this.lastFixAt = 0; this.lastProgress = Date.now(); this.nudges = 0; this.coffeeXp = false; this.boostUntil = 0; this.waypoint = null; this.weekXp = 0;
@@ -248,7 +254,7 @@
   };
   G.snapshotUp = function () {
     var D = S.get(this.state), self = this;
-    this.prevUp = {};
+    this.prevUp = {}; this.prevSeg = {};
     Object.keys(this.state.devices).forEach(function (id) {
       var e = D.eps['E:' + id + ':nic'];
       if (e) self.prevUp[id] = !!e.up;
@@ -267,7 +273,16 @@
       var was = self.prevUp[id];
       self.prevUp[id] = up;
       if (up && !was) { S.dhcp(st, id); changed = true; return; }
-      if (up && h.lease && h.lease.apipa && Math.floor(st.time) % 20 === 0) { S.dhcp(st, id); changed = true; }
+      // Vilka routrar (DHCP-servrar) finns i datorns segment? Ändras det – t.ex. när porten
+      // flyttas till rätt VLAN – märker datorn det och ber om en ny adress direkt.
+      var seg = up ? D.comp[e.key] : undefined;
+      var sig = seg === undefined ? '' : (D.bySeg[seg] || []).filter(function (x) { return x.up && st.devices[x.dev].kind === 'router'; }).map(function (x) { return x.ip; }).sort().join(',');
+      self.prevSeg = self.prevSeg || {};
+      var segChanged = self.prevSeg[id] !== undefined && self.prevSeg[id] !== sig;
+      self.prevSeg[id] = sig;
+      if (up && segChanged) { S.dhcp(st, id); changed = true; if (NV.onAutoRenew) NV.onAutoRenew(id); return; }
+      // Utan svar försöker datorn igen var femte sekund
+      if (up && h.lease && h.lease.apipa && Math.floor(st.time) % 5 === 0) { S.dhcp(st, id); changed = true; if (!h.lease.apipa && NV.onAutoRenew) NV.onAutoRenew(id); }
       if (up && !h.lease) { S.dhcp(st, id); changed = true; }
     });
     if (changed) S.touch(st);
@@ -277,6 +292,7 @@
     if (!this.def || this.done) return;
     var self = this;
     var st = this.state;
+    var fixedNow = false;
     this.def.tasks.forEach(function (t) {
       var s = self.taskState[t.id];
       if (s.fixed) return;
@@ -294,8 +310,10 @@
         } else self.ui.toast('✔ <b>' + esc(t.title) + '</b> är löst! Skriv felrapporten med <b>F</b>.', 'good');
         self.onFixed(t, s);
         self.refreshMarkers();
+        fixedNow = true;
       }
     });
+    if (fixedNow) this.remindReports();
     var all = this.def.tasks.every(function (t) { return self.taskState[t.id].reported; });
     if (all && !this.done) {
       this.done = true;
@@ -304,6 +322,31 @@
       this.onWeekDone(res);
       setTimeout(function () { self.ui.weekDone(res); }, 900);
     }
+  };
+  // Påminnelse om felrapporterna: när alla Krabba-fel eller alla fel är lösta men rapporter saknas
+  G.pendingReports = function () {
+    var self = this;
+    if (!this.def || this.def.build) return [];
+    return this.def.tasks.filter(function (t) { return self.taskState[t.id].fixed && !self.taskState[t.id].reported; });
+  };
+  G.remindReports = function () {
+    var self = this, ts = this.taskState, tasks = this.def.tasks;
+    var pend = this.pendingReports();
+    if (!pend.length) return;
+    var allFixed = tasks.every(function (t) { return ts[t.id].fixed; });
+    var crabs = tasks.filter(function (t) { return t.krabba; });
+    var crabsFixed = crabs.length && crabs.every(function (t) { return ts[t.id].fixed; });
+    var key = allFixed ? 'all' : (crabsFixed ? 'crabs' : null);
+    if (!key || this.reportNag === key) return;
+    this.reportNag = key;
+    var list = '<ul>' + pend.map(function (t) { return '<li>📝 ' + esc(t.title) + '</li>'; }).join('') + '</ul>';
+    var head = allFixed ? '<p><b>Alla fel är lösta – bra jobbat!</b></p><p>Veckan är klar först när du har skickat in en felrapport för varje fel. Det här saknas:</p>'
+      : '<p><b>Alla Krabba-fel är lösta!</b></p><p>Skicka in felrapporterna för dem nu, medan du minns vad du gjorde. Sedan är det bara kollegans ärende kvar. Rapporter som saknas:</p>';
+    setTimeout(function () {
+      if (self.ui.dialogOpen && self.ui.dialogOpen()) { self.ui.toast('📝 ' + (allFixed ? 'Alla fel är lösta!' : 'Alla Krabba-fel är lösta!') + ' Skicka in felrapporterna med <b>F</b>.', 'good'); return; }
+      self.ui.showDialog({ title: '📝 Dags för felrapporter', html: head + list + '<p class="muted">Tryck <b>F</b> när som helst (inte när terminalen är öppen), eller klicka på den gula rutan uppe till vänster.</p>',
+        buttons: [{ label: 'Skriv felrapport nu', primary: true, onClick: function () { setTimeout(function () { self.ui.reportPicker(); }, 10); } }, { label: 'Senare' }] });
+    }, 1400);
   };
   G.speedFactor = function () { return 1; };
   G.elapsed = function () { return this.running ? Date.now() - this.startedAt : 0; };
