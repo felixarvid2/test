@@ -47,6 +47,14 @@ const SOL = {
   v9k1: st => ios(st, 'R1', ['conf t', 'int gi0/0.10', 'no ip access-group KONTOR-UT out', 'ip access-group KONTOR-UT in', 'end']),
   v9k2: st => ios(st, 'R1', ['conf t', 'ip access-list extended GAST', 'permit ip any any', 'end']),
   v9n1: st => { G.levels.removeMiniSwitch(st); S.refresh(st); ios(st, 'SW1', ['conf t', 'int gi0/9', 'shutdown', 'no shutdown', 'end']); renew(st, 'Gast-laptop'); },
+  v10k1: st => {
+    ios(st, 'RB', ['conf t', 'ip access-list extended VPN-TRAFIK', 'no 10', '10 permit ip 192.168.2.0 0.0.0.63 192.168.1.0 0.0.0.63', 'end']);
+    // Bara det ena felet rättat: fortfarande trasigt
+    if (G.levels.WEEKS[9].tasks[0].check(st)) { console.log('   FEL: v10k1 löst med bara ett av två fel rättat'); fails++; }
+    ios(st, 'R1', ['conf t', 'ip access-list extended NAT-UT', '5 deny ip 192.168.1.0 0.0.0.63 192.168.2.0 0.0.0.63', 'end']);
+  },
+  v10k2: st => ios(st, 'RB', ['conf t', 'int gi0/1', 'ip tcp adjust-mss 1360', 'end', 'wr']),
+  v10n1: st => { const s = new G.LbSession(st, 'LB'); s.handle('admin'); s.handle('x'); const r = s.handle('config pool TID-POOL monitor http'); if (/%/.test(r.out)) { console.log('   LB:', r.out); fails++; } },
 };
 for (const w of G.levels.WEEKS) {
   const { state: st, def } = G.levels.start(w.week);

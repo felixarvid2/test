@@ -46,6 +46,13 @@ NV.IosSession = (function () {
     'length': 'Set number of lines on a screen', 'synchronous': 'Synchronized message output', 'exec-timeout': 'Set the EXEC timeout', 'input': 'Define which protocols to use when connecting to the terminal server',
     'uptime': 'Timestamp with system uptime', 'pvst': 'Per-Vlan spanning tree mode', 'except': 'all VLANs except the following', 'none': 'no VLANs',
     'negotiate': 'Device will negotiate trunking encapsulation with peer on interface', 'dns-': '', 'quit': 'Exit from the EXEC',
+    'isakmp': 'Configure ISAKMP policy', 'ipsec': 'Configure IPSEC policy', 'map': 'Enter a crypto map', 'ipsec-isakmp': 'IPSEC w/ISAKMP',
+    'transform-set': 'Define transform and settings', 'peer': 'Allowed Encryption/Decryption peer.', 'set': 'Set values for encryption/decryption',
+    'match': 'Match values.', 'encryption': 'Set encryption algorithm for protection suite', 'hash': 'Set hash algorithm for protection suite',
+    'authentication': 'Set authentication method for protection suite', 'group': 'Set the Diffie-Hellman group', 'lifetime': 'Set lifetime for ISAKMP security association',
+    'pre-share': 'Pre-Shared Key', 'tcp': 'TCP header compression and other parameters', 'adjust-mss': 'Adjust the mss of transit packets',
+    'mtu': 'Set IP Maximum Transmission Unit', 'sa': 'IPSEC SA table', 'policy': 'Show ISAKMP protection suite policies', 'session': 'crypto session',
+    'size': 'Datagram size', 'df-bit': 'Set DF bit in IP header', 'repeat': 'Specify repeat count',
   };
   var SHOW_HELP = {
     interface: 'IP interface status and configuration', route: 'IP routing table', dhcp: 'Show items in the DHCP database',
@@ -58,6 +65,7 @@ NV.IosSession = (function () {
     static: 'Static routes', connected: 'Connected networks', binding: 'DHCP address bindings', pool: 'DHCP pools information',
     translations: 'Translation entries', statistics: 'Translation statistics', 'address-table': 'MAC forwarding table', neighbors: 'CDP neighbor entries',
     inline: 'Inline power status', description: 'Show interface description', switchport: 'Show interface switchport information',
+    crypto: 'Encryption module', isakmp: 'Show ISAKMP', ipsec: 'Show IPSEC info', map: 'Crypto maps', sa: 'Security associations', session: 'Crypto session',
   };
   var PARAM_HELP = {
     ip: ['A.B.C.D', 'IP address'], mask: ['A.B.C.D', 'Mask'], wild: ['A.B.C.D', 'Wildcard bits'], word: ['WORD', 'Name'], text: ['LINE', 'Up to 240 characters describing this item'],
@@ -168,6 +176,9 @@ NV.IosSession = (function () {
       case 'line': return h + '(config-line)#';
       case 'dhcp': return h + '(dhcp-config)#';
       case 'acl': return h + (this.ctx.aclType === 'standard' ? '(config-std-nacl)#' : '(config-ext-nacl)#');
+      case 'isakmp': return h + '(config-isakmp)#';
+      case 'tset': return h + '(cfg-crypto-trans)#';
+      case 'cmap': return h + '(config-crypto-map)#';
     }
     return h + '#';
   };
@@ -609,8 +620,9 @@ NV.IosSession = (function () {
   def('user exec', 'terminal no monitor', function () { this.monitor = false; return ''; });
 
   // ping / traceroute
-  function pingCmd(v) {
+  function pingCmd(v, o) {
     var s = this;
+    o = o || {};
     var target = v[0];
     var d = s.dev;
     var st = s.state;
@@ -626,9 +638,10 @@ NV.IosSession = (function () {
       ip = r.ip;
       if (!d.config.hosts[target.toLowerCase()]) head = 'Translating "' + target + '"...domain server (' + (d.config.nameServers[0] || '') + ') [OK]\n';
     }
-    var count = v[1] || 5;
-    var res = S.ping(st, d.id, ip);
-    var stream = [{ text: head + 'Type escape sequence to abort.\nSending ' + count + ', 100-byte ICMP Echos to ' + ip + ', timeout is 2 seconds:\n', delay: 50 }];
+    var count = o.count || v[1] || 5;
+    var size = o.size || 100;
+    var res = S.ping(st, d.id, ip, { src: o.src, size: size, df: o.df });
+    var stream = [{ text: head + 'Type escape sequence to abort.\nSending ' + count + ', ' + size + '-byte ICMP Echos to ' + ip + ', timeout is 2 seconds:\n' + (o.src ? 'Packet sent with a source address of ' + o.src + ' \n' : '') + (o.df ? 'Packet sent with the DF bit set\n' : ''), delay: 50 }];
     var okN = 0;
     d.rt.pinged = d.rt.pinged || {};
     var first = !d.rt.pinged[ip];
@@ -638,6 +651,7 @@ NV.IosSession = (function () {
         var lost = Math.random() < res.loss || (k === 0 && first && d.kind === 'router' && res.loss < 1 && !S.devEps(S.get(st), d.id).some(function (e) { return e.ip && U.sameSubnet(ip, e.ip, e.mask) && false; }) && Math.random() < 0.8);
         ch = lost ? '.' : '!';
       } else if (res.reason === 'net-unreachable' && res.where !== d.id) ch = 'U';
+      else if (res.reason === 'frag') ch = 'M';
       else ch = '.';
       if (ch === '!') okN++;
       stream.push({ text: ch, delay: ch === '!' ? 120 : 1400 });
@@ -647,8 +661,34 @@ NV.IosSession = (function () {
     stream.push({ text: '\nSuccess rate is ' + pct + ' percent (' + okN + '/' + count + ')' + (okN ? ', round-trip min/avg/max = 1/' + (1 + res.hops.length) + '/' + (4 + res.hops.length * 2) + ' ms' : ''), delay: 50 });
     return result('', { stream: stream });
   }
-  def('user exec', 'ping <iphost>', pingCmd);
-  def('user exec', 'ping <iphost> repeat <n:1-100>', function (v) { return pingCmd.call(this, [v[0], v[1]]); });
+  def('user exec', 'ping <iphost>', function (v) { return pingCmd.call(this, v); });
+  // ping 192.168.2.1 source gi0/0.10 size 1500 df-bit repeat 10
+  def('user exec', 'ping <iphost> <text>', function (v, neg, k, line) {
+    var t = v[1].split(/\s+/);
+    var o = {};
+    for (var i = 0; i < t.length; i++) {
+      var w = t[i].toLowerCase();
+      function is(full, min) { return w.length >= (min || 1) && full.indexOf(w) === 0; }
+      if (is('repeat', 1) && /^\d+$/.test(t[i + 1] || '')) { o.count = Math.max(1, Math.min(100, parseInt(t[++i], 10))); continue; }
+      if (is('size', 2) && /^\d+$/.test(t[i + 1] || '')) {
+        var sz = parseInt(t[++i], 10);
+        if (sz < 36 || sz > 18024) return invalidMarker(this, line, t[i]);
+        o.size = sz; continue;
+      }
+      if (is('df-bit', 1)) { o.df = true; continue; }
+      if (is('timeout', 1) && /^\d+$/.test(t[i + 1] || '')) { i++; continue; }
+      if (is('source', 2) && t[i + 1]) {
+        var sv = t[++i];
+        if (U.isIp(sv)) { o.src = sv; continue; }
+        var ifn = U.normIf(sv);
+        var ic = ifn && cfg(this).ifaces[ifn];
+        if (!ic || !ic.ip) return '% Invalid source interface - IP not enabled or interface is down';
+        o.src = ic.ip.addr; continue;
+      }
+      return invalidMarker(this, line, t[i]);
+    }
+    return pingCmd.call(this, [v[0]], o);
+  });
   function traceCmd(v) {
     var d = this.dev, st = this.state;
     var ip = v[0];
@@ -678,7 +718,7 @@ NV.IosSession = (function () {
 
   // ------------------------------------------------------------------ CONFIG
   def('config', 'end', function () { this.mode = 'exec'; this.ctx = {}; S.pushLog(this.state, this.dev, '%SYS-5-CONFIG_I: Configured from ' + (this.via === 'console' ? 'console by console' : 'vty0 (192.168.1.200)')); return ''; }, { no: false });
-  ['if', 'vlan', 'line', 'dhcp', 'acl'].forEach(function (m) {
+  ['if', 'vlan', 'line', 'dhcp', 'acl', 'isakmp', 'tset', 'cmap'].forEach(function (m) {
     def(m, 'end', function () { this.mode = 'exec'; this.ctx = {}; S.pushLog(this.state, this.dev, '%SYS-5-CONFIG_I: Configured from ' + (this.via === 'console' ? 'console by console' : 'vty0 (192.168.1.200)')); return ''; }, { no: false });
     def(m, 'exit', function () { this.leaveSub(); this.mode = 'config'; return ''; }, { no: false });
   });
@@ -1125,6 +1165,13 @@ NV.IosSession = (function () {
     return '';
   });
   def('config', 'clock timezone <word> <n:0-23>', function () { return ''; });
+  def('config', 'ntp source <if>', function (v, neg, k, line) {
+    if (!neg && !ifExists(this, v[0])) return invalidMarker(this, line, v[0]);
+    cfg(this).ntpSource = neg ? null : v[0];
+    S.touch(this.state);
+    return '';
+  });
+  def('config', 'ntp source', function () { cfg(this).ntpSource = null; S.touch(this.state); return ''; }, { noOnly: true });
 
   // ------------------------------------------------------------------ INTERFACE
   def('config', 'interface <if>', function (v, neg, kws, line) {
@@ -1338,11 +1385,6 @@ NV.IosSession = (function () {
   showDef('spanning-tree blockedports', swOnly(function () { return SH.stpBlocked(this.state, this.dev); }), true);
   showDef('inventory', function () { return SH.inventory(this.state, this.dev); }, true);
   showDef('interfaces counters errors', swOnly(function () { return SH.countersErrors(this.state, this.dev); }), true);
-  def('user exec', 'ping <iphost> source <if>', function (v) {
-    var i = cfg(this).ifaces[v[1]];
-    if (!i || !i.ip) return '% Invalid source interface - IP not enabled or interface is down';
-    return pingCmd.call(this, [v[0]]);
-  });
   def('config', 'default interface <if>', function (v, neg, k, line) {
     var c = cfg(this);
     var i = c.ifaces[v[0]];
@@ -1354,6 +1396,130 @@ NV.IosSession = (function () {
   }, { no: false });
   def('config', 'errdisable recovery cause psecure-violation', function (v, neg) { cfg(this).errRecovery = !neg; return ''; });
   def('user exec', 'terminal history size <n:0-256>', function () { return ''; });
+
+  // ------------------------------------------------------------------ IPsec och MSS (kapitel 10)
+  function crypto(s) {
+    var c = cfg(s);
+    if (!c.crypto) c.crypto = { isakmp: { policies: {}, keys: {} }, transformSets: {}, maps: {} };
+    return c.crypto;
+  }
+  function crOnly(fn) { return function (v, n, k, l) { if (!isRouter(this)) return invalidMarker(this, l, 'crypto'); var r = fn.call(this, v, n, k, l); S.touch(this.state); return r; }; }
+  def('config', 'crypto isakmp policy <n:1-10000>', crOnly(function (v, neg) {
+    var cr = crypto(this);
+    if (neg) { delete cr.isakmp.policies[v[0]]; return ''; }
+    if (!cr.isakmp.policies[v[0]]) cr.isakmp.policies[v[0]] = { enc: 'des', hash: 'sha', auth: 'rsa-sig', group: 1, lifetime: 86400 };
+    this.mode = 'isakmp'; this.ctx = { policy: v[0] };
+    return '';
+  }));
+  function pol(s) { return crypto(s).isakmp.policies[s.ctx.policy]; }
+  def('isakmp', 'encryption <text>', function (v, neg, k, line) {
+    var t = v[0].toLowerCase().replace(/\s+/g, ' ');
+    var ok = { 'des': 'des', '3des': '3des', 'aes': 'aes', 'aes 128': 'aes', 'aes 192': 'aes 192', 'aes 256': 'aes 256' }[t];
+    if (!ok) return invalidMarker(this, line, v[0]);
+    pol(this).enc = neg ? 'des' : ok; S.touch(this.state); return '';
+  });
+  def('isakmp', 'hash <word>', function (v, neg, k, line) {
+    var h = v[0].toLowerCase();
+    if (['sha', 'sha256', 'sha384', 'sha512', 'md5'].indexOf(h) < 0) return invalidMarker(this, line, v[0]);
+    pol(this).hash = neg ? 'sha' : h; S.touch(this.state); return '';
+  });
+  def('isakmp', 'authentication pre-share', function (v, neg) { pol(this).auth = neg ? 'rsa-sig' : 'pre-share'; S.touch(this.state); return ''; });
+  def('isakmp', 'authentication rsa-sig', function () { pol(this).auth = 'rsa-sig'; S.touch(this.state); return ''; });
+  def('isakmp', 'group <n:1-24>', function (v, neg, k, line) {
+    if ([1, 2, 5, 14, 15, 16, 19, 20, 24].indexOf(v[0]) < 0) return invalidMarker(this, line, String(v[0]));
+    pol(this).group = neg ? 1 : v[0]; S.touch(this.state); return '';
+  });
+  def('isakmp', 'lifetime <n:60-86400>', function (v, neg) { pol(this).lifetime = neg ? 86400 : v[0]; return ''; });
+  function isakmpKey(v, neg) {
+    var cr = crypto(this);
+    var key = v[v.length - 2], ip = v[v.length - 1];
+    if (neg) { delete cr.isakmp.keys[ip]; return ''; }
+    cr.isakmp.keys[ip] = key;
+    return '';
+  }
+  // crypto isakmp key [0|6] <nyckel> address <ip>
+  def('config', 'crypto isakmp key <text>', crOnly(function (v, neg, k, line) {
+    var t = v[0].split(/\s+/);
+    if (/^[06]$/.test(t[0]) && t.length === 4) t = t.slice(1);
+    if (t.length !== 3 || !/^address$/i.test(t[1]) || !U.isIp(t[2])) return invalidMarker(this, line, t[1] || t[0]);
+    return isakmpKey.call(this, [t[0], t[2]], neg);
+  }));
+  def('config', 'crypto ipsec transform-set <word> <text>', crOnly(function (v, neg, k, line) {
+    var cr = crypto(this);
+    if (neg) { delete cr.transformSets[v[0]]; return ''; }
+    var t = v[1].toLowerCase().split(/\s+/);
+    var okT = ['esp-aes', '128', '192', '256', 'esp-3des', 'esp-des', 'esp-sha-hmac', 'esp-sha256-hmac', 'esp-sha384-hmac', 'esp-md5-hmac', 'ah-sha-hmac', 'esp-gcm'];
+    for (var i = 0; i < t.length; i++) if (okT.indexOf(t[i]) < 0) return invalidMarker(this, line, t[i]);
+    cr.transformSets[v[0]] = { transforms: t, mode: 'tunnel' };
+    this.mode = 'tset'; this.ctx = { ts: v[0] };
+    return '';
+  }));
+  def('config', 'crypto ipsec transform-set <word>', crOnly(function (v) { delete crypto(this).transformSets[v[0]]; return ''; }), { noOnly: true });
+  def('tset', 'mode tunnel', function () { crypto(this).transformSets[this.ctx.ts].mode = 'tunnel'; return ''; });
+  def('tset', 'mode transport', function (v, neg) { crypto(this).transformSets[this.ctx.ts].mode = neg ? 'tunnel' : 'transport'; return ''; });
+  function cmapEnter(v, neg) {
+    var cr = crypto(this);
+    var m = cr.maps[v[0]] = cr.maps[v[0]] || {};
+    if (neg) {
+      delete m[v[1]];
+      if (!Object.keys(m).length) delete cr.maps[v[0]];
+      return '';
+    }
+    var fresh = !m[v[1]];
+    if (fresh) m[v[1]] = { peer: null, ts: null, acl: null };
+    this.mode = 'cmap'; this.ctx = { map: v[0], seq: v[1] };
+    return fresh ? '% NOTE: This new crypto map will remain disabled until a peer\n        and a valid access list have been configured.' : '';
+  }
+  def('config', 'crypto map <word> <n:1-65535> ipsec-isakmp', crOnly(cmapEnter));
+  def('config', 'crypto map <word> <n:1-65535>', crOnly(cmapEnter));
+  function ent(s) { return crypto(s).maps[s.ctx.map][s.ctx.seq]; }
+  def('cmap', 'set peer <ip>', function (v, neg) { var e = ent(this); e.peer = neg ? null : v[0]; S.touch(this.state); return ''; });
+  def('cmap', 'set transform-set <word>', function (v, neg) {
+    var e = ent(this);
+    if (!neg && !crypto(this).transformSets[v[0]]) return 'ERROR: transform set with tag "' + v[0] + '" does not exist.';
+    e.ts = neg ? null : v[0]; S.touch(this.state); return '';
+  });
+  def('cmap', 'match address <word>', function (v, neg) { var e = ent(this); e.acl = neg ? null : v[0]; S.touch(this.state); return ''; });
+  def('cmap', 'set pfs <word>', function () { return ''; });
+  def('cmap', 'set security-association lifetime seconds <n:120-86400>', function () { return ''; });
+  def('cmap', 'description <text>', function () { return ''; });
+  def('if', 'crypto map <word>', function (v, neg, k, line) {
+    var s = this;
+    if (!isRouter(this)) return invalidMarker(this, line, 'crypto');
+    var out = eachIf(this, function (i) {
+      if (kindOf(s, i) === 'l2') return invalidMarker(s, line, 'crypto');
+      i.cryptoMap = neg ? null : v[0];
+    });
+    S.touch(this.state);
+    if (!neg && !out) S.pushLog(this.state, this.dev, '%CRYPTO-6-ISAKMP_ON_OFF: ISAKMP is ON');
+    return out;
+  });
+  def('if', 'crypto map', function () { var r = eachIf(this, function (i) { i.cryptoMap = null; }); S.touch(this.state); return r; }, { noOnly: true });
+  def('if', 'ip tcp adjust-mss <n:500-1460>', function (v, neg, k, line) {
+    var s = this;
+    var out = eachIf(this, function (i) { if (kindOf(s, i) === 'l2') return invalidMarker(s, line, 'tcp'); i.adjustMss = neg ? null : v[0]; });
+    S.touch(this.state);
+    return out;
+  });
+  def('if', 'ip tcp adjust-mss', function () { var r = eachIf(this, function (i) { i.adjustMss = null; }); S.touch(this.state); return r; }, { noOnly: true });
+  def('if', 'ip mtu <n:68-1500>', function (v, neg, k, line) { var s = this; return eachIf(this, function (i) { if (kindOf(s, i) === 'l2') return invalidMarker(s, line, 'mtu'); i.mtu = neg ? null : v[0]; }); });
+  def('if', 'ip mtu', function () { return eachIf(this, function (i) { i.mtu = null; }); }, { noOnly: true });
+  showDef('crypto isakmp sa', rtOnly(function () { return SH.cryptoIsakmpSa(this.state, this.dev); }));
+  showDef('crypto isakmp policy', rtOnly(function () { return SH.cryptoIsakmpPolicy(this.state, this.dev); }));
+  showDef('crypto ipsec sa', rtOnly(function () { return SH.cryptoIpsecSa(this.state, this.dev); }));
+  showDef('crypto map', rtOnly(function () { return SH.cryptoMapShow(this.state, this.dev); }));
+  showDef('crypto session', rtOnly(function () { return SH.cryptoSession(this.state, this.dev); }));
+  showDef('crypto ipsec transform-set', rtOnly(function () {
+    var cr = this.dev.config.crypto;
+    if (!cr) return '';
+    return Object.keys(cr.transformSets).map(function (n) {
+      var t = cr.transformSets[n];
+      return 'Transform set default/' + n + ': { ' + t.transforms.join(' ') + ' }\n   will negotiate = { ' + (t.mode === 'transport' ? 'Transport' : 'Tunnel') + ',  },\n';
+    }).join('\n');
+  }));
+  def('exec', 'clear crypto sa', function () { S.clearCrypto(this.state, this.dev.id); return ''; });
+  def('exec', 'clear crypto isakmp', function () { S.clearCrypto(this.state, this.dev.id); return ''; });
+  def('exec', 'clear crypto session', function () { S.clearCrypto(this.state, this.dev.id); return ''; });
 
   // Användarläget får inte konfigurera men ska känna igen show-grenen
   Session.TRIES = TRIES;

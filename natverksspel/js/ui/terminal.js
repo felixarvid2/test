@@ -601,6 +601,11 @@ NV.Terminal = (function () {
       var w = new NV.WlcSession(st, p.dev);
       this.push({ kind: 'ssh', session: w, dev: p.dev, ios: false, started: true, title: 'ssh admin@WLC-Nordvik' });
       this.print('\n(Cisco Controller)\n');
+    } else if (p.kind === 'lb') {
+      var lbs = new NV.LbSession(st, p.dev);
+      lbs.pending = null;
+      this.push({ kind: 'ssh', session: lbs, dev: p.dev, ios: false, started: true, title: 'ssh admin@LB-Nordvik' });
+      this.print('\nLB-Nordvik 4.2 (lastbalanserare för tidrapporteringen)\nSkriv help för kommandon.\n');
     }
     this.renderPrompt();
   };

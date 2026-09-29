@@ -443,7 +443,7 @@
   G.consoleSession = function (devId) {
     if (!this.consoles[devId]) {
       var d = this.state.devices[devId];
-      this.consoles[devId] = d.kind === 'wlc' ? new NV.WlcSession(this.state, devId) : new NV.IosSession(this.state, devId, { via: 'console' });
+      this.consoles[devId] = d.kind === 'wlc' ? new NV.WlcSession(this.state, devId) : (d.kind === 'lb' ? new NV.LbSession(this.state, devId) : new NV.IosSession(this.state, devId, { via: 'console' }));
     }
     return this.consoles[devId];
   };
@@ -459,7 +459,7 @@
     this.world.updateCables();
     if (this.world.consoleFx) this.world.consoleFx(id);
     var d = this.state.devices[id];
-    this.ui.toast('Den ljusblå konsolkabeln sitter nu i <b>' + esc(d.config ? d.config.hostname : 'WLC-Nordvik') + '</b>.');
+    this.ui.toast('Den ljusblå konsolkabeln sitter nu i <b>' + esc(d.config ? d.config.hostname : (d.kind === 'lb' ? 'LB-Nordvik' : 'WLC-Nordvik')) + '</b>.');
     this.terminal.stack = [];
     this.terminal.openLaptop('sudo screen /dev/ttyUSB0 9600');
   };
@@ -468,7 +468,7 @@
   G.describe = function (i) {
     var st = this.state;
     switch (i.type) {
-      case 'console': var d = st.devices[i.id]; return 'Koppla in konsolkabeln i ' + (d.config ? d.config.hostname : d.label || i.id);
+      case 'console': var d = st.devices[i.id]; if (!d) return ''; return 'Koppla in konsolkabeln i ' + (d.config ? d.config.hostname : d.label || i.id);
       case 'rack': return 'Titta på ' + ({ A: 'Rack A (nät)', B: 'Rack B (servrar)', BO: 'lagrets rack' }[i.id] || 'racket');
       case 'laptop': return 'Använd laptopen';
       case 'pc': return 'Använd ' + (st.devices[i.id] ? st.devices[i.id].label : i.id);
@@ -511,7 +511,7 @@
     var self = this, st = this.state;
     NV.sfx.open();
     switch (i.type) {
-      case 'console': this.connectConsole(i.id); break;
+      case 'console': if (st.devices[i.id]) this.connectConsole(i.id); break;
       case 'rack': this.ui.rackView(i.id); break;
       case 'laptop': this.terminal.openLaptop(); break;
       case 'pc': this.ui.pcDialog(i.id); break;

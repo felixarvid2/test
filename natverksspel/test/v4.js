@@ -6,13 +6,13 @@ const { chromium, devices } = require('playwright');
   const errs = [];
   const only = process.env.ONLY || 'desk';
   const quality = process.env.Q || 'high';
-  async function page(opts) {
+  async function page(opts, q2) {
     const ctx = await b.newContext(opts || { viewport: { width: 1280, height: 760 } });
     const p = await ctx.newPage();
     p.on('pageerror', e => errs.push('pageerror: ' + e.message + ' ' + (e.stack || '').split('\n').slice(0, 3).join(' | ')));
     p.on('console', m => { if (m.type() === 'error') errs.push('console: ' + m.text()); });
-    await p.addInitScript((q) => { try { localStorage.setItem('krabba-passet.settings', JSON.stringify({ quality: q, mode: '3d', tutorialDone: true })); } catch (e) {} }, quality);
-    await p.goto('http://localhost:8765/index.html');
+    await p.addInitScript((q) => { try { localStorage.setItem('krabba-passet.settings', JSON.stringify({ quality: q, mode: '3d', tutorialDone: true })); } catch (e) {} }, q2 || quality);
+    await p.goto('http://localhost:8765/index.html', { waitUntil: 'domcontentloaded' });
     await p.waitForTimeout(4500);
     return p;
   }
@@ -38,7 +38,7 @@ const { chromium, devices } = require('playwright');
     console.log('desk', JSON.stringify(info));
   }
   if (only.includes('mobile')) {
-    const p = await page({ ...devices['Pixel 7'], viewport: { width: 915, height: 412 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
+    const p = await page({ ...devices['Pixel 7'], viewport: { width: 915, height: 412 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 }, 'auto');
     await shot(p, 'm_menu');
     await p.evaluate(() => { NV.game.ui.hideMenu(); NV.game.startWeek(1); });
     await p.waitForTimeout(800);

@@ -23,6 +23,39 @@
     'Om det fungerade i går: vad ändrades i natt?',
   ];
 
+  // ---------------------------------------------------------------- Webb och filkopiering (kapitel 10)
+  function parseUrl(u) {
+    var m = /^(?:(https?):\/\/)?([^\/:\s]+)(?::(\d+))?(\/\S*)?$/i.exec(u || '');
+    if (!m) return null;
+    return { scheme: (m[1] || 'http').toLowerCase(), host: m[2], port: m[3] ? parseInt(m[3], 10) : ((m[1] || '').toLowerCase() === 'https' ? 443 : 80), path: m[4] || '/' };
+  }
+  // Gemensam curl: returnerar { text, delay }
+  function curlText(state, hostId, resolveFn, url, headOnly) {
+    var u = parseUrl(url);
+    if (!u) return { text: 'curl: (3) URL using bad/illegal format or missing URL', delay: 50 };
+    var ip = u.host;
+    if (!U.isIp(ip)) {
+      var r = resolveFn(u.host);
+      if (r.error) return { text: 'curl: (6) Could not resolve host: ' + u.host, delay: r.error === 'timeout' ? 2500 : 200 };
+      ip = r.ip;
+    }
+    var h = S.httpGet(state, hostId, ip, u.port);
+    if (!h.ok && h.code === 0) {
+      if (h.res.reason === 'refused') return { text: 'curl: (7) Failed to connect to ' + u.host + ' port ' + u.port + ' after 2 ms: Couldn\'t connect to server', delay: 200 };
+      return { text: 'curl: (28) Failed to connect to ' + u.host + ' port ' + u.port + ' after 10002 ms: Timeout was reached', delay: 3500 };
+    }
+    // Fulla paket genom en tunnel utan adjust-mss fastnar efter handskakningen
+    var big = S.bigTransfer(state, hostId, ip, u.port);
+    if (!big.ok && big.stage === 'transfer') return { text: 'curl: (28) Operation timed out after 30000 milliseconds with 0 out of 48213 bytes received', delay: 4500 };
+    var inet = S.INTERNET[ip];
+    if (h.code === 503) return { text: headOnly ? 'HTTP/1.1 503 Service Unavailable\nServer: LB-Nordvik\nContent-Length: 107' : '<html><body><h1>503 Service Unavailable</h1>\nNo server is available to handle this request.\n</body></html>', delay: 400 };
+    if (h.code === 502) return { text: headOnly ? 'HTTP/1.1 502 Bad Gateway\nServer: LB-Nordvik\nContent-Length: 107' : '<html><body><h1>502 Bad Gateway</h1>\nThe server returned an invalid or incomplete response.\n</body></html>', delay: 1200 };
+    var server = h.server ? (state.devices[h.server] ? state.devices[h.server].label : h.server) : (inet ? inet.name : u.host);
+    if (headOnly) return { text: 'HTTP/1.1 200 OK\nServer: ' + (h.member ? 'nginx/1.24.0' : 'Apache') + '\nContent-Type: text/html; charset=utf-8' + (h.member ? '\nX-Backend: ' + h.member.name : ''), delay: 250 };
+    if (h.member) return { text: '<!doctype html>\n<title>Tidrapport – Nordvik</title>\n<h1>Tidrapport</h1>\n<p>Vecka 40 · inloggad via SSO</p>\n<!-- betjänad av ' + h.member.name + ' (' + h.member.ip + ') -->', delay: 300 };
+    return { text: '<!doctype html>\n<html><head><title>' + server + '</title></head>\n<body><h1>' + server + '</h1></body></html>', delay: 300 };
+  }
+
   // ================================================================ Windows
   function WinShell(state, hostId) {
     this.state = state; this.h = state.devices[hostId]; this.closed = false; this.pending = null;
@@ -58,8 +91,16 @@
       case 'test-netconnection': case 'tnc': return this.tnc(a.slice(1));
       case 'getmac': return res('\nFysisk adress       Transportnamn\n=================== ==========================================================\n' + U.macDash(h.nic.mac) + '   \\Device\\Tcpip_{4E2B9A1C-7D11-4F2E-9B3A-1C5E7D9F0A21}');
       case 'netsh': return res(this.netsh(line));
+      case 'curl': case 'curl.exe': case 'iwr': case 'invoke-webrequest': {
+        var url = a.slice(1).filter(function (x) { return x[0] !== '-'; })[0];
+        if (!url) return res('curl: try \'curl --help\' for more information');
+        var self = this;
+        var ct = curlText(st, h.id, function (n) { return self.resolveName(n); }, url, a.indexOf('-I') >= 0);
+        return res(ct.text, { delay: ct.delay });
+      }
+      case 'copy': case 'xcopy': case 'robocopy': return this.copy(a.slice(1));
       case 'help': case '/?':
-        return res('Kommandon som fungerar här:\n  ipconfig [/all | /release | /renew]\n  ping <adress|namn> [-n antal]\n  tracert <adress|namn>\n  arp -a\n  nslookup <namn>\n  netsh interface ip set address "Ethernet" static <ip> <mask> <gateway>\n  netsh interface ip set address "Ethernet" dhcp\n  netsh interface ip set dns "Ethernet" static <ip>\n  hostname, getmac, whoami, ver, date, time, systeminfo, cls, exit');
+        return res('Kommandon som fungerar här:\n  ipconfig [/all | /release | /renew]\n  ping <adress|namn> [-n antal] [-l storlek] [-f]\n  tracert <adress|namn>\n  arp -a\n  nslookup <namn>\n  curl http://<adress|namn>/      (webbsida, t.ex. tidrapporten)\n  copy \\\\<server>\\<share>\\<fil> .   (hämta en fil från en filserver)\n  netsh interface ip set address "Ethernet" static <ip> <mask> <gateway>\n  netsh interface ip set address "Ethernet" dhcp\n  netsh interface ip set dns "Ethernet" static <ip>\n  hostname, getmac, whoami, ver, date, time, systeminfo, cls, exit');
     }
     return res('\'' + a[0] + '\' känns inte igen som ett internt eller externt kommando,\nkörbart program eller kommandofil.');
   };
@@ -172,22 +213,52 @@
     if (U.isIp(name)) return { ip: name };
     return S.resolve(this.state, this.h.id, name);
   };
+  WinShell.prototype.copy = function (args) {
+    var src = args[0] || '';
+    var m = /^\\\\([^\\]+)\\([^\\]+)\\(.+)$/.exec(src);
+    if (!m) return res('Syntaxen för kommandot är felaktig.\n(Exempel: copy \\\\filserver\\ritningar\\hyllplan.pdf .)');
+    var r = this.resolveName(m[1]);
+    if (r.error) return res('Det gick inte att hitta nätverkssökvägen.', { delay: 2500 });
+    var t = S.bigTransfer(this.state, this.h.id, r.ip, 445);
+    if (!t.ok && t.stage === 'connect') {
+      if (t.res.reason === 'refused') return res('Det gick inte att hitta nätverkssökvägen.', { delay: 600 });
+      return res('Det gick inte att hitta nätverkssökvägen.', { delay: 3500 });
+    }
+    if (!t.ok) return res('Det angivna nätverksnamnet är inte längre tillgängligt.\n        0 fil(er) kopierade.', { delay: 5000 });
+    return res('        1 fil(er) kopierade.', { delay: 700 });
+  };
   WinShell.prototype.ping = function (args) {
     var st = this.state, h = this.h;
-    var n = 4, target = null;
+    var n = 4, target = null, size = 32, df = false;
     for (var i = 0; i < args.length; i++) {
       if (args[i] === '-n' && args[i + 1]) { n = Math.min(20, parseInt(args[i + 1], 10) || 4); i++; }
+      else if (args[i] === '-l' && args[i + 1]) { size = Math.max(0, Math.min(65500, parseInt(args[i + 1], 10) || 32)); i++; }
+      else if (args[i] === '-f') df = true;
       else if (args[i] === '-t') n = 8;
       else if (args[i][0] !== '-') target = args[i];
     }
-    if (!target) return res('\nSyntax: ping [-t] [-n antal] mål\n');
+    if (!target) return res('\nSyntax: ping [-t] [-n antal] [-l storlek] [-f] mål\n');
     var r = this.resolveName(target);
     if (r.error) return res('Det gick inte att hitta värden ' + target + ' med ping-begäran. Kontrollera namnet och försök igen.', { delay: r.error === 'timeout' ? 2500 : 300 });
     var ip = r.ip;
     var head = U.isIp(target) ? ip : (target.indexOf('.') < 0 ? target + '.nordvik.example' : target) + ' [' + ip + ']';
-    var p = S.ping(st, h.id, ip);
     var me = conf(h);
-    var stream = [{ text: '\nSkickar ping-signal till ' + head + ' med 32 byte data:\n', delay: 100 }];
+    var intro = '\nSkickar ping-signal till ' + head + ' med ' + size + ' byte data:\n';
+    // Det egna nätkortet har MTU 1500: 1472 byte data + 28 byte huvud
+    if (df && size > 1472) {
+      var loc = [{ text: intro, delay: 100 }];
+      for (var q = 0; q < n; q++) loc.push({ text: 'Paketet måste fragmenteras men DF har angetts.\n', delay: 200 });
+      loc.push({ text: '\nPing-statistik för ' + ip + ':\n    Paket: Skickade = ' + n + ', Mottagna = 0, Förlorade = ' + n + ' (100 % förlust),', delay: 50 });
+      return res('', { stream: loc });
+    }
+    var p = S.ping(st, h.id, ip, { size: size + 28, df: df });
+    if (!p.ok && p.reason === 'frag') {
+      var fr = [{ text: intro, delay: 100 }];
+      for (var q2 = 0; q2 < n; q2++) fr.push({ text: 'Paketet måste fragmenteras men DF har angetts.\n', delay: 400 });
+      fr.push({ text: '\nPing-statistik för ' + ip + ':\n    Paket: Skickade = ' + n + ', Mottagna = 0, Förlorade = ' + n + ' (100 % förlust),', delay: 50 });
+      return res('', { stream: fr });
+    }
+    var stream = [{ text: intro, delay: 100 }];
     var ok = 0, lostN = 0;
     var times = [];
     for (var k = 0; k < n; k++) {
@@ -196,7 +267,7 @@
         var t = p.hops.length ? 1 + p.hops.length * 2 + Math.floor(Math.random() * 3) : 0;
         if (p.loss > 0) t += 8 + Math.floor(Math.random() * 40);
         times.push(t);
-        line = 'Svar från ' + ip + ': byte=32 ' + (t < 1 ? 'tid<1 ms' : 'tid=' + t + ' ms') + ' TTL=' + p.ttl;
+        line = 'Svar från ' + ip + ': byte=' + size + ' ' + (t < 1 ? 'tid<1 ms' : 'tid=' + t + ' ms') + ' TTL=' + p.ttl;
         ok++; delay = 600;
       } else if (!p.ok && p.reason === 'nolink') {
         return res('PING: överföringen misslyckades. Allmänt fel.', { delay: 200 });
@@ -354,6 +425,8 @@
           '  ping -c 4 <ip|namn>          ip -4 addr show     ip route show default',
           '  ip link show                 ip -4 neigh show    resolvectl query <namn>',
           '  traceroute <ip>              nslookup <namn>     clear',
+          '  curl http://<ip|namn>/       ping -s 1400 -M do <ip>   (stora paket, DF satt)',
+          '  for i in 1 2 3 4; do curl -s http://tid/; done   (testa lastbalanseraren)',
           '  date   uptime   whoami   neofetch   fortune   history',
         ].join('\n'));
       case 'clear': return res('', { clear: true });
@@ -367,6 +440,23 @@
       case 'ifconfig': return res('Command \'ifconfig\' not found, but can be installed with:\nsudo apt install net-tools\n\nTips: använd ip a (adresser) och ip r (vägar) i stället.');
       case 'arp': return res(this.ip(['neigh']).split('\n').filter(Boolean).map(function (l) { var p = l.split(' '); return U.pad(p[0], 22) + 'ether   ' + p[4] + '   C   enp0s31f6'; }).join('\n') || 'Address                  HWtype  HWaddress           Flags Mask            Iface');
       case 'nc': case 'netcat': return this.nc(a.slice(1));
+      case 'curl': case 'wget': {
+        var url = a.slice(1).filter(function (x) { return x[0] !== '-'; })[0];
+        if (!url) return res(cmd + ': try \'' + cmd + ' --help\' for more information');
+        var ct = curlText(st, h.id, function (n) { return S.resolve(st, h.id, n); }, url, a.indexOf('-I') >= 0);
+        return res(ct.text, { delay: ct.delay });
+      }
+      case 'for': {
+        // for i in 1 2 3 4; do curl -s http://tid/; done  – vanligt sätt att testa en lastbalanserare
+        var fm = /^for\s+\w+\s+in\s+([\d\s]+|\{1\.\.(\d+)\})\s*;\s*do\s+(curl[^;]*);\s*done$/.exec(line.trim());
+        if (!fm) return res('bash: syntax: for i in 1 2 3 4; do curl -s http://<adress>/; done');
+        var times = fm[2] ? parseInt(fm[2], 10) : fm[1].trim().split(/\s+/).length;
+        var ca = splitArgs(fm[3]);
+        var u2 = ca.slice(1).filter(function (x) { return x[0] !== '-'; })[0];
+        var outs = [];
+        for (var ti = 0; ti < Math.min(times, 12); ti++) outs.push(curlText(st, h.id, function (n) { return S.resolve(st, h.id, n); }, u2, ca.indexOf('-I') >= 0).text.split('\n').filter(function (l) { return /h1|betjänad|curl:|HTTP|Backend/.test(l); }).join(' '));
+        return res(outs.join('\n'), { delay: 400 });
+      }
       case 'hostname': return res(a[1] === '-I' ? ((conf(h) || {}).ip || '') : 'laptop');
       case 'ls': return res(this.ls(a.slice(1)));
       case 'dmesg': return res(this.dmesg());
@@ -444,9 +534,11 @@
     return 'Usage: ip [ OPTIONS ] OBJECT { COMMAND | help }\n       ip -4 addr show | ip link show | ip route show default | ip -4 neigh show';
   };
   LinuxShell.prototype.ping = function (args) {
-    var n = 4, target = null;
+    var n = 4, target = null, size = 56, df = false;
     for (var i = 0; i < args.length; i++) {
       if (args[i] === '-c') { n = Math.min(20, parseInt(args[i + 1], 10) || 4); i++; }
+      else if (args[i] === '-s') { size = Math.max(0, Math.min(65507, parseInt(args[i + 1], 10) || 56)); i++; }
+      else if (args[i] === '-M') { df = args[i + 1] === 'do'; i++; }
       else if (args[i][0] !== '-') target = args[i];
     }
     if (!target) return res('ping: usage error: Destination address required');
@@ -456,13 +548,17 @@
       if (r.error) return res('ping: ' + target + ': Temporary failure in name resolution', { delay: r.error === 'timeout' ? 2500 : 200 });
       ip = r.ip;
     }
-    var p = S.ping(this.state, this.h.id, ip);
-    var stream = [{ text: 'PING ' + target + ' (' + ip + ') 56(84) bytes of data.\n', delay: 100 }];
+    if (df && size > 1472) return res('PING ' + target + ' (' + ip + ') ' + size + '(' + (size + 28) + ') bytes of data.\nping: local error: message too long, mtu=1500\n\n--- ' + target + ' ping statistics ---\n' + n + ' packets transmitted, 0 received, +' + n + ' errors, 100% packet loss');
+    var p = S.ping(this.state, this.h.id, ip, { size: size + 28, df: df });
+    var stream = [{ text: 'PING ' + target + ' (' + ip + ') ' + size + '(' + (size + 28) + ') bytes of data.\n', delay: 100 }];
     var ok = 0, errs = 0;
     for (var k = 1; k <= n; k++) {
-      if (p.ok && Math.random() >= p.loss) {
+      if (!p.ok && p.reason === 'frag') {
+        errs++;
+        stream.push({ text: 'From ' + (p.fromIp || ip) + ' icmp_seq=' + k + ' Frag needed and DF set (mtu = ' + p.mtu + ')\n', delay: 600 });
+      } else if (p.ok && Math.random() >= p.loss) {
         ok++;
-        stream.push({ text: '64 bytes from ' + ip + ': icmp_seq=' + k + ' ttl=' + p.ttl + ' time=' + (0.4 + p.hops.length * 0.7 + Math.random()).toFixed(2) + ' ms\n', delay: 700 });
+        stream.push({ text: (size + 8) + ' bytes from ' + ip + ': icmp_seq=' + k + ' ttl=' + p.ttl + ' time=' + (0.4 + p.hops.length * 0.7 + Math.random()).toFixed(2) + ' ms\n', delay: 700 });
       } else if (!p.ok && (p.reason === 'nolink' || p.reason === 'nogw')) {
         return res('ping: connect: Network is unreachable');
       } else if (!p.ok && p.reason === 'arp' && p.local) {
@@ -537,9 +633,13 @@
     }
     var devId = findIosByIp(this.state, ip) || p.at;
     var dev = this.state.devices[devId];
-    if (!dev || (dev.os !== 'ios' && dev.kind !== 'wlc')) return res('ssh: connect to host ' + host + ' port 22: Connection refused');
+    if (!dev || (dev.os !== 'ios' && dev.kind !== 'wlc' && dev.kind !== 'lb')) return res('ssh: connect to host ' + host + ' port 22: Connection refused');
     var self = this;
     var isWlc = dev.kind === 'wlc';
+    if (dev.kind === 'lb') {
+      this.pending = { prompt: user + '@' + host + '\'s password: ', secret: true, fn: function () { return res('', { push: { kind: 'lb', dev: devId } }); } };
+      return res('');
+    }
     var ask = function () {
       self.pending = { prompt: user + '@' + host + '\'s password: ', secret: true, fn: function (pw) {
         var c = dev.config;

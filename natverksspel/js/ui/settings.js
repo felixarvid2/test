@@ -56,7 +56,9 @@ NV.sfx = (function () {
     for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     return ctx;
   }
-  function on() { return NV.settings.get('sound') && ensure(); }
+  // Ljud skapas först efter att spelaren klickat (webbläsarna kräver det)
+  var unlocked = false;
+  function on() { return NV.settings.get('sound') && unlocked && ensure(); }
   // Egna volymer för effekter och miljöljud
   var fxBus = null, ambBus = null;
   function bus() {
@@ -141,7 +143,7 @@ NV.sfx = (function () {
   }
   var STEP = { carpet: [380, 0.05], wood: [900, 0.08], metal: [2400, 0.07], concrete: [1500, 0.1] };
   var api = {
-    unlock: function () { if (ensure() && ctx.state === 'suspended') ctx.resume(); api.music(); },
+    unlock: function () { unlocked = true; if (ensure() && ctx.state === 'suspended') ctx.resume(); api.music(); },
     click: function () { tone(880, 0.05, 'square', 0.05); },
     step: function (surface) {
       var s = STEP[surface] || [500 + Math.random() * 300, 0.08];

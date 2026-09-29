@@ -615,6 +615,87 @@ NV.levels = (function () {
         },
       ],
     },
+    // ------------------------------------------------------------------ Vecka 10
+    {
+      chips: ['show crypto isakmp sa', 'show crypto ipsec sa | include ident|encaps|decaps', 'show access-lists VPN-TRAFIK'],
+      week: 10, title: 'VPN, SD-WAN och lastbalansering', chapter: 10, site: 'gbg',
+      intro: 'Vecka 10: den hyrda linan till Borås (6 000 kr i månaden, 4 % använd) är uppsagd. Nu går trafiken i en IPsec-tunnel över internet.\n\nGöteborg: 203.0.113.10 · Borås: 203.0.113.20\nVPN-TRAFIK: kontoret 192.168.1.0/26 ↔ lagret 192.168.2.0/26 och drift ↔ drift.\n\nTunneln byggs först när det kommer trafik som matchar listan. Veckans Krabba är två samtidiga fel.',
+      learn: ['show crypto isakmp sa (QM_IDLE)', 'show crypto ipsec sa: encaps/decaps', 'Spegelvända crypto-ACL:er', 'NAT före kryptering: deny först', 'MTU och ip tcp adjust-mss 1360', 'Hälsokontroll i lastbalanseraren'],
+      setup: function (st) {
+        // Fel 1 a: NAT-listan i Göteborg saknar undantaget för VPN-trafiken
+        both(st.devices.R1, function (c) { c.acls['NAT-UT'].rules = c.acls['NAT-UT'].rules.filter(function (r) { return r.seq !== 10; }); });
+        // Fel 1 b: Borås crypto-ACL speglar inte Göteborgs (/24 i stället för /26)
+        both(st.devices.RB, function (c) { c.acls['VPN-TRAFIK'].rules[0].dst = { ip: '192.168.1.0', wild: '0.0.0.255' }; });
+        // Fel 2: ingen router klämmer MSS, så fulla TCP-segment får inte plats i tunneln
+        both(st.devices.R1, function (c) { iface(c, 'GigabitEthernet0/1').adjustMss = null; });
+        both(st.devices.RB, function (c) { iface(c, 'GigabitEthernet0/1').adjustMss = null; });
+        // Fel 3: webbtjänsten på Tid-2 har kraschat, men lastbalanseraren pingar bara
+        st.devices['Tid-2'].services = [];
+        st.devices.LB.lb.pools['TID-POOL'].monitor = 'icmp';
+        st.devices.LB.lb.saved = U.clone(st.devices.LB.lb.pools);
+      },
+      after: function (st) {
+        // Drifttrafiken (controllern, loggar) har redan byggt tunneln: fas 1 är uppe
+        S.ping(st, 'Tekniker', '192.168.2.193');
+        S.ping(st, 'AP-Lager-1', '192.168.1.196');
+        // Nils har försökt nå filservern hela morgonen
+        S.ping(st, 'PC-Lager', '192.168.1.10');
+      },
+      tasks: [
+        {
+          id: 'v10k1', krabba: true, npc: 'Nils', target: 'RB',
+          title: 'Tunneln är uppe men inget går igenom',
+          ticket: 'Nils: "Sedan ni sa upp linan når vi inte filservern från lagret. Omar säger att VPN:en är uppe, men inget kommer fram – åt något håll."',
+          hints: [
+            'Kör show crypto isakmp sa på R-Nordvik-1. QM_IDLE betyder att fas 1 är uppe. Titta sedan på show crypto ipsec sa | include ident|encaps|decaps – vilka par har räknare?',
+            'Två fel samtidigt. Jämför show access-lists VPN-TRAFIK på båda routrarna: de måste vara exakt spegelvända. Titta också i show logging på R-Boras-1 efter "proxy identities". Och show access-lists NAT-UT i Göteborg: NAT görs före kryptering.',
+            'R-Boras-1: ip access-list extended VPN-TRAFIK → no 10 → 10 permit ip 192.168.2.0 0.0.0.63 192.168.1.0 0.0.0.63. R-Nordvik-1: ip access-list extended NAT-UT → 5 deny ip 192.168.1.0 0.0.0.63 192.168.2.0 0.0.0.63 (numret gör att raden hamnar först).',
+          ],
+          check: function (st) { return ok(st, 'PC-Lager', '192.168.1.10') && ok(st, 'PC-Anna', '192.168.2.1'); },
+          report: {
+            cause: ['Två fel: Borås crypto-ACL speglade inte Göteborgs, och NAT-listan i Göteborg saknade deny för VPN-trafiken', 'Operatören blockerade IPsec', 'Den förinstallerade nyckeln var fel', 'Filservern var avstängd'],
+            fix: ['Spegla VPN-TRAFIK (/26 ↔ /26) och lägga deny-raden först i NAT-UT', 'Ringa operatören', 'Byta nyckel på båda sidor', 'Starta filservern'],
+          },
+        },
+        {
+          id: 'v10k2', krabba: true, npc: 'Nils', target: 'RB',
+          title: 'Små paket går fram, stora inte',
+          ticket: 'Nils: "Nu går ping till filservern! Men när jag öppnar hyllritningarna står det bara och snurrar. Små filer fungerar."',
+          hints: [
+            'På lagerdatorn: copy \\\\filserver\\ritningar\\hyllplan.pdf . hänger. Prova ping -f -l 1400 192.168.1.10 och sedan -l 1300. Var går gränsen?',
+            'Tunneln lägger till ungefär 80 byte (ESP-huvud och ett nytt IP-huvud). show crypto ipsec sa | include mtu visar plaintext mtu 1420. Fulla TCP-segment med DF satt får inte plats.',
+            'interface gi0/1 → ip tcp adjust-mss 1360 på R-Boras-1 (det räcker på ena sidan, men båda är snyggast). Prova kopieringen igen.',
+          ],
+          check: function (st) { return S.bigTransfer(st, 'PC-Lager', '192.168.1.10', 445).ok; },
+          report: {
+            cause: ['Tunneln minskade MTU:n och ingen router klämde TCP-MSS, så fulla segment fastnade', 'Filen var för stor för filservern', 'Lagerdatorn hade fel DNS', 'Duplex mismatch mot lagerdatorn'],
+            fix: ['ip tcp adjust-mss 1360 på det utgående interfacet', 'Dela upp filen', 'Byta DNS', 'Sätta duplex auto'],
+          },
+        },
+        {
+          id: 'v10n1', krabba: false, npc: 'Lisa', target: 'LB',
+          title: 'Tidrapporten fungerar varannan gång',
+          ticket: 'Lisa: "Tidrapporteringen är konstig. Varannan gång jag laddar om sidan kommer en felsida. Den andra gången fungerar allt."',
+          hints: [
+            'Från laptopen: for i in 1 2 3 4; do curl -s http://tid/; done. Varannan förfrågan ger 502 Bad Gateway – en av två servrar är trasig.',
+            'Logga in på lastbalanseraren (ssh admin@192.168.1.13 eller konsol i rack A) och kör show pool och show monitor. Båda servrarna står som UP – men hälsokontrollen pingar bara.',
+            'config pool TID-POOL monitor http (kontrollerar tjänsten, inte bara servern). show pool: tid-2 blir DOWN och all trafik går till tid-1. save config.',
+          ],
+          check: function (st) {
+            var lb = st.devices.LB;
+            if (!lb || !lb.lb) return false;
+            var s = S.lbStatus(st, 'LB')[0];
+            if (s.pool.monitor === 'icmp') return false;
+            var up = s.members.filter(function (m) { return m.up; });
+            return up.length > 0 && up.every(function (m) { return S.ping(st, 'LB', m.m.ip, { proto: 'tcp', dport: m.m.port }).ok; });
+          },
+          report: {
+            cause: ['Hälsokontrollen pingade bara, så en server med kraschad webbtjänst fick fortfarande hälften av trafiken', 'Lastbalanseraren var överbelastad', 'DNS pekade på fel server', 'Lisas webbläsare hade gammal cache'],
+            fix: ['Byta hälsokontroll till http så att trasiga servrar tas ur poolen', 'Köpa en större lastbalanserare', 'Ändra DNS', 'Tömma cachen'],
+          },
+        },
+      ],
+    },
   ];
 
   function start(week) {
