@@ -37,6 +37,9 @@
       case 'hostname': return res(h.id);
       case 'cls': return res('', { clear: true });
       case 'exit': return res('', { close: true });
+      case 'route': return res(this.routePrint());
+      case 'netstat': return res(/-r/i.test(line) ? this.routePrint() : 'Aktiva anslutningar\n\n  Proto  Lokal adress           Utländsk adress        Tillstånd');
+      case 'test-netconnection': case 'tnc': return this.tnc(a.slice(1));
       case 'getmac': return res('\nFysisk adress       Transportnamn\n=================== ==========================================================\n' + U.macDash(h.nic.mac) + '   \\Device\\Tcpip_{4E2B9A1C-7D11-4F2E-9B3A-1C5E7D9F0A21}');
       case 'netsh': return res(this.netsh(line));
       case 'help': case '/?':
@@ -44,9 +47,39 @@
     }
     return res('\'' + a[0] + '\' känns inte igen som ett internt eller externt kommando,\nkörbart program eller kommandofil.');
   };
+  WinShell.prototype.routePrint = function () {
+    var c = conf(this.h);
+    var o = ['===========================================================================', 'Gränssnittslista', ' 12...' + U.macDash(this.h.nic.mac).replace(/-/g, ' ') + ' ......Intel(R) Ethernet Connection I219-LM', '  1...........................Software Loopback Interface 1', '===========================================================================', '', 'IPv4-routningstabell', '===========================================================================', 'Aktiva vägar:', 'Nätverksmål           Nätmask         Gateway        Gränssnitt  Mått'];
+    if (c && c.ip) {
+      if (c.gw) o.push(U.pad('          0.0.0.0', 22) + U.pad('0.0.0.0', 16) + U.pad(c.gw, 15) + U.pad(c.ip, 12) + '25');
+      o.push(U.pad('      ' + U.network(c.ip, c.mask), 22) + U.pad(c.mask, 16) + U.pad('På länk', 15) + U.pad(c.ip, 12) + '281');
+      o.push(U.pad('      ' + c.ip, 22) + U.pad('255.255.255.255', 16) + U.pad('På länk', 15) + U.pad(c.ip, 12) + '281');
+    }
+    o.push(U.pad('        127.0.0.0', 22) + U.pad('255.0.0.0', 16) + U.pad('På länk', 15) + U.pad('127.0.0.1', 12) + '331');
+    o.push('===========================================================================');
+    o.push('Beständiga vägar:', '  Inga');
+    return o.join('\n');
+  };
+  WinShell.prototype.tnc = function (args) {
+    var host = null, port = null;
+    for (var i = 0; i < args.length; i++) { if (/^-port$/i.test(args[i])) { port = parseInt(args[i + 1], 10); i++; } else if (args[i][0] !== '-') host = args[i]; }
+    if (!host) return res('Test-NetConnection <värd> [-Port <nummer>]');
+    var r = this.resolveName(host);
+    if (r.error) return res('WARNING: Name resolution of ' + host + ' failed', { delay: 800 });
+    var p = port ? S.ping(this.state, this.h.id, r.ip, { proto: 'tcp', dport: port }) : S.ping(this.state, this.h.id, r.ip);
+    var c = conf(this.h);
+    var o = ['', 'ComputerName     : ' + host, 'RemoteAddress    : ' + r.ip];
+    if (port) o.push('RemotePort       : ' + port);
+    o.push('InterfaceAlias   : Ethernet', 'SourceAddress    : ' + ((c && c.ip) || ''));
+    if (port) o.push('TcpTestSucceeded : ' + (p.ok ? 'True' : 'False'));
+    else o.push('PingSucceeded    : ' + (p.ok ? 'True' : 'False'));
+    return res(o.join('\n'), { delay: p.ok ? 400 : 2500 });
+  };
   WinShell.prototype.ipconfig = function (args) {
     var st = this.state, h = this.h;
     var flag = (args[0] || '').toLowerCase();
+    if (flag === '/flushdns') return '\nWindows IP-konfiguration\n\nDNS-matchningscachen har tömts.';
+    if (flag === '/displaydns') return '\nWindows IP-konfiguration\n\n    filserver.nordvik.example\n    ----------------------------------------\n    Postnamn . . . . . . . : filserver.nordvik.example\n    Posttyp  . . . . . . . : 1\n    Data-sektion . . . . . : Svar\n    A-post (värd)  . . . . : 192.168.1.10';
     if (flag === '/release') {
       if (!h.nic.dhcp) return '\nWindows IP-konfiguration\n\nDet gick inte att utföra åtgärden på gränssnittet Ethernet eftersom DHCP inte är aktiverat.';
       S.release(st, h.id);
@@ -289,6 +322,8 @@
     if (NV.onHostCommand) NV.onHostCommand(this.h.id, line);
     var a = splitArgs(line);
     if (!a.length) return res('');
+    this.hist = this.hist || [];
+    this.hist.push(line.trim());
     if (a[0] === 'sudo') { a = a.slice(1); if (!a.length) return res('usage: sudo command'); }
     var cmd = a[0];
     var st = this.state, h = this.h;
@@ -307,7 +342,11 @@
       case 'clear': return res('', { clear: true });
       case 'exit': case 'logout': return res('', { close: true });
       case 'whoami': return res('tekniker');
-      case 'hostname': return res('laptop');
+      case 'history': return res((this.hist || []).map(function (l, i) { return U.padL(i + 1, 5) + '  ' + l; }).join('\n'));
+      case 'ifconfig': return res('Command \'ifconfig\' not found, but can be installed with:\nsudo apt install net-tools\n\nTips: använd ip a (adresser) och ip r (vägar) i stället.');
+      case 'arp': return res(this.ip(['neigh']).split('\n').filter(Boolean).map(function (l) { var p = l.split(' '); return U.pad(p[0], 22) + 'ether   ' + p[4] + '   C   enp0s31f6'; }).join('\n') || 'Address                  HWtype  HWaddress           Flags Mask            Iface');
+      case 'nc': case 'netcat': return this.nc(a.slice(1));
+      case 'hostname': return res(a[1] === '-I' ? ((conf(h) || {}).ip || '') : 'laptop');
       case 'ls': return res(this.ls(a.slice(1)));
       case 'dmesg': return res(this.dmesg());
       case 'screen': case 'minicom': case 'picocom': return this.screen(a.slice(1), cmd);
@@ -318,9 +357,21 @@
       case 'nslookup': case 'host': case 'dig': return res(this.lookup(a[1]));
       case 'ssh': return this.ssh(a.slice(1));
       case 'telnet': return this.telnet(a.slice(1));
-      case 'cat': if (a[1] === 'felrapport.md') return res('(Felrapporten fyller du i spelet med F.)'); return res('cat: ' + (a[1] || '') + ': Filen eller katalogen finns inte');
+      case 'cat': if (a[1] === '/etc/resolv.conf') return res('# This is /run/systemd/resolve/stub-resolv.conf managed by man:systemd-resolved(8).\nnameserver 127.0.0.53\noptions edns0 trust-ad\nsearch nordvik.example\n\n# Den riktiga DNS-servern: resolvectl status');
+        if (a[1] === 'felrapport.md') return res('(Felrapporten fyller du i spelet med F.)'); return res('cat: ' + (a[1] || '') + ': Filen eller katalogen finns inte');
     }
     return res(cmd + ': command not found');
+  };
+  LinuxShell.prototype.nc = function (args) {
+    var rest = args.filter(function (x) { return x[0] !== '-'; });
+    var host = rest[0], port = parseInt(rest[1], 10);
+    if (!host || !port) return res('usage: nc -zv <värd> <port>   (testar om en TCP-port svarar)');
+    var ip = host;
+    if (!U.isIp(host)) { var r = S.resolve(this.state, this.h.id, host); if (r.error) return res('nc: getaddrinfo for host "' + host + '" port ' + port + ': Name or service not known'); ip = r.ip; }
+    var p = S.ping(this.state, this.h.id, ip, { proto: 'tcp', dport: port });
+    if (p.ok) return res('Connection to ' + host + ' ' + port + ' port [tcp/*] succeeded!', { delay: 300 });
+    if (p.reason === 'refused') return res('nc: connect to ' + host + ' port ' + port + ' (tcp) failed: Connection refused', { delay: 300 });
+    return res('nc: connect to ' + host + ' port ' + port + ' (tcp) failed: Connection timed out', { delay: 3000 });
   };
   LinuxShell.prototype.ls = function (args) {
     var p = args.join(' ');

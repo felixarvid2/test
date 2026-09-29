@@ -205,6 +205,7 @@ NV.devices3d = (function () {
     if (spec.devId) {
       face.userData.interact = spec.interact;
       body.userData.interact = spec.interact;
+      face.userData.faceOf = { fp: fp, devId: spec.devId };
     }
     return entry;
   };
@@ -507,5 +508,5 @@ NV.devices3d = (function () {
     return g;
   }
 
-  return { build: build, cable: cable, drawDesktop: drawDesktop, Rack: Rack, CABLE_COLORS: CABLE_COLORS };
+  return { build: build, cable: cable, drawDesktop: drawDesktop, Rack: Rack, Faceplate: Faceplate, CABLE_COLORS: CABLE_COLORS };
 })();

@@ -127,6 +127,10 @@ NV.people = (function () {
         want = Math.max(-1.1, Math.min(1.1, ang));
       } else want = Math.sin(f.phase * 0.3) * 0.3;
       f.head.rotation.y += (want - f.head.rotation.y) * Math.min(1, dt * 4);
+      // Vänd överkroppen mot dig när du står nära, och tona ut namnet på avstånd
+      var tw = dist < 2.2 ? want * 0.55 : 0;
+      f.torso.rotation.y += (tw - f.torso.rotation.y) * Math.min(1, dt * 3);
+      f.tag.material.opacity = Math.max(0, Math.min(1, (9 - dist) / 3));
       f.marker.position.y = (f.sitting ? 0.5 : 0.92) + 1.32 + Math.sin(t * 3) * 0.04;
     });
   }

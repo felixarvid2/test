@@ -993,7 +993,127 @@ NV.iosShow = (function () {
     return o.join('\n');
   }
 
+  function vlanId(state, d, v) {
+    var full = vlanBrief(state, d).split('\n');
+    var rows = full.filter(function (l) { return new RegExp('^' + v + '\\s').test(l); });
+    if (!rows.length) return 'VLAN id ' + v + ' not found in current VLAN database';
+    var idx = full.indexOf(rows[0]);
+    var out = ['', 'VLAN Name                             Status    Ports', '---- -------------------------------- --------- -------------------------------', rows[0]];
+    for (var i = idx + 1; i < full.length && /^\s{40,}/.test(full[i]); i++) out.push(full[i]);
+    var trunks = physPorts(d).filter(function (n) { return S.opMode(state, d.id, n) === 'trunk' && S.trunkVlans(d, d.config.ifaces[n]).indexOf(v) >= 0 && portState(state, d, n) === 'connected'; }).map(U.shortIf);
+    out.push('');
+    out.push('VLAN Type  SAID       MTU   Parent RingNo BridgeNo Stp  BrdgMode Trans1 Trans2');
+    out.push('---- ----- ---------- ----- ------ ------ -------- ---- -------- ------ ------');
+    out.push(pad(v, 5) + 'enet  ' + pad(100000 + v, 11) + '1500  -      -      -        -    -        0      0');
+    if (trunks.length) { out.push(''); out.push('Trunkar som bär VLAN ' + v + ': ' + trunks.join(', ')); }
+    return out.join('\n');
+  }
+  function processesCpu(state, d) {
+    var D = S.get(state);
+    var storm = Object.keys(D.storm).some(function (v) { return D.storm[v].indexOf(d.id) >= 0; });
+    var c5 = storm ? 99 : 3 + (U.hash(d.id) % 5), c1 = storm ? 98 : c5 + 1, c5m = storm ? 96 : c5;
+    var o = ['CPU utilization for five seconds: ' + c5 + '%/' + (storm ? 91 : 0) + '%; one minute: ' + c1 + '%; five minutes: ' + c5m + '%',
+      ' PID Runtime(ms)     Invoked      uSecs   5Sec   1Min   5Min TTY Process'];
+    var procs = storm ? [['96', '98765432', '1234567', '80', '71.43%', '70.12%', '69.80%', 'Hulc LED Process'], ['4', '5432100', '99887', '54', '19.81%', '18.90%', '18.02%', 'ARP Input'], ['18', '120000', '5000', '24', '4.51%', '4.40%', '4.33%', 'Spanning Tree']]
+      : [['96', '12345', '8765', '1408', '1.12%', '1.05%', '1.01%', 'Hulc LED Process'], ['4', '2345', '1998', '1173', '0.15%', '0.12%', '0.11%', 'ARP Input'], ['18', '980', '877', '1117', '0.08%', '0.07%', '0.07%', 'Spanning Tree']];
+    procs.forEach(function (p) { o.push(padL(p[0], 4) + padL(p[1], 12) + padL(p[2], 13) + padL(p[3], 11) + padL(p[4], 7) + padL(p[5], 7) + padL(p[6], 7) + '   0 ' + p[7]); });
+    return o.join('\n');
+  }
+  function cdpDetail(state, d) {
+    var D = S.get(state);
+    var o = [];
+    Object.keys(d.config.ifaces).forEach(function (n) {
+      var p = D.ports[S.key(d.id, n)];
+      if (!p || !p.up) return;
+      var peer = state.devices[p.peer.dev];
+      if (!peer || (peer.os !== 'ios' && peer.kind !== 'ap')) return;
+      var ip = peer.os === 'ios' ? (S.devEps(D, peer.id).filter(function (e) { return e.up && e.ip; })[0] || {}).ip : peer.nic.static && peer.nic.static.ip;
+      o.push('-------------------------');
+      o.push('Device ID: ' + (peer.os === 'ios' ? peer.config.hostname + '.nordvik.example' : peer.id));
+      o.push('Entry address(es): ');
+      if (ip) o.push('  IP address: ' + ip);
+      o.push('Platform: cisco ' + (peer.model || 'AIR-CAP3702I-E-K9') + ',  Capabilities: ' + (peer.kind === 'router' ? 'Router Switch IGMP' : (peer.kind === 'ap' ? 'Trans-Bridge Source-Route-Bridge IGMP' : 'Switch IGMP')));
+      o.push('Interface: ' + n + ',  Port ID (outgoing port): ' + (peer.os === 'ios' ? p.peer.port : 'GigabitEthernet0'));
+      o.push('Holdtime : 164 sec');
+      o.push('');
+      o.push('Version :');
+      o.push(peer.kind === 'router' ? 'Cisco IOS Software, C2951 Software (C2951-UNIVERSALK9-M), Version 15.2(4)M11' : (peer.kind === 'ap' ? 'Cisco AP Software, ap3g2-k9w8 Version: 15.3(3)JA' : 'Cisco IOS Software, C3560 Software (C3560-IPSERVICESK9-M), Version 12.2(55)SE12'));
+      o.push('');
+      if (peer.os === 'ios' && peer.config.ifaces[p.peer.port].native) o.push('Native VLAN: ' + peer.config.ifaces[p.peer.port].native);
+      o.push('Duplex: ' + (p.neg ? p.neg.duplex : 'full'));
+      if (ip) o.push('Management address(es): ', '  IP address: ' + ip);
+      o.push('');
+    });
+    o.push('Total cdp entries displayed : ' + o.filter(function (l) { return /^Device ID/.test(l); }).length);
+    return o.join('\n');
+  }
+  function stpSummary(state, d) {
+    var D = S.get(state);
+    var vl = Object.keys(d.config.vlans).map(Number).sort(function (a, b) { return a - b; });
+    var root = vl.filter(function (v) { var i = D.stp[d.id] && D.stp[d.id][v]; return i && i.isRoot; });
+    var o = ['Switch is in pvst mode', 'Root bridge for: ' + (root.length ? root.map(function (v) { return 'VLAN' + ('000' + v).slice(-4); }).join(', ') : 'none'),
+      'Extended system ID                      is enabled', 'Portfast Default                        is disabled', 'PortFast BPDU Guard Default             is disabled',
+      'Loopguard Default                       is disabled', 'EtherChannel misconfig guard            is enabled', 'UplinkFast                              is disabled', 'BackboneFast                            is disabled',
+      '', 'Name                   Blocking Listening Learning Forwarding STP Active', '---------------------- -------- --------- -------- ---------- ----------'];
+    var tb = 0, tf = 0, nv = 0;
+    vl.forEach(function (v) {
+      if (d.config.stpOff.indexOf(v) >= 0) return;
+      var ports = physPorts(d).filter(function (n) {
+        var p = D.ports[S.key(d.id, n)];
+        if (!p || !p.up) return false;
+        var i = d.config.ifaces[n];
+        return S.opMode(state, d.id, n) === 'trunk' ? S.trunkVlans(d, i).indexOf(v) >= 0 : i.accessVlan === v;
+      });
+      if (!ports.length) return;
+      nv++;
+      var b = ports.filter(function (n) { return D.blocked[S.key(d.id, n) + '#' + v]; }).length;
+      tb += b; tf += ports.length - b;
+      o.push(pad('VLAN' + ('000' + v).slice(-4), 23) + padL(b, 8) + padL(0, 10) + padL(0, 9) + padL(ports.length - b, 11) + padL(ports.length, 11));
+    });
+    o.push('---------------------- -------- --------- -------- ---------- ----------');
+    o.push(pad(nv + ' vlans', 23) + padL(tb, 8) + padL(0, 10) + padL(0, 9) + padL(tf, 11) + padL(tb + tf, 11));
+    if (d.config.stpOff.length) o.push('', 'Spanning tree is DISABLED for VLAN ' + U.vlanListStr(d.config.stpOff.slice().sort(function (a, b) { return a - b; })));
+    return o.join('\n');
+  }
+  function stpBlocked(state, d) {
+    var D = S.get(state);
+    var o = ['', 'Name                 Blocked Interfaces List', '-------------------- ------------------------------------'];
+    var n = 0;
+    Object.keys(D.blocked).forEach(function (k) {
+      if (k.indexOf(d.id + '|') !== 0) return;
+      var parts = k.split('|')[1].split('#');
+      o.push(pad('VLAN' + ('000' + parts[1]).slice(-4), 21) + U.shortIf(parts[0]) + (D.blocked[k] === 'BKN*' ? ' (*PVID_Inc)' : ''));
+      n++;
+    });
+    o.push('');
+    o.push('Number of blocked ports (segments) in the system : ' + n);
+    return o.join('\n');
+  }
+  function inventory(state, d) {
+    var sn = 'FOC' + (U.hash(d.id) % 900000 + 100000) + 'X' + (U.hash(d.id + 'x') % 90 + 10);
+    if (d.kind === 'router') return 'NAME: "CISCO2951/K9 chassis", DESCR: "CISCO2951/K9 chassis"\nPID: CISCO2951/K9      , VID: V05 , SN: ' + sn + '\n\nNAME: "PVDM3-32 on Motherboard", DESCR: "PVDMIII DSP SIMM with two DSPs"\nPID: PVDM3-32          , VID: V01 , SN: ' + sn.replace('FOC', 'FOX');
+    var D = S.get(state);
+    var sfp = physPorts(d).filter(function (n) { return d.config.ifaces[n].sfp && D.ports[S.key(d.id, n)]; });
+    var o = ['NAME: "1", DESCR: "' + d.model + '"', 'PID: ' + d.model + '    , VID: V02  , SN: ' + sn];
+    sfp.forEach(function (n) { o.push('', 'NAME: "' + n + '", DESCR: "1000BaseSX SFP"', 'PID: GLC-SX-MMD          , VID: V01  , SN: AGM' + (U.hash(n + d.id) % 9000000)); });
+    return o.join('\n');
+  }
+  function countersErrors(state, d) {
+    var o = ['', 'Port        Align-Err     FCS-Err    Xmit-Err     Rcv-Err  UnderSize  OutDiscards'];
+    physPorts(d).forEach(function (n) {
+      var c = d.rt.counters[n] || { crc: 0, runts: 0, late: 0, coll: 0 };
+      o.push(pad(U.shortIf(n), 10) + padL(0, 12) + padL(Math.floor(c.crc), 12) + padL(0, 12) + padL(Math.floor(c.crc + c.runts), 12) + padL(Math.floor(c.runts), 11) + padL(0, 13));
+    });
+    o.push('', 'Port      Single-Col  Multi-Col   Late-Col  Excess-Col  Carri-Sen      Runts');
+    physPorts(d).forEach(function (n) {
+      var c = d.rt.counters[n] || { crc: 0, runts: 0, late: 0, coll: 0 };
+      o.push(pad(U.shortIf(n), 10) + padL(Math.floor(c.coll * 0.6), 10) + padL(Math.floor(c.coll * 0.4), 11) + padL(Math.floor(c.late), 11) + padL(0, 12) + padL(0, 11) + padL(Math.floor(c.runts), 11));
+    });
+    return o.join('\n');
+  }
+
   return {
+    vlanId: vlanId, processesCpu: processesCpu, cdpDetail: cdpDetail, stpSummary: stpSummary, stpBlocked: stpBlocked, inventory: inventory, countersErrors: countersErrors,
     runningConfig: runningConfig, startupConfig: startupConfig, runningInterface: runningInterface,
     interfacesStatus: interfacesStatus, ipIntBrief: ipIntBrief, showInterface: showInterface, switchport: switchport,
     vlanBrief: vlanBrief, interfacesTrunk: interfacesTrunk, macTable: macTable, spanningTree: spanningTree,

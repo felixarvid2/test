@@ -24,6 +24,10 @@ NV.Terminal = (function () {
     this.el.input.addEventListener('keydown', function (e) { self.onKey(e); });
     this.el.screen.addEventListener('mousedown', function (e) { if (e.target === self.el.screen || e.target === self.el.out) setTimeout(function () { self.focus(); }, 0); });
     this.el.close.addEventListener('click', function () { self.hide(); });
+    root.querySelector('[data-act="font-"]').addEventListener('click', function () { NV.settings.set('termFont', Math.max(11, NV.settings.get('termFont') - 1)); self.applyFont(); self.focus(); });
+    root.querySelector('[data-act="font+"]').addEventListener('click', function () { NV.settings.set('termFont', Math.min(20, NV.settings.get('termFont') + 1)); self.applyFont(); self.focus(); });
+    root.querySelector('[data-act="copy"]').addEventListener('click', function () { self.copySelection(); });
+    this.applyFont();
     this.el.disconnect.addEventListener('click', function () { self.popSerial(true); });
     this.el.input.addEventListener('paste', function (e) {
       var txt = (e.clipboardData || window.clipboardData).getData('text');
@@ -39,6 +43,12 @@ NV.Terminal = (function () {
   var P = Terminal.prototype;
 
   P.top = function () { return this.stack[this.stack.length - 1]; };
+  P.applyFont = function () { this.el.screen.style.fontSize = NV.settings.get('termFont') + 'px'; };
+  P.copySelection = function () {
+    var sel = window.getSelection ? String(window.getSelection()) : '';
+    if (!sel) { this.game.ui.toast('Markera text i terminalen först, sedan Kopiera.'); return; }
+    this.game.ui.copyText(sel);
+  };
   P.focus = function () { try { this.el.input.focus({ preventScroll: true }); } catch (e) { this.el.input.focus(); } };
 
   P.show = function () {
@@ -95,6 +105,7 @@ NV.Terminal = (function () {
       var chips = [];
       if (tgt) chips.push(['screen 9600', 'sudo screen /dev/ttyUSB0 9600']);
       chips.push(['ssh R-Nordvik-1', 'ssh drift@192.168.1.193'], ['ping gateway', 'ping -c 4 192.168.1.193'], ['help', 'help']);
+      if (this.game.week === 8) chips.push(['ssh WLC', 'ssh admin@192.168.1.196']);
       chips.forEach(function (c) {
         var b = document.createElement('button');
         b.textContent = c[0];
@@ -104,7 +115,8 @@ NV.Terminal = (function () {
       });
     }
     if (t && (t.kind === 'serial' || t.kind === 'ssh') && t.ios) {
-      [['?', '?'], ['show ip int brief', 'show ip interface brief'], ['show run', 'show running-config'], ['show logging', 'show logging']].forEach(function (c) {
+      var wk = this.game.def && this.game.def.chips ? this.game.def.chips.map(function (x) { return [x, x]; }) : [['show ip int brief', 'show ip interface brief'], ['show run', 'show running-config']];
+      [['?', '?']].concat(wk).concat([['show logging', 'show logging']]).forEach(function (c) {
         var b = document.createElement('button');
         b.textContent = c[0];
         b.addEventListener('click', function () {
@@ -161,6 +173,10 @@ NV.Terminal = (function () {
       if (e.key === 'k' || e.key === 'K' || e.key === '\\') { e.preventDefault(); this.popSerial(true); return; }
     }
     if (e.key === 'Escape') { e.preventDefault(); this.hide(); return; }
+    if (e.ctrlKey && (e.key === 'l' || e.key === 'L')) { e.preventDefault(); this.el.out.textContent = ''; this.renderPrompt(); return; }
+    if (e.ctrlKey && e.shiftKey && (e.key === 'c' || e.key === 'C')) { e.preventDefault(); this.copySelection(); return; }
+    if (e.key === 'PageUp' || e.key === 'PageDown') { e.preventDefault(); this.el.screen.scrollTop += (e.key === 'PageUp' ? -1 : 1) * this.el.screen.clientHeight * 0.85; return; }
+    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) NV.sfx.key();
     if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) {
       e.preventDefault();
       if (this.busy) { this.abort = true; this.print('^C\n'); return; }

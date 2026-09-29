@@ -341,6 +341,10 @@ NV.IosSession = (function () {
     }
     var last = toks[toks.length - 1].t.toLowerCase();
     var ks = Object.keys(node.kw).filter(function (k) { return k.indexOf(last) === 0; });
+    if (!ks.length && /^[a-z]+$/.test(last) && node.params.some(function (p) { return p.spec === '<if>'; })) {
+      var types = ['GigabitEthernet', 'Vlan'].filter(function (t) { return t.toLowerCase().indexOf(last) === 0; });
+      if (types.length === 1) return line.slice(0, toks[toks.length - 1].pos) + types[0];
+    }
     if (ks.length !== 1) return null;
     return line.slice(0, toks[toks.length - 1].pos) + ks[0] + ' ';
   };
@@ -1324,6 +1328,32 @@ NV.IosSession = (function () {
   def('if', 'ip helper-address <ip>', function () { return ''; });
   def('if', 'cdp enable', function () { return ''; });
   def('if', 'negotiation auto', function () { return ''; });
+
+  // ------------------------------------------------------------------ Fler kommandon
+  showDef('vlan id <n:1-4094>', swOnly(function (v) { return SH.vlanId(this.state, this.dev, v[0]); }), true);
+  showDef('processes cpu', function () { return SH.processesCpu(this.state, this.dev); }, true);
+  showDef('processes cpu sorted', function () { return SH.processesCpu(this.state, this.dev); }, true);
+  showDef('cdp neighbors detail', function () { return SH.cdpDetail(this.state, this.dev); }, true);
+  showDef('spanning-tree summary', swOnly(function () { return SH.stpSummary(this.state, this.dev); }), true);
+  showDef('spanning-tree blockedports', swOnly(function () { return SH.stpBlocked(this.state, this.dev); }), true);
+  showDef('inventory', function () { return SH.inventory(this.state, this.dev); }, true);
+  showDef('interfaces counters errors', swOnly(function () { return SH.countersErrors(this.state, this.dev); }), true);
+  def('user exec', 'ping <iphost> source <if>', function (v) {
+    var i = cfg(this).ifaces[v[1]];
+    if (!i || !i.ip) return '% Invalid source interface - IP not enabled or interface is down';
+    return pingCmd.call(this, [v[0]]);
+  });
+  def('config', 'default interface <if>', function (v, neg, k, line) {
+    var c = cfg(this);
+    var i = c.ifaces[v[0]];
+    if (!i || i.parent || i.svi) return invalidMarker(this, line, v[0]);
+    var fresh = isSwitch(this) ? { shutdown: false, description: '', mode: 'dynamic auto', accessVlan: 1, encap: null, allowed: 'all', native: 1, nonegotiate: false, speed: 'auto', duplex: 'auto', poe: 'auto', portSec: null, portfast: false, sfp: i.sfp } : { shutdown: true, description: '', ip: null, speed: 'auto', duplex: 'auto', natDir: null, aclIn: null, aclOut: null };
+    c.ifaces[v[0]] = fresh;
+    delete this.dev.rt.errdisabled[v[0]];
+    return 'Interface ' + v[0] + ' set to default configuration';
+  }, { no: false });
+  def('config', 'errdisable recovery cause psecure-violation', function (v, neg) { cfg(this).errRecovery = !neg; return ''; });
+  def('user exec', 'terminal history size <n:0-256>', function () { return ''; });
 
   // Användarläget får inte konfigurera men ska känna igen show-grenen
   Session.TRIES = TRIES;

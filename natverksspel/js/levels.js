@@ -27,6 +27,7 @@ NV.levels = (function () {
   var WEEKS = [
     // ------------------------------------------------------------------ Vecka 1
     {
+      chips: ['show running-config', 'show startup-config', 'show interfaces status'],
       week: 1, title: 'Sladden, prompten och lådorna', chapter: 1, site: 'gbg',
       intro: 'Välkommen till Nordvik! Du är ny nätverkstekniker på huvudkontoret i Göteborg.\n\nI natt har Krabban varit i racket. Två saker är sönder, och en kollega har redan hört av sig om en tredje sak.\n\nGå runt, prata med folk (E), koppla in konsolkabeln i enheterna och ta reda på vad som hänt. När ett fel är löst skriver du en felrapport.',
       learn: ['Konsolkabeln och 9600 8N1', 'Lägena >, #, (config)# och (config-if)#', 'running-config och startup-config', 'shutdown / no shutdown', 'write memory'],
@@ -100,6 +101,7 @@ NV.levels = (function () {
     },
     // ------------------------------------------------------------------ Vecka 2
     {
+      chips: ['show interfaces status', 'show mac address-table', 'show interfaces gi0/24'],
       week: 2, title: 'Ramar och MAC-adresser', chapter: 2, site: 'gbg',
       intro: 'Vecka 2. Krabban har varit framme igen.\n\nDen här veckan handlar om lager 1 och 2: kablar, duplex, MAC-tabellen och VLAN-kolumnen. Kom ihåg: slå upp symptomet, inte kapitlet.',
       learn: ['show interfaces status och notconnect', 'Duplex mismatch: late collisions mot CRC', 'show mac address-table', 'VLAN-kolumnen'],
@@ -166,6 +168,7 @@ NV.levels = (function () {
     },
     // ------------------------------------------------------------------ Vecka 3
     {
+      chips: ['show ip dhcp pool', 'show ip dhcp binding', 'show ip interface brief'],
       week: 3, title: 'IP-adresser och subnätning', chapter: 3, site: 'gbg',
       intro: 'Vecka 3: adresser, nätmasker, DHCP och DNS.\n\nKontorets nät är 192.168.1.0/26 (255.255.255.192), ekonomi 192.168.1.64/26. Räkna blocksteget: 256 − 192 = 64.',
       learn: ['Nätmask och blocksteg', '169.254 = inget DHCP-svar', 'show ip dhcp pool / binding', 'DNS är inte DHCP'],
@@ -231,6 +234,7 @@ NV.levels = (function () {
     },
     // ------------------------------------------------------------------ Vecka 4
     {
+      chips: ['show interfaces trunk', 'show vlan brief', 'show spanning-tree'],
       week: 4, title: 'VLAN och trunkar', chapter: 4, site: 'gbg',
       intro: 'Vecka 4: VLAN, trunkar, native VLAN och spanning tree.\n\nNordviks fyra VLAN: 10 KONTOR, 20 EKONOMI, 30 GAST, 99 DRIFT. Trunkarna mellan switcharna har native VLAN 999.',
       learn: ['show interfaces trunk', 'allowed vlan add', 'Native VLAN mismatch', 'STP: Altn BLK'],
@@ -288,6 +292,7 @@ NV.levels = (function () {
     },
     // ------------------------------------------------------------------ Vecka 5
     {
+      chips: ['show ip route', 'show ip interface brief', 'traceroute 198.51.100.80'],
       week: 5, title: 'Routing', chapter: 5, site: 'gbg',
       intro: 'Vecka 5: routing mellan Göteborg och lagret i Borås.\n\nLänken mellan kontoren är 10.0.0.0/30 (.1 Göteborg, .2 Borås). Borås har 192.168.2.0/24. Du tar dig till Borås med bilen vid entrén.\n\nFråga alltid: hur hittar svaret hem?',
       learn: ['show ip route', 'Returvägen', 'Blackhole-rutter och traceroute', 'Router-on-a-stick'],
@@ -346,6 +351,7 @@ NV.levels = (function () {
     },
     // ------------------------------------------------------------------ Vecka 6
     {
+      chips: ['show ip nat statistics', 'show ip nat translations', 'show ip ssh'],
       week: 6, title: 'NAT och säker inloggning', chapter: 6, site: 'gbg',
       intro: 'Vecka 6: NAT och SSH.\n\nNordviks utsida är 203.0.113.10 (PAT). Filservern har den statiska adressen 203.0.113.11. All inloggning ska ske med SSH som användaren drift.',
       learn: ['ip nat inside / outside', 'show ip nat statistics', 'crypto key generate rsa', 'line vty 0 4 och 5 15'],
@@ -404,6 +410,7 @@ NV.levels = (function () {
     },
     // ------------------------------------------------------------------ Vecka 7
     {
+      chips: ['show spanning-tree vlan 10', 'show logging | include UPDOWN', 'show ntp status'],
       week: 7, title: 'Drift och övervakning', chapter: 7, site: 'gbg',
       intro: 'Vecka 7: loggar, klockor och grafer.\n\nÖvervakningsskärmen i serverrummet visar trafiken på de viktigaste portarna. Titta på grafen först, inte på enheten.',
       learn: ['Broadcaststorm och STP', 'Flappande portar i loggen', 'show logging | include', 'NTP och show clock'],
@@ -466,6 +473,7 @@ NV.levels = (function () {
     },
     // ------------------------------------------------------------------ Vecka 8
     {
+      chips: ['show power inline', 'show interfaces trunk', 'show cdp neighbors'],
       week: 8, title: 'Trådlöst', chapter: 8, site: 'boras',
       intro: 'Vecka 8: trådlöst på lagret i Borås.\n\nTre accesspunkter (AIR-CAP3702) sitter i taket och får ström via PoE från SW-Boras-1. De hämtar sina inställningar från controllern WLC-Nordvik i Göteborgs rack.\n\nSSID Nordvik-Lager → VLAN 40, Nordvik-Gast → VLAN 50.',
       learn: ['show power inline', 'SSID mot VLAN', 'Kanaler 1, 6 och 11', 'Accesspunkt och controller'],
@@ -531,6 +539,7 @@ NV.levels = (function () {
     },
     // ------------------------------------------------------------------ Vecka 9
     {
+      chips: ['show access-lists', 'show ip interface gi0/0.10', 'show port-security'],
       week: 9, title: 'Säkerhet och brandvägg', chapter: 9, site: 'gbg',
       intro: 'Vecka 9: ACL:er och port security. Ingen Krabba – det här är din repetition inför stationsexaminationen.\n\nKONTOR-UT ska stoppa kontoret från ekonominätet. GAST ska stoppa gästerna från allt inne i huset men släppa ut dem på internet.\n\nLäs listan uppifrån och ner, som routern gör.',
       learn: ['show access-lists och matches', 'Riktning in/out', 'Implicit deny', 'Port security och err-disabled'],

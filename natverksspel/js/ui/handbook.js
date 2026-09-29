@@ -120,13 +120,74 @@ NV.handbook = (function () {
       ]);
     },
     keys: function () {
-      return table(['Tangent', 'Gör'], [
-        ['W A S D / piltangenter', 'Gå (Shift = spring)'], ['Mus', 'Titta'], ['E eller klick', 'Använd det du tittar på'],
-        ['T', 'Öppna laptopen'], ['F', 'Skriv felrapport för ett löst ärende'], ['L', 'Ledtråd'], ['H', 'Handboken'], ['Tab', 'Ärendelistan'], ['Esc', 'Släpp musen / stäng fönster'],
+      return '<h3>3D</h3>' + table(['Tangent', 'Gör'], [
+        ['W A S D / piltangenter', 'Gå (Shift = spring)'], ['Mus', 'Titta – klicka i bilden för att låsa musen'], ['Håll musknappen och dra', 'Titta utan muslås (om låset inte fungerar)'],
+        ['Högerklick (håll) eller Z', 'Zooma in – läs frontpaneler och portar'], ['E eller klick', 'Använd det du tittar på'], ['Esc', 'Släpp musen och öppna pausmenyn'],
+      ]) + '<h3>2D</h3>' + table(['Tangent', 'Gör'], [
+        ['W A S D / piltangenter', 'Gå (Shift = spring)'], ['Klick på golvet', 'Gå dit'], ['Klick på en sak eller person', 'Gå dit och använd den'],
+        ['E / mellanslag / Enter', 'Använd det du står vid'], ['+ / − eller mushjulet', 'Zooma'], ['Esc', 'Pausmeny'],
+      ]) + '<h3>Alltid</h3>' + table(['Tangent', 'Gör'], [
+        ['T', 'Öppna laptopen'], ['F', 'Skriv felrapport för ett löst ärende'], ['L', 'Ledtråd'], ['H', 'Handboken'], ['M', 'Karta och snabbresa'],
+        ['Tab', 'Ärendelistan och dina rapporter'], ['N', 'Anteckningar'], ['O', 'Notislogg'], ['U', 'Fäll ihop HUD'], ['F1', 'Den här hjälpen'],
       ]) + '<h3>I terminalen</h3>' + table(['Tangent', 'Gör'], [
-        ['?', 'Hjälp direkt (IOS)'], ['Tab', 'Fyll i kommandot'], ['↑ ↓', 'Tidigare kommandon'], ['Ctrl+C', 'Avbryt ping och liknande'],
-        ['Ctrl+Z', 'Hoppa till # från konfigurationsläge'], ['Ctrl+A K', 'Stäng konsolen (screen)'], ['Esc', 'Stäng terminalfönstret'],
-      ]) + '<p class="muted">Tips: gå fram till en enhet i racket och tryck E för att sätta i konsolkabeln. Laptopen öppnas då med rätt kommando förifyllt.</p>';
+        ['?', 'Hjälp direkt (IOS)'], ['Tab', 'Fyll i kommandot eller interfacetypen'], ['↑ ↓', 'Tidigare kommandon'], ['Ctrl+C', 'Avbryt ping och liknande'],
+        ['Ctrl+Z', 'Hoppa till # från konfigurationsläge'], ['Ctrl+L', 'Rensa skärmen'], ['PageUp / PageDown', 'Bläddra'], ['Ctrl+Shift+C', 'Kopiera markerad text'],
+        ['Ctrl+A K', 'Stäng konsolen (screen)'], ['Esc', 'Stäng terminalfönstret'],
+      ]) + '<p class="muted">Tips: gå fram till en enhet i racket och tryck E för att sätta i konsolkabeln. Laptopen öppnas då med rätt kommando förifyllt. I 2D öppnas rackvyn där du klickar på enheten.</p>';
+    },
+    calc: function () {
+      return '<p class="muted">Skriv en adress med prefix eller nätmask, till exempel <code>192.168.1.100/26</code> eller <code>10.0.0.2 255.255.255.252</code>.</p>' +
+        '<input id="calc-in" class="search" value="192.168.1.100/26" autocomplete="off"><div id="calc-out"></div>';
+    },
+    bindCalc: function (d) {
+      var U = NV.util;
+      var inp = d.querySelector('#calc-in'), out = d.querySelector('#calc-out');
+      function run() {
+        var v = inp.value.trim().replace(/\s+/g, ' ');
+        var m = /^(\d+\.\d+\.\d+\.\d+)\s*(?:\/(\d{1,2})|\s(\d+\.\d+\.\d+\.\d+))$/.exec(v);
+        if (!m || !U.isIp(m[1])) { out.innerHTML = '<p class="err">Skriv t.ex. 192.168.1.100/26</p>'; return; }
+        var pfx = m[2] !== undefined ? parseInt(m[2], 10) : U.maskToPrefix(m[3]);
+        if (pfx === null || pfx > 32) { out.innerHTML = '<p class="err">Ogiltig nätmask.</p>'; return; }
+        var mask = U.prefixToMask(pfx);
+        var net = U.network(m[1], mask), bc = U.broadcast(m[1], mask);
+        var size = Math.pow(2, 32 - pfx);
+        var hosts = pfx >= 31 ? (pfx === 32 ? 1 : 2) : size - 2;
+        var octet = Math.min(3, Math.floor(pfx / 8));
+        var block = 256 - parseInt(mask.split('.')[octet], 10);
+        var wild = U.intToIp((~U.ipToInt(mask)) >>> 0);
+        var first = pfx >= 31 ? net : U.intToIp(U.ipToInt(net) + 1), last = pfx >= 31 ? bc : U.intToIp(U.ipToInt(bc) - 1);
+        out.innerHTML = table(['Vad', 'Värde'], [
+          ['Nätmask', c(mask) + ' (/' + pfx + ')'], ['Wildcard (för ACL)', c(wild)], ['Blocksteg', block + ' i oktett ' + (octet + 1)],
+          ['Nätadress', c(net)], ['Första användbara', c(first)], ['Sista användbara', c(last)], ['Broadcast', c(bc)], ['Antal värdar', hosts],
+        ]) + '<p class="muted small">Blocksteget: 256 minus masken i den oktett där masken slutar. Näten börjar på jämna multiplar av blocksteget.</p>';
+      }
+      inp.addEventListener('input', run);
+      run();
+    },
+    osi: function () {
+      var L = [
+        ['7 Applikation', 'Programmen: webb, DNS-uppslag, SSH.', 'Ping till adress går men inte till namn (v3), telnet i stället för SSH (v6)'],
+        ['6 Presentation', 'Format och kryptering.', 'SSH-nyckeln saknas (v6)'],
+        ['5 Session', 'Dialogen mellan två system.', 'Inloggning på vty-linjerna (v6)'],
+        ['4 Transport', 'TCP och UDP, portnummer.', 'ACL som blockerar en port (v9), NAT/PAT byter portar (v6)'],
+        ['3 Nät', 'IP-adresser och routing.', 'Fel nätmask (v3), returväg saknas (v5), blackhole-rutt (v5), ACL i fel riktning (v9)'],
+        ['2 Länk', 'Ramar, MAC-adresser, switchar, VLAN.', 'Fel VLAN (v2), allowed-listan (v4), native VLAN (v4), STP och loopar (v4, v7), port security (v9)'],
+        ['1 Fysiskt', 'Kablar, kontakter, ström och radio.', 'Trasig kabel (v2), duplex (v2), flappande port (v7), PoE (v8), kanaler (v8)'],
+      ];
+      return '<p class="muted">Börja nerifrån när något inte fungerar. Varje lager är beroende av lagret under.</p>' +
+        L.map(function (l) { return '<div class="osi-layer"><b>' + l[0] + '</b><span>' + l[1] + '</span><span class="muted small">Fel i spelet: ' + l[2] + '</span></div>'; }).join('');
+    },
+    ord: function () {
+      return table(['Svenska', 'Engelska', 'Kort förklaring'], [
+        ['nätmask', 'subnet mask', 'Avgör var nätet slutar'], ['standardgateway', 'default gateway', 'Vägen ut ur det egna nätet'], ['sändning till alla', 'broadcast', 'En ram till alla i samma VLAN'],
+        ['växel', 'switch', 'Skickar ramar med hjälp av MAC-tabellen'], ['vägväljare', 'router', 'Skickar paket mellan nät'], ['nätverkskort', 'NIC', 'Datorns anslutning'],
+        ['stamlänk', 'trunk', 'En kabel som bär flera VLAN med 802.1Q-taggar'], ['åtkomstport', 'access port', 'Port i ett enda VLAN'], ['inbyggt VLAN', 'native VLAN', 'VLAN:et utan tagg på en trunk'],
+        ['spännande träd', 'spanning tree (STP)', 'Stänger reservvägar så att ramar inte går runt'], ['rotbrygga', 'root bridge', 'Switchen som STP räknar från'], ['adressöversättning', 'NAT/PAT', 'Byter adress (och port) på väg ut'],
+        ['åtkomstlista', 'ACL', 'Regler som släpper eller stoppar trafik'], ['implicit neka', 'implicit deny', 'Den osynliga sista raden i varje ACL'], ['hastighetsförhandling', 'autonegotiation', 'Ändarna kommer överens om fart och duplex'],
+        ['duplexfel', 'duplex mismatch', 'Ena änden full, andra halv duplex'], ['ström via kabeln', 'PoE', 'Accesspunkter och telefoner får ström från switchen'], ['trådlös controller', 'WLC', 'Styr accesspunkterna centralt'],
+        ['nätnamn', 'SSID', 'Namnet på ett trådlöst nät'], ['klockserver', 'NTP-server', 'Ger enheterna rätt tid'], ['konsolport', 'console port', 'Seriell ingång, 9600 8N1'],
+        ['startkonfiguration', 'startup-config', 'Det som gäller efter omstart'], ['aktuell konfiguration', 'running-config', 'Det som gäller just nu'], ['felbibliotek', 'troubleshooting guide', 'Symptom → orsak'],
+      ]);
     },
   };
 })();

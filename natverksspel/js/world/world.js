@@ -13,6 +13,10 @@ NV.World = (function () {
     this.hover = null;
     this.t = 0;
     this.sens = 0.0022;
+    this.fovNow = NV.settings.get('fov');
+    this.monitorHist = {};
+    this.stepAcc = 0;
+    this.drag = null;
     this.site = 'gbg';
     this.consoleTarget = null;
     this.ledTimer = 0; this.slowTimer = 0;
@@ -21,8 +25,9 @@ NV.World = (function () {
 
   W.init = function () {
     var r = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, powerPreference: 'high-performance' });
-    r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
-    r.shadowMap.enabled = true;
+    this.lowQ = NV.settings.get('quality') === 'low';
+    r.setPixelRatio(this.lowQ ? 1 : Math.min(window.devicePixelRatio || 1, 1.75));
+    r.shadowMap.enabled = !this.lowQ;
     r.shadowMap.type = THREE.PCFSoftShadowMap;
     r.toneMapping = THREE.ACESFilmicToneMapping;
     r.toneMappingExposure = 1.05;
@@ -31,11 +36,11 @@ NV.World = (function () {
     var scene = new THREE.Scene();
     scene.background = new THREE.Color(0x1a1e24);
     this.scene = scene;
-    this.camera = new THREE.PerspectiveCamera(70, 1, 0.05, 200);
+    this.camera = new THREE.PerspectiveCamera(NV.settings.get('fov'), 1, 0.05, 200);
     scene.add(new THREE.HemisphereLight(0xf2f5ff, 0x8a8070, 0.95));
     scene.add(new THREE.AmbientLight(0xffffff, 0.12));
     var sun = new THREE.DirectionalLight(0xfff0dc, 1.5);
-    sun.castShadow = true;
+    sun.castShadow = !this.lowQ;
     sun.shadow.mapSize.set(2048, 2048);
     sun.shadow.camera.left = -14; sun.shadow.camera.right = 14; sun.shadow.camera.top = 14; sun.shadow.camera.bottom = -14;
     sun.shadow.camera.near = 1; sun.shadow.camera.far = 60;
@@ -60,7 +65,12 @@ NV.World = (function () {
     this.buildCables();
     this.collectInteractables();
     this.raycaster = new THREE.Raycaster();
-    this.raycaster.far = 3.2;
+    this.raycaster.far = 3.8;
+    this.hl = new THREE.BoxHelper(undefined, 0xf0b429);
+    this.hl.visible = false;
+    this.hl.material.depthTest = false;
+    this.hl.renderOrder = 10;
+    scene.add(this.hl);
     this.center = new THREE.Vector2(0, 0);
     this.teleport('gbg', true);
     this.bindInput();
@@ -200,41 +210,90 @@ NV.World = (function () {
   W.bindInput = function () {
     var self = this;
     document.addEventListener('keydown', function (e) {
+      if (!self.active) return;
       if (self.game.ui && self.game.ui.captures()) return;
       self.keys[e.code] = true;
       if (e.code === 'KeyE') self.use();
     });
     document.addEventListener('keyup', function (e) { self.keys[e.code] = false; });
+    // Klick: lås musen, eller använd det du tittar på. Ett drag räknas inte som klick.
     this.canvas.addEventListener('click', function () {
       if (self.game.ui && self.game.ui.captures()) return;
+      if (self.dragMoved) { self.dragMoved = false; return; }
       if (!self.locked) self.lock();
       else self.use();
+    });
+    this.canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+    this.canvas.addEventListener('mousedown', function (e) {
+      if (e.button === 2) self.zoomHeld = true;
+      if (self.locked || (self.game.ui && self.game.ui.captures())) return;
+      self.drag = { x: e.clientX, y: e.clientY, moved: 0 };
+      self.dragMoved = false;
+    });
+    document.addEventListener('mouseup', function (e) {
+      if (e.button === 2) self.zoomHeld = false;
+      self.drag = null;
     });
     document.addEventListener('pointerlockchange', function () {
       self.locked = document.pointerLockElement === self.canvas;
       if (self.game.ui) self.game.ui.onLockChange(self.locked);
     });
+    document.addEventListener('pointerlockerror', function () {
+      self.lockFailed = true;
+      if (self.game.ui) self.game.ui.toast('Muslåset stöds inte här. Håll ned musknappen och dra för att titta.');
+    });
     document.addEventListener('mousemove', function (e) {
-      if (!self.locked) return;
-      self.yaw -= e.movementX * self.sens;
-      self.pitch -= e.movementY * self.sens;
+      if (!self.active) return;
+      var dx, dy;
+      if (self.locked) {
+        dx = e.movementX; dy = e.movementY;
+        // Vissa webbläsare skickar enstaka jättehopp: ignorera dem
+        if (Math.abs(dx) > 250 || Math.abs(dy) > 250) return;
+      } else if (self.drag) {
+        dx = e.clientX - self.drag.x; dy = e.clientY - self.drag.y;
+        self.drag.x = e.clientX; self.drag.y = e.clientY;
+        self.drag.moved += Math.abs(dx) + Math.abs(dy);
+        if (self.drag.moved > 5) self.dragMoved = true;
+        dx *= 1.6; dy *= 1.6;
+      } else return;
+      var k = self.sens * NV.settings.get('sens') * (self.zoomed ? 0.45 : 1);
+      self.yaw -= dx * k;
+      self.pitch -= dy * k * (NV.settings.get('invertY') ? -1 : 1);
       self.pitch = Math.max(-1.45, Math.min(1.45, self.pitch));
     });
-    // Enkel pekskärmsstyrning: dra för att titta, två fingrar för att gå
-    var last = null;
-    this.canvas.addEventListener('touchstart', function (e) { last = e.touches[0]; self.touchWalk = e.touches.length > 1; }, { passive: true });
+    // Pekskärm: dra för att titta, två fingrar för att gå, tryck för att använda
+    var last = null, moved = 0;
+    this.canvas.addEventListener('touchstart', function (e) { last = e.touches[0]; moved = 0; self.touchWalk = e.touches.length > 1; }, { passive: true });
     this.canvas.addEventListener('touchmove', function (e) {
       var t = e.touches[0];
-      if (last) { self.yaw -= (t.clientX - last.clientX) * 0.005; self.pitch = Math.max(-1.4, Math.min(1.4, self.pitch - (t.clientY - last.clientY) * 0.005)); }
+      if (last) { moved += Math.abs(t.clientX - last.clientX) + Math.abs(t.clientY - last.clientY); self.yaw -= (t.clientX - last.clientX) * 0.005; self.pitch = Math.max(-1.4, Math.min(1.4, self.pitch - (t.clientY - last.clientY) * 0.005)); }
       last = t; self.touchWalk = e.touches.length > 1;
     }, { passive: true });
-    this.canvas.addEventListener('touchend', function (e) { if (!e.touches.length) { self.touchWalk = false; if (self.hover) self.use(); } last = null; }, { passive: true });
+    this.canvas.addEventListener('touchend', function (e) { if (!e.touches.length) { self.touchWalk = false; if (moved < 8 && self.hover) self.use(); } last = null; }, { passive: true });
   };
-  W.lock = function () { if (this.canvas.requestPointerLock) this.canvas.requestPointerLock(); };
-  W.unlock = function () { if (document.exitPointerLock && document.pointerLockElement) document.exitPointerLock(); this.keys = {}; };
+  W.lock = function () {
+    if (!this.canvas.requestPointerLock || this.lockFailed) return;
+    var self = this;
+    try {
+      var p = this.canvas.requestPointerLock({ unadjustedMovement: true });
+      if (p && p.catch) p.catch(function () { try { var q = self.canvas.requestPointerLock(); if (q && q.catch) q.catch(function () {}); } catch (e) { /* stöds inte */ } });
+    } catch (e) {
+      try { this.canvas.requestPointerLock(); } catch (e2) { /* stöds inte */ }
+    }
+  };
+  W.unlock = function () { if (document.exitPointerLock && document.pointerLockElement) document.exitPointerLock(); this.keys = {}; this.drag = null; this.zoomHeld = false; };
   W.use = function () {
     if (!this.hover) return;
     if (this.game.onInteract) this.game.onInteract(this.hover);
+  };
+  W.setActive = function (on) {
+    this.active = on;
+    this.canvas.style.display = on ? 'block' : 'none';
+    if (!on) this.unlock();
+  };
+  W.applySettings = function () {
+    this.camera.fov = NV.settings.get('fov');
+    this.camera.updateProjectionMatrix();
   };
 
   W.teleport = function (site, instant) {
@@ -269,7 +328,14 @@ NV.World = (function () {
     if (!this.collides(this.pos.x, nz, r)) this.pos.z = nz; else this.vel.z = 0;
     var moving = this.vel.length();
     this.bob = (this.bob || 0) + dt * moving * 2.4;
-    this.camera.position.set(this.pos.x, 1.65 + Math.sin(this.bob * 2) * 0.018 * Math.min(1, moving / 3), this.pos.z);
+    this.stepAcc += moving * dt;
+    if (this.stepAcc > 0.75) { this.stepAcc = 0; NV.sfx.step(); }
+    var bobY = NV.settings.get('bob') ? Math.sin(this.bob * 2) * 0.018 * Math.min(1, moving / 3) : 0;
+    this.camera.position.set(this.pos.x, 1.65 + bobY, this.pos.z);
+    // Zoom (högerklick eller Z) för att läsa frontpaneler
+    this.zoomed = this.zoomHeld || (this.keys.KeyZ && !(this.game.ui && this.game.ui.captures()));
+    var want = NV.settings.get('fov') * (this.zoomed ? 0.42 : 1);
+    if (Math.abs(this.camera.fov - want) > 0.05) { this.camera.fov += (want - this.camera.fov) * Math.min(1, dt * 12); this.camera.updateProjectionMatrix(); }
     this.camera.rotation.set(0, 0, 0);
     this.camera.rotation.order = 'YXZ';
     this.camera.rotation.y = this.yaw;
@@ -288,48 +354,36 @@ NV.World = (function () {
   W.pick = function () {
     this.raycaster.setFromCamera(this.center, this.camera);
     var hits = this.raycaster.intersectObjects(this.interactables, false);
+    this.hoverDetail = null;
     for (var i = 0; i < hits.length; i++) {
       var o = hits[i].object;
       if (!o.visible) continue;
       var vis = true, p = o.parent;
       while (p) { if (!p.visible) { vis = false; break; } p = p.parent; }
       if (!vis) continue;
-      return o.userData.interact;
+      var inter = o.userData.interact;
+      // Portnamn när man tittar på en frontpanel
+      if (o.userData.faceOf && hits[i].uv) {
+        var f = o.userData.faceOf, fp = f.fp;
+        var px = hits[i].uv.x * 1024, py = (1 - hits[i].uv.y) * fp.ch;
+        Object.keys(fp.ports).forEach(function (n) {
+          var q = fp.ports[n];
+          if (px >= q.x - 4 && px <= q.x + q.w + 4 && py >= q.y - 10 && py <= q.y + q.h + 10) this.hoverDetail = NV.shared.portInfo(this.game.state, f.devId, n);
+        }, this);
+        if (!this.hoverDetail && fp.console && px >= fp.console.x - 6 && px <= fp.console.x + fp.console.w + 6 && py >= fp.console.y - 6 && py <= fp.console.y + fp.console.h + 12) this.hoverDetail = 'Konsolporten (ljusblå kabel, 9600 8N1)';
+      }
+      var target = inter && inter.type === 'npc' && o.parent ? o.parent : o;
+      if (this.hlTarget !== target) { this.hlTarget = target; this.hl.setFromObject(target); }
+      this.hl.visible = true;
+      return inter;
     }
+    this.hl.visible = false;
+    this.hlTarget = null;
     return null;
   };
 
   // ------------------------------------------------------------------ Visuell återkoppling
-  W.ledFn = function (devId) {
-    var st = this.game.state;
-    var D = S.get(st);
-    var d = st.devices[devId];
-    var storm = Object.keys(D.storm).some(function (v) { return D.storm[v].indexOf(devId) >= 0; });
-    var self = this;
-    return function (port, t) {
-      if (!d || !d.powered) return '#1d261f';
-      if (d.os === 'ios') {
-        var i = d.config.ifaces[port];
-        if (!i) return '#1d261f';
-        var ps = SH.portState(st, d, port);
-        if (ps === 'err-disabled') return Math.floor(t * 2) % 2 ? '#ffb020' : '#3a2a10';
-        if (ps !== 'connected' && ps !== 'inactive') return '#1d261f';
-        var p = D.ports[S.key(devId, port)];
-        if (p && p.link.state === 'flapping' && (st.time % 23) < 2.5) return '#1d261f';
-        var blk = Object.keys(D.blocked).some(function (k) { return k.indexOf(devId + '|' + port + '#') === 0; });
-        if (blk) {
-          var allBlocked = S.opMode(st, devId, port) === 'trunk' && S.trunkVlans(d, i).every(function (v) { return D.blocked[S.key(devId, port) + '#' + v]; });
-          if (allBlocked) return '#ffb020';
-        }
-        if (storm) return Math.floor(t * 7) % 2 ? '#3dff6a' : '#16301b';
-        if (p && p.mismatch) return Math.random() < 0.5 ? '#ffb020' : '#3dff6a';
-        return Math.random() < 0.18 ? '#1d4a26' : '#3dff6a';
-      }
-      var la = NV.model.linkAt(st, devId, 'nic');
-      var up = la && D.links[la.link.id] && D.links[la.link.id].up;
-      return up ? (Math.random() < 0.2 ? '#1d4a26' : '#3dff6a') : '#1d261f';
-    };
-  };
+  W.ledFn = function (devId) { return NV.shared.ledFn(this.game.state, devId); };
   W.updateLeds = function () {
     var e = this.dev.entries, self = this;
     var near = function (entry) {
@@ -378,45 +432,11 @@ NV.World = (function () {
   };
   W.drawMonitorWall = function () {
     var mw = this.dev.extra.monitorWall;
-    var st = this.game.state;
-    var g = mw.canvas.getContext('2d');
-    var series = [
-      ['SW-Nordvik-1 Gi0/24 (trunk)', 'SW1', 'GigabitEthernet0/24'],
-      ['SW-Nordvik-1 Gi0/6 (Karim)', 'SW1', 'GigabitEthernet0/6'],
-      ['R-Nordvik-1 Gi0/1 (internet)', 'R1', 'GigabitEthernet0/1'],
-      ['R-Nordvik-1 Gi0/2 (Borås)', 'R1', 'GigabitEthernet0/2'],
-    ];
-    g.fillStyle = '#1b2430'; g.fillRect(0, 0, 1024, 576);
-    g.fillStyle = '#e6edf3'; g.font = 'bold 26px "Segoe UI", sans-serif';
-    g.fillText('Nordvik · Övervakning', 24, 40);
-    g.font = '16px "Segoe UI", sans-serif'; g.fillStyle = '#8b98a5';
-    g.fillText('Trafik senaste 3 minuterna (Mbit/s)', 24, 64);
-    var D = S.get(st);
-    var alarm = Object.keys(D.storm).length ? 'LARM: trafiken i taket på flera portar' : null;
-    series.forEach(function (s, i) {
-      var h = mw.hist[s[0]] = mw.hist[s[0]] || [];
-      h.push(S.linkLoad(st, s[1], s[2]));
-      if (h.length > 180) h.shift();
-      var x0 = 24 + (i % 2) * 500, y0 = 90 + Math.floor(i / 2) * 240, w = 476, hh = 200;
-      g.fillStyle = '#243040'; g.fillRect(x0, y0, w, hh);
-      g.strokeStyle = '#26303a'; g.lineWidth = 1;
-      for (var k = 1; k < 4; k++) { g.beginPath(); g.moveTo(x0, y0 + k * hh / 4); g.lineTo(x0 + w, y0 + k * hh / 4); g.stroke(); }
-      g.fillStyle = '#c9d4de'; g.font = '15px "Segoe UI", sans-serif'; g.fillText(s[0], x0 + 10, y0 + 22);
-      var max = 1000;
-      g.beginPath();
-      h.forEach(function (v, j) {
-        var x = x0 + w - (h.length - 1 - j) * (w / 180);
-        var y = y0 + hh - 8 - Math.min(1, v / max) * (hh - 40);
-        if (j === 0) g.moveTo(x, y); else g.lineTo(x, y);
-      });
-      var last = h[h.length - 1] || 0;
-      g.strokeStyle = last > 800 ? '#ff5a4f' : '#4fc3f7'; g.lineWidth = 2.5; g.stroke();
-      g.fillStyle = last > 800 ? '#ff5a4f' : '#4fc3f7'; g.font = 'bold 16px monospace';
-      g.fillText(last.toFixed(0) + ' Mbit/s', x0 + w - 130, y0 + 22);
-    });
-    if (alarm) { g.fillStyle = Math.floor(this.t * 2) % 2 ? '#ff5a4f' : '#7a1f1a'; g.font = 'bold 22px "Segoe UI", sans-serif'; g.fillText(alarm, 520, 40); }
+    NV.shared.sampleMonitor(this.game.state, this.monitorHist);
+    NV.shared.drawMonitor(mw.canvas, this.monitorHist, this.game.state, this.t);
     mw.tex.needsUpdate = true;
   };
+  W.monitorCanvas = function () { return this.dev.extra.monitorWall.canvas; };
   W.drawWhiteboard = function (def) {
     var wb = this.dev.extra.whiteboard;
     var g = wb.canvas.getContext('2d');
@@ -441,6 +461,21 @@ NV.World = (function () {
     this.sun.target.position.set(this.pos.x, 0, this.pos.z);
     this.hover = this.pick();
     NV.people.update(this.people, dt, this.t, this.pos, this.game.week);
+    // Glasdörrarna vid entrén glider isär när man närmar sig
+    var ed = this.builder.anchors.entranceDoors;
+    if (ed) {
+      var dd = Math.hypot(this.pos.x - 10.5, this.pos.z + 10);
+      var open = dd < 2.6 ? 0.85 : 0;
+      ed.forEach(function (m, i) { var want = m.userData.baseX + (i ? open : -open); m.position.x += (want - m.position.x) * Math.min(1, dt * 5); });
+    }
+    // Fläktbrus nära racken
+    var near = 99, self2 = this;
+    NV.shared.rackSpots(this.builder).forEach(function (r) { near = Math.min(near, Math.hypot(self2.pos.x - r.x, self2.pos.z - r.z)); });
+    NV.sfx.hum(this.game.ui && this.game.ui.captures() ? 0 : 1 - near / 7);
+    // Dagsljuset blir varmare under dagen
+    var hour = 8 + (this.game.state ? this.game.state.time : 0) / 3600;
+    var warm = Math.max(0, Math.min(1, (hour - 8) / 8));
+    this.sun.color.setRGB(1, 0.94 - warm * 0.12, 0.86 - warm * 0.22);
     this.ledTimer += dt; this.slowTimer += dt;
     if (this.ledTimer > 0.16) { this.ledTimer = 0; this.updateLeds(); }
     if (this.slowTimer > 1) { this.slowTimer = 0; this.updateSlow(); }

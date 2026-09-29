@@ -144,6 +144,7 @@ NV.tex = (function () {
     t.repeat.set(repeatW || 1, repeatH || 1);
     var m = new THREE.MeshStandardMaterial({ map: t, roughness: opts.roughness !== undefined ? opts.roughness : 0.85, metalness: opts.metalness || 0 });
     if (opts.color) m.color = new THREE.Color(opts.color);
+    m.userData.tex = name;
     return m;
   }
 

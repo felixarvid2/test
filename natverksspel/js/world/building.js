@@ -10,7 +10,10 @@ NV.building = (function () {
     this.anchors = {};
     this.lights = [];
     this.mats = {};
+    this.sem = [];   // Layoutposter som 2D-läget och kartan ritar från
+    this._mute = 0;
   }
+  function hexOf(mat) { return mat && mat.color ? '#' + mat.color.getHexString() : '#888888'; }
   var B = Builder.prototype;
 
   B.m = function (key, make) { return this.mats[key] || (this.mats[key] = make()); };
@@ -32,6 +35,7 @@ NV.building = (function () {
     mesh.receiveShadow = o.receive !== false;
     (o.parent || this.scene).add(mesh);
     if (o.collide) this.collide(x, z, o.ry ? d : w, o.ry ? w : d);
+    if (!this._mute && !o.parent) this.sem.push({ type: 'box', x: x, z: z, w: o.ry ? d : w, d: o.ry ? w : d, y: y, h: h, color: hexOf(mat), tex: mat.userData && mat.userData.tex, collide: !!o.collide, opacity: mat.opacity });
     return mesh;
   };
   B.cyl = function (rt, rb, h, x, y, z, mat, o) {
@@ -41,6 +45,7 @@ NV.building = (function () {
     mesh.castShadow = o.cast !== false; mesh.receiveShadow = true;
     (o.parent || this.scene).add(mesh);
     if (o.collide) this.collide(x, z, rb * 2, rb * 2);
+    if (!this._mute && !o.parent) this.sem.push({ type: 'cyl', x: x, z: z, r: Math.max(rt, rb), y: y, h: h, color: hexOf(mat) });
     return mesh;
   };
   B.collide = function (x, z, w, d) {
@@ -59,6 +64,7 @@ NV.building = (function () {
     var w = x2 - x1, d = z2 - z1;
     var mat = T.mat(tex, opts, w / tile, d / tile);
     var p = this.plane(w, d, mat, (x1 + x2) / 2, opts && opts.y || 0, (z1 + z2) / 2, -Math.PI / 2, 0);
+    this.sem.push({ type: 'floor', x1: x1, z1: z1, x2: x2, z2: z2, tex: tex });
     return p;
   };
   B.ceiling = function (x1, z1, x2, z2, h, lights) {
@@ -76,6 +82,8 @@ NV.building = (function () {
   B.wall = function (a, b, fixed, axis, h, mat, doors, t) {
     t = t || 0.12;
     doors = (doors || []).slice().sort(function (p, q) { return p[0] - q[0]; });
+    this.sem.push({ type: 'wall', a: a, b: b, fixed: fixed, axis: axis, h: h, doors: doors, t: t, tex: mat.userData && mat.userData.tex });
+    this._mute++;
     var segs = [], cur = a;
     doors.forEach(function (d) { segs.push([cur, d[0], 0, h]); segs.push([d[0], d[1], d[2] || 2.1, h]); cur = d[1]; });
     segs.push([cur, b, 0, h]);
@@ -90,6 +98,7 @@ NV.building = (function () {
       if (axis === 'x') self.box(len, hh, t, mid, y, fixed, m, { collide: s[2] === 0 });
       else self.box(t, hh, len, fixed, y, mid, m, { collide: s[2] === 0 });
     });
+    this._mute--;
   };
   B.glassWall = function (a, b, fixed, axis, h, doors) {
     var glass = this.m('glass', function () {
@@ -99,6 +108,8 @@ NV.building = (function () {
     var len = b - a;
     doors = doors || [];
     var self = this;
+    this.sem.push({ type: 'glass', a: a, b: b, fixed: fixed, axis: axis, h: h, doors: doors });
+    this._mute++;
     var cur = a;
     var pieces = [];
     doors.forEach(function (d) { pieces.push([cur, d[0]]); cur = d[1]; });
@@ -119,6 +130,7 @@ NV.building = (function () {
         for (var k2 = 0; k2 <= Math.floor(l / 1.2); k2++) self.box(0.08, h, 0.05, fixed, h / 2, p[0] + Math.min(l, k2 * 1.2), frame);
       }
     });
+    this._mute--;
   };
   // Fönster som ljus panel framför ytterväggen
   B.window = function (x, y, z, w, h, ry) {
@@ -128,6 +140,7 @@ NV.building = (function () {
     var frame = this.std(0xf2f2ef, 0.5, 0.1);
     var g = new THREE.Group();
     g.position.set(x, y, z); g.rotation.y = ry || 0;
+    this.sem.push({ type: 'window', x: x, y: y, z: z, w: w, h: h, ry: ry || 0 });
     var glass = new THREE.Mesh(new THREE.PlaneGeometry(w, h), sky);
     g.add(glass);
     var parts = [[w + 0.1, 0.06, 0, h / 2], [w + 0.1, 0.06, 0, -h / 2], [0.06, h, -w / 2, 0], [0.06, h, w / 2, 0], [0.04, h, 0, 0]];
@@ -154,6 +167,7 @@ NV.building = (function () {
 
   // ------------------------------------------------------------------ Möbler
   B.desk = function (x, z, ry, color) {
+    this.sem.push({ type: 'desk', x: x, z: z, ry: ry || 0, color: color || 0xf1efe9 });
     var g = new THREE.Group();
     g.position.set(x, 0, z); g.rotation.y = ry || 0;
     var top = this.std(color || 0xf1efe9, 0.55, 0);
@@ -170,6 +184,7 @@ NV.building = (function () {
     return g;
   };
   B.chair = function (x, z, ry, color) {
+    this.sem.push({ type: 'chair', x: x, z: z, ry: ry || 0, color: color || 0x30343b });
     var g = new THREE.Group();
     g.position.set(x, 0, z); g.rotation.y = ry || 0;
     var seatM = this.std(color || 0x30343b, 0.8, 0);
@@ -187,6 +202,8 @@ NV.building = (function () {
   };
   B.plant = function (x, z, s) {
     s = s || 1;
+    this.sem.push({ type: 'plant', x: x, z: z, s: s });
+    this._mute++;
     var pot = this.std(0xe7e2d8, 0.6, 0);
     this.cyl(0.18 * s, 0.14 * s, 0.4 * s, x, 0.2 * s, z, pot, { collide: true });
     var leaf = this.std(0x3f7a47, 0.8, 0);
@@ -198,8 +215,10 @@ NV.building = (function () {
       m.castShadow = true;
       this.scene.add(m);
     }
+    this._mute--;
   };
   B.sofa = function (x, z, ry, tex) {
+    this.sem.push({ type: 'sofa', x: x, z: z, ry: ry || 0, tex: tex || 'fabricMustard' });
     var g = new THREE.Group();
     g.position.set(x, 0, z); g.rotation.y = ry || 0;
     var m = T.mat(tex || 'fabricMustard', {}, 2, 1);
@@ -254,6 +273,8 @@ NV.building = (function () {
     b.collide(10.5, -10, 2, 0.2);
     var mat2 = b.std(0x2d3238, 0.9, 0);
     b.box(2.2, 0.01, 1.2, 10.5, 0.005, -9.3, mat2, { cast: false });
+    d1.userData.baseX = 10; d2.userData.baseX = 11;
+    b.anchors.entranceDoors = [d1, d2];
     b.interact.push({ mesh: d1, type: 'travel', to: 'boras', label: 'Åk till lagret i Borås' });
     b.interact.push({ mesh: d2, type: 'travel', to: 'boras', label: 'Åk till lagret i Borås' });
     var sign = T.label('ENTRÉ  ·  Bilen till Borås →', { height: 0.16, bg: 'rgba(30,60,70,0.9)' });
@@ -376,7 +397,9 @@ NV.building = (function () {
     // Pallställ
     var upright = b.std(0xd96b1f, 0.5, 0.3), beam = b.std(0x2b5aa0, 0.5, 0.3);
     var boxC = [0xb58a5a, 0xa47b4d, 0xc49b69, 0x8f6a44];
+    b._mute++;
     [-7.5, -1.5, 5].forEach(function (rz, ri) {
+      b.sem.push({ type: 'pallet', x0: 95, z: rz, bays: 5, bay: 2.8, h: 4.2, seed: ri });
       for (var bay = 0; bay < 5; bay++) {
         var x0 = 95 + bay * 2.8;
         [x0, x0 + 2.7].forEach(function (ux) { [rz - 0.5, rz + 0.5].forEach(function (uz) { b.box(0.08, 4.2, 0.08, ux, 2.1, uz, upright); }); });
@@ -391,6 +414,7 @@ NV.building = (function () {
       }
       b.collide(95 + 7, rz, 14.2, 1.1);
     });
+    b._mute--;
     // Lagerkontoret i hörnet
     var glassH = 2.6;
     b.glassWall(Z1, -6.5, 93.5, 'z', glassH, [[-9.2, -8.1]]);
