@@ -627,15 +627,181 @@ NV.sim = (function () {
     if (r.dport && pkt.dport !== r.dport) return false;
     return true;
   }
-  function natMatchList(state, dev, aclName, src) {
+  function natMatchList(state, dev, aclName, src, dst) {
     var acl = state.devices[dev].config.acls[aclName];
     if (!acl) return false;
     for (var i = 0; i < acl.rules.length; i++) {
       var r = acl.rules[i];
       if (r.remark) continue;
-      if (aclMatch(acl.type, r, { src: src, dst: '0.0.0.0', proto: 'ip' })) return r.action === 'permit';
+      if (aclMatch(acl.type, r, { src: src, dst: dst || '0.0.0.0', proto: 'ip' })) return r.action === 'permit';
     }
     return false;
+  }
+
+  // ---------------------------------------------------------------- IPsec (kapitel 10)
+  // Crypto map-tunnlar mellan två routrar över internet. NAT sker före kryptering,
+  // precis som i IOS, så en NAT-lista utan deny-rad gör att trafiken aldrig krypteras.
+  var TUNNEL_MTU = 1420; // ESP i tunnelläge äter ungefär 80 byte av 1500
+  function cryptoOf(d) { return d && d.config && d.config.crypto; }
+  function specNorm(s) {
+    if (!s || s.any) return '0.0.0.0/255.255.255.255';
+    if (s.host) return s.host + '/0.0.0.0';
+    var w = s.wild || '0.0.0.0';
+    var ip = U.intToIp((U.ipToInt(s.ip) & ~U.ipToInt(w)) >>> 0);
+    return ip + '/' + w;
+  }
+  function mirrors(a, b) {
+    return a.action === 'permit' && b.action === 'permit' && (a.proto || 'ip') === (b.proto || 'ip') &&
+      specNorm(a.src) === specNorm(b.dst) && specNorm(a.dst) === specNorm(b.src);
+  }
+  function cryptoEntries(d, mapName) {
+    var cr = cryptoOf(d);
+    if (!cr || !mapName || !cr.maps[mapName]) return [];
+    var m = cr.maps[mapName];
+    return Object.keys(m).map(Number).sort(function (a, b) { return a - b; }).map(function (seq) { var e = m[seq]; e.seq = seq; e.map = mapName; return e; });
+  }
+  // Vilken crypto map-rad (och ACL-rad) matchar paketet på väg ut genom ifname?
+  function cryptoMatch(state, dev, ifname, pkt) {
+    var d = state.devices[dev];
+    var i = d.config.ifaces[ifname];
+    if (!i || !i.cryptoMap) return null;
+    var list = cryptoEntries(d, i.cryptoMap);
+    for (var k = 0; k < list.length; k++) {
+      var e = list[k];
+      if (!e.peer || !e.ts || !e.acl) continue; // ofullständig rad används inte
+      var acl = d.config.acls[e.acl];
+      if (!acl || acl.type !== 'extended') continue;
+      for (var j = 0; j < acl.rules.length; j++) {
+        var r = acl.rules[j];
+        if (r.remark) continue;
+        if (aclMatch('extended', r, { src: pkt.src, dst: pkt.dst, proto: pkt.proto })) {
+          if (r.action === 'deny') break;
+          return { entry: e, rule: r, iface: ifname };
+        }
+      }
+    }
+    return null;
+  }
+  function routerByIp(state, D, ip) {
+    var hit = null;
+    Object.keys(D.eps).forEach(function (k) {
+      var e = D.eps[k];
+      if (!hit && e.up && e.ip === ip && isRouter(state.devices[e.dev])) hit = e;
+    });
+    return hit;
+  }
+  function samePolicy(a, b) { return a.enc === b.enc && a.hash === b.hash && a.auth === b.auth && a.group === b.group; }
+  // Fas 1 (ISAKMP) för en crypto map-rad. Returnerar peer-info eller orsak.
+  function phase1(state, D, dev, e, ifname) {
+    var d = state.devices[dev];
+    var cr = cryptoOf(d);
+    var local = D.eps['E:' + dev + ':' + ifname];
+    if (!local || !local.up) return { ok: false, reason: 'down', state: 'MM_NO_STATE' };
+    var pe = routerByIp(state, D, e.peer);
+    if (!pe) return { ok: false, reason: 'nopeer', state: 'MM_NO_STATE' };
+    // Nås peer över internet?
+    var rt = routeLookup(state, D, dev, e.peer);
+    if (!rt) return { ok: false, reason: 'noroute', state: 'MM_NO_STATE' };
+    var pd = state.devices[pe.dev];
+    var pcr = cryptoOf(pd);
+    var pif = pd.config.ifaces[pe.iface];
+    if (!pcr || !pif.cryptoMap) return { ok: false, reason: 'peer-nomap', state: 'MM_NO_STATE' };
+    var pEntries = cryptoEntries(pd, pif.cryptoMap).filter(function (x) { return x.peer === local.ip; });
+    if (!pEntries.length) return { ok: false, reason: 'peer-nomap', state: 'MM_NO_STATE' };
+    var pol = Object.keys(cr.isakmp.policies).map(function (k) { return cr.isakmp.policies[k]; });
+    var ppol = Object.keys(pcr.isakmp.policies).map(function (k) { return pcr.isakmp.policies[k]; });
+    var match = pol.some(function (a) { return ppol.some(function (b) { return samePolicy(a, b); }); });
+    if (!match) return { ok: false, reason: 'policy', state: 'MM_NO_STATE' };
+    var k1 = cr.isakmp.keys[e.peer], k2 = pcr.isakmp.keys[local.ip];
+    if (!k1 || !k2 || k1 !== k2) return { ok: false, reason: 'key', state: 'MM_KEY_EXCH' };
+    return { ok: true, state: 'QM_IDLE', peerDev: pe.dev, peerEp: pe, peerEntries: pEntries, localIp: local.ip };
+  }
+  // Fas 2 (IPsec SA) för en ACL-rad: transform-set och spegelvänd ACL på andra sidan
+  function phase2(state, dev, e, rule, p1) {
+    var d = state.devices[dev], cr = cryptoOf(d);
+    var pd = state.devices[p1.peerDev], pcr = cryptoOf(pd);
+    var ts = cr.transformSets[e.ts];
+    for (var i = 0; i < p1.peerEntries.length; i++) {
+      var pe = p1.peerEntries[i];
+      var pts = pcr.transformSets[pe.ts];
+      if (!ts || !pts || ts.transforms.join(' ') !== pts.transforms.join(' ')) continue;
+      var pacl = pd.config.acls[pe.acl];
+      if (!pacl) continue;
+      for (var j = 0; j < pacl.rules.length; j++) {
+        if (mirrors(rule, pacl.rules[j])) return { ok: true, peerEntry: pe, peerRule: pacl.rules[j] };
+      }
+    }
+    return { ok: false, reason: ts ? 'proxy' : 'transform' };
+  }
+  function saKey(e, rule) { return e.map + ':' + e.seq + ':' + rule.seq; }
+  function ikeMark(state, dev, peerIp, up) {
+    var d = state.devices[dev];
+    d.rt.ike = d.rt.ike || {};
+    var cur = d.rt.ike[peerIp];
+    if (!cur) d.rt.ike[peerIp] = { since: state.time, connId: 1001 + (U.hash(dev + peerIp) % 5), up: up };
+    else cur.up = up;
+  }
+  // Försöker skicka paketet genom tunneln. Räknar encaps/decaps och loggar fel som IOS gör.
+  function tunnelFor(state, D, dev, cm, pkt) {
+    var d = state.devices[dev];
+    var e = cm.entry;
+    var p1 = phase1(state, D, dev, e, cm.iface);
+    ikeMark(state, dev, e.peer, p1.ok);
+    if (!p1.ok) return { ok: false, reason: p1.reason };
+    ikeMark(state, p1.peerDev, p1.localIp, true);
+    var p2 = phase2(state, dev, e, cm.rule, p1);
+    var pd = state.devices[p1.peerDev];
+    if (!p2.ok) {
+      var fk = saKey(e, cm.rule);
+      pd.rt.p2fail = pd.rt.p2fail || {};
+      if (!pd.rt.p2fail[fk]) {
+        pd.rt.p2fail[fk] = true;
+        pushLog(state, pd, '%CRYPTO-6-IKMP_MODE_FAILURE: Processing of Quick mode failed with peer at ' + p1.localIp);
+        if (p2.reason === 'proxy') pushLog(state, pd, '%CRYPTO-4-IKMP_NO_SA: IPSEC(validate_transform_proposal): proxy identities not supported');
+        pushLog(state, d, '%CRYPTO-6-IKMP_MODE_FAILURE: Processing of Quick mode failed with peer at ' + e.peer);
+      }
+      return { ok: false, reason: p2.reason };
+    }
+    var n = pkt.count || 1;
+    var k = saKey(e, cm.rule), pk = saKey(p2.peerEntry, p2.peerRule);
+    d.rt.ipsec = d.rt.ipsec || {};
+    pd.rt.ipsec = pd.rt.ipsec || {};
+    var a = d.rt.ipsec[k] = d.rt.ipsec[k] || { encaps: 0, decaps: 0, since: state.time };
+    var b = pd.rt.ipsec[pk] = pd.rt.ipsec[pk] || { encaps: 0, decaps: 0, since: state.time };
+    a.encaps += n; b.decaps += n;
+    if (pd.rt.p2fail) pd.rt.p2fail = {};
+    return { ok: true, peerDev: p1.peerDev, peerEp: p1.peerEp };
+  }
+  // Status för show crypto: fas 1 per peer och SA per ACL-rad
+  function cryptoStatus(state, dev) {
+    var D = get(state);
+    var d = state.devices[dev];
+    var out = { isakmp: [], sas: [] };
+    if (!cryptoOf(d)) return out;
+    Object.keys(d.config.ifaces).forEach(function (n) {
+      var i = d.config.ifaces[n];
+      if (!i.cryptoMap) return;
+      var local = D.eps['E:' + dev + ':' + n];
+      cryptoEntries(d, i.cryptoMap).forEach(function (e) {
+        if (!e.peer) return;
+        var ike = d.rt.ike && d.rt.ike[e.peer];
+        var p1 = phase1(state, D, dev, e, n);
+        if (ike) out.isakmp.push({ dst: e.peer, src: local ? local.ip : (i.ip ? i.ip.addr : ''), state: p1.ok ? 'QM_IDLE' : p1.state, connId: p1.ok ? ike.connId : 0, status: 'ACTIVE' });
+        var acl = e.acl && d.config.acls[e.acl];
+        if (!acl) return;
+        acl.rules.forEach(function (r) {
+          if (r.remark || r.action !== 'permit') return;
+          var p2 = p1.ok && ike ? phase2(state, dev, e, r, p1) : { ok: false };
+          var c = (d.rt.ipsec && d.rt.ipsec[saKey(e, r)]) || { encaps: 0, decaps: 0 };
+          out.sas.push({ iface: n, map: e.map, seq: e.seq, local: local ? local.ip : '', peer: e.peer, rule: r, up: p2.ok, encaps: c.encaps, decaps: c.decaps, spi: U.hash(dev + e.peer + r.seq) >>> 0, mtu: TUNNEL_MTU });
+        });
+      });
+    });
+    return out;
+  }
+  function clearCrypto(state, dev) {
+    var d = state.devices[dev];
+    d.rt.ike = {}; d.rt.ipsec = {}; d.rt.p2fail = {};
   }
 
   // Skickar ett paket från en enhet. Returnerar var det tog vägen.
@@ -681,6 +847,21 @@ NV.sim = (function () {
           var local0 = pkt.src;
           var g = natTranslate(state, dev, pkt, rt.iface, D);
           if (g) { pkt.src = g; pkt.natLocal = local0; }
+        }
+        // ip tcp adjust-mss på vägen: SYN-paketen skrivs om i båda riktningarna
+        var mssIf = (ingress && d.config.ifaces[ingress.iface].adjustMss) || outIf.adjustMss;
+        if (mssIf) pkt.mss = Math.min(pkt.mss || 65535, mssIf);
+        if (outIf.cryptoMap) {
+          var cm = cryptoMatch(state, dev, rt.iface, pkt);
+          if (cm) {
+            var tu = tunnelFor(state, D, dev, cm, pkt);
+            if (!tu.ok) return { ok: false, reason: 'ipsec', ipsec: tu.reason, where: dev, hops: hops, loss: loss, fromIp: ingress ? ingress.ip : null };
+            if (opts.size && opts.df && opts.size > TUNNEL_MTU) return { ok: false, reason: 'frag', mtu: TUNNEL_MTU, where: dev, hops: hops, loss: loss, fromIp: ingress ? ingress.ip : rt.ep.ip };
+            pkt.tunnel = true;
+            dev = tu.peerDev;
+            ingress = tu.peerEp;
+            continue;
+          }
         }
         egressEp = rt.ep;
         nh = rt.nh || pkt.dst;
@@ -732,14 +913,30 @@ NV.sim = (function () {
     var tr = d.rt.natTrans.filter(function (t) { return t.global === dst && (!natLocal || t.local === natLocal); })[0];
     return tr ? tr.local : null;
   }
+  // NAT-undantag: en deny-rad i NAT-listan som träffar (källa, mål) stoppar all översättning,
+  // även den statiska (i IOS görs det med route-map, här räcker listan)
+  function natExempt(state, dev, pkt) {
+    var d = state.devices[dev];
+    return d.config.nat.dynamic.some(function (r) {
+      var acl = d.config.acls[r.acl];
+      if (!acl || acl.type !== 'extended') return false;
+      for (var i = 0; i < acl.rules.length; i++) {
+        var x = acl.rules[i];
+        if (x.remark) continue;
+        if (aclMatch('extended', x, { src: pkt.src, dst: pkt.dst, proto: 'ip' })) return x.action === 'deny';
+      }
+      return false;
+    });
+  }
   function natTranslate(state, dev, pkt, egressIf, D) {
     var d = state.devices[dev];
+    if (natExempt(state, dev, pkt)) return null;
     var st = d.config.nat.statics.filter(function (s) { return s.local === pkt.src; })[0];
     if (st) { addTrans(d, pkt, st.global, st.local, false); return st.global; }
     for (var i = 0; i < d.config.nat.dynamic.length; i++) {
       var r = d.config.nat.dynamic[i];
       if (r.iface !== egressIf) continue;
-      if (!natMatchList(state, dev, r.acl, pkt.src)) continue;
+      if (!natMatchList(state, dev, r.acl, pkt.src, pkt.dst)) continue;
       var ep = epOf(D, dev, r.iface);
       if (!ep || !ep.ip) continue;
       if (!r.overload && d.rt.natTrans.some(function (t) { return t.global === ep.ip && t.local !== pkt.src; })) continue;
@@ -770,7 +967,9 @@ NV.sim = (function () {
       return false;
     }
     if (d.kind === 'wlc') return dport === 5246 || dport === 443 || dport === 22;
+    if (d.kind === 'lb') return (dport === 80 && lbPool(d, null) !== null) || dport === 22 || dport === 443;
     if (d.services) {
+      if ((dport === 80 || dport === 8080) && d.services.indexOf('http') >= 0) return true;
       if (dport === 445 && d.services.indexOf('smb') >= 0) return true;
       if (dport === 123 && d.services.indexOf('ntp') >= 0) return true;
       if (dport === 514 && d.services.indexOf('syslog') >= 0) return true;
@@ -792,8 +991,8 @@ NV.sim = (function () {
   // Ping tur och retur. Returnerar resultat utan slump (loss anges separat).
   function pingInternal(state, D, fromDev, dst, opts) {
     opts = opts || {};
-    var out = send(state, D, fromDev, { dst: dst, src: opts.src, proto: opts.proto || 'icmp', dport: opts.dport }, { learnArp: opts.learnArp });
-    if (!out.ok) return { ok: false, reason: out.reason, where: out.where, fromIp: out.fromIp, hops: out.hops, local: out.local, iface: out.iface };
+    var out = send(state, D, fromDev, { dst: dst, src: opts.src, proto: opts.proto || 'icmp', dport: opts.dport }, { learnArp: opts.learnArp, size: opts.size, df: opts.df });
+    if (!out.ok) return { ok: false, reason: out.reason, where: out.where, fromIp: out.fromIp, hops: out.hops, local: out.local, iface: out.iface, mtu: out.mtu, ipsec: out.ipsec };
     if (!listens(state, D, out.at, opts.proto || 'icmp', opts.dport)) return { ok: false, reason: 'refused', at: out.at, hops: out.hops };
     // Svaret
     var rDev = out.at;
@@ -808,7 +1007,67 @@ NV.sim = (function () {
     var ttl = 128;
     if (rDev.indexOf('INTERNET:') === 0) ttl = 56 - out.hops.length;
     else { var rd = state.devices[rDev]; ttl = (rd.os === 'ios' ? 255 : (rd.os === 'linux' ? 64 : 128)) - out.hops.filter(function (h) { return h.dev !== rDev; }).length; }
-    return { ok: true, loss: loss, hops: out.hops, at: out.at, ttl: ttl, replyFrom: out.pkt.dst, srcUsed: out.pkt.src };
+    return { ok: true, loss: loss, hops: out.hops, at: out.at, ttl: ttl, replyFrom: out.pkt.dst, srcUsed: out.pkt.src,
+      tunnel: !!(out.pkt.tunnel || (back.pkt && back.pkt.tunnel)), mss: Math.min(out.pkt.mss || 65535, (back.pkt && back.pkt.mss) || 65535) };
+  }
+
+  // Stor TCP-överföring (filkopiering, webbsida). Genom en tunnel utan adjust-mss
+  // fastnar de fulla paketen: handskakningen går igenom men överföringen hänger.
+  function bigTransfer(state, fromDev, dst, dport) {
+    var D = get(state);
+    var r = pingInternal(state, D, fromDev, dst, { proto: 'tcp', dport: dport, learnArp: true });
+    if (!r.ok) return { ok: false, stage: 'connect', res: r };
+    if (r.tunnel && r.mss > TUNNEL_MTU - 40) return { ok: false, stage: 'transfer', res: r, mtu: TUNNEL_MTU };
+    return { ok: true, res: r };
+  }
+
+  // ---------------------------------------------------------------- Lastbalanserare
+  function lbPool(d, vip) {
+    if (!d || !d.lb) return null;
+    var names = Object.keys(d.lb.pools);
+    for (var i = 0; i < names.length; i++) {
+      var p = d.lb.pools[names[i]];
+      if (!vip || p.vip === vip) return p;
+    }
+    return null;
+  }
+  function lbMemberUp(state, D, lbId, pool, m) {
+    if (!m.enabled) return false;
+    if (pool.monitor === 'icmp') return pingInternal(state, D, lbId, m.ip, {}).ok;
+    return pingInternal(state, D, lbId, m.ip, { proto: 'tcp', dport: m.port }).ok;
+  }
+  function lbStatus(state, lbId) {
+    var D = get(state);
+    var d = state.devices[lbId];
+    var out = [];
+    Object.keys(d.lb.pools).forEach(function (n) {
+      var p = d.lb.pools[n];
+      out.push({ name: n, pool: p, members: p.members.map(function (m) {
+        var st = d.lb.stats[m.ip] || { req: 0, fail: 0 };
+        return { m: m, up: lbMemberUp(state, D, lbId, p, m), req: st.req, fail: st.fail };
+      }) });
+    });
+    return out;
+  }
+  // En HTTP-förfrågan från en klient till en adress. Går den till en lastbalanserare
+  // väljs en server med round robin bland dem som hälsokontrollen säger är uppe.
+  function httpGet(state, fromDev, ip, port) {
+    var D = get(state);
+    port = port || 80;
+    var r = pingInternal(state, D, fromDev, ip, { proto: 'tcp', dport: port, learnArp: true });
+    if (!r.ok) return { ok: false, code: 0, res: r };
+    var d = state.devices[r.at];
+    if (!d || d.kind !== 'lb') return { ok: true, code: 200, server: r.at, res: r };
+    var pool = lbPool(d, r.replyFrom) || lbPool(d, null);
+    var up = pool.members.filter(function (m) { return lbMemberUp(state, D, d.id, pool, m); });
+    if (!up.length) return { ok: false, code: 503, via: d.id, res: r };
+    var m = up[d.lb.rr % up.length];
+    d.lb.rr = (d.lb.rr + 1) % 1000;
+    var s = d.lb.stats[m.ip] = d.lb.stats[m.ip] || { req: 0, fail: 0 };
+    s.req++;
+    var r2 = pingInternal(state, D, d.id, m.ip, { proto: 'tcp', dport: m.port });
+    if (!r2.ok) { s.fail++; return { ok: false, code: 502, via: d.id, member: m, res: r }; }
+    return { ok: true, code: 200, via: d.id, member: m, server: r2.at, res: r };
   }
   function sendFromInternet(state, D, src, dst, opts, natLocal) {
     // Internet skickar tillbaka via operatören
@@ -858,10 +1117,10 @@ NV.sim = (function () {
     opts.learnArp = true;
     return pingInternal(state, D, fromDev, dst, opts);
   }
-  function traceroute(state, fromDev, dst) {
+  function traceroute(state, fromDev, dst, src) {
     var D = get(state);
-    var out = send(state, D, fromDev, { dst: dst }, {});
-    var r = pingInternal(state, D, fromDev, dst, {});
+    var out = send(state, D, fromDev, { dst: dst, src: src }, {});
+    var r = pingInternal(state, D, fromDev, dst, { src: src });
     return { forward: out, full: r };
   }
 
@@ -995,7 +1254,8 @@ NV.sim = (function () {
     if (!d.config.ntpServers.length) return false;
     var cacheKey = '_ntp_' + d.id;
     if (state._D && state._D[cacheKey] !== undefined) return state._D[cacheKey];
-    var ok = pingInternal(state, get(state), d.id, d.config.ntpServers[0], { proto: 'udp', dport: 123 }).ok;
+    var srcIf = d.config.ntpSource && d.config.ifaces[d.config.ntpSource];
+    var ok = pingInternal(state, get(state), d.id, d.config.ntpServers[0], { proto: 'udp', dport: 123, src: srcIf && srcIf.ip ? srcIf.ip.addr : undefined }).ok;
     state._D[cacheKey] = ok;
     return ok;
   }
@@ -1172,5 +1432,7 @@ NV.sim = (function () {
     vlanExists: vlanExists, hostIpConf: hostIpConf, sshEnabled: sshEnabled, vtyAllows: vtyAllows,
     pushLog: pushLog, deviceClock: deviceClock, ntpSynced: ntpSynced, stamp: stamp, linkLoad: linkLoad,
     key: key, portNum: portNum, aclEval: aclEval, bridgeId: bridgeId, INTERNET: INTERNET, pingInternal: pingInternal, devEps: devEps,
+    cryptoStatus: cryptoStatus, clearCrypto: clearCrypto, bigTransfer: bigTransfer, httpGet: httpGet, lbStatus: lbStatus, lbPool: lbPool,
+    TUNNEL_MTU: TUNNEL_MTU, specNorm: specNorm, mirrors: mirrors,
   };
 })();

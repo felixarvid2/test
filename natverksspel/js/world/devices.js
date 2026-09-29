@@ -40,6 +40,9 @@ NV.devices3d = (function () {
     } else if (s.type === 'wlc') {
       ['nic', 'p2'].forEach(function (n, i) { var x = 760 + i * 60; self.ports[n] = { x: x, y: 38, w: 44, h: 34, led: { x: x + 22, y: 26 } }; });
       this.console = { x: 900, y: 38, w: 36, h: 32 };
+    } else if (s.type === 'lb') {
+      self.ports.nic = { x: 760, y: this.ch / 2 - 16, w: 40, h: 32, led: { x: 780, y: this.ch / 2 - 22 } };
+      this.console = { x: 900, y: this.ch / 2 - 15, w: 36, h: 30 };
     } else if (s.type === 'patch') {
       for (var p = 1; p <= 24; p++) { var px = 120 + (p - 1) * 34; self.ports['pp' + p] = { x: px, y: 36, w: 26, h: 26 }; }
     } else if (s.type === 'server' || s.type === 'asa' || s.type === 'ups' || s.type === 'fiber') {
@@ -88,6 +91,19 @@ NV.devices3d = (function () {
       g.fillText('ASA 5540', 50, 40);
       g.font = '13px "Segoe UI", sans-serif'; g.fillText('Adaptive Security Appliance', 50, 62);
       ['POWER', 'STATUS', 'ACTIVE', 'VPN'].forEach(function (n, i) { self.led(g, 480 + i * 70, 50, i < 2 ? '#3dff6a' : '#23321f', 5); g.fillStyle = '#cfd6dc'; g.font = '11px sans-serif'; g.fillText(n, 460 + i * 70, 80); });
+    } else if (s.type === 'lb') {
+      g.fillText('Load Balancer', 230, 40);
+      g.font = '12px "Segoe UI", sans-serif'; g.fillText('L4/L7 · VIP 192.168.1.13', 230, 60);
+      // En lampa per server i poolen: grön = UP, röd = DOWN, släckt = ej i drift
+      var hl = s.health ? s.health() : [];
+      g.font = '11px sans-serif';
+      for (var hi = 0; hi < 4; hi++) {
+        var hc = hl[hi] ? (hl[hi] === 'up' ? '#3dff6a' : (hl[hi] === 'down' ? (Math.sin(t * 6) > 0 ? '#ff5a4f' : '#3a1a18') : '#ffb020')) : '#23321f';
+        if (NV.settings && NV.settings.get('colorblind')) hc = { '#3dff6a': '#3da5ff', '#ff5a4f': '#ff8a1f', '#ffb020': '#ffe14a' }[hc] || hc;
+        self.led(g, 480 + hi * 60, 44, hc, 6);
+        g.fillStyle = '#cfd6dc'; g.fillText('S' + (hi + 1), 472 + hi * 60, 74);
+      }
+      self.led(g, 60, h / 2, hl.length ? '#3d9bff' : '#1d2630', 6);
     } else if (s.type === 'server') {
       for (var b = 0; b < 8; b++) {
         g.fillStyle = '#15181c'; g.fillRect(260 + b * 70, 16, 62, h - 32);
@@ -110,6 +126,7 @@ NV.devices3d = (function () {
       var sx = s.type === 'router' ? 50 : (s.type === 'switch' ? 180 : 700);
       var sy = s.type === 'router' ? 12 : (s.type === 'switch' ? 16 : 20);
       if (s.type === 'server' || s.type === 'ups') { sx = 60; sy = 12; }
+      if (s.type === 'lb') { sx = 40; sy = 12; }
       g.font = 'bold 15px "Segoe UI", sans-serif';
       var tw = g.measureText(s.sticker()).width + 14;
       g.fillStyle = '#f7f6ee'; g.fillRect(sx, sy, tw, 22);
@@ -230,6 +247,7 @@ NV.devices3d = (function () {
     var mesh = new THREE.Mesh(geo, world.builder.std(CABLE_COLORS[color] || color || 0x2f6fd6, 0.55, 0.05));
     mesh.castShadow = true;
     if (userData) mesh.userData = userData;
+    mesh.userData.curve = curve;
     world.scene.add(mesh);
     return mesh;
   }
@@ -257,12 +275,17 @@ NV.devices3d = (function () {
     out.entries.ASA = ra.mount(18, { type: 'asa', units: 1, bg: '#30363d', sticker: function () { return 'ASA (ej i drift)'; } });
     out.entries.WLC = ra.mount(20, { type: 'wlc', units: 1, bg: '#b9bcbf', text: '#1d2226', devId: 'WLC', sticker: function () { return 'WLC-Nordvik'; }, interact: { type: 'console', id: 'WLC' } });
     out.entries.UPS = ra.mount(38, { type: 'ups', units: 2, bg: '#202327', sticker: function () { return 'UPS'; } });
-    [22, 24, 26, 28, 30, 32, 34].forEach(function (u) { ra.mount(u, { type: 'blank', units: 1, bg: '#1a1c1f' }); });
+    // Lastbalanseraren (kapitel 10). Finns den inte i veckans nät är den bara en släckt låda.
+    out.entries.LB = ra.mount(22, { type: 'lb', units: 1, bg: '#243447', sticker: function () { return st().devices.LB ? 'LB-Nordvik' : 'LB (ej i drift)'; }, health: function () { return NV.shared.lbHealth(st()); } });
+    out.entries.LB.face.userData.interact = out.entries.LB.body.userData.interact = { type: 'console', id: 'LB' };
+    [24, 26, 28, 30, 32, 34].forEach(function (u) { ra.mount(u, { type: 'blank', units: 1, bg: '#1a1c1f' }); });
     // Rack B: servrar
     out.entries.Filserver = rb.mount(10, { type: 'server', units: 2, bg: '#1d2024', sticker: function () { return 'Filserver'; } });
     out.entries['NTP-server'] = rb.mount(14, { type: 'server', units: 1, bg: '#1d2024', sticker: function () { return 'NTP'; } });
     out.entries.Loggserver = rb.mount(16, { type: 'server', units: 1, bg: '#1d2024', sticker: function () { return 'Logg'; } });
     out.entries.Ekonomisystem = rb.mount(19, { type: 'server', units: 2, bg: '#1d2024', sticker: function () { return 'Ekonomisystem'; } });
+    out.entries['Tid-1'] = rb.mount(22, { type: 'server', units: 1, bg: '#1d2024', sticker: function () { return st().devices['Tid-1'] ? 'Tid-1' : 'Tid-1 (vecka 10)'; } });
+    out.entries['Tid-2'] = rb.mount(23, { type: 'server', units: 1, bg: '#1d2024', sticker: function () { return st().devices['Tid-2'] ? 'Tid-2' : 'Tid-2 (vecka 10)'; } });
     out.entries.UPS2 = rb.mount(38, { type: 'ups', units: 2, bg: '#202327', sticker: function () { return 'UPS'; } });
 
     // Operatörens fiberbox
@@ -274,11 +297,22 @@ NV.devices3d = (function () {
     wl.position.set(A.fiber.x + 0.55, A.fiber.y + 0.17, A.fiber.z + 0.12); world.scene.add(wl);
     out.extra.fiber = new THREE.Vector3(A.fiber.x, A.fiber.y - 0.08, A.fiber.z + 0.1);
     out.extra.wan = new THREE.Vector3(A.fiber.x + 0.55, A.fiber.y - 0.06, A.fiber.z + 0.09);
+    // Vecka 10: linan är uppsagd
+    var wlOff = T.label('Hyrd lina – uppsagd', { height: 0.05, bg: 'rgba(90,30,24,0.9)' });
+    wlOff.position.copy(wl.position); wlOff.visible = false; world.scene.add(wlOff);
+    out.extra.wanLabels = [wl, wlOff];
 
     // --- Borås: WAN-box på väggen bredvid racket
     b.box(0.08, 0.2, 0.3, 88.17, 1.4, -9.35, b.std(0x2a2f36, 0.5, 0.3));
     var wl2 = T.label('WAN → Göteborg', { height: 0.05, bg: 'rgba(20,24,32,0.85)' });
     wl2.position.set(88.25, 1.62, -9.35); world.scene.add(wl2);
+    var wl2b = T.label('Fiber → internet (VPN)', { height: 0.05, bg: 'rgba(20,60,40,0.9)' });
+    wl2b.position.copy(wl2.position); wl2b.visible = false; world.scene.add(wl2b);
+    out.extra.wanLabelsB = [wl2, wl2b];
+    // Liten VPN-lampa på väggboxen: grön när tunneln är uppe
+    var vpnLamp = new THREE.Mesh(new THREE.SphereGeometry(0.018, 12, 8), new THREE.MeshStandardMaterial({ color: 0x223322, emissive: 0x000000, emissiveIntensity: 1.6 }));
+    vpnLamp.position.set(88.22, 1.47, -9.25); vpnLamp.visible = false; world.scene.add(vpnLamp);
+    out.extra.vpnLamp = vpnLamp;
     out.extra.wanBoras = new THREE.Vector3(88.23, 1.34, -9.35);
     // --- Borås: väggrack
     var rbo = new Rack(world, A.borasRack, 'LAGRETS RACK');
@@ -295,7 +329,7 @@ NV.devices3d = (function () {
       b.desk(p.x, p.z, 0);
       b.chair(p.x, p.z + 0.75, 0, id === 'PC-Bo' || id === 'PC-Maja' ? 0x5b3d6b : 0x30343b);
       if (id.indexOf('PC-') !== 0) {
-        monitor(world, p.x + 0.1, p.z - 0.15, null);
+        (out.extra.idleMonitors = out.extra.idleMonitors || []).push(monitor(world, p.x + 0.1, p.z - 0.15, null));
         return;
       }
       out.pcs[id] = pc(world, id, p);
@@ -304,7 +338,8 @@ NV.devices3d = (function () {
     var pr = b.box(0.6, 0.45, 0.5, A.printer.x, 0.9, A.printer.z, b.std(0xe9e9e6, 0.5, 0.1));
     b.box(0.7, 0.68, 0.6, A.printer.x, 0.34, A.printer.z, b.std(0xcfd2d4, 0.5, 0.1), { collide: true });
     b.box(0.4, 0.02, 0.3, A.printer.x, 1.13, A.printer.z + 0.05, b.std(0xffffff, 0.8, 0));
-    pr.userData.interact = { type: 'info', id: 'Skrivare', label: 'Skrivaren (192.168.1.11)' };
+    pr.userData.interact = { type: 'printer' };
+    out.extra.printer = pr;
     // Teknikerns laptop
     var lap = laptop(world, A.bench.x + 0.05, 0.76, A.bench.z);
     out.extra.laptop = lap;
@@ -320,26 +355,45 @@ NV.devices3d = (function () {
     return out;
   }
 
+  var kbTex = null;
+  function keyboardTex() {
+    if (kbTex) return kbTex;
+    var c = T.canvas(256, 80), g = c.getContext('2d');
+    g.fillStyle = '#23262b'; g.fillRect(0, 0, 256, 80);
+    for (var r = 0; r < 5; r++) for (var k = 0; k < 15; k++) {
+      var w = (r === 4 && k === 5) ? 70 : 14;
+      if (r === 4 && k > 5 && k < 10) continue;
+      g.fillStyle = '#3b3f46'; g.fillRect(6 + k * 16.5, 6 + r * 14.5, w, 12);
+      g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(6 + k * 16.5, 6 + r * 14.5, w, 2);
+    }
+    kbTex = T.toTex(c);
+    return kbTex;
+  }
   function monitor(world, x, z, id) {
-    var b = world.builder;
+    var b = world.builder, M = NV.models;
     var g = new THREE.Group();
     g.position.set(x, 0.76, z);
-    var stand = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.02, 0.16), b.std(0x222428, 0.4, 0.6)); g.add(stand);
-    var neck = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.2, 0.03), b.std(0x222428, 0.4, 0.6)); neck.position.set(0, 0.1, -0.03); g.add(neck);
-    var frame = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.36, 0.03), b.std(0x16181b, 0.4, 0.3)); frame.position.set(0, 0.36, -0.03); frame.castShadow = true; g.add(frame);
+    var metal = b.std(0x2a2c30, 0.35, 0.7), plastic = b.std(0x16181b, 0.35, 0.3);
+    M.mesh(M.rbox(0.24, 0.015, 0.17, 0.006), metal, 0, 0.008, -0.03, g);
+    var neck = M.mesh(M.rbox(0.05, 0.24, 0.025, 0.008), metal, 0, 0.13, -0.06, g); neck.rotation.x = -0.08;
+    M.mesh(M.rbox(0.58, 0.36, 0.022, 0.012), plastic, 0, 0.36, -0.03, g);
+    M.mesh(M.rbox(0.36, 0.22, 0.03, 0.02), plastic, 0, 0.36, -0.05, g);
+    M.mesh(M.rbox(0.05, 0.01, 0.005, 0.002), b.std(0x9aa3ad, 0.3, 0.8), 0, 0.195, -0.018, g, false);
     var c = T.canvas(512, 300);
     var tex = T.toTex(c);
-    var scr = new THREE.Mesh(new THREE.PlaneGeometry(0.54, 0.32), new THREE.MeshStandardMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.9, roughness: 0.4 }));
-    scr.position.set(0, 0.36, -0.013);
+    var scr = new THREE.Mesh(new THREE.PlaneGeometry(0.555, 0.325), new THREE.MeshStandardMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.9, roughness: 0.25 }));
+    scr.position.set(0, 0.365, -0.0185);
     g.add(scr);
-    var kb = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.015, 0.14), b.std(0x2a2d31, 0.6, 0.2)); kb.position.set(0, 0.008, 0.2); g.add(kb);
-    var mouse = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.02, 0.1), b.std(0x2a2d31, 0.6, 0.2)); mouse.position.set(0.3, 0.01, 0.2); g.add(mouse);
+    var kbm = new THREE.MeshStandardMaterial({ map: keyboardTex(), roughness: 0.6 });
+    var kb = M.mesh(M.rbox(0.42, 0.018, 0.14, 0.006), kbm, 0, 0.01, 0.2, g); kb.rotation.x = 0.04;
+    var mouse = M.mesh(M.sphere(0.03, 12, 8), plastic, 0.3, 0.012, 0.2, g); mouse.scale.set(0.8, 0.45, 1.3);
+    M.mesh(M.rbox(0.22, 0.004, 0.2, 0.004), b.std(0x2e3a4a, 0.9, 0), 0.3, 0.002, 0.2, g, false);
     world.scene.add(g);
     drawDesktop(c, id, null);
     tex.needsUpdate = true;
     return { group: g, screen: scr, canvas: c, tex: tex };
   }
-  function drawDesktop(c, id, status) {
+  function drawDesktop(c, id, status, t) {
     var g = c.getContext('2d');
     var gr = g.createLinearGradient(0, 0, 512, 300);
     gr.addColorStop(0, '#1f4e79'); gr.addColorStop(1, '#3c7478');
@@ -350,6 +404,21 @@ NV.devices3d = (function () {
     g.fillText('Nordvik', 30, 60);
     g.font = '15px "Segoe UI", sans-serif';
     if (id) g.fillText(id, 30, 84);
+    // Ett program där text skrivs medan personen arbetar
+    if (status && status.icon === 'ok' && t !== undefined) {
+      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(34, 104, 300, 150);
+      g.fillStyle = '#f6f7f9'; g.fillRect(30, 100, 300, 150);
+      g.fillStyle = '#2f6fd6'; g.fillRect(30, 100, 300, 18);
+      g.fillStyle = '#fff'; g.font = 'bold 11px "Segoe UI", sans-serif'; g.fillText(status.app || 'Dokument', 36, 113);
+      var n = Math.floor(t * 3) % 60;
+      g.fillStyle = '#9aa3ad';
+      for (var i = 0; i < 9; i++) {
+        var w = Math.min(270, Math.max(0, n * 14 - i * 270));
+        if (w <= 0) break;
+        g.fillRect(40, 128 + i * 13, (i * 53 % 70) + 200 > w ? w : (i * 53 % 70) + 200, 6);
+      }
+      if (Math.floor(t * 2) % 2) { g.fillStyle = '#1b1b1b'; g.fillRect(40 + Math.min(262, (n * 14) % 270), 126 + Math.min(8, Math.floor(n * 14 / 270)) * 13, 2, 10); }
+    }
     // Aktivitetsfält
     g.fillStyle = 'rgba(15,18,22,0.92)'; g.fillRect(0, 266, 512, 34);
     g.fillStyle = '#6fb3ff'; g.fillRect(10, 274, 18, 18);
@@ -368,9 +437,12 @@ NV.devices3d = (function () {
     }
   }
   function pc(world, id, p) {
-    var b = world.builder;
+    var b = world.builder, M = NV.models;
     var m = monitor(world, p.x + 0.1, p.z - 0.15, id);
-    var tower = b.box(0.2, 0.44, 0.45, p.x + 0.6, 0.22, p.z - 0.1, b.std(0x1c1e22, 0.4, 0.4));
+    var tower = b.box(0.2, 0.44, 0.45, p.x + 0.6, 0.22, p.z - 0.1, b.std(0x1c1e22, 0.35, 0.4));
+    tower.geometry = M.rbox(0.2, 0.44, 0.45, 0.02);
+    var vent = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.3), T.mat('perforated', { roughness: 0.5, metalness: 0.5 }, 1, 2));
+    vent.position.set(p.x + 0.6, 0.2, p.z + 0.126); world.scene.add(vent);
     b.box(0.02, 0.02, 0.02, p.x + 0.6, 0.38, p.z + 0.13, b.std(0x2d8cff, 0.3, 0, { emissive: 0x2d8cff, emissiveIntensity: 2 }));
     var inter = { type: 'pc', id: id };
     m.screen.userData.interact = inter;
@@ -380,7 +452,8 @@ NV.devices3d = (function () {
     var box = b.box(0.12, 0.08, 0.05, p.x + 0.75, 0.2, p.z - 0.38, b.std(0xf2f2ef, 0.5, 0));
     box.userData.interact = { type: 'deskcable', id: id };
     var c = cable(world, [new THREE.Vector3(p.x + 0.68, 0.3, p.z + 0.12), new THREE.Vector3(p.x + 0.75, 0.05, p.z + 0.05), new THREE.Vector3(p.x + 0.8, 0.05, p.z - 0.25), new THREE.Vector3(p.x + 0.75, 0.2, p.z - 0.35)], 'blue', 0.006, { interact: { type: 'deskcable', id: id } });
-    var led = b.box(0.012, 0.012, 0.01, p.x + 0.72, 0.22, p.z - 0.352, new THREE.MeshStandardMaterial({ color: 0x113311, emissive: 0x33ff55, emissiveIntensity: 0 }));
+    var ledM = new THREE.MeshStandardMaterial({ color: 0x113311, emissive: 0x33ff55, emissiveIntensity: 0 }); ledM.userData.keep = true;
+    var led = b.box(0.012, 0.012, 0.01, p.x + 0.72, 0.22, p.z - 0.352, ledM);
     return { monitor: m, tower: tower, cable: c, led: led, id: id };
   }
   function guestLaptop(world, a) {
@@ -476,6 +549,7 @@ NV.devices3d = (function () {
     var body = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.14, 0.05, 32), b.std(0xf4f4f2, 0.4, 0.1));
     g.add(body);
     var ledMat = new THREE.MeshStandardMaterial({ color: 0x222222, emissive: 0x33ff66, emissiveIntensity: 0 });
+    ledMat.userData.keep = true;
     var led = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.01, 16), ledMat);
     led.position.y = -0.027;
     g.add(led);

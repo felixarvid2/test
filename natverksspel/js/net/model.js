@@ -176,6 +176,26 @@ NV.model = (function () {
       statics: [{ local: '192.168.1.10', global: '203.0.113.11' }],
       dynamic: [{ acl: '1', iface: 'GigabitEthernet0/1', overload: true }],
     };
+    if (opts.week >= 10) {
+      // Kapitel 10: den hyrda linan är uppsagd. Borås når Göteborg med IPsec över internet.
+      g2.shutdown = true; g2.ip = null; g2.natDir = null; g2.description = 'Hyrd lina uppsagd';
+      c.routes = [{ net: '0.0.0.0', mask: '0.0.0.0', nh: '203.0.113.1' }];
+      delete c.acls['1'];
+      c.acls['NAT-UT'] = { type: 'extended', rules: [
+        { seq: 10, action: 'deny', proto: 'ip', src: { ip: '192.168.1.0', wild: '0.0.0.63' }, dst: { ip: '192.168.2.0', wild: '0.0.0.63' } },
+        { seq: 20, action: 'deny', proto: 'ip', src: { ip: '192.168.1.192', wild: '0.0.0.63' }, dst: { ip: '192.168.2.192', wild: '0.0.0.63' } },
+        { seq: 30, action: 'permit', proto: 'ip', src: { ip: '192.168.1.0', wild: '0.0.0.255' }, dst: { any: true } },
+      ] };
+      c.acls['VPN-TRAFIK'] = { type: 'extended', rules: [
+        { seq: 10, action: 'permit', proto: 'ip', src: { ip: '192.168.1.0', wild: '0.0.0.63' }, dst: { ip: '192.168.2.0', wild: '0.0.0.63' } },
+        { seq: 20, action: 'permit', proto: 'ip', src: { ip: '192.168.1.192', wild: '0.0.0.63' }, dst: { ip: '192.168.2.192', wild: '0.0.0.63' } },
+      ] };
+      c.nat.dynamic = [{ acl: 'NAT-UT', iface: 'GigabitEthernet0/1', overload: true }];
+      c.crypto = vpnCrypto('203.0.113.20');
+      g1.cryptoMap = 'VPN-MAP';
+      g1.adjustMss = 1360;
+      c.hosts.tid = '192.168.1.13';
+    }
 
     var SW1 = add(makeSwitch('SW1', 'WS-C3560G-24PS', 'gbg'));
     commonMgmt(SW1, '$9$pQ4wE7rT1yU$i8Oo2Pp6Aa4Ss8Dd2Ff6Gg0Hh4Jj8Kk2Ll6Zz0Xx4C');
@@ -251,6 +271,29 @@ NV.model = (function () {
     link('SW2', 'GigabitEthernet0/5', 'PC-Lisa', 'nic');
     link('SW2', 'GigabitEthernet0/8', 'Ekonomisystem', 'nic', 'copper', { color: 'gray' });
 
+    if (opts.week >= 10) {
+      // Tidrapporteringen: två webbservrar bakom en lastbalanserare
+      add(makeHost('LB', 'lb', { ip: '192.168.1.13', mask: '255.255.255.192', gw: '192.168.1.1', kind: 'lb', label: 'LB-Nordvik (lastbalanserare)', services: ['http'] }));
+      add(makeHost('Tid-1', 'server', { ip: '192.168.1.14', mask: '255.255.255.192', gw: '192.168.1.1', kind: 'server', label: 'Tidrapport 1', services: ['http'] }));
+      add(makeHost('Tid-2', 'server', { ip: '192.168.1.15', mask: '255.255.255.192', gw: '192.168.1.1', kind: 'server', label: 'Tidrapport 2', services: ['http'] }));
+      access(SW2, 6, 10, 'LB-Nordvik');
+      access(SW2, 9, 10, 'Tid-1');
+      access(SW2, 10, 10, 'Tid-2');
+      link('SW2', 'GigabitEthernet0/6', 'LB', 'nic', 'copper', { color: 'green' });
+      link('SW2', 'GigabitEthernet0/9', 'Tid-1', 'nic', 'copper', { color: 'gray' });
+      link('SW2', 'GigabitEthernet0/10', 'Tid-2', 'nic', 'copper', { color: 'gray' });
+      devices.LB.lb = {
+        name: 'LB-Nordvik',
+        pools: {
+          'TID-POOL': { vip: '192.168.1.13', port: 80, method: 'round-robin', monitor: 'http', members: [
+            { name: 'tid-1', ip: '192.168.1.14', port: 80, enabled: true },
+            { name: 'tid-2', ip: '192.168.1.15', port: 80, enabled: true },
+          ] },
+        },
+        rr: 0, stats: {}, saved: null,
+      };
+    }
+
     // ---------------- Operatören / internet ----------------
     devices['ISP'] = {
       id: 'ISP', kind: 'isp', os: 'none', site: 'internet', powered: true, baseMac: mac('ISP'),
@@ -285,6 +328,29 @@ NV.model = (function () {
       ] },
     };
     c.ifaces['GigabitEthernet0/0.50'].aclIn = 'GAST-B';
+    if (opts.week >= 10) {
+      b2.shutdown = true; b2.ip = null; b2.description = 'Hyrd lina uppsagd';
+      var b1 = c.ifaces['GigabitEthernet0/1'];
+      b1.shutdown = false; b1.ip = { addr: '203.0.113.20', mask: '255.255.255.0' }; b1.natDir = 'outside'; b1.description = 'Ut mot operatoren';
+      b1.cryptoMap = 'VPN-MAP';
+      b1.adjustMss = 1360;
+      ['GigabitEthernet0/0.40', 'GigabitEthernet0/0.50', 'GigabitEthernet0/0.99'].forEach(function (n) { RB.config.ifaces[n].natDir = 'inside'; });
+      c.routes = [{ net: '0.0.0.0', mask: '0.0.0.0', nh: '203.0.113.1' }];
+      c.acls['NAT-UT'] = { type: 'extended', rules: [
+        { seq: 10, action: 'deny', proto: 'ip', src: { ip: '192.168.2.0', wild: '0.0.0.63' }, dst: { ip: '192.168.1.0', wild: '0.0.0.63' } },
+        { seq: 20, action: 'deny', proto: 'ip', src: { ip: '192.168.2.192', wild: '0.0.0.63' }, dst: { ip: '192.168.1.192', wild: '0.0.0.63' } },
+        { seq: 30, action: 'permit', proto: 'ip', src: { ip: '192.168.2.0', wild: '0.0.0.255' }, dst: { any: true } },
+      ] };
+      c.acls['VPN-TRAFIK'] = { type: 'extended', rules: [
+        { seq: 10, action: 'permit', proto: 'ip', src: { ip: '192.168.2.0', wild: '0.0.0.63' }, dst: { ip: '192.168.1.0', wild: '0.0.0.63' } },
+        { seq: 20, action: 'permit', proto: 'ip', src: { ip: '192.168.2.192', wild: '0.0.0.63' }, dst: { ip: '192.168.1.192', wild: '0.0.0.63' } },
+      ] };
+      c.nat = { statics: [], dynamic: [{ acl: 'NAT-UT', iface: 'GigabitEthernet0/1', overload: true }] };
+      c.crypto = vpnCrypto('203.0.113.10');
+      c.hosts.tid = '192.168.1.13';
+      // Egen trafik från routern ska ha driftadressen som källa, annars krypteras den inte
+      c.ntpSource = 'GigabitEthernet0/0.40';
+    }
 
     var SWB = add(makeSwitch('SWB', 'WS-C3560G-24PS', 'boras'));
     commonMgmt(SWB, '$9$mN8bV4cX6zL$k9Jj3Hh7Gg1Ff5Dd9Ss3Aa7Pp1Oo5Ii9Uu3Yy7Tt1R');
@@ -313,7 +379,8 @@ NV.model = (function () {
     link('SWB', 'GigabitEthernet0/2', 'AP-Lager-2', 'nic', 'copper', { color: 'white' });
     link('SWB', 'GigabitEthernet0/3', 'AP-Lager-3', 'nic', 'copper', { color: 'white' });
     link('SWB', 'GigabitEthernet0/5', 'PC-Lager', 'nic');
-    link('R1', 'GigabitEthernet0/2', 'RB', 'GigabitEthernet0/2', 'wan', { color: 'red' });
+    if (opts.week >= 10) link('RB', 'GigabitEthernet0/1', 'ISP', 'nic2', 'fiber', { color: 'red' });
+    else link('R1', 'GigabitEthernet0/2', 'RB', 'GigabitEthernet0/2', 'wan', { color: 'red' });
 
     // Trådlösa controllern: AireOS-liknande konfiguration
     devices['WLC'].wlc = {
@@ -337,8 +404,20 @@ NV.model = (function () {
       var d = devices[id];
       if (d.os === 'ios') d.startup = U.clone(d.config);
       if (d.wlc) d.wlc.saved = U.clone({ wlans: d.wlc.wlans, apChannels: d.wlc.apChannels });
+      if (d.lb) d.lb.saved = U.clone(d.lb.pools);
     });
     return state;
+  }
+
+  // IPsec site-to-site enligt kapitel 10 (samma nyckel och policy på båda sidor)
+  function vpnCrypto(peer) {
+    var keys = {};
+    keys[peer] = 'Nordvik-VPN-2026';
+    return {
+      isakmp: { policies: { 10: { enc: 'aes 256', hash: 'sha256', auth: 'pre-share', group: 14, lifetime: 86400 } }, keys: keys },
+      transformSets: { 'NORDVIK-TS': { transforms: ['esp-aes', '256', 'esp-sha256-hmac'], mode: 'tunnel' } },
+      maps: { 'VPN-MAP': { 10: { peer: peer, ts: 'NORDVIK-TS', acl: 'VPN-TRAFIK' } } },
+    };
   }
 
   function linkAt(state, dev, port) {
@@ -350,5 +429,11 @@ NV.model = (function () {
     return null;
   }
 
-  return { buildGolden: buildGolden, linkAt: linkAt, mac: mac };
+  // Fabriksinställningar för en IOS-enhet (som en ny låda från kartongen)
+  function factoryConfig(d) {
+    var fresh = d.kind === 'switch' ? makeSwitch(d.id, d.model, d.site) : makeRouter(d.id, d.model, d.site);
+    return fresh.config;
+  }
+
+  return { buildGolden: buildGolden, linkAt: linkAt, mac: mac, factoryConfig: factoryConfig };
 })();

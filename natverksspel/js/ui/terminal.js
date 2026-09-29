@@ -19,6 +19,13 @@ NV.Terminal = (function () {
       disconnect: root.querySelector('[data-act=disconnect]'),
       close: root.querySelector('[data-act=close]'),
       quick: root.querySelector('.term-quick'),
+      ghost: root.querySelector('.term-ghost'),
+      cursor: root.querySelector('.term-cursor'),
+      status: root.querySelector('.term-status'),
+      find: root.querySelector('.term-find'),
+      histBox: root.querySelector('.term-hist'),
+      icon: root.querySelector('.term-icon'),
+      term: root.querySelector('.term'),
     };
     var self = this;
     this.el.input.addEventListener('keydown', function (e) { self.onKey(e); });
@@ -27,7 +34,50 @@ NV.Terminal = (function () {
     root.querySelector('[data-act="font-"]').addEventListener('click', function () { NV.settings.set('termFont', Math.max(11, NV.settings.get('termFont') - 1)); self.applyFont(); self.focus(); });
     root.querySelector('[data-act="font+"]').addEventListener('click', function () { NV.settings.set('termFont', Math.min(20, NV.settings.get('termFont') + 1)); self.applyFont(); self.focus(); });
     root.querySelector('[data-act="copy"]').addEventListener('click', function () { self.copySelection(); });
+    root.querySelector('[data-act="copyall"]').addEventListener('click', function () { self.game.ui.copyText(self.el.out.textContent + (self.el.prompt.textContent || '')); });
+    // Klicka på en adress eller ett portnamn i utskriften för att använda det
+    this.el.out.addEventListener('click', function (e) {
+      var t = e.target;
+      if (!t.classList || String(window.getSelection ? window.getSelection() : '')) return;
+      var top = self.top(), ios = top && top.ios;
+      if (t.classList.contains('t-ip')) { self.el.input.value = (top && top.kind === 'win' ? 'ping ' : 'ping ') + t.textContent.replace(/\/\d+$/, ''); self.focus(); self.updateGhost(); }
+      else if (t.classList.contains('t-if') && ios) { self.el.input.value = 'show interfaces ' + t.textContent; self.focus(); self.updateGhost(); }
+    });
+    // Dubbelklick på ett ord skriver in det i prompten
+    this.el.out.addEventListener('dblclick', function () {
+      var w = String(window.getSelection ? window.getSelection() : '').trim();
+      if (!w || /\s/.test(w)) return;
+      var v = self.el.input.value;
+      self.el.input.value = v + (v && !/\s$/.test(v) ? ' ' : '') + w;
+      self.focus(); self.updateGhost();
+    });
+    // Knapp som hoppar ned när nya rader kommit medan du läser längre upp
+    this.el.newlines = root.querySelector('.term-new');
+    this.el.newlines.addEventListener('click', function () { self.el.screen.scrollTop = self.el.screen.scrollHeight; self.el.newlines.classList.add('hidden'); self.focus(); });
+    this.el.screen.addEventListener('scroll', function () { self.userUp = !self.atBottom(); if (!self.userUp) self.el.newlines.classList.add('hidden'); });
+    // Fönstrets storlek sparas
+    if (window.ResizeObserver) new ResizeObserver(function () {
+      if (!self.open || window.innerWidth < 760) return;
+      var r = self.el.term.getBoundingClientRect();
+      if (r.width > 300) NV.settings.set('termSize', [Math.round(r.width), Math.round(r.height)]);
+    }).observe(this.el.term);
     this.applyFont();
+    root.querySelector('[data-act="hist"]').addEventListener('click', function () { self.toggleHistory(); });
+    // Tangentraden för mobiler (och den som vill klicka)
+    root.querySelectorAll('.term-keys [data-k]').forEach(function (b) {
+      b.addEventListener('mousedown', function (e) { e.preventDefault(); });
+      b.addEventListener('click', function (e) { e.preventDefault(); self.pressKey(b.getAttribute('data-k')); self.focus(); });
+    });
+    this.el.input.addEventListener('input', function () { self.updateGhost(); });
+    this.el.input.addEventListener('keyup', function () { self.updateCursor(); });
+    this.el.input.addEventListener('click', function () { self.updateCursor(); });
+    this.el.find.addEventListener('input', function () { self.find(self.el.find.value, false); });
+    this.el.find.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); self.find(self.el.find.value, true); }
+      if (e.key === 'Escape') { e.preventDefault(); self.el.find.value = ''; self.find('', false); self.focus(); }
+      e.stopPropagation();
+    });
+    setInterval(function () { if (self.open) self.updateStatus(); }, 1000);
     this.el.disconnect.addEventListener('click', function () { self.popSerial(true); });
     this.el.input.addEventListener('paste', function (e) {
       var txt = (e.clipboardData || window.clipboardData).getData('text');
@@ -43,7 +93,41 @@ NV.Terminal = (function () {
   var P = Terminal.prototype;
 
   P.top = function () { return this.stack[this.stack.length - 1]; };
-  P.applyFont = function () { this.el.screen.style.fontSize = NV.settings.get('termFont') + 'px'; };
+  // Skicka en tangent som om den trycktes på tangentbordet
+  P.pressKey = function (k) {
+    var ev = { key: k, ctrlKey: false, shiftKey: false, metaKey: false, preventDefault: function () {} };
+    if (k === 'ctrl-c') { ev.key = 'c'; ev.ctrlKey = true; }
+    else if (k === 'ctrl-z') { ev.key = 'z'; ev.ctrlKey = true; }
+    else if (k === 'ctrl-u') { ev.key = 'u'; ev.ctrlKey = true; }
+    else if (k === 'ctrl-a-k') { this.onKey({ key: 'a', ctrlKey: true, preventDefault: function () {} }); ev.key = 'k'; }
+    else if (k === 'ctrl-r') { ev.key = 'r'; ev.ctrlKey = true; }
+    else if (k.indexOf('ins:') === 0) {
+      // Tecken som är krångliga att hitta på mobilens tangentbord
+      var inp = this.el.input, txt = k.slice(4), at = inp.selectionStart || inp.value.length;
+      inp.value = inp.value.slice(0, at) + txt + inp.value.slice(at);
+      try { inp.setSelectionRange(at + txt.length, at + txt.length); } catch (e) { /* äldre webbläsare */ }
+      this.updateGhost();
+      return;
+    }
+    this.onKey(ev);
+  };
+  P.applyFont = function () {
+    var pix = this.theme() === 'snes';
+    this.el.screen.style.fontSize = (NV.settings.get('termFont') + (pix ? 6 : 0)) + 'px';
+    this.updateGhost();
+  };
+  // Tema: pixel-SNES i 2D, klassiskt i 3D, eller spelarens val
+  P.theme = function () {
+    var t = NV.settings.get('termTheme');
+    if (t === 'auto' || !t) return this.game.mode === '2d' ? 'snes' : 'classic';
+    return t;
+  };
+  P.applyTheme = function () {
+    var th = this.theme();
+    var r = this.root;
+    ['classic', 'green', 'amber', 'snes'].forEach(function (x) { r.classList.toggle('theme-' + x, x === th); });
+    this.applyFont();
+  };
   P.copySelection = function () {
     var sel = window.getSelection ? String(window.getSelection()) : '';
     if (!sel) { this.game.ui.toast('Markera text i terminalen först, sedan Kopiera.'); return; }
@@ -52,13 +136,24 @@ NV.Terminal = (function () {
   P.focus = function () { try { this.el.input.focus({ preventScroll: true }); } catch (e) { this.el.input.focus(); } };
 
   P.show = function () {
+    var was = this.open;
+    this.applyTheme();
+    var sz = NV.settings.get('termSize');
+    if (sz && window.innerWidth >= 760) { this.el.term.style.width = Math.min(sz[0], window.innerWidth - 16) + 'px'; this.el.term.style.height = Math.min(sz[1], window.innerHeight - 16) + 'px'; }
     this.root.classList.remove('hidden');
     this.open = true;
+    if (!was) {
+      var term = this.el.term;
+      term.classList.remove('crt-on'); void term.offsetWidth; term.classList.add('crt-on');
+      if (this.theme() === 'snes' || this.theme() === 'green' || this.theme() === 'amber') NV.sfx.crt(); else NV.sfx.open();
+    }
     this.game.world.unlock();
     this.focus();
     this.refreshHeader();
   };
   P.hide = function () {
+    this.el.histBox.classList.add('hidden');
+    this.el.find.value = '';
     this.root.classList.add('hidden');
     this.open = false;
     this.stack = [];
@@ -96,6 +191,7 @@ NV.Terminal = (function () {
   P.refreshHeader = function () {
     var t = this.top();
     this.el.title.textContent = t ? t.title : 'Terminal';
+    this.drawIcon(t);
     var serial = this.stack.some(function (s) { return s.kind === 'serial' || s.kind === 'ssh'; });
     this.el.disconnect.style.display = serial ? '' : 'none';
     this.el.quick.innerHTML = '';
@@ -106,6 +202,7 @@ NV.Terminal = (function () {
       if (tgt) chips.push(['screen 9600', 'sudo screen /dev/ttyUSB0 9600']);
       chips.push(['ssh R-Nordvik-1', 'ssh drift@192.168.1.193'], ['ping gateway', 'ping -c 4 192.168.1.193'], ['help', 'help']);
       if (this.game.week === 8) chips.push(['ssh WLC', 'ssh admin@192.168.1.196']);
+      if (this.game.week === 10) chips.push(['ssh R-Boras-1', 'ssh drift@192.168.2.193'], ['ssh LB', 'ssh admin@192.168.1.13'], ['curl ×4', 'for i in 1 2 3 4; do curl -s http://tid/; done'], ['tracepath Borås', 'tracepath 192.168.2.193']);
       chips.forEach(function (c) {
         var b = document.createElement('button');
         b.textContent = c[0];
@@ -128,17 +225,198 @@ NV.Terminal = (function () {
     }
   };
 
-  P.print = function (text) {
+  P.print = function (text, plain) {
     if (!text) return;
     var t = this.top();
-    if (t && t.garbled) text = garble(text);
+    if (t && t.garbled) { text = garble(text); plain = true; }
     var out = this.el.out;
-    out.appendChild(document.createTextNode(text));
+    if (plain) out.appendChild(document.createTextNode(text));
+    else out.appendChild(highlight(text, this));
     // Begränsa mängden text
     if (out.childNodes.length > 1500) { for (var i = 0; i < 300; i++) out.removeChild(out.firstChild); }
     this.scroll();
   };
-  P.scroll = function () { this.el.screen.scrollTop = this.el.screen.scrollHeight; };
+  P.atBottom = function () { var s = this.el.screen; return s.scrollHeight - s.scrollTop - s.clientHeight < 40; };
+  // Rulla bara ned om du redan är längst ned – annars visas knappen "Nya rader"
+  P.scroll = function (force) {
+    if (force || !this.userUp) { this.el.screen.scrollTop = this.el.screen.scrollHeight; if (this.el.newlines) this.el.newlines.classList.add('hidden'); }
+    else if (this.el.newlines) this.el.newlines.classList.remove('hidden');
+  };
+  // Kommandot som skrevs: prompten och texten får egna färger
+  P.echo = function (prompt, cmd) {
+    var t = this.top();
+    if (t && t.garbled) { this.print(prompt + cmd + '\n', true); return; }
+    var f = document.createDocumentFragment();
+    var a = document.createElement('span'); a.className = 't-prompt' + promptClass(prompt); a.textContent = prompt; f.appendChild(a);
+    var b = document.createElement('span'); b.className = 't-cmd'; b.textContent = cmd; f.appendChild(b);
+    f.appendChild(document.createTextNode('\n'));
+    this.el.out.appendChild(f);
+    this.scroll();
+  };
+  function promptClass(p) {
+    if (/\(config[^)]*\)#\s*$/.test(p)) return ' p-conf';
+    if (/#\s*$/.test(p)) return ' p-priv';
+    if (/>\s*$/.test(p)) return ' p-user';
+    return '';
+  }
+
+  // Färgning av utskrifter: upp/nere, adresser, portnamn, loggar och fel
+  var RULES = [
+    ['t-err', /^%\s*(Invalid input|Incomplete command|Ambiguous command|Unknown command|Unrecognized|Bad|Error).*$/],
+    ['t-log', /%[A-Z0-9_]+-\d-[A-Z0-9_]+/],
+    ['t-warn', /#pkts (?:encaps|decaps): 0\b|Frag needed and DF set|Paketet måste fragmenteras men DF har angetts\.|MM_KEY_EXCH|DOWN-NEGOTIATING|UP-IDLE/],
+    ['t-bad', /\b(?:MM_NO_STATE|502 Bad Gateway|503 Service Unavailable|proxy identities not supported|Begäran gjorde time out\.?|0 fil\(er\) kopierade)/],
+    ['t-ok', /\b(?:QM_IDLE|UP-ACTIVE|200 OK|1 fil\(er\) kopierade|Svar från)/],
+    ['t-bad', /\b(administratively down|err-disabled|notconnect|not connected|down|DOWN|disabled|Request timed out|Destination host unreachable|unreachable|timed out|denied|Denied|refused|failed|FAILED|Success rate is 0 percent)\b/],
+    ['t-warn', /\b(BLK|blocking|Blocking|flapping|mismatch|late collisions?|CRC|input errors|inactive|Altn|APIPA|Media disconnected)\b/],
+    ['t-ok', /\b(connected|up|UP|FWD|forwarding|Established|Success rate is 100 percent|Reply from|bytes from|open|Connected|Enabled|Registered)\b|!{3,}/],
+    ['t-mac', /\b[0-9a-f]{4}\.[0-9a-f]{4}\.[0-9a-f]{4}\b|\b([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2}\b/],
+    ['t-ip', /\b\d{1,3}(\.\d{1,3}){3}(\/\d{1,2})?\b/],
+    ['t-if', /\b(GigabitEthernet|FastEthernet|Port-channel|Loopback|Serial|Vlan|Tunnel|Gi|Fa|Po|Lo|Se)\d+(\/\d+)*(\.\d+)?\b/],
+  ];
+  var ANCH = RULES.map(function (r) { return new RegExp('^(?:' + r[1].source + ')$'); });
+  var BIG = new RegExp(RULES.map(function (r) { return '(' + r[1].source + ')'; }).join('|'), 'gm');
+  function highlight(text, term) {
+    var f = document.createDocumentFragment();
+    if (text.length > 60000) { f.appendChild(document.createTextNode(text)); return f; }
+    var last = 0, m, err = false;
+    BIG.lastIndex = 0;
+    while ((m = BIG.exec(text))) {
+      if (m[0] === '') { BIG.lastIndex++; continue; }
+      var cls = null;
+      for (var i = 0; i < RULES.length; i++) { if (ANCH[i].test(m[0])) { cls = RULES[i][0]; break; } }
+      if (!cls) continue;
+      if (cls === 't-ip' && /^169\.254\./.test(m[0])) cls = 't-warn';
+      if (cls === 't-err') err = true;
+      if (m.index > last) f.appendChild(document.createTextNode(text.slice(last, m.index)));
+      var sp = document.createElement('span'); sp.className = cls; sp.textContent = m[0];
+      f.appendChild(sp);
+      last = m.index + m[0].length;
+    }
+    if (last < text.length) f.appendChild(document.createTextNode(text.slice(last)));
+    if (err && term) term.errorFlash();
+    return f;
+  }
+  P.errorFlash = function () {
+    var sc = this.el.screen;
+    NV.sfx.bell();
+    sc.classList.remove('err-flash'); void sc.offsetWidth; sc.classList.add('err-flash');
+  };
+
+  // Spökkomplettering: resten av kommandot visas grått, → eller Tab tar det
+  P.measure = function (txt) {
+    var c = this._mc || (this._mc = document.createElement('canvas').getContext('2d'));
+    var cs = getComputedStyle(this.el.input);
+    c.font = cs.fontSize + ' ' + cs.fontFamily;
+    return c.measureText(txt).width;
+  };
+  P.updateGhost = function () {
+    var t = this.top(), s = t && t.session, el = this.el;
+    var v = el.input.value;
+    var ghost = '';
+    if (s && s.complete && !t.garbled && v && !(s.pending && s.pending.secret) && /\S$/.test(v)) {
+      try { var c = s.complete(v); if (c && c.toLowerCase().indexOf(v.toLowerCase()) === 0 && c.length > v.length) ghost = c.slice(v.length); } catch (e) { ghost = ''; }
+    }
+    this.ghostText = ghost;
+    el.ghost.textContent = ghost;
+    el.ghost.style.left = this.measure(el.input.type === 'password' ? '' : v) + 'px';
+    this.updateCursor();
+  };
+  P.updateCursor = function () {
+    var el = this.el, v = el.input.value;
+    var atEnd = el.input.selectionStart === v.length;
+    el.cursor.style.left = this.measure(el.input.type === 'password' ? '' : v) + 'px';
+    el.cursor.style.display = atEnd ? '' : 'none';
+    this.root.classList.toggle('caret-native', !atEnd);
+  };
+  // Statusrad: anslutning, läge och klocka
+  P.setStatusHint = function (txt) {
+    var m = this.el.status && this.el.status.querySelector('.ts-mode');
+    if (m) m.textContent = txt;
+  };
+  P.updateStatus = function () {
+    var t = this.top(), el = this.el.status;
+    if (!t) return;
+    var conn = t.kind === 'serial' ? '🔌 Konsol ' + t.speed + ' 8N1' + (t.garbled ? ' · fel hastighet?' : '') : (t.kind === 'ssh' ? '🔒 ' + (t.title.indexOf('telnet') === 0 ? 'Telnet (okrypterat!)' : 'SSH') : (t.kind === 'win' ? '🪟 Windows' : '🐧 Laptop (Linux)'));
+    var p = this.el.prompt.textContent || '';
+    var mode = '';
+    if (t.ios || t.kind === 'serial') {
+      if (!t.started) mode = 'Tryck Enter';
+      else if (/\(config-if[^)]*\)#/.test(p)) mode = 'Interfacekonfiguration';
+      else if (/\(config-line\)#/.test(p)) mode = 'Linjekonfiguration';
+      else if (/\(config-isakmp\)#/.test(p)) mode = 'ISAKMP-policy (fas 1)';
+      else if (/\(config-crypto-map\)#/.test(p)) mode = 'Crypto map';
+      else if (/\(cfg-crypto-trans\)#/.test(p)) mode = 'Transform-set (fas 2)';
+      else if (/\(config-ext-nacl\)#|\(config-std-nacl\)#/.test(p)) mode = 'Åtkomstlista';
+      else if (/\(config[^)]*\)#/.test(p)) mode = 'Konfigurationsläge';
+      else if (/#\s*$/.test(p)) mode = 'Privilegierat läge (#)';
+      else if (/>\s*$/.test(p)) mode = 'Användarläge (>)';
+      else mode = p ? 'Inloggning' : '';
+    } else if (t.dev === 'LB') mode = 'Lastbalanserare';
+    else if (t.dev === 'WLC') mode = 'Controller (AireOS)';
+    else mode = t.kind === 'win' ? 'cmd.exe' : 'bash';
+    var clock = this.game.state ? NV.sim.deviceClock(this.game.state, this.game.state.devices.R1).hms : '';
+    el.querySelector('.ts-conn').textContent = conn;
+    el.querySelector('.ts-mode').textContent = (this.busy ? '⏳ arbetar… (Ctrl+C avbryter) · ' : '') + mode;
+    el.querySelector('.ts-time').textContent = clock;
+  };
+  // Liten pixelikon för sessionen
+  P.drawIcon = function (t) {
+    var c = this.el.icon, g = c.getContext('2d');
+    g.clearRect(0, 0, 16, 16);
+    var kind = !t ? 'lap' : (t.kind === 'win' ? 'win' : (t.dev ? (/^R/.test(t.dev) ? 'router' : (t.dev === 'WLC' ? 'wlc' : (t.dev === 'LB' ? 'lb' : 'switch'))) : 'lap'));
+    function r(x, y, w, h, col) { g.fillStyle = col; g.fillRect(x, y, w, h); }
+    if (kind === 'lb') { r(1, 5, 14, 7, '#2a3a4a'); r(1, 5, 14, 1, '#6b8db0'); r(3, 8, 2, 2, '#3dff6a'); r(7, 8, 2, 2, '#3dff6a'); r(11, 8, 2, 2, '#ffb020'); r(7, 2, 2, 3, '#9fb4c8'); return; }
+    if (kind === 'switch') { r(0, 5, 16, 7, '#4c5b6b'); r(0, 5, 16, 1, '#8ea3b8'); for (var i = 0; i < 6; i++) { r(2 + i * 2, 8, 1, 2, '#10151a'); r(2 + i * 2, 7, 1, 1, i % 2 ? '#3dff6a' : '#ffb020'); } }
+    else if (kind === 'router') { r(1, 4, 14, 9, '#cfd2cf'); r(1, 4, 14, 1, '#ffffff'); r(3, 7, 3, 3, '#1d2226'); r(8, 7, 3, 3, '#1d2226'); r(13, 6, 1, 1, '#3dff6a'); }
+    else if (kind === 'wlc') { r(1, 6, 14, 6, '#b9bcbf'); r(4, 2, 1, 4, '#555'); r(11, 2, 1, 4, '#555'); r(12, 8, 1, 1, '#3dff6a'); }
+    else if (kind === 'win') { r(2, 2, 12, 12, '#1f6fd6'); r(7, 2, 1, 12, '#cfe3ff'); r(2, 7, 12, 1, '#cfe3ff'); }
+    else { r(2, 3, 12, 8, '#2b2d31'); r(3, 4, 10, 6, '#300a24'); r(4, 5, 3, 1, '#8fe388'); r(1, 11, 14, 2, '#55585e'); }
+  };
+  // Tidigare kommandon i en lista
+  P.toggleHistory = function () {
+    var box = this.el.histBox, self = this;
+    if (!box.classList.contains('hidden')) { box.classList.add('hidden'); this.focus(); return; }
+    var t = this.top();
+    var h = t ? this.hist[t.histKey || t.kind] : null;
+    var list = h ? h.list.slice(-15).reverse() : [];
+    box.innerHTML = list.length ? '' : '<div class="muted">Inga kommandon ännu.</div>';
+    list.forEach(function (l) {
+      var b = document.createElement('button');
+      b.textContent = l;
+      b.addEventListener('click', function () { self.el.input.value = l; box.classList.add('hidden'); self.focus(); self.updateGhost(); });
+      box.appendChild(b);
+    });
+    box.classList.remove('hidden');
+  };
+  // Sök i utskriften
+  P.find = function (q, next) {
+    var out = this.el.out;
+    out.querySelectorAll('mark.t-find').forEach(function (m) { m.replaceWith(document.createTextNode(m.textContent)); });
+    out.normalize();
+    if (!q) return;
+    var ql = q.toLowerCase(), marks = [];
+    var walker = document.createTreeWalker(out, NodeFilter.SHOW_TEXT), nodes = [], n;
+    while ((n = walker.nextNode())) nodes.push(n);
+    nodes.forEach(function (node) {
+      var txt = node.nodeValue, low = txt.toLowerCase(), i = low.indexOf(ql);
+      if (i < 0) return;
+      var f = document.createDocumentFragment(), last = 0;
+      while (i >= 0) {
+        f.appendChild(document.createTextNode(txt.slice(last, i)));
+        var m = document.createElement('mark'); m.className = 't-find'; m.textContent = txt.slice(i, i + q.length);
+        f.appendChild(m); marks.push(m);
+        last = i + q.length; i = low.indexOf(ql, last);
+      }
+      f.appendChild(document.createTextNode(txt.slice(last)));
+      node.replaceWith(f);
+    });
+    if (!marks.length) return;
+    this.findIx = next ? ((this.findIx || 0) + 1) % marks.length : marks.length - 1;
+    var cur = marks[this.findIx];
+    cur.classList.add('cur');
+    cur.scrollIntoView({ block: 'center' });
+  };
   function garble(text) {
     var o = '';
     for (var i = 0; i < text.length; i++) {
@@ -158,8 +436,11 @@ NV.Terminal = (function () {
     else if (s) promptText = s.promptText ? s.promptText() : s.prompt();
     if (t && t.garbled && promptText) promptText = garble(promptText);
     this.el.prompt.textContent = promptText;
+    this.el.prompt.className = 'term-prompt' + promptClass(promptText);
     var secret = s && s.pending && s.pending.secret;
     this.el.input.type = secret ? 'password' : 'text';
+    this.updateGhost();
+    this.updateStatus();
     this.scroll();
   };
 
@@ -172,9 +453,43 @@ NV.Terminal = (function () {
       this.ctrlA = false;
       if (e.key === 'k' || e.key === 'K' || e.key === '\\') { e.preventDefault(); this.popSerial(true); return; }
     }
-    if (e.key === 'Escape') { e.preventDefault(); this.hide(); return; }
+    if (e.key === 'Escape') { e.preventDefault(); if (!this.el.histBox.classList.contains('hidden')) { this.el.histBox.classList.add('hidden'); return; } this.hide(); return; }
+    if (e.ctrlKey && (e.key === 'f' || e.key === 'F')) { e.preventDefault(); this.el.find.focus(); this.el.find.select(); return; }
+    if (e.key === 'ArrowRight' && this.ghostText && this.el.input.selectionStart === this.el.input.value.length) { e.preventDefault(); this.el.input.value += this.ghostText; this.updateGhost(); return; }
+    if (e.ctrlKey && (e.key === 'u' || e.key === 'U')) { e.preventDefault(); this.el.input.value = ''; this.updateGhost(); return; }
+    if (e.ctrlKey && (e.key === 'w' || e.key === 'W')) { e.preventDefault(); this.el.input.value = this.el.input.value.replace(/\s*\S+\s*$/, ''); this.updateGhost(); return; }
     if (e.ctrlKey && (e.key === 'l' || e.key === 'L')) { e.preventDefault(); this.el.out.textContent = ''; this.renderPrompt(); return; }
+    // Ctrl+K: ta bort resten av raden från markören
+    if (e.ctrlKey && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); var inp = this.el.input; inp.value = inp.value.slice(0, inp.selectionStart); this.updateGhost(); return; }
+    // Ctrl+R: bläddra bakåt bland tidigare kommandon som innehåller det du skrivit
+    if (e.ctrlKey && (e.key === 'r' || e.key === 'R')) {
+      e.preventDefault();
+      var hr = this.hist[t.histKey || t.kind];
+      if (!hr || !hr.list.length) return;
+      if (!this.rsearch || this.rsearch.key !== (t.histKey || t.kind)) this.rsearch = { key: t.histKey || t.kind, q: this.el.input.value, from: hr.list.length };
+      for (var ri = this.rsearch.from - 1; ri >= 0; ri--) {
+        if (hr.list[ri].indexOf(this.rsearch.q) >= 0) { this.rsearch.from = ri; this.el.input.value = hr.list[ri]; this.setStatusHint('(sökning bakåt) ‘' + this.rsearch.q + '’'); this.updateGhost(); return; }
+      }
+      this.rsearch.from = hr.list.length;
+      return;
+    }
+    if (!(e.ctrlKey && (e.key === 'r' || e.key === 'R'))) this.rsearch = null;
+    // Alt+. : sista ordet i föregående kommando (som i bash)
+    if (e.altKey && e.key === '.') {
+      e.preventDefault();
+      var hl = this.hist[t.histKey || t.kind];
+      var prev = hl && hl.list[hl.list.length - 1];
+      if (prev) { var wds = prev.trim().split(/\s+/); this.el.input.value += wds[wds.length - 1]; this.updateGhost(); }
+      return;
+    }
+    // Ctrl+D på tom rad loggar ut, som i ett riktigt skal
+    if (e.ctrlKey && (e.key === 'd' || e.key === 'D') && !this.el.input.value && !this.busy && (t.kind === 'linux' || t.kind === 'ssh' || t.kind === 'win')) {
+      e.preventDefault();
+      this.submit(t.kind === 'win' ? 'exit' : (t.ios ? 'exit' : 'logout'));
+      return;
+    }
     if (e.ctrlKey && e.shiftKey && (e.key === 'c' || e.key === 'C')) { e.preventDefault(); this.copySelection(); return; }
+    if (e.ctrlKey && (e.key === '+' || e.key === '=' || e.key === '-')) { e.preventDefault(); NV.settings.set('termFont', Math.max(11, Math.min(20, NV.settings.get('termFont') + (e.key === '-' ? -1 : 1)))); this.applyFont(); return; }
     if (e.key === 'PageUp' || e.key === 'PageDown') { e.preventDefault(); this.el.screen.scrollTop += (e.key === 'PageUp' ? -1 : 1) * this.el.screen.clientHeight * 0.85; return; }
     if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) NV.sfx.key();
     if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) {
@@ -209,6 +524,7 @@ NV.Terminal = (function () {
       if (s && s.complete && !t.garbled) {
         var c = s.complete(this.el.input.value);
         if (c) this.el.input.value = c;
+        this.updateGhost();
       }
       return;
     }
@@ -223,6 +539,7 @@ NV.Terminal = (function () {
       if (!h.list.length) return;
       if (e.key === 'ArrowUp') h.idx = Math.max(0, h.idx - 1); else h.idx = Math.min(h.list.length, h.idx + 1);
       this.el.input.value = h.list[h.idx] || '';
+      this.updateGhost();
       return;
     }
   };
@@ -231,7 +548,7 @@ NV.Terminal = (function () {
     if (!t || !t.ios || t.garbled || !t.started) return;
     var s = t.session;
     var cur = this.el.input.value;
-    this.print(this.el.prompt.textContent + cur + '?\n');
+    this.echo(this.el.prompt.textContent, cur + '?');
     var h = s.help(cur);
     this.print(h + '\n\n');
     this.renderPrompt();
@@ -245,10 +562,12 @@ NV.Terminal = (function () {
     var secret = s && s.pending && s.pending.secret;
     var shown = secret ? '' : line;
     if (t.garbled) shown = line;
-    this.print((this.el.prompt.textContent || '') + shown + '\n');
+    this.echo(this.el.prompt.textContent || '', shown);
     if (!secret && line.trim()) {
       var h = this.hist[t.histKey || t.kind] = this.hist[t.histKey || t.kind] || { list: [], idx: 0 };
-      h.list.push(line); h.idx = h.list.length;
+      // Samma kommando två gånger i rad sparas bara en gång (som HISTCONTROL=ignoredups)
+      if (h.list[h.list.length - 1] !== line) h.list.push(line);
+      h.idx = h.list.length;
       this.game.logCommand(t, line);
     }
     // Seriell konsol: första Enter "väcker" konsolen
@@ -274,7 +593,10 @@ NV.Terminal = (function () {
         return;
       }
     }
-    var r = s.handle(line) || { out: '' };
+    // Ping som körs av kommandot visas som paket i världen
+    this.game.cmdActive = true; this.game.pingShown = false;
+    var r;
+    try { r = s.handle(line) || { out: '' }; } finally { this.game.cmdActive = false; }
     this.consume(r);
   };
 
@@ -299,7 +621,9 @@ NV.Terminal = (function () {
     if (!chunks.length) { finish(); return; }
     this.busy = true;
     this.abort = false;
+    this.userUp = false;
     this.el.prompt.textContent = '';
+    this.updateStatus();
     var i = 0;
     function next() {
       if (self.abort) { self.busy = false; self.abort = false; finish(); return; }
@@ -332,6 +656,11 @@ NV.Terminal = (function () {
       var w = new NV.WlcSession(st, p.dev);
       this.push({ kind: 'ssh', session: w, dev: p.dev, ios: false, started: true, title: 'ssh admin@WLC-Nordvik' });
       this.print('\n(Cisco Controller)\n');
+    } else if (p.kind === 'lb') {
+      var lbs = new NV.LbSession(st, p.dev);
+      lbs.pending = null;
+      this.push({ kind: 'ssh', session: lbs, dev: p.dev, ios: false, started: true, title: 'ssh admin@LB-Nordvik' });
+      this.print('\nLB-Nordvik 4.2 (lastbalanserare för tidrapporteringen)\nSkriv help för kommandon.\n');
     }
     this.renderPrompt();
   };

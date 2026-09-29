@@ -7,7 +7,12 @@ NV.shared = (function () {
     var D = S.get(state);
     var d = state.devices[devId];
     var storm = Object.keys(D.storm).some(function (v) { return D.storm[v].indexOf(devId) >= 0; });
-    return function (port, t) {
+    // Färgblindläge: grönt blir blått och bärnsten blir orange
+    var cb = NV.settings && NV.settings.get('colorblind');
+    var MAP = { '#3dff6a': '#3da5ff', '#1d4a26': '#1d3a5a', '#16301b': '#12243a', '#ffb020': '#ff8a1f', '#3a2a10': '#3a1f08' };
+    var inner = led;
+    return cb ? function (port, t) { var c = inner(port, t); return MAP[c] || c; } : inner;
+    function led(port, t) {
       if (!d || !d.powered) return '#1d261f';
       if (d.os === 'ios') {
         var i = d.config.ifaces[port];
@@ -29,7 +34,7 @@ NV.shared = (function () {
       var la = NV.model.linkAt(state, devId, 'nic');
       var up = la && D.links[la.link.id] && D.links[la.link.id].up;
       return up ? (Math.random() < 0.2 ? '#1d4a26' : '#3dff6a') : '#1d261f';
-    };
+    }
   }
 
   // Beskrivning av en port för verktygstips: "Gi0/7 · Bo · connected · VLAN 20"
@@ -51,7 +56,13 @@ NV.shared = (function () {
     ['R-Nordvik-1 Gi0/1 (internet)', 'R1', 'GigabitEthernet0/1'],
     ['R-Nordvik-1 Gi0/2 (Borås)', 'R1', 'GigabitEthernet0/2'],
   ];
+  // Vecka 10: den hyrda linan är borta – fjärde grafen visar Borås internet/VPN i stället
+  function fitSeries(state) {
+    var vpn = !!(state.devices.RB && state.devices.RB.config.crypto);
+    SERIES[3] = vpn ? ['R-Boras-1 Gi0/1 (internet + VPN)', 'RB', 'GigabitEthernet0/1'] : ['R-Nordvik-1 Gi0/2 (Borås)', 'R1', 'GigabitEthernet0/2'];
+  }
   function sampleMonitor(state, hist) {
+    fitSeries(state);
     SERIES.forEach(function (s) {
       var h = hist[s[0]] = hist[s[0]] || [];
       h.push(S.linkLoad(state, s[1], s[2]));
@@ -112,5 +123,116 @@ NV.shared = (function () {
     return [A.rackA, A.rackB, A.borasRack].filter(Boolean);
   }
 
-  return { ledFn: ledFn, portInfo: portInfo, sampleMonitor: sampleMonitor, drawMonitor: drawMonitor, SERIES: SERIES, rackSpots: rackSpots };
+  // Krabban: vandrar runt sitt hem och springer undan när du kommer nära (samma logik i 3D och 2D)
+  function crabStep(c, dt, player, collides) {
+    c.anim = c.anim || 0;
+    c.t = (c.t || 0) - dt;
+    var dx = c.x - player.x, dz = c.z - player.z, d = Math.sqrt(dx * dx + dz * dz);
+    var vx = 0, vz = 0, speed = 0;
+    if (c.tired > 0) c.tired -= dt;
+    if (d < 2.6 && !(c.tired > 0)) {
+      if (!c.fleeing) { c.fleeing = true; c.fleeT = 0; if (NV.sfx && NV.sfx.squeak) NV.sfx.squeak(); }
+      c.fleeT += dt;
+      if (c.fleeT > 1.8) { c.fleeing = false; c.tired = 1.4; }
+      vx = dx / (d || 1); vz = dz / (d || 1); speed = 1.7;
+    } else {
+      c.fleeing = false;
+      if (c.t <= 0 || !c.tx) {
+        var a = Math.random() * Math.PI * 2, r = Math.random() * 1.8;
+        c.tx = c.homeX + Math.cos(a) * r; c.tz = c.homeZ + Math.sin(a) * r;
+        c.t = 2 + Math.random() * 3; c.pause = Math.random() * 1.5;
+      }
+      if (c.pause > 0) { c.pause -= dt; return false; }
+      var ex = c.tx - c.x, ez = c.tz - c.z, el = Math.sqrt(ex * ex + ez * ez);
+      if (el < 0.05) return false;
+      vx = ex / el; vz = ez / el; speed = 0.45;
+    }
+    var nx = c.x + vx * speed * dt, nz = c.z + vz * speed * dt;
+    var moved = false;
+    if (!collides(nx, c.z, 0.12)) { c.x = nx; moved = true; }
+    if (!collides(c.x, nz, 0.12)) { c.z = nz; moved = true; }
+    if (!moved) { c.tx = null; c.t = 0; if (c.fleeing) { c.fleeing = false; c.tired = 1.2; } }
+    // Krabbor går i sidled: kroppen vinkelrätt mot färdriktningen
+    if (moved) c.face = Math.atan2(vx, vz) + Math.PI / 2;
+    return moved;
+  }
+
+  // Status för glasögonen: en länk (up/down/warn/off) och en sammanfattning per enhet
+  function linkStatus(state, l) {
+    var D = S.get(state);
+    if (l.state === 'unplugged') return 'off';
+    var L = D.links[l.id];
+    if (!L || !L.up) return 'down';
+    var bad = [l.a, l.b].some(function (s) {
+      var d = state.devices[s.dev];
+      if (!d || d.os !== 'ios') return false;
+      if (SH.portState(state, d, s.port) === 'err-disabled') return true;
+      var p = D.ports[S.key(s.dev, s.port)];
+      if (p && (p.mismatch || p.link.state === 'flapping')) return true;
+      return Object.keys(D.blocked).some(function (k) { return k.indexOf(s.dev + '|' + s.port + '#') === 0; });
+    });
+    return bad ? 'warn' : 'up';
+  }
+  function deviceLine(state, id) {
+    var d = state.devices[id];
+    if (!d) return null;
+    if (d.kind === 'lb') {
+      var hl = lbHealth(state);
+      var dn = hl.filter(function (x) { return x === 'down'; }).length;
+      return { text: 'LB-Nordvik  ' + hl.filter(function (x) { return x === 'up'; }).length + '/' + hl.length + ' servrar UP', bad: dn > 0 };
+    }
+    if (d.os !== 'ios') return { text: (d.label || id) + '  ' + (d.powered === false ? 'av' : 'på'), bad: d.powered === false };
+    if (d.config.crypto && (id === 'R1' || id === 'RB')) {
+      var vs = vpnState(state);
+      var base = deviceLine0(state, d);
+      return { text: base.text + '  · VPN ' + ({ up: 'uppe', partial: 'delvis', down: 'nere' }[vs] || '–'), bad: base.bad || vs !== 'up' };
+    }
+    return deviceLine0(state, d);
+  }
+  function deviceLine0(state, d) {
+    var ports = Object.keys(d.config.ifaces).filter(function (p) { return !d.config.ifaces[p].parent && !/^Vlan|^Loop/.test(p); });
+    var up = ports.filter(function (p) { return SH.portState(state, d, p) === 'connected'; }).length;
+    var err = ports.filter(function (p) { return SH.portState(state, d, p) === 'err-disabled'; }).length;
+    return { text: d.config.hostname + '  ' + up + '/' + ports.length + ' uppe' + (err ? '  ' + err + ' err' : ''), bad: err > 0 };
+  }
+  // Lastbalanserarens lampor: en per server (up/down/off). Räknas om högst en gång i sekunden.
+  var lbCache = { t: 0, v: [], st: null };
+  function lbHealth(state) {
+    if (!state || !state.devices.LB || !state.devices.LB.lb) return [];
+    var now = Date.now();
+    if (lbCache.st === state && now - lbCache.t < 1000) return lbCache.v;
+    var v = [];
+    S.lbStatus(state, 'LB').forEach(function (p) { p.members.forEach(function (m) { v.push(!m.m.enabled ? 'off' : (m.up ? 'up' : 'down')); }); });
+    lbCache = { t: now, v: v, st: state };
+    return v;
+  }
+  // Tunnelns läge för glasögon och skyltar: 'up', 'partial', 'down' eller null (ingen VPN)
+  var vpnCache = { t: 0, v: null, st: null };
+  function vpnState(state) {
+    if (!state || !state.devices.R1 || !state.devices.R1.config.crypto) return null;
+    var now = Date.now();
+    if (vpnCache.st === state && now - vpnCache.t < 1000) return vpnCache.v;
+    var cs = S.cryptoStatus(state, 'R1');
+    var up = cs.sas.filter(function (a) { return a.up; }).length;
+    var v = !cs.isakmp.length || cs.isakmp[0].state !== 'QM_IDLE' ? 'down' : (up === cs.sas.length ? 'up' : (up ? 'partial' : 'down'));
+    vpnCache = { t: now, v: v, st: state };
+    return v;
+  }
+  function hostLine(state, id) {
+    var h = state.devices[id];
+    if (!h) return null;
+    var c = S.hostIpConf(h);
+    return { name: h.label || id, ip: c ? c.ip : 'ingen adress', bad: !c || !!c.apipa };
+  }
+
+  // Dammsugarroboten: kör rakt fram och svänger när den stöter i något (inom kontorslandskapet)
+  function vacStep(v, dt, collides) {
+    var sp = 0.32;
+    if (v.turn > 0) { v.turn -= dt; v.dir += dt * 2.2 * v.spin; return; }
+    var nx = v.x + Math.cos(v.dir) * sp * dt, nz = v.z + Math.sin(v.dir) * sp * dt;
+    if (collides(nx, nz, 0.2) || nx < -4.6 || nx > 14.5 || nz < 0.3 || nz > 9.6) { v.turn = 0.6 + Math.random() * 1.2; v.spin = Math.random() < 0.5 ? -1 : 1; return; }
+    v.x = nx; v.z = nz;
+  }
+
+  return { lbHealth: lbHealth, vpnState: vpnState, crabStep: crabStep, vacStep: vacStep, linkStatus: linkStatus, deviceLine: deviceLine, hostLine: hostLine, ledFn: ledFn, portInfo: portInfo, sampleMonitor: sampleMonitor, drawMonitor: drawMonitor, SERIES: SERIES, rackSpots: rackSpots };
 })();

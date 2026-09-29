@@ -2,15 +2,20 @@
 <html lang="sv">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0f1216">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Krabba-passet</title>
-  <meta name="description" content="Ett 3D-spel där du är nätverkstekniker på Nordvik och felsöker Cisco-utrustning via CLI.">
+  <meta name="description" content="Ett spel i 3D eller 2D där du är nätverkstekniker på Nordvik och felsöker Cisco-utrustning via CLI.">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/v4.css">
 </head>
 <body>
   <canvas id="view"></canvas>
   <canvas id="view2d" style="display:none"></canvas>
-  <div id="loading"><div class="load-card"><div class="logo">🦀</div><div class="load-title">Bygger Nordvik…</div><div class="load-bar"><i></i></div></div></div>
+  <div id="loading"><div class="load-card"><div class="logo">🦀</div><div class="load-title">Bygger Nordvik…</div><div class="load-bar"><i></i></div><div class="load-tip" id="load-tip"></div></div></div>
+  <script>(function () { var t = ["Tryck G för nätverksglasögonen.", "Kör ping och se paketen flyga genom nätet.", "Krabban gömmer sig nära ett av veckans fel.", "Kaffe gör att du går snabbare en stund.", "Huka med C för att läsa racket nerifrån."]; document.getElementById("load-tip").textContent = "💡 " + t[Math.floor(Math.random() * t.length)]; })();</script>
   <div id="compass" class="hidden"><span class="arrow">➤</span><span class="ctext"></span></div>
   <div id="crosshair"></div>
   <div id="hud"></div>
@@ -18,6 +23,10 @@
   <div id="toast"></div>
   <div id="fade"></div>
   <div id="boot-error"></div>
+  <canvas id="minimap" width="200" height="200" class="hidden"></canvas>
+  <div id="xpbar" class="hidden"><span class="xp-rank"></span><span class="xp-track"><i></i></span><span class="xp-num"></span></div>
+  <div id="fps" style="display:none"></div>
+  <div id="photo-tip" class="hidden">Fotoläge · P avslutar</div>
 
   <div id="pause" class="hidden">
     <div class="pause-card">
@@ -36,18 +45,25 @@
     <div class="term">
       <div class="term-head">
         <span class="dots"><i></i><i></i><i></i></span>
+        <canvas class="term-icon" width="16" height="16"></canvas>
         <span class="term-title">Terminal</span>
         <span class="term-quick"></span>
+        <button data-act="hist" title="Tidigare kommandon">⟲</button>
         <button data-act="font-" title="Mindre text">A−</button>
         <button data-act="font+" title="Större text">A+</button>
         <button data-act="copy" title="Kopiera markerad text (Ctrl+Shift+C)">Kopiera</button>
+        <button data-act="copyall" title="Kopiera hela sessionen">Kopiera allt</button>
         <button data-act="disconnect" title="Ctrl+A K">Koppla från</button>
         <button data-act="close" title="Esc">Stäng</button>
       </div>
       <div class="term-screen">
         <pre class="term-out"></pre>
-        <div class="term-line"><span class="term-prompt"></span><input class="term-input" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+        <div class="term-line"><span class="term-prompt"></span><span class="term-inwrap"><input class="term-input" autocomplete="off" autocapitalize="off" spellcheck="false"><span class="term-ghost"></span><span class="term-cursor"></span></span></div>
       </div>
+      <button class="term-new hidden">Nya rader ↓</button>
+      <div class="term-keys"><button data-k="Tab">Tab</button><button data-k="?">?</button><button data-k="ArrowUp">↑</button><button data-k="ArrowDown">↓</button><button data-k="ArrowRight">→</button><button data-k="ctrl-c">Ctrl+C</button><button data-k="ctrl-z">Ctrl+Z</button><button data-k="ctrl-u">Ctrl+U</button><button data-k="ctrl-a-k">Ctrl+A K</button><button data-k="ins: | ">|</button><button data-k="ctrl-r">Ctrl+R</button><button data-k="Enter">⏎</button></div>
+      <div class="term-hist hidden"></div>
+      <div class="term-status"><span class="ts-conn"></span><span class="ts-mode"></span><input class="term-find" placeholder="Sök… (Ctrl+F)" aria-label="Sök i terminalen" autocomplete="off" spellcheck="false"><span class="ts-time"></span></div>
     </div>
   </div>
 
@@ -62,18 +78,29 @@
   <script src="js/cli/ios.js"></script>
   <script src="js/cli/host.js"></script>
   <script src="js/cli/wlc.js"></script>
+  <script src="js/cli/lb.js"></script>
   <script src="js/levels.js"></script>
+  <script src="js/build.js"></script>
   <script src="js/world/tex.js"></script>
+  <script src="js/world/gfx.js"></script>
+  <script src="js/world/models.js"></script>
   <script src="js/world/building.js"></script>
   <script src="js/world/devices.js"></script>
   <script src="js/world/people.js"></script>
   <script src="js/world/shared.js"></script>
+  <script src="js/world/post.js"></script>
+  <script src="js/world/fx.js"></script>
+  <script src="js/world/extras.js"></script>
   <script src="js/world/world.js"></script>
   <script src="js/world/world2d.js"></script>
   <script src="js/ui/settings.js"></script>
+  <script src="js/ui/career.js"></script>
+  <script src="js/ui/minimap.js"></script>
+  <script src="js/ui/touch.js"></script>
   <script src="js/ui/handbook.js"></script>
   <script src="js/ui/terminal.js"></script>
   <script src="js/ui/ui.js"></script>
+  <script src="js/ui/more.js"></script>
   <script src="js/game.js"></script>
 </body>
 </html>

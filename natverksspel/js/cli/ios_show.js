@@ -117,6 +117,9 @@ NV.iosShow = (function () {
       if (i.aclIn) o.push(' ip access-group ' + i.aclIn + ' in');
       if (i.aclOut) o.push(' ip access-group ' + i.aclOut + ' out');
       if (i.natDir) o.push(' ip nat ' + i.natDir);
+      if (i.mtu) o.push(' ip mtu ' + i.mtu);
+      if (i.adjustMss) o.push(' ip tcp adjust-mss ' + i.adjustMss);
+      if (i.cryptoMap) o.push(' crypto map ' + i.cryptoMap);
       if (!i.svi && !i.parent && !i.internal) {
         if (d.kind === 'router') {
           o.push(i.duplex === 'auto' ? ' duplex auto' : ' duplex ' + i.duplex);
@@ -196,6 +199,7 @@ NV.iosShow = (function () {
       });
     }
     o.push('!');
+    cryptoConfig(c).forEach(function (l) { o.push(l); });
     ifaceNames(d).forEach(function (n) {
       if (!c.ifaces[n]) return;
       ifaceBlock(state, d, n, c).forEach(function (l) { o.push(l); });
@@ -235,12 +239,158 @@ NV.iosShow = (function () {
     o.push('line vty 5 15');
     lineCfg(c.lines.vty5_15, false).forEach(function (l) { o.push(l); });
     o.push('!');
+    if (c.ntpSource) o.push('ntp source ' + c.ntpSource);
     c.ntpServers.forEach(function (n) { o.push('ntp server ' + n); });
     o.push('end');
     var body = o.join('\n');
     return 'Building configuration...\n\nCurrent configuration : ' + (body.length + 40) + ' bytes\n' + body;
   }
+  // ---------------------------------------------------------------- Crypto (kapitel 10)
+  var ENC_TEXT = { 'des': 'DES - Data Encryption Standard (56 bit keys).', '3des': 'Three key triple DES', 'aes': 'AES - Advanced Encryption Standard (128 bit keys).', 'aes 192': 'AES - Advanced Encryption Standard (192 bit keys).', 'aes 256': 'AES - Advanced Encryption Standard (256 bit keys).' };
+  var HASH_TEXT = { sha: 'Secure Hash Standard', sha256: 'Secure Hash Standard 2 (256 bit)', sha384: 'Secure Hash Standard 2 (384 bit)', md5: 'Message Digest 5' };
+  var GROUP_BITS = { 1: 768, 2: 1024, 5: 1536, 14: 2048, 15: 3072, 16: 4096, 19: 256, 20: 384, 24: 2048 };
+  function cryptoConfig(c) {
+    var cr = c.crypto, o = [];
+    if (!cr) return o;
+    Object.keys(cr.isakmp.policies).map(Number).sort(function (a, b) { return a - b; }).forEach(function (n) {
+      var p = cr.isakmp.policies[n];
+      o.push('crypto isakmp policy ' + n);
+      if (p.enc !== 'des') o.push(' encr ' + p.enc);
+      if (p.hash !== 'sha') o.push(' hash ' + p.hash);
+      if (p.auth !== 'rsa-sig') o.push(' authentication ' + p.auth);
+      if (p.group !== 1) o.push(' group ' + p.group);
+      if (p.lifetime !== 86400) o.push(' lifetime ' + p.lifetime);
+    });
+    Object.keys(cr.isakmp.keys).forEach(function (ip) { o.push('crypto isakmp key ' + cr.isakmp.keys[ip] + ' address ' + ip); });
+    o.push('!', '!');
+    Object.keys(cr.transformSets).forEach(function (n) {
+      var t = cr.transformSets[n];
+      o.push('crypto ipsec transform-set ' + n + ' ' + t.transforms.join(' '));
+      o.push(' mode ' + (t.mode || 'tunnel'));
+    });
+    o.push('!', '!', '!');
+    Object.keys(cr.maps).forEach(function (m) {
+      Object.keys(cr.maps[m]).map(Number).sort(function (a, b) { return a - b; }).forEach(function (seq) {
+        var e = cr.maps[m][seq];
+        o.push('crypto map ' + m + ' ' + seq + ' ipsec-isakmp');
+        if (e.peer) o.push(' set peer ' + e.peer);
+        if (e.ts) o.push(' set transform-set ' + e.ts);
+        if (e.acl) o.push(' match address ' + e.acl);
+      });
+    });
+    o.push('!');
+    return o;
+  }
+  function wildToMask(w) { return U.intToIp((~U.ipToInt(w || '0.0.0.0')) >>> 0); }
+  function identOf(spec) {
+    if (!spec || spec.any) return '0.0.0.0/0.0.0.0';
+    if (spec.host) return spec.host + '/255.255.255.255';
+    return S.specNorm(spec).split('/')[0] + '/' + wildToMask(spec.wild);
+  }
+  function cryptoIsakmpSa(state, d) {
+    var s = S.cryptoStatus(state, d.id);
+    var o = ['IPv4 Crypto ISAKMP SA', 'dst             src             state          conn-id status'];
+    s.isakmp.forEach(function (x) { o.push(pad(x.dst, 16) + pad(x.src, 16) + pad(x.state, 15) + padL(x.connId, 7) + ' ' + x.status); });
+    o.push('', 'IPv6 Crypto ISAKMP SA', '');
+    return o.join('\n');
+  }
+  function cryptoIpsecSa(state, d) {
+    var s = S.cryptoStatus(state, d.id);
+    if (!s.sas.length) return '';
+    var o = [];
+    var lastIf = null;
+    s.sas.forEach(function (x) {
+      if (x.iface !== lastIf) {
+        o.push('', 'interface: ' + x.iface, '    Crypto map tag: ' + x.map + ', local addr ' + x.local);
+        lastIf = x.iface;
+      }
+      var n = x.up ? x : { encaps: 0, decaps: 0 };
+      o.push('', '   protected vrf: (none)',
+        '   local  ident (addr/mask/prot/port): (' + identOf(x.rule.src) + '/0/0)',
+        '   remote ident (addr/mask/prot/port): (' + identOf(x.rule.dst) + '/0/0)',
+        '   current_peer ' + x.peer + ' port 500',
+        '     PERMIT, flags={origin_is_acl,}',
+        '    #pkts encaps: ' + n.encaps + ', #pkts encrypt: ' + n.encaps + ', #pkts digest: ' + n.encaps,
+        '    #pkts decaps: ' + n.decaps + ', #pkts decrypt: ' + n.decaps + ', #pkts verify: ' + n.decaps,
+        '    #pkts compressed: 0, #pkts decompressed: 0',
+        '    #pkts not compressed: 0, #pkts compr. failed: 0',
+        '    #pkts not decompressed: 0, #pkts decompress failed: 0',
+        '    #send errors 0, #recv errors 0',
+        '',
+        '     local crypto endpt.: ' + x.local + ', remote crypto endpt.: ' + x.peer,
+        '     plaintext mtu ' + x.mtu + ', path mtu 1500, ip mtu 1500, ip mtu idb ' + x.iface,
+        '     current outbound spi: ' + (x.up ? '0x' + x.spi.toString(16).toUpperCase() + '(' + x.spi + ')' : '0x0(0)'),
+        '     PFS (Y/N): N, DH group: none',
+        '',
+        '     inbound esp sas:');
+      if (x.up) {
+        var sIn = (x.spi ^ 0x5a5a5a5a) >>> 0;
+        o.push('      spi: 0x' + sIn.toString(16).toUpperCase() + '(' + sIn + ')', '        transform: esp-256-aes esp-sha256-hmac ,', '        in use settings ={Tunnel, }', '        sa timing: remaining key lifetime (k/sec): (4607998/3284)', '        IV size: 16 bytes', '        replay detection support: Y', '        Status: ACTIVE(ACTIVE)');
+      }
+      o.push('', '     inbound ah sas:', '', '     inbound pcp sas:', '', '     outbound esp sas:');
+      if (x.up) o.push('      spi: 0x' + x.spi.toString(16).toUpperCase() + '(' + x.spi + ')', '        transform: esp-256-aes esp-sha256-hmac ,', '        in use settings ={Tunnel, }', '        sa timing: remaining key lifetime (k/sec): (4607998/3284)', '        IV size: 16 bytes', '        replay detection support: Y', '        Status: ACTIVE(ACTIVE)');
+      o.push('', '     outbound ah sas:', '', '     outbound pcp sas:');
+    });
+    return o.join('\n');
+  }
+  function cryptoMapShow(state, d) {
+    var c = d.config, cr = c.crypto;
+    if (!cr || !Object.keys(cr.maps).length) return '';
+    var o = [];
+    Object.keys(cr.maps).forEach(function (m) {
+      var ifs = Object.keys(c.ifaces).filter(function (n) { return c.ifaces[n].cryptoMap === m; });
+      Object.keys(cr.maps[m]).map(Number).sort(function (a, b) { return a - b; }).forEach(function (seq) {
+        var e = cr.maps[m][seq];
+        o.push('Crypto Map IPv4 "' + m + '" ' + seq + ' ipsec-isakmp');
+        o.push('\tPeer = ' + (e.peer || ''));
+        var acl = e.acl && c.acls[e.acl];
+        if (acl) {
+          o.push('\tExtended IP access list ' + e.acl);
+          acl.rules.forEach(function (r) { if (!r.remark) o.push('\t    access-list ' + e.acl + ' ' + aceText(acl.type, r).replace(/\s+/g, ' ')); });
+        } else o.push('\tNo matching address list set.');
+        o.push('\tCurrent peer: ' + (e.peer || ''), '\tSecurity association lifetime: 4608000 kilobytes/3600 seconds', '\tResponder-Only (Y/N): N', '\tPFS (Y/N): N', '\tMixed-mode : Disabled', '\tTransform sets={ ');
+        var t = e.ts && cr.transformSets[e.ts];
+        if (t) o.push('\t\t' + e.ts + ':  { ' + t.transforms.join(' ') + '  } , ');
+        o.push('\t}');
+        if (!e.peer || !e.ts || !e.acl) o.push('\tWARNING: This crypto map is incomplete!', '\t  To remedy the situation add a peer, a transform-set and an access list.');
+      });
+      o.push('\tInterfaces using crypto map ' + m + ':');
+      ifs.forEach(function (n) { o.push('\t\t' + n); });
+      o.push('');
+    });
+    return o.join('\n');
+  }
+  function cryptoIsakmpPolicy(state, d) {
+    var cr = d.config.crypto;
+    var o = ['', 'Global IKE policy'];
+    if (cr) Object.keys(cr.isakmp.policies).map(Number).sort(function (a, b) { return a - b; }).forEach(function (n) {
+      var p = cr.isakmp.policies[n];
+      o.push('Protection suite of priority ' + n,
+        '\tencryption algorithm:\t' + (ENC_TEXT[p.enc] || p.enc),
+        '\thash algorithm:\t\t' + (HASH_TEXT[p.hash] || p.hash),
+        '\tauthentication method:\t' + (p.auth === 'pre-share' ? 'Pre-Shared Key' : 'Rivest-Shamir-Adleman Signature'),
+        '\tDiffie-Hellman group:\t#' + p.group + ' (' + (GROUP_BITS[p.group] || 1024) + ' bit)',
+        '\tlifetime:\t\t' + p.lifetime + ' seconds, no volume limit');
+    });
+    o.push('Default protection suite', '\tencryption algorithm:\tDES - Data Encryption Standard (56 bit keys).', '\thash algorithm:\t\tSecure Hash Standard', '\tauthentication method:\tRivest-Shamir-Adleman Signature', '\tDiffie-Hellman group:\t#1 (768 bit)', '\tlifetime:\t\t86400 seconds, no volume limit');
+    return o.join('\n');
+  }
+  function cryptoSession(state, d) {
+    var s = S.cryptoStatus(state, d.id);
+    var o = ['Crypto session current status', ''];
+    s.isakmp.forEach(function (x) {
+      var up = s.sas.some(function (a) { return a.peer === x.dst && a.up; });
+      o.push('Interface: ' + (s.sas[0] ? s.sas[0].iface : ''), 'Session status: ' + (x.state === 'QM_IDLE' ? (up ? 'UP-ACTIVE' : 'UP-IDLE') : 'DOWN-NEGOTIATING'), 'Peer: ' + x.dst + ' port 500 ', '  IKEv1 SA: local ' + x.src + '/500 remote ' + x.dst + '/500 ' + (x.state === 'QM_IDLE' ? 'Active' : 'Inactive'));
+      s.sas.filter(function (a) { return a.peer === x.dst; }).forEach(function (a) {
+        o.push('  IPSEC FLOW: permit ip ' + identOf(a.rule.src) + ' ' + identOf(a.rule.dst), '        Active SAs: ' + (a.up ? 2 : 0) + ', origin: crypto map');
+      });
+      o.push('');
+    });
+    return o.join('\n');
+  }
+
   function startupConfig(state, d) {
+    if (!d.startup) return 'startup-config is not present';
     var s = runningConfig(state, d, d.startup).split('\n');
     s.splice(0, 3, 'Using ' + (s.join('\n').length) + ' out of 524288 bytes');
     return s.join('\n');
@@ -846,7 +996,7 @@ NV.iosShow = (function () {
       o.push('  Internet address is ' + i.ip.addr + '/' + U.maskToPrefix(i.ip.mask));
       o.push('  Broadcast address is 255.255.255.255');
       o.push('  Address determined by non-volatile memory');
-      o.push('  MTU is 1500 bytes');
+      o.push('  MTU is ' + (i.mtu || 1500) + ' bytes');
       o.push('  Helper address is not set');
       o.push('  Directed broadcast forwarding is disabled');
       o.push('  Outgoing access list is ' + (i.aclOut || 'not set'));
@@ -861,6 +1011,8 @@ NV.iosShow = (function () {
       o.push('  IP fast switching is enabled');
       o.push('  IP CEF switching is enabled');
       o.push('  Network address translation is ' + (i.natDir ? 'enabled, interface in domain ' + i.natDir : 'disabled'));
+      o.push('  TCP Adjust MSS is ' + (i.adjustMss ? i.adjustMss : 'disabled'));
+      if (i.cryptoMap) o.push('  Crypto map ' + i.cryptoMap + ' is applied (IPsec, plaintext mtu ' + S.TUNNEL_MTU + ')');
     } else {
       o.push('  Internet protocol processing disabled');
     }
@@ -948,6 +1100,26 @@ NV.iosShow = (function () {
   function showClock(state, d) {
     var c = S.deviceClock(state, d);
     return (c.synced ? '' : '*') + c.hms + '.' + c.ms + ' ' + (c.synced ? 'CEST' : 'UTC') + ' ' + c.dow + ' ' + c.mon + ' ' + c.day + ' ' + c.year;
+  }
+  function showClockDetail(state, d) {
+    var c = S.deviceClock(state, d);
+    return showClock(state, d) + '\n' + (c.synced ? 'Time source is NTP' : 'No time source') + (d.config.ntpSource ? ' (source interface ' + d.config.ntpSource + ')' : '');
+  }
+  function ntpAssociations(state, d) {
+    var ok = S.ntpSynced(state, d);
+    var o = ['', '  address         ref clock       st   when   poll reach  delay  offset   disp'];
+    d.config.ntpServers.forEach(function (n, i) {
+      var good = ok && i === 0;
+      o.push((good ? '*~' : ' ~') + pad(n, 16) + pad(good ? '.GPS.' : '.INIT.', 16) + padL(good ? 1 : 16, 2) + padL(good ? 37 : '-', 7) + padL(64, 7) + padL(good ? 377 : 0, 6) + padL(good ? '1.230' : '0.000', 7) + padL(good ? '0.452' : '0.000', 8) + padL(good ? '0.911' : '15937', 7));
+    });
+    o.push(' * sys.peer, # selected, + candidate, - outlyer, x falseticker, ~ configured');
+    return o.join('\n');
+  }
+  function ipCef(state, d, ip) {
+    var rt = S.routeLookup(state, S.get(state), d.id, ip);
+    if (!rt) return '0.0.0.0/0\n  no route';
+    var pfx = U.maskToPrefix(rt.mask);
+    return rt.net + '/' + pfx + '\n  ' + (rt.nh ? 'nexthop ' + rt.nh + ' ' + rt.iface : 'attached to ' + rt.iface);
   }
   function ntpStatus(state, d) {
     if (!d.config.ntpServers.length) return '%NTP is not enabled.';
@@ -1122,5 +1294,7 @@ NV.iosShow = (function () {
     accessLists: accessLists, ipInterface: ipInterface, arpTable: arpTable, ipSsh: ipSsh, showVersion: showVersion,
     showClock: showClock, ntpStatus: ntpStatus, showLogging: showLogging, interfacesDescription: interfacesDescription,
     hashSecret: hashSecret, aceText: aceText, ifaceNames: ifaceNames, physPorts: physPorts, portState: portState,
+    showClockDetail: showClockDetail, ntpAssociations: ntpAssociations, ipCef: ipCef,
+    cryptoIsakmpSa: cryptoIsakmpSa, cryptoIpsecSa: cryptoIpsecSa, cryptoMapShow: cryptoMapShow, cryptoIsakmpPolicy: cryptoIsakmpPolicy, cryptoSession: cryptoSession,
   };
 })();
