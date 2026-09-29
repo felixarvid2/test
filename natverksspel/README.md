@@ -97,6 +97,8 @@ Varje steg har tre ledtrådar med exakta kommandon, och handboken har fliken *By
 | 9 | Säkerhet och brandvägg | ACL i fel riktning, implicit deny, port security err-disabled |
 | 10 | VPN, SD-WAN och lastbalansering | Två samtidiga fel i IPsec-tunneln (crypto-ACL:er som inte speglar varandra + NAT före kryptering), MTU i tunneln (`ip tcp adjust-mss`), lastbalanserare med ping-hälsokontroll |
 
+När ett fel är löst skickar du in en felrapport med **F**. En gul ruta uppe till vänster visar hur många rapporter som saknas, och när alla Krabba-fel (eller alla fel) är lösta påminner spelet dig med en ruta där du kan skriva rapporterna direkt. Veckan är klar först när alla rapporter är inlämnade.
+
 Varje fel är simulerat på riktigt. Symptomen räknas fram ur konfigurationen: länkar, duplex, VLAN och trunkar, STP, routing, ARP, ACL, NAT, DHCP, DNS, PoE, port security, IPsec, MTU och lastbalansering. Ett fel försvinner därför bara när orsaken är rättad.
 
 ## Version 5: kapitel 10 och 100 förbättringar
