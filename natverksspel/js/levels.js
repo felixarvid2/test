@@ -565,9 +565,9 @@ NV.levels = (function () {
           },
         },
         {
-          id: 'v9k2', krabba: true, npc: 'Sara', target: 'R1',
+          id: 'v9k2', krabba: true, npc: 'Linnea', target: 'R1',
           title: 'Gästerna når ingenting',
-          ticket: 'Sara i receptionen: "Gästerna kommer inte ut på internet sedan någon ändrade något i brandväggen."',
+          ticket: 'Linnea i receptionen: "Gästerna kommer inte ut på internet sedan någon ändrade något i brandväggen."',
           hints: [
             'show access-lists GAST. Räkna de tillåtande raderna.',
             'Den osynliga sista raden är deny any. Utan en permit stoppas allt som inte uttryckligen tillåts.',
@@ -588,9 +588,9 @@ NV.levels = (function () {
           },
         },
         {
-          id: 'v9n1', krabba: false, npc: 'Sara', target: 'SW1',
+          id: 'v9n1', krabba: false, npc: 'Linnea', target: 'SW1',
           title: 'Receptionsporten är död',
-          ticket: 'Sara: "Gästplatsen i receptionen fungerar inte alls längre. En besökare kopplade in något där i morse…"',
+          ticket: 'Linnea: "Gästplatsen i receptionen fungerar inte alls längre. En besökare kopplade in något där i morse…"',
           hints: [
             'show interfaces status på SW-Nordvik-1: står Gi0/9 som err-disabled?',
             'show port-security interface gi0/9. Jämför Total MAC Addresses med Maximum. Titta sedan vid gästplatsen i receptionen.',

@@ -1008,7 +1008,7 @@ NV.sim = (function () {
     return {
       synced: synced, date: t,
       mon: MON[t.getUTCMonth()], day: t.getUTCDate(), dow: DAY[t.getUTCDay()], year: t.getUTCFullYear(),
-      hms: two(t.getUTCHours()) + ':' + two(t.getUTCMinutes()) + ':' + two(t.getUTCSeconds()), ms: three(t.getUTCMilliseconds()),
+      hms: two(t.getUTCHours()) + ':' + two(t.getUTCMinutes()) + ':' + two(t.getUTCSeconds()), ms: three((t.getUTCMilliseconds() + (typeof Date !== 'undefined' ? Date.now() : 0)) % 1000),
     };
   }
   function stamp(state, d) {

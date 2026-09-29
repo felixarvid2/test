@@ -465,9 +465,9 @@
     }
     var devId = findIosByIp(this.state, ip) || p.at;
     var dev = this.state.devices[devId];
-    if (dev && dev.kind === 'wlc') return res('', { push: { kind: 'wlc', dev: devId } });
-    if (!dev || dev.os !== 'ios') return res('ssh: connect to host ' + host + ' port 22: Connection refused');
+    if (!dev || (dev.os !== 'ios' && dev.kind !== 'wlc')) return res('ssh: connect to host ' + host + ' port 22: Connection refused');
     var self = this;
+    var isWlc = dev.kind === 'wlc';
     var ask = function () {
       self.pending = { prompt: user + '@' + host + '\'s password: ', secret: true, fn: function (pw) {
         var c = dev.config;
@@ -485,17 +485,22 @@
         return res('', { push: { kind: 'ios', dev: devId, via: 'ssh', privileged: priv, user: user } });
       } };
     };
+    var go = function () {
+      if (isWlc) return res('', { push: { kind: 'wlc', dev: devId } });
+      ask();
+      return res('');
+    };
     if (!this.known[ip]) {
-      this.pending = { prompt: 'The authenticity of host \'' + host + ' (' + ip + ')\' can\'t be established.\nRSA key fingerprint is SHA256:' + btoa32(dev.baseMac + dev.config.hostname) + '.\nThis key is not known by any other names.\nAre you sure you want to continue connecting (yes/no/[fingerprint])? ', fn: function (a) {
+      this.pending = { prompt: 'The authenticity of host \'' + host + ' (' + ip + ')\' can\'t be established.\nRSA key fingerprint is SHA256:' + btoa32((dev.baseMac || dev.nic.mac) + (dev.config ? dev.config.hostname : 'wlc')) + '.\nThis key is not known by any other names.\nAre you sure you want to continue connecting (yes/no/[fingerprint])? ', fn: function (a) {
         if (a !== 'yes') return res('Host key verification failed.');
         self.known[ip] = true;
-        ask();
-        return res('Warning: Permanently added \'' + host + '\' (RSA) to the list of known hosts.');
+        var r = go();
+        r.out = 'Warning: Permanently added \'' + host + '\' (RSA) to the list of known hosts.' + (r.out ? '\n' + r.out : '');
+        return r;
       } };
       return res('');
     }
-    ask();
-    return res('');
+    return go();
   };
   function btoa32(s) {
     var alpha = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
