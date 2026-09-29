@@ -140,20 +140,25 @@ NV.World = (function () {
       var pa = aRack ? self.portPoint(A.dev, A.port) : null;
       var pb = bRack ? self.portPoint(B.dev, B.port) : null;
       var rack = aRack ? aRack.rack : null;
+      // Kabel från lagrets rack till väggboxen i Borås
+      function borasWall(pb2) {
+        var target = self.dev.extra.wanBoras;
+        var rb = rackEntries['RB'].rack;
+        var inv = new THREE.Matrix4().copy(rb.group.matrixWorld).invert();
+        var lp = pb2.clone().applyMatrix4(inv);
+        var q1 = new THREE.Vector3(lp.x, lp.y - 0.01, lp.z + 0.07).applyMatrix4(rb.group.matrixWorld);
+        var q2 = new THREE.Vector3(0.32, lp.y - 0.05, lp.z + 0.05).applyMatrix4(rb.group.matrixWorld);
+        return [pb2.clone(), q1, q2, new THREE.Vector3(target.x + 0.15, target.y, target.z - 0.3), target.clone()];
+      }
       if (pa && l.kind === 'wan') {
         if (A.dev === 'R1') pts = self.wallRoute(rack, pa, self.dev.extra.wan);
         var pb2 = self.portPoint(B.dev, B.port);
         if (pb2) {
-          var target = self.dev.extra.wanBoras;
-          var rb = rackEntries[B.dev].rack;
-          var inv = new THREE.Matrix4().copy(rb.group.matrixWorld).invert();
-          var lp = pb2.clone().applyMatrix4(inv);
-          var q1 = new THREE.Vector3(lp.x, lp.y - 0.01, lp.z + 0.07).applyMatrix4(rb.group.matrixWorld);
-          var q2 = new THREE.Vector3(0.32, lp.y - 0.05, lp.z + 0.05).applyMatrix4(rb.group.matrixWorld);
-          var m2 = NV.devices3d.cable(self, [pb2.clone(), q1, q2, new THREE.Vector3(target.x + 0.15, target.y, target.z - 0.3), target.clone()], 'red', 0.005);
+          var m2 = NV.devices3d.cable(self, borasWall(pb2), 'red', 0.005);
           self.cableMeshes.push(m2);
         }
-      } else if (pa && pb && aRack.rack === bRack.rack) pts = self.rackRoute(rack, pa, pb, S.portNum(A.port) > 12 ? 1 : -1);
+      } else if (pa && A.dev === 'RB' && B.dev === 'ISP') pts = borasWall(pa);
+      else if (pa && pb && aRack.rack === bRack.rack) pts = self.rackRoute(rack, pa, pb, S.portNum(A.port) > 12 ? 1 : -1);
       else if (pa && pb) pts = self.crossRoute(aRack.rack, pa, bRack.rack, pb);
       else if (pa && B.dev === 'ISP') pts = self.wallRoute(rack, pa, self.dev.extra.fiber);
       else if (pa && !bRack) {
@@ -167,6 +172,12 @@ NV.World = (function () {
       self.cableMeshes.push(mesh);
       self.linkMeshes[l.id] = mesh;
     });
+    // Skyltarna vid väggboxarna följer veckans nät (hyrd lina eller internet + VPN)
+    var vpn = st.links.some(function (l) { return l.a.dev === 'RB' && l.b.dev === 'ISP'; });
+    var ex = this.dev.extra;
+    if (ex.wanLabels) { ex.wanLabels[0].visible = !vpn; ex.wanLabels[1].visible = vpn; }
+    if (ex.wanLabelsB) { ex.wanLabelsB[0].visible = !vpn; ex.wanLabelsB[1].visible = vpn; }
+    if (ex.vpnLamp) ex.vpnLamp.visible = vpn;
     this.updateCables();
   };
   W.rackRoute = function (rack, pa, pb, side) {
@@ -557,6 +568,12 @@ NV.World = (function () {
   W.updateSlow = function () {
     var st = this.game.state, self = this;
     var D = S.get(st);
+    // VPN-lampan i Borås: grön = alla SA uppe, gul = delvis, röd = nere
+    var lamp = this.dev.extra.vpnLamp;
+    if (lamp && lamp.visible) {
+      var vs = NV.shared.vpnState(st);
+      lamp.material.emissive.setHex(vs === 'up' ? 0x33ff66 : (vs === 'partial' ? 0xffaa22 : 0xff3322));
+    }
     // Datorskärmar
     Object.keys(this.dev.pcs).forEach(function (id) {
       var pc = self.dev.pcs[id];
@@ -609,14 +626,23 @@ NV.World = (function () {
     g.fillStyle = '#2e7d32'; g.font = '28px "Segoe Print", "Comic Sans MS", cursive';
     g.fillText('Slå upp symptomet, inte kapitlet. (H = handbok)', 40, 590);
     // Veckans nätskiss: det som berörs av veckans tema ritas i rött
-    var hot = { 1: ['SW1'], 2: ['trunk', 'PC'], 3: ['PC', 'R1'], 4: ['trunk'], 5: ['WAN', 'RB'], 6: ['R1', 'ISP'], 7: ['SW2', 'trunk'], 8: ['AP', 'SWB'], 9: ['R1', 'SW1'] }[def ? def.week : 0] || [];
+    var hot = { 1: ['SW1'], 2: ['trunk', 'PC'], 3: ['PC', 'R1'], 4: ['trunk'], 5: ['WAN', 'RB'], 6: ['R1', 'ISP'], 7: ['SW2', 'trunk'], 8: ['AP', 'SWB'], 9: ['R1', 'SW1'], 10: ['VPN', 'RB', 'LB'] }[def ? def.week : 0] || [];
     function node(x, y, w, t, id) { g.strokeStyle = hot.indexOf(id) >= 0 ? '#c0392b' : '#1f4e79'; g.lineWidth = hot.indexOf(id) >= 0 ? 6 : 4; g.strokeRect(x, y, w, 46); g.fillStyle = g.strokeStyle; g.font = 'bold 22px "Segoe Print", "Comic Sans MS", cursive'; g.fillText(t, x + 10, y + 31); }
     function line(x1, y1, x2, y2, id, dash) { g.strokeStyle = hot.indexOf(id) >= 0 ? '#c0392b' : '#555'; g.lineWidth = hot.indexOf(id) >= 0 ? 6 : 3; g.setLineDash(dash ? [10, 8] : []); g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); g.setLineDash([]); }
-    line(740, 238, 740, 290, 'ISP'); line(740, 336, 740, 390, 'R1'); line(790, 313, 900, 313, 'WAN', true); line(700, 413, 640, 470, 'trunk'); line(780, 413, 840, 470, 'trunk');
+    var vpn10 = def && def.week >= 10;
+    line(740, 238, 740, 290, 'ISP'); line(740, 336, 740, 390, 'R1'); if (!vpn10) line(790, 313, 900, 313, 'WAN', true); line(700, 413, 640, 470, 'trunk'); line(780, 413, 840, 470, 'trunk');
+    if (vpn10) {
+      // Vecka 10: Borås går till internet och en krypterad tunnel ritas ovanpå
+      line(800, 215, 945, 290, 'ISP');
+      g.strokeStyle = hot.indexOf('VPN') >= 0 ? '#8e44ad' : '#555'; g.lineWidth = 5; g.setLineDash([4, 10]);
+      g.beginPath(); g.moveTo(790, 300); g.quadraticCurveTo(845, 250, 900, 300); g.stroke(); g.setLineDash([]);
+      g.fillStyle = '#8e44ad'; g.font = 'bold 20px "Segoe Print", "Comic Sans MS", cursive'; g.fillText('VPN 🔒', 812, 262);
+      line(590, 493, 560, 493, 'LB'); node(450, 470, 110, 'LB', 'LB');
+    }
     line(940, 336, 940, 390, 'RB'); line(640, 516, 640, 560, 'PC'); line(940, 436, 940, 480, 'AP');
     node(690, 192, 110, 'ISP', 'ISP'); node(690, 290, 110, 'R1', 'R1'); node(890, 290, 110, 'RB', 'RB');
     node(690, 390, 110, 'SW1', 'SW1'); node(590, 470, 110, 'SW2', 'SW2'); node(890, 390, 110, 'SWB', 'SWB'); node(890, 480, 110, 'AP', 'AP');
-    g.fillStyle = '#555'; g.font = '20px "Segoe Print", "Comic Sans MS", cursive'; g.fillText('PC', 628, 585); g.fillText('WAN', 812, 305);
+    g.fillStyle = '#555'; g.font = '20px "Segoe Print", "Comic Sans MS", cursive'; g.fillText('PC', 628, 585); if (!vpn10) g.fillText('WAN', 812, 305);
     wb.tex.needsUpdate = true;
   };
 

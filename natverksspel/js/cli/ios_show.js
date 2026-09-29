@@ -995,7 +995,7 @@ NV.iosShow = (function () {
       o.push('  Internet address is ' + i.ip.addr + '/' + U.maskToPrefix(i.ip.mask));
       o.push('  Broadcast address is 255.255.255.255');
       o.push('  Address determined by non-volatile memory');
-      o.push('  MTU is 1500 bytes');
+      o.push('  MTU is ' + (i.mtu || 1500) + ' bytes');
       o.push('  Helper address is not set');
       o.push('  Directed broadcast forwarding is disabled');
       o.push('  Outgoing access list is ' + (i.aclOut || 'not set'));
@@ -1010,6 +1010,8 @@ NV.iosShow = (function () {
       o.push('  IP fast switching is enabled');
       o.push('  IP CEF switching is enabled');
       o.push('  Network address translation is ' + (i.natDir ? 'enabled, interface in domain ' + i.natDir : 'disabled'));
+      o.push('  TCP Adjust MSS is ' + (i.adjustMss ? i.adjustMss : 'disabled'));
+      if (i.cryptoMap) o.push('  Crypto map ' + i.cryptoMap + ' is applied (IPsec, plaintext mtu ' + S.TUNNEL_MTU + ')');
     } else {
       o.push('  Internet protocol processing disabled');
     }
@@ -1097,6 +1099,26 @@ NV.iosShow = (function () {
   function showClock(state, d) {
     var c = S.deviceClock(state, d);
     return (c.synced ? '' : '*') + c.hms + '.' + c.ms + ' ' + (c.synced ? 'CEST' : 'UTC') + ' ' + c.dow + ' ' + c.mon + ' ' + c.day + ' ' + c.year;
+  }
+  function showClockDetail(state, d) {
+    var c = S.deviceClock(state, d);
+    return showClock(state, d) + '\n' + (c.synced ? 'Time source is NTP' : 'No time source') + (d.config.ntpSource ? ' (source interface ' + d.config.ntpSource + ')' : '');
+  }
+  function ntpAssociations(state, d) {
+    var ok = S.ntpSynced(state, d);
+    var o = ['', '  address         ref clock       st   when   poll reach  delay  offset   disp'];
+    d.config.ntpServers.forEach(function (n, i) {
+      var good = ok && i === 0;
+      o.push((good ? '*~' : ' ~') + pad(n, 16) + pad(good ? '.GPS.' : '.INIT.', 16) + padL(good ? 1 : 16, 2) + padL(good ? 37 : '-', 7) + padL(64, 7) + padL(good ? 377 : 0, 6) + padL(good ? '1.230' : '0.000', 7) + padL(good ? '0.452' : '0.000', 8) + padL(good ? '0.911' : '15937', 7));
+    });
+    o.push(' * sys.peer, # selected, + candidate, - outlyer, x falseticker, ~ configured');
+    return o.join('\n');
+  }
+  function ipCef(state, d, ip) {
+    var rt = S.routeLookup(state, S.get(state), d.id, ip);
+    if (!rt) return '0.0.0.0/0\n  no route';
+    var pfx = U.maskToPrefix(rt.mask);
+    return rt.net + '/' + pfx + '\n  ' + (rt.nh ? 'nexthop ' + rt.nh + ' ' + rt.iface : 'attached to ' + rt.iface);
   }
   function ntpStatus(state, d) {
     if (!d.config.ntpServers.length) return '%NTP is not enabled.';
@@ -1271,6 +1293,7 @@ NV.iosShow = (function () {
     accessLists: accessLists, ipInterface: ipInterface, arpTable: arpTable, ipSsh: ipSsh, showVersion: showVersion,
     showClock: showClock, ntpStatus: ntpStatus, showLogging: showLogging, interfacesDescription: interfacesDescription,
     hashSecret: hashSecret, aceText: aceText, ifaceNames: ifaceNames, physPorts: physPorts, portState: portState,
+    showClockDetail: showClockDetail, ntpAssociations: ntpAssociations, ipCef: ipCef,
     cryptoIsakmpSa: cryptoIsakmpSa, cryptoIpsecSa: cryptoIpsecSa, cryptoMapShow: cryptoMapShow, cryptoIsakmpPolicy: cryptoIsakmpPolicy, cryptoSession: cryptoSession,
   };
 })();

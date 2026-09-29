@@ -170,11 +170,47 @@ NV.shared = (function () {
   function deviceLine(state, id) {
     var d = state.devices[id];
     if (!d) return null;
+    if (d.kind === 'lb') {
+      var hl = lbHealth(state);
+      var dn = hl.filter(function (x) { return x === 'down'; }).length;
+      return { text: 'LB-Nordvik  ' + hl.filter(function (x) { return x === 'up'; }).length + '/' + hl.length + ' servrar UP', bad: dn > 0 };
+    }
     if (d.os !== 'ios') return { text: (d.label || id) + '  ' + (d.powered === false ? 'av' : 'på'), bad: d.powered === false };
+    if (d.config.crypto && (id === 'R1' || id === 'RB')) {
+      var vs = vpnState(state);
+      var base = deviceLine0(state, d);
+      return { text: base.text + '  · VPN ' + ({ up: 'uppe', partial: 'delvis', down: 'nere' }[vs] || '–'), bad: base.bad || vs !== 'up' };
+    }
+    return deviceLine0(state, d);
+  }
+  function deviceLine0(state, d) {
     var ports = Object.keys(d.config.ifaces).filter(function (p) { return !d.config.ifaces[p].parent && !/^Vlan|^Loop/.test(p); });
     var up = ports.filter(function (p) { return SH.portState(state, d, p) === 'connected'; }).length;
     var err = ports.filter(function (p) { return SH.portState(state, d, p) === 'err-disabled'; }).length;
     return { text: d.config.hostname + '  ' + up + '/' + ports.length + ' uppe' + (err ? '  ' + err + ' err' : ''), bad: err > 0 };
+  }
+  // Lastbalanserarens lampor: en per server (up/down/off). Räknas om högst en gång i sekunden.
+  var lbCache = { t: 0, v: [], st: null };
+  function lbHealth(state) {
+    if (!state || !state.devices.LB || !state.devices.LB.lb) return [];
+    var now = Date.now();
+    if (lbCache.st === state && now - lbCache.t < 1000) return lbCache.v;
+    var v = [];
+    S.lbStatus(state, 'LB').forEach(function (p) { p.members.forEach(function (m) { v.push(!m.m.enabled ? 'off' : (m.up ? 'up' : 'down')); }); });
+    lbCache = { t: now, v: v, st: state };
+    return v;
+  }
+  // Tunnelns läge för glasögon och skyltar: 'up', 'partial', 'down' eller null (ingen VPN)
+  var vpnCache = { t: 0, v: null, st: null };
+  function vpnState(state) {
+    if (!state || !state.devices.R1 || !state.devices.R1.config.crypto) return null;
+    var now = Date.now();
+    if (vpnCache.st === state && now - vpnCache.t < 1000) return vpnCache.v;
+    var cs = S.cryptoStatus(state, 'R1');
+    var up = cs.sas.filter(function (a) { return a.up; }).length;
+    var v = !cs.isakmp.length || cs.isakmp[0].state !== 'QM_IDLE' ? 'down' : (up === cs.sas.length ? 'up' : (up ? 'partial' : 'down'));
+    vpnCache = { t: now, v: v, st: state };
+    return v;
   }
   function hostLine(state, id) {
     var h = state.devices[id];
@@ -192,5 +228,5 @@ NV.shared = (function () {
     v.x = nx; v.z = nz;
   }
 
-  return { crabStep: crabStep, vacStep: vacStep, linkStatus: linkStatus, deviceLine: deviceLine, hostLine: hostLine, ledFn: ledFn, portInfo: portInfo, sampleMonitor: sampleMonitor, drawMonitor: drawMonitor, SERIES: SERIES, rackSpots: rackSpots };
+  return { lbHealth: lbHealth, vpnState: vpnState, crabStep: crabStep, vacStep: vacStep, linkStatus: linkStatus, deviceLine: deviceLine, hostLine: hostLine, ledFn: ledFn, portInfo: portInfo, sampleMonitor: sampleMonitor, drawMonitor: drawMonitor, SERIES: SERIES, rackSpots: rackSpots };
 })();

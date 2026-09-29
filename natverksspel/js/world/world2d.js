@@ -902,10 +902,10 @@ NV.World2D = (function () {
   };
   W.drawRackLeds = function (g, sc) {
     var self = this, st = this.game.state;
-    var map = { A: ['SW1', 'SW2', 'R1', 'WLC'], B: ['Filserver', 'NTP-server', 'Loggserver', 'Ekonomisystem'], BO: ['SWB', 'RB'] };
+    var map = { A: ['SW1', 'SW2', 'R1', 'WLC', 'LB'], B: ['Filserver', 'NTP-server', 'Loggserver', 'Ekonomisystem', 'Tid-1', 'Tid-2'], BO: ['SWB', 'RB'] };
     (this.rackSpots || []).forEach(function (r) {
       if ((r.x > 50) !== (self.site === 'boras')) return;
-      var devs = map[r.id];
+      var devs = map[r.id].filter(function (id) { return !!st.devices[id]; });
       var base = self.toScreen(r.x - r.w / 2, r.z - r.d / 2, 0);
       var Dp = Math.round(r.d * PPM * ZS), Hp = Math.round(2.05 * PPM * HS);
       var t = self.t;
@@ -1057,7 +1057,7 @@ NV.World2D = (function () {
   // Spelets anrop
   W.devPos2d = function (id) {
     var A = this.builder.anchors;
-    var rackOf = { SW1: A.rackA, SW2: A.rackA, R1: A.rackA, WLC: A.rackA, RB: A.borasRack, SWB: A.borasRack };
+    var rackOf = { SW1: A.rackA, SW2: A.rackA, R1: A.rackA, WLC: A.rackA, LB: A.rackA, RB: A.borasRack, SWB: A.borasRack };
     if (rackOf[id]) return { x: rackOf[id].x, z: rackOf[id].z + (rackOf[id].x > 50 ? 0 : 0.6), y: 1.6 };
     if (id === 'ISP' || String(id).indexOf('INTERNET') === 0) return { x: A.fiber.x, z: A.fiber.z + 0.2, y: 1.4 };
     if (A.desks[id]) return { x: A.desks[id].x + 0.1, z: A.desks[id].z - 0.2, y: 1.2 };
@@ -1065,7 +1065,7 @@ NV.World2D = (function () {
     if (id === 'Gast-laptop') return { x: A.guestTable.x, z: A.guestTable.z, y: 1 };
     if (id === 'Gast-mobil') return { x: A.phoneCounter.x, z: A.phoneCounter.z, y: 1.2 };
     if (A.aps[id]) return { x: A.aps[id].x, z: A.aps[id].z, y: 3.2 };
-    if (id === 'Filserver' || id === 'NTP-server' || id === 'Loggserver' || id === 'Ekonomisystem') return { x: A.rackB.x, z: A.rackB.z + 0.6, y: 1.6 };
+    if (id === 'Filserver' || id === 'NTP-server' || id === 'Loggserver' || id === 'Ekonomisystem' || id === 'Tid-1' || id === 'Tid-2') return { x: A.rackB.x, z: A.rackB.z + 0.6, y: 1.6 };
     return null;
   };
   W.celebrate = function (devId) {
@@ -1306,7 +1306,7 @@ NV.World2D = (function () {
       g.beginPath(); g.moveTo(pa.x, pa.y); g.quadraticCurveTo((pa.x + pb.x) / 2, Math.min(pa.y, pb.y) - 20 * sc, pb.x, pb.y); g.stroke();
     });
     g.restore();
-    var racks = { A: ['SW1', 'SW2', 'R1', 'WLC'], BO: ['RB', 'SWB'] };
+    var racks = { A: ['SW1', 'SW2', 'R1', 'WLC', 'LB'], BO: ['RB', 'SWB'] };
     (this.rackSpots || []).forEach(function (r) {
       if (!racks[r.id] || (r.x > 50) !== (self.site === 'boras')) return;
       var p = self.toScreen(r.x, r.z, 3.1), y = p.y;

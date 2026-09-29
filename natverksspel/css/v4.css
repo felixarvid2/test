@@ -60,3 +60,12 @@ body.cb .quiz button.right { background: rgba(61,165,255,0.35); border-color: #3
 .t-ip, .t-if { cursor: pointer; }
 .t-ip:hover, .t-if:hover { text-decoration: underline; }
 body.touch .term-new { bottom: 96px; }
+
+/* ---- Version 5: VPN- och lastbalanserarpanel i övervakningen ---- */
+.mon-vpn { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px; margin-top: 8px; }
+.mv-box { background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 8px 10px; font-size: 0.85em; }
+.mv-title { font-weight: 700; margin-bottom: 4px; }
+.mv-row { display: flex; gap: 8px; align-items: baseline; padding: 2px 0; }
+.mv-row span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mv-row b.ok { color: #6be39a; } .mv-row b.bad { color: #ff7a6b; } .mv-row b.warn { color: #ffc15a; }
+.mv-row small { opacity: 0.7; font-variant-numeric: tabular-nums; }

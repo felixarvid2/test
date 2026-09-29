@@ -57,11 +57,30 @@ NV.handbook = (function () {
         [c('show access-lists'), 'Raderna och deras träffar (matches)'],
         [c('ip access-group GAST in'), 'Sätt en ACL på ett interface'],
         [c('show port-security interface gi0/9'), 'Max/antal MAC-adresser och överträdelser'],
+      ]) + '<h3>VPN och lastbalansering (kapitel 10)</h3>' + table(['Kommando', 'Svarar på'], [
+        [c('show crypto isakmp sa'), 'Fas 1: QM_IDLE = uppe, MM_NO_STATE / MM_KEY_EXCH = problem'],
+        [c('show crypto ipsec sa | include ident|encaps|decaps'), 'Fas 2: vilka nät som skyddas och om paketen räknas'],
+        [c('show crypto map') + ', ' + c('show crypto session'), 'Peer, ACL och transform-set i en blick'],
+        [c('show access-lists VPN-TRAFIK'), 'Crypto-ACL:en – ska vara spegelvänd på andra sidan'],
+        [c('ip access-list extended NAT-UT') + ' → ' + c('5 deny ip ...'), 'NAT-undantag först i listan (NAT görs före kryptering)'],
+        [c('ip tcp adjust-mss 1360'), 'Stora TCP-segment får plats i tunneln'],
+        [c('ping 192.168.1.10 source gi0/0.40 size 1500 df-bit'), 'Testa tunneln från rätt källa och med stora paket'],
+        [c('clear crypto sa'), 'Riv tunneln – den byggs igen vid nästa matchande paket'],
+        [c('show pool') + ', ' + c('config pool TID-POOL monitor http') + ' (LB)', 'Lastbalanserarens servrar och hälsokontroll'],
       ]) + '<h3>Laptopen (Linux)</h3>' + table(['Kommando', 'Vad det gör'], [
         [c('sudo screen /dev/ttyUSB0 9600'), 'Konsol mot enheten där den ljusblå kabeln sitter'],
         [c('ssh drift@192.168.1.193'), 'Logga in över nätet'],
         [c('ip -4 addr show') + ', ' + c('ip route show default') + ', ' + c('ip -4 neigh show'), 'Laptopens egna inställningar'],
         [c('ping -c 4 192.168.1.10') + ', ' + c('resolvectl query filserver'), 'Testa nät och DNS'],
+        [c('ping -s 1400 -M do 192.168.2.1') + ', ' + c('tracepath 192.168.2.1'), 'Stora paket med DF satt och vägens MTU'],
+        [c('curl http://tid/') + ', ' + c('for i in 1 2 3 4; do curl -s http://tid/; done'), 'Webbsidor och lastbalanserare'],
+        [c('ip route get 192.168.2.1') + ', ' + c('man ping') + ', ' + c('!!'), 'Vilken väg? Hjälp. Kör om senaste kommandot.'],
+        [c('ip a | grep inet'), 'Filtrera en utskrift'],
+      ]) + '<h3>Windows</h3>' + table(['Kommando', 'Vad det gör'], [
+        [c('ping -f -l 1400 192.168.1.10'), 'Stort paket med DF satt (1472 är max på vanlig Ethernet)'],
+        [c('copy \\\\filserver\\ritningar\\hyllplan.pdf .'), 'Kopiera en fil från filservern'],
+        [c('curl http://tid/'), 'Hämta en webbsida'],
+        [c('ipconfig /all | findstr DNS'), 'Filtrera en utskrift'],
       ]);
     },
     fel: function () {
@@ -94,6 +113,11 @@ NV.handbook = (function () {
         ['Regeln har inga matches', 'Fel interface eller fel riktning', '9'],
         ['Allt tystnar när ACL:en sätts', 'permit ip any any saknas (implicit deny)', '9'],
         [c('err-disabled'), 'Port security – för många MAC-adresser', '9'],
+        ['Tunneln uppe (QM_IDLE) men encaps/decaps står still', 'Crypto-ACL:erna speglar inte varandra, eller NAT före kryptering', '10'],
+        ['proxy identities not supported i loggen', 'ACL:erna på de två sidorna är inte spegelvända', '10'],
+        ['MM_KEY_EXCH / MM_NO_STATE', 'Fel nyckel eller policy i fas 1', '10'],
+        ['Ping fungerar, stora filer hänger', 'MTU i tunneln – ip tcp adjust-mss 1360', '10'],
+        ['Webbsidan fungerar varannan gång', 'Lastbalanserarens hälsokontroll pingar bara', '10'],
       ]);
     },
     plan: function () {
@@ -112,6 +136,9 @@ NV.handbook = (function () {
       ]) + '<h3>Länkar och utsidan</h3>' + table(['Vad', 'Adress'], [
         ['Göteborg–Borås', '10.0.0.0/30 (.1 Göteborg, .2 Borås)'], ['Operatörens gateway', '203.0.113.1'],
         ['Nordviks utsida (PAT)', '203.0.113.10'], ['Filserverns utsida (statisk NAT)', '203.0.113.11'],
+        ['Borås utsida (från vecka 10)', '203.0.113.20'], ['VPN-tunneln', '192.168.1.0/26 ↔ 192.168.2.0/26 och drift ↔ drift'],
+        ['Lastbalanseraren LB-Nordvik (VIP)', '192.168.1.13 (tid.nordvik.example)'], ['Tidrapportservrarna', 'Tid-1 192.168.1.14 · Tid-2 192.168.1.15'],
+        ['Mölndal (planerat)', '192.168.3.0/26 – ännu utan förbindelse'],
       ]) + '<h3>Racket</h3>' + table(['Enhet', 'Portar'], [
         ['R-Nordvik-1 (2951)', 'Gi0/0 trunk mot SW-Nordvik-1 Gi0/1 · Gi0/1 ut · Gi0/2 Borås'],
         ['SW-Nordvik-1 (3560G)', 'Gi0/5–6 kontor · Gi0/7–8 ekonomi · Gi0/9 gäst · Gi0/10 teknikerbänken · Gi0/11 skrivare · Gi0/12 Sara · Gi0/20 WLC · Gi0/24 trunk · Gi0/25 reservlänk'],
@@ -143,6 +170,8 @@ NV.handbook = (function () {
         ['Ctrl+Z', 'Hoppa till # från konfigurationsläge'], ['Ctrl+L', 'Rensa skärmen'], ['PageUp / PageDown', 'Bläddra'], ['Ctrl+Shift+C', 'Kopiera markerad text'],
         ['Ctrl+A K', 'Stäng konsolen (screen)'], ['Esc', 'Stäng terminalfönstret'],
         ['→', 'Ta den grå kompletteringen'], ['Ctrl+F', 'Sök i utskriften (Enter = nästa)'], ['⟲', 'Lista med tidigare kommandon'],
+        ['Ctrl+R', 'Sök bakåt bland tidigare kommandon (tryck igen för nästa träff)'], ['Ctrl+K', 'Ta bort resten av raden'], ['Alt+.', 'Sista ordet från förra kommandot'],
+        ['Ctrl+D', 'Logga ut (på tom rad)'], ['!!', 'Kör om senaste kommandot (Linux)'],
       ]) + '<h3>Pekskärm</h3>' + table(['Gest', 'Gör'], [
         ['Styrspaken nere till vänster', 'Gå (knappen 🏃 växlar spring)'], ['Dra med fingret', 'Titta (3D)'], ['Tryck på något', 'Använd det (3D och 2D)'], ['Nyp med två fingrar', 'Zooma (2D)'],
         ['☰ uppe till höger', 'Alla funktioner: karta, handbok, glasögon, helskärm …'], ['Tangentraden i terminalen', 'Tab, ?, pilar, Ctrl+C, Ctrl+Z och Ctrl+A K'],
@@ -179,16 +208,34 @@ NV.handbook = (function () {
     },
     osi: function () {
       var L = [
-        ['7 Applikation', 'Programmen: webb, DNS-uppslag, SSH.', 'Ping till adress går men inte till namn (v3), telnet i stället för SSH (v6)'],
+        ['7 Applikation', 'Programmen: webb, DNS-uppslag, SSH.', 'Ping till adress går men inte till namn (v3), telnet i stället för SSH (v6), lastbalanserarens hälsokontroll (v10)'],
         ['6 Presentation', 'Format och kryptering.', 'SSH-nyckeln saknas (v6)'],
         ['5 Session', 'Dialogen mellan två system.', 'Inloggning på vty-linjerna (v6)'],
         ['4 Transport', 'TCP och UDP, portnummer.', 'ACL som blockerar en port (v9), NAT/PAT byter portar (v6)'],
-        ['3 Nät', 'IP-adresser och routing.', 'Fel nätmask (v3), returväg saknas (v5), blackhole-rutt (v5), ACL i fel riktning (v9)'],
+        ['3 Nät', 'IP-adresser och routing.', 'Fel nätmask (v3), returväg saknas (v5), blackhole-rutt (v5), ACL i fel riktning (v9), IPsec-tunneln och MTU (v10)'],
         ['2 Länk', 'Ramar, MAC-adresser, switchar, VLAN.', 'Fel VLAN (v2), allowed-listan (v4), native VLAN (v4), STP och loopar (v4, v7), port security (v9)'],
         ['1 Fysiskt', 'Kablar, kontakter, ström och radio.', 'Trasig kabel (v2), duplex (v2), flappande port (v7), PoE (v8), kanaler (v8)'],
       ];
       return '<p class="muted">Börja nerifrån när något inte fungerar. Varje lager är beroende av lagret under.</p>' +
         L.map(function (l) { return '<div class="osi-layer"><b>' + l[0] + '</b><span>' + l[1] + '</span><span class="muted small">Fel i spelet: ' + l[2] + '</span></div>'; }).join('');
+    },
+    vpn: function () {
+      return '<p class="muted">Kapitel 10: den hyrda linan Göteborg–Borås kostade 6 000 kr i månaden och användes till 4 %. Nu går trafiken krypterad över internet.</p>' +
+        '<h3>Så byggs tunneln</h3>' + table(['Steg', 'Vad händer', 'Kolla med'], [
+          ['1', 'Ett paket matchar crypto-ACL:en (VPN-TRAFIK)', c('show access-lists VPN-TRAFIK')],
+          ['2', 'Fas 1 (ISAKMP): policy och nyckel måste stämma', c('show crypto isakmp sa') + ' → QM_IDLE'],
+          ['3', 'Fas 2 (IPsec): transform-set och spegelvända ACL:er', c('show crypto ipsec sa') + ' → encaps/decaps'],
+          ['4', 'Paketet krypteras (ESP) och får ett nytt IP-huvud 203.0.113.10 → .20', c('ping ... source gi0/0.10')],
+        ]) +
+        '<h3>Felsökningsordning</h3><ol><li>Når routrarna varandras utsidor? (ping 203.0.113.20)</li><li>Fas 1 uppe? QM_IDLE.</li><li>Räknas paketen? encaps på ena sidan ska bli decaps på den andra.</li><li>Speglar ACL:erna varandra exakt?</li><li>Har NAT-listan deny-rader för VPN-trafiken <b>först</b>?</li><li>Stora paket: ping med DF-bit och ip tcp adjust-mss 1360.</li></ol>' +
+        '<h3>VPN, SD-WAN och lastbalansering</h3>' + table(['Begrepp', 'Kort'], [
+          ['Site-to-site', 'Två kontor, alltid uppe – det Nordvik bygger'], ['Remote access', 'En användare från hemmet eller hotellet (t.ex. WireGuard, AnyConnect)'],
+          ['Full / split tunnel', 'Allt i tunneln, eller bara företagstrafiken'], ['GRE över IPsec', 'När routingprotokoll ska gå i tunneln'],
+          ['NAT traversal', 'IPsec i UDP 4500 när någon NAT:ar på vägen'], ['SD-WAN', 'Flera förbindelser (fiber, 4G) som väljs efter regler och mäts hela tiden'],
+          ['Lager 4-balansering', 'Tittar på IP och port – snabb, vet inget om innehållet'], ['Lager 7-balansering', 'Tittar på HTTP (sökväg, cookies) – t.ex. NGINX, HAProxy, Traefik, F5'],
+          ['Hälsokontroll', 'Ping säger bara att servern lever. Testa tjänsten: GET /status → 200 OK'],
+        ]) +
+        '<h3>Tio veckor i repris</h3>' + table(['Vecka', 'Tema', 'Kommandot att komma ihåg'], NV.levels.WEEKS.map(function (w) { return [String(w.week), w.title, c((w.chips && w.chips[0]) || '')]; }));
     },
     ord: function () {
       return table(['Svenska', 'Engelska', 'Kort förklaring'], [
@@ -200,6 +247,10 @@ NV.handbook = (function () {
         ['duplexfel', 'duplex mismatch', 'Ena änden full, andra halv duplex'], ['ström via kabeln', 'PoE', 'Accesspunkter och telefoner får ström från switchen'], ['trådlös controller', 'WLC', 'Styr accesspunkterna centralt'],
         ['nätnamn', 'SSID', 'Namnet på ett trådlöst nät'], ['klockserver', 'NTP-server', 'Ger enheterna rätt tid'], ['konsolport', 'console port', 'Seriell ingång, 9600 8N1'],
         ['startkonfiguration', 'startup-config', 'Det som gäller efter omstart'], ['aktuell konfiguration', 'running-config', 'Det som gäller just nu'], ['felbibliotek', 'troubleshooting guide', 'Symptom → orsak'],
+        ['krypterad tunnel', 'VPN', 'Ett privat nät över internet'], ['plats-till-plats', 'site-to-site', 'Tunnel mellan två kontor'], ['fjärråtkomst', 'remote access', 'En användare in i företagets nät'],
+        ['nyckelutbyte', 'IKE / ISAKMP', 'Fas 1: routrarna kommer överens och byter nycklar'], ['säkerhetsassociation', 'SA', 'Överenskommelsen för en tunnelriktning'], ['inkapslad säkerhetslast', 'ESP', 'IPsec-huvudet som krypterar paketet'],
+        ['delad tunnel', 'split tunnel', 'Bara företagstrafiken går i tunneln'], ['största paketstorlek', 'MTU', '1500 byte på Ethernet, mindre i en tunnel'], ['största segment', 'MSS', 'TCP-data per paket = MTU − 40'],
+        ['programstyrt WAN', 'SD-WAN', 'Flera förbindelser som styrs centralt efter regler'], ['lastbalanserare', 'load balancer', 'Fördelar förfrågningar mellan servrar'], ['hälsokontroll', 'health check', 'Testar om en server (tjänsten) lever'],
       ]);
     },
   };

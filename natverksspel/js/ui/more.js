@@ -2,7 +2,7 @@
 // topplista, rumsskyltar, bättre notiser, sparad position och mycket annat smått.
 (function () {
   var S = NV.sim;
-  var VERSION = '4.0';
+  var VERSION = '5.0';
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function $(sel, root) { return (root || document).querySelector(sel); }
   var U = NV.UI.prototype;
@@ -183,7 +183,7 @@
     origMenu.apply(this, arguments);
     var m = this.menu, self = this;
     var inner = $('.menu-inner', m);
-    if (inner) inner.insertAdjacentHTML('beforeend', '<p class="muted small ver">Krabba-passet ' + VERSION + ' · siffrorna 1–9 startar en vecka · piltangenterna flyttar mellan veckorna</p>');
+    if (inner) inner.insertAdjacentHTML('beforeend', '<p class="muted small ver">Krabba-passet ' + VERSION + ' · siffrorna 1–9 och 0 startar en vecka · piltangenterna flyttar mellan veckorna</p>');
     var best = NV.best.all();
     m.querySelectorAll('.week[data-week]').forEach(function (w) {
       var n = +w.getAttribute('data-week');
@@ -196,7 +196,7 @@
     var g = NV.game;
     if (!g || !g.ui.menuOpen() || g.ui.dialogOpen()) return;
     var weeks = Array.prototype.slice.call(document.querySelectorAll('#menu .week[data-week]'));
-    if (/^Digit[1-9]$/.test(e.code)) { var b = document.querySelector('#menu .week[data-week="' + e.code.slice(5) + '"]'); if (b) { b.click(); e.preventDefault(); } return; }
+    if (/^Digit[0-9]$/.test(e.code)) { var wn = e.code.slice(5) === '0' ? '10' : e.code.slice(5); var b = document.querySelector('#menu .week[data-week="' + wn + '"]'); if (b) { b.click(); e.preventDefault(); } return; }
     if (['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp'].indexOf(e.key) < 0 || !weeks.length) return;
     var i = weeks.indexOf(document.activeElement);
     var cols = Math.max(1, Math.round(document.querySelector('#menu .weeks').offsetWidth / weeks[0].offsetWidth));
@@ -205,7 +205,7 @@
     e.preventDefault();
   });
   U.whatsNew = function () {
-    this.showDialog({ title: 'Nytt i version ' + VERSION, html: '<ul class="news"><li>Kollegorna har fått nya figurer med leder och mjuka rörelser: de skriver, pratar, vinkar, går och dricker kaffe.</li><li>Snyggare modeller: stolar, skrivbord, skärmar, rack med dörrar, truck och krabba.</li><li>Flyter bättre på äldre datorer: automatisk grafiknivå, Minimal/Låg/Medel och sammanslagen geometri.</li><li>Spela på mobilen: styrspak, knappar, meny och tangentrad i terminalen.</li><li>Veckans utmaning, frågesport vid tavlan, subnätsträning, väder, tillgänglighet och mycket mer.</li></ul>', buttons: [{ label: 'Kör!', primary: true }] });
+    this.showDialog({ title: 'Nytt i version ' + VERSION, html: '<ul class="news"><li><b>Kapitel 10: VPN, SD-WAN och lastbalansering.</b> Den hyrda linan till Borås är uppsagd – nu går trafiken i en IPsec-tunnel över internet.</li><li>Riktiga crypto-kommandon: <code>show crypto isakmp sa</code>, <code>show crypto ipsec sa</code>, crypto map, transform-set och <code>ip tcp adjust-mss</code>.</li><li>Veckans Krabba är två fel samtidigt, ett MTU-problem och en lastbalanserare som skickar trafik till en trasig server.</li><li>Nya verktyg: <code>curl</code>, <code>tracepath</code>, <code>ping -f -l</code>, utökad ping i IOS och lastbalanserarens egen CLI.</li><li>Och 100 andra förbättringar – se Hjälp och handboken.</li></ul>', buttons: [{ label: 'Kör!', primary: true }] });
   };
 
   // ------------------------------------------------------------------ Veckans utmaning
@@ -220,6 +220,7 @@
     7: { title: 'Titta på övervakningen innan du rör racket', test: function (g) { return !!g.flags.monitorFirst; } },
     8: { title: 'Alla felrapporter helt rätt', test: function (g) { return g.def.tasks.every(function (t) { return g.taskState[t.id].score === 2; }); } },
     9: { title: 'Använd show access-lists', need: true, test: function (g) { return used(g, /^(do\s+)?sh\w*\s+acc/i); } },
+    10: { title: 'Bevisa felet med show crypto ipsec sa och en DF-ping', need: true, test: function (g) { return used(g, /^(do\s+)?sh\w*\s+cry\w*\s+ips/i) && used(g, /^ping\b.*(\s-f\b|\s-M\s+do\b|\sdf-bit\b)/i); } },
   };
   NV.challenge = {
     of: function (w) { return CH[w] || null; },
@@ -246,6 +247,7 @@
     6: [['Vad saknas om NAT-översättningarna är tomma?', 'ip nat inside eller outside på ett interface', 'En standardroute i switchen', 'Ett VLAN-interface'], ['Varför är telnet en risk?', 'Allt skickas i klartext', 'Det är långsammare än SSH', 'Det kräver en nyckel'], ['Vad behövs för att skapa SSH-nycklar?', 'Hostname och ip domain-name', 'En DHCP-pool', 'Ett trunkinterface']],
     7: [['Hur ser en broadcaststorm ut i övervakningen?', 'Trafiken går rakt upp i taket', 'Trafiken blir noll', 'Kurvan blir sågtandad'], ['Vad betyder sågtänder i grafen?', 'En port som går upp och ner', 'En loop', 'Att NTP fungerar'], ['Varför behövs NTP?', 'Rätt tid i loggarna', 'Snabbare routing', 'Fler VLAN']],
     8: [['Vad visar show power inline?', 'Hur mycket ström PoE-portarna ger', 'Strömförbrukningen i racket', 'Batteriet i UPS:en'], ['Vad händer om SSID mappas mot fel VLAN?', 'Klienterna får adress i fel nät', 'Accesspunkten stängs av', 'Wi-Fi blir snabbare'], ['Varför ska grannar inte ha samma kanal?', 'De stör varandra', 'Det sparar ström', 'Det krävs av PoE']],
+    10: [['Vad betyder QM_IDLE i show crypto isakmp sa?', 'Fas 1 är klar och tunneln väntar på trafik', 'Tunneln är nere', 'Nyckeln är fel'], ['Varför måste NAT-listan ha en deny-rad för VPN-trafiken?', 'NAT görs före kryptering, så översatt trafik matchar inte crypto-ACL:en', 'Annars krypteras internettrafiken', 'Deny-raden gör tunneln snabbare'], ['Vad gör ip tcp adjust-mss 1360?', 'Datorerna förhandlar fram segment som får plats i tunneln', 'Tunneln får större MTU', 'Stora paket delas upp av operatören']],
     9: [['Vad händer sist i varje ACL?', 'Ett osynligt deny any', 'Ett osynligt permit any', 'Ingenting'], ['Vad avgör om en ACL ska vara in eller out?', 'Riktningen trafiken går genom interfacet', 'Vilket VLAN porten har', 'Hur många rader ACL:en har'], ['Vad betyder err-disabled efter port security?', 'Porten stängdes av vid en överträdelse', 'Porten saknar kabel', 'Porten är en trunk']],
   };
   U.quiz = function (week) {

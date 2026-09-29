@@ -150,11 +150,11 @@
     NV.settings.remove(RUN_KEY);
   };
   // Vädret skiftar mellan veckorna (samma vecka har alltid samma väder)
-  G.weatherFor = function (n) { return ['sun', 'clouds', 'rain', 'sun', 'rain', 'clouds', 'sun', 'rain', 'clouds'][(n || 1) - 1] || 'sun'; };
+  G.weatherFor = function (n) { return ['sun', 'clouds', 'rain', 'sun', 'rain', 'clouds', 'sun', 'rain', 'clouds', 'rain'][(n || 1) - 1] || 'sun'; };
   // Var i världen hör ett visst ärende hemma?
   G.taskSpot = function (t) {
     var A = this.world.builder.anchors, s = this.taskState[t.id];
-    var rackOf = { SW1: A.rackA, SW2: A.rackA, R1: A.rackA, WLC: A.rackA, RB: A.borasRack, SWB: A.borasRack };
+    var rackOf = { SW1: A.rackA, SW2: A.rackA, R1: A.rackA, WLC: A.rackA, LB: A.rackA, RB: A.borasRack, SWB: A.borasRack };
     if (!s.known) { var c = NV.people.CAST[t.npc]; if (c.desk) { var d = A.desks[c.desk]; return { x: d.x, z: d.z + 0.9 }; } return { x: c.stand.x, z: c.stand.z + 0.8 }; }
     if (rackOf[t.target]) return { x: rackOf[t.target].x + (rackOf[t.target].x > 50 ? 1 : 0), z: rackOf[t.target].z + (rackOf[t.target].x > 50 ? 0 : 1) };
     if (A.desks[t.target]) return { x: A.desks[t.target].x, z: A.desks[t.target].z - 0.6 };
@@ -400,7 +400,7 @@
     var A = this.world.builder.anchors;
     var cast = NV.people.CAST;
     var self = this;
-    var rackOf = { SW1: A.rackA, SW2: A.rackA, R1: A.rackA, WLC: A.rackA, RB: A.borasRack, SWB: A.borasRack };
+    var rackOf = { SW1: A.rackA, SW2: A.rackA, R1: A.rackA, WLC: A.rackA, LB: A.rackA, RB: A.borasRack, SWB: A.borasRack };
     var open = this.def.tasks.filter(function (t) { return !self.taskState[t.id].fixed; });
     if (!open.length) return null;
     var t = open[0];
@@ -430,7 +430,7 @@
     if (this.cmdLog.length > 400) this.cmdLog.shift();
   };
   G.commandsFor = function () {
-    var rel = /^(show|sh|ping|tracert|traceroute|ipconfig|nslookup|arp|ssh|telnet|ip |resolvectl|config|conf|int|do |nc |route|test-net)/i;
+    var rel = /^(show|sh|ping|tracert|traceroute|tracepath|ipconfig|nslookup|arp|ssh|telnet|ip |resolvectl|config|conf|int|do |nc |route|test-net|curl|wget|copy|for |crypto|clear crypto)/i;
     return this.cmdLog.filter(function (c) { return rel.test(c.line.trim()); }).map(function (c) { return c.where + ': ' + c.line.trim(); });
   };
   G.afterCommand = function () {
@@ -517,6 +517,7 @@
       case 'pc': this.ui.pcDialog(i.id); break;
       case 'npc': this.ui.npcDialog(i.id); break;
       case 'travel':
+        NV.career.stat('trips');
         this.ui.fadeTo(function () { self.world.teleport(i.to); self.ui.toast(i.to === 'boras' ? 'Du är framme vid lagret i Borås.' : 'Tillbaka på huvudkontoret i Göteborg.'); });
         break;
       case 'cable': this.toggleLink(i.link); break;
@@ -606,12 +607,17 @@
     this.lastProgress = Date.now();
     if (NV.settings.get('difficulty') !== 'easy') this.xp(-15, 'Ledtråd');
   };
-  var FAMILY = { show: 'show', sh: 'show', ping: 'ping', traceroute: 'traceroute', tracert: 'traceroute', configure: 'configure', conf: 'configure', write: 'write', copy: 'write', ipconfig: 'ipconfig', nslookup: 'nslookup', ssh: 'ssh', debug: 'debug', clear: 'clear' };
+  var FAMILY = { show: 'show', sh: 'show', ping: 'ping', traceroute: 'traceroute', tracert: 'traceroute', configure: 'configure', conf: 'configure', write: 'write', copy: 'write', ipconfig: 'ipconfig', nslookup: 'nslookup', ssh: 'ssh', debug: 'debug', clear: 'clear', curl: 'curl', tracepath: 'tracepath', crypto: 'crypto' };
   G.countCommand = function (line) {
     NV.career.stat('commands');
-    var w = String(line || '').trim().split(/\s+/)[0].toLowerCase();
+    var l = String(line || '').trim();
+    var w = l.split(/\s+/)[0].toLowerCase();
     var fam = FAMILY[w];
     if (fam && NV.career.firstUse(fam)) this.xp(10, 'Nytt kommando: ' + fam);
+    // Statistik för prestationerna i kapitel 10
+    if (/^ping\b.*(\s-f\b|\s-M\s+do\b|\sdf-bit\b)/i.test(l)) NV.career.stat('dfPings');
+    if (/^(do\s+)?sh\w*\s+cry/i.test(l)) NV.career.stat('cryptoShows');
+    if (/^(curl|wget|for\s)/i.test(l)) NV.career.stat('curls');
   };
   G.onPing = function (from, ip, r, opts) {
     if (this.pingShown) return;
@@ -653,7 +659,7 @@
   // Krabban gömmer sig nära ett av veckans fel – en liten ledtråd för den som hittar den
   G.crabSpot = function () {
     var A = this.world.builder.anchors, self = this;
-    var rackOf = { SW1: A.rackA, SW2: A.rackA, R1: A.rackA, WLC: A.rackA, RB: A.borasRack, SWB: A.borasRack };
+    var rackOf = { SW1: A.rackA, SW2: A.rackA, R1: A.rackA, WLC: A.rackA, LB: A.rackA, RB: A.borasRack, SWB: A.borasRack };
     var t = this.def ? this.def.tasks.filter(function (x) { return x.krabba && !self.taskState[x.id].fixed; })[0] : null;
     if (t && rackOf[t.target]) { var a = rackOf[t.target]; return a.x > 50 ? { x: a.x + 1.25, z: a.z + 0.6 } : { x: a.x + 0.3, z: a.z + 1.3 }; }
     if (t && A.desks[t.target]) { var d = A.desks[t.target]; return { x: d.x + 1.25, z: d.z }; }

@@ -40,6 +40,9 @@ NV.devices3d = (function () {
     } else if (s.type === 'wlc') {
       ['nic', 'p2'].forEach(function (n, i) { var x = 760 + i * 60; self.ports[n] = { x: x, y: 38, w: 44, h: 34, led: { x: x + 22, y: 26 } }; });
       this.console = { x: 900, y: 38, w: 36, h: 32 };
+    } else if (s.type === 'lb') {
+      self.ports.nic = { x: 760, y: this.ch / 2 - 16, w: 40, h: 32, led: { x: 780, y: this.ch / 2 - 22 } };
+      this.console = { x: 900, y: this.ch / 2 - 15, w: 36, h: 30 };
     } else if (s.type === 'patch') {
       for (var p = 1; p <= 24; p++) { var px = 120 + (p - 1) * 34; self.ports['pp' + p] = { x: px, y: 36, w: 26, h: 26 }; }
     } else if (s.type === 'server' || s.type === 'asa' || s.type === 'ups' || s.type === 'fiber') {
@@ -88,6 +91,18 @@ NV.devices3d = (function () {
       g.fillText('ASA 5540', 50, 40);
       g.font = '13px "Segoe UI", sans-serif'; g.fillText('Adaptive Security Appliance', 50, 62);
       ['POWER', 'STATUS', 'ACTIVE', 'VPN'].forEach(function (n, i) { self.led(g, 480 + i * 70, 50, i < 2 ? '#3dff6a' : '#23321f', 5); g.fillStyle = '#cfd6dc'; g.font = '11px sans-serif'; g.fillText(n, 460 + i * 70, 80); });
+    } else if (s.type === 'lb') {
+      g.fillText('Load Balancer', 230, 40);
+      g.font = '12px "Segoe UI", sans-serif'; g.fillText('L4/L7 · VIP 192.168.1.13', 230, 60);
+      // En lampa per server i poolen: grön = UP, röd = DOWN, släckt = ej i drift
+      var hl = s.health ? s.health() : [];
+      g.font = '11px sans-serif';
+      for (var hi = 0; hi < 4; hi++) {
+        var hc = hl[hi] ? (hl[hi] === 'up' ? '#3dff6a' : (hl[hi] === 'down' ? (Math.sin(t * 6) > 0 ? '#ff5a4f' : '#3a1a18') : '#ffb020')) : '#23321f';
+        self.led(g, 480 + hi * 60, 44, hc, 6);
+        g.fillStyle = '#cfd6dc'; g.fillText('S' + (hi + 1), 472 + hi * 60, 74);
+      }
+      self.led(g, 60, h / 2, hl.length ? '#3d9bff' : '#1d2630', 6);
     } else if (s.type === 'server') {
       for (var b = 0; b < 8; b++) {
         g.fillStyle = '#15181c'; g.fillRect(260 + b * 70, 16, 62, h - 32);
@@ -110,6 +125,7 @@ NV.devices3d = (function () {
       var sx = s.type === 'router' ? 50 : (s.type === 'switch' ? 180 : 700);
       var sy = s.type === 'router' ? 12 : (s.type === 'switch' ? 16 : 20);
       if (s.type === 'server' || s.type === 'ups') { sx = 60; sy = 12; }
+      if (s.type === 'lb') { sx = 40; sy = 12; }
       g.font = 'bold 15px "Segoe UI", sans-serif';
       var tw = g.measureText(s.sticker()).width + 14;
       g.fillStyle = '#f7f6ee'; g.fillRect(sx, sy, tw, 22);
@@ -258,12 +274,17 @@ NV.devices3d = (function () {
     out.entries.ASA = ra.mount(18, { type: 'asa', units: 1, bg: '#30363d', sticker: function () { return 'ASA (ej i drift)'; } });
     out.entries.WLC = ra.mount(20, { type: 'wlc', units: 1, bg: '#b9bcbf', text: '#1d2226', devId: 'WLC', sticker: function () { return 'WLC-Nordvik'; }, interact: { type: 'console', id: 'WLC' } });
     out.entries.UPS = ra.mount(38, { type: 'ups', units: 2, bg: '#202327', sticker: function () { return 'UPS'; } });
-    [22, 24, 26, 28, 30, 32, 34].forEach(function (u) { ra.mount(u, { type: 'blank', units: 1, bg: '#1a1c1f' }); });
+    // Lastbalanseraren (kapitel 10). Finns den inte i veckans nät är den bara en släckt låda.
+    out.entries.LB = ra.mount(22, { type: 'lb', units: 1, bg: '#243447', sticker: function () { return st().devices.LB ? 'LB-Nordvik' : 'LB (ej i drift)'; }, health: function () { return NV.shared.lbHealth(st()); } });
+    out.entries.LB.face.userData.interact = out.entries.LB.body.userData.interact = { type: 'console', id: 'LB' };
+    [24, 26, 28, 30, 32, 34].forEach(function (u) { ra.mount(u, { type: 'blank', units: 1, bg: '#1a1c1f' }); });
     // Rack B: servrar
     out.entries.Filserver = rb.mount(10, { type: 'server', units: 2, bg: '#1d2024', sticker: function () { return 'Filserver'; } });
     out.entries['NTP-server'] = rb.mount(14, { type: 'server', units: 1, bg: '#1d2024', sticker: function () { return 'NTP'; } });
     out.entries.Loggserver = rb.mount(16, { type: 'server', units: 1, bg: '#1d2024', sticker: function () { return 'Logg'; } });
     out.entries.Ekonomisystem = rb.mount(19, { type: 'server', units: 2, bg: '#1d2024', sticker: function () { return 'Ekonomisystem'; } });
+    out.entries['Tid-1'] = rb.mount(22, { type: 'server', units: 1, bg: '#1d2024', sticker: function () { return st().devices['Tid-1'] ? 'Tid-1' : 'Tid-1 (vecka 10)'; } });
+    out.entries['Tid-2'] = rb.mount(23, { type: 'server', units: 1, bg: '#1d2024', sticker: function () { return st().devices['Tid-2'] ? 'Tid-2' : 'Tid-2 (vecka 10)'; } });
     out.entries.UPS2 = rb.mount(38, { type: 'ups', units: 2, bg: '#202327', sticker: function () { return 'UPS'; } });
 
     // Operatörens fiberbox
@@ -275,11 +296,22 @@ NV.devices3d = (function () {
     wl.position.set(A.fiber.x + 0.55, A.fiber.y + 0.17, A.fiber.z + 0.12); world.scene.add(wl);
     out.extra.fiber = new THREE.Vector3(A.fiber.x, A.fiber.y - 0.08, A.fiber.z + 0.1);
     out.extra.wan = new THREE.Vector3(A.fiber.x + 0.55, A.fiber.y - 0.06, A.fiber.z + 0.09);
+    // Vecka 10: linan är uppsagd
+    var wlOff = T.label('Hyrd lina – uppsagd', { height: 0.05, bg: 'rgba(90,30,24,0.9)' });
+    wlOff.position.copy(wl.position); wlOff.visible = false; world.scene.add(wlOff);
+    out.extra.wanLabels = [wl, wlOff];
 
     // --- Borås: WAN-box på väggen bredvid racket
     b.box(0.08, 0.2, 0.3, 88.17, 1.4, -9.35, b.std(0x2a2f36, 0.5, 0.3));
     var wl2 = T.label('WAN → Göteborg', { height: 0.05, bg: 'rgba(20,24,32,0.85)' });
     wl2.position.set(88.25, 1.62, -9.35); world.scene.add(wl2);
+    var wl2b = T.label('Fiber → internet (VPN)', { height: 0.05, bg: 'rgba(20,60,40,0.9)' });
+    wl2b.position.copy(wl2.position); wl2b.visible = false; world.scene.add(wl2b);
+    out.extra.wanLabelsB = [wl2, wl2b];
+    // Liten VPN-lampa på väggboxen: grön när tunneln är uppe
+    var vpnLamp = new THREE.Mesh(new THREE.SphereGeometry(0.018, 12, 8), new THREE.MeshStandardMaterial({ color: 0x223322, emissive: 0x000000, emissiveIntensity: 1.6 }));
+    vpnLamp.position.set(88.22, 1.47, -9.25); vpnLamp.visible = false; world.scene.add(vpnLamp);
+    out.extra.vpnLamp = vpnLamp;
     out.extra.wanBoras = new THREE.Vector3(88.23, 1.34, -9.35);
     // --- Borås: väggrack
     var rbo = new Rack(world, A.borasRack, 'LAGRETS RACK');

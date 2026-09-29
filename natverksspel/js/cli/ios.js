@@ -230,6 +230,7 @@ NV.IosSession = (function () {
     if ('include'.indexOf(op) === 0) return lines.filter(function (l) { return re.test(l); }).join('\n');
     if ('exclude'.indexOf(op) === 0) return lines.filter(function (l) { return !re.test(l); }).join('\n');
     if ('begin'.indexOf(op) === 0) { var i = lines.findIndex(function (l) { return re.test(l); }); return i < 0 ? '' : lines.slice(i).join('\n'); }
+    if ('count'.indexOf(op) === 0 && op.length >= 2) return 'Number of lines which match regexp = ' + lines.filter(function (l) { return re.test(l); }).length;
     if ('section'.indexOf(op) === 0) {
       var out2 = [], inSec = false;
       lines.forEach(function (l) {
@@ -303,6 +304,9 @@ NV.IosSession = (function () {
   // ---------- Hjälp (?) och tab
   P.help = function (line) {
     if (this.pending) return '';
+    // Filter efter |
+    if (/\|\s*$/.test(line)) return ['  append    Append redirected output to URL (URLs supporting append operation only)', '  begin     Begin with the line that matches', '  count     Count number of lines which match regexp', '  exclude   Exclude lines that match', '  include   Include lines that match', '  section   Filter a section of output'].join('\n');
+    if (/\|\s*\S+\s+$/.test(line)) return '  LINE  Regular Expression';
     var mode = this.mode === 'user' ? 'user' : this.mode;
     var toks = tokenize(line);
     var trailing = /\s$/.test(line) || line === '';
@@ -504,6 +508,9 @@ NV.IosSession = (function () {
   showDef('version', function () { return SH.showVersion(this.state, this.dev); }, true);
   showDef('clock', function () { return SH.showClock(this.state, this.dev); }, true);
   showDef('ntp status', function () { return SH.ntpStatus(this.state, this.dev); }, true);
+  showDef('clock detail', function () { return SH.showClockDetail(this.state, this.dev); }, true);
+  showDef('ntp associations', function () { return SH.ntpAssociations(this.state, this.dev); }, true);
+  showDef('ip cef <ip>', rtOnly(function (v) { return SH.ipCef(this.state, this.dev, v[0]); }), true);
   showDef('logging', function () { return SH.showLogging(this.state, this.dev); });
   showDef('history', function () { return this.history.map(function (h) { return '  ' + h; }).join('\n'); }, true);
   showDef('ip interface brief', function () { return SH.ipIntBrief(this.state, this.dev); }, true);
@@ -662,6 +669,37 @@ NV.IosSession = (function () {
     return result('', { stream: stream });
   }
   def('user exec', 'ping <iphost>', function (v) { return pingCmd.call(this, v); });
+  // Utökad ping: bara "ping" frågar steg för steg, som på en riktig router
+  def('exec', 'ping', function () {
+    var s = this, o = {}, target = null;
+    function ask(prompt, def, fn) { s.pending = { prompt: prompt + ' [' + def + ']: ', fn: function (a) { return fn(a === '' ? def : a); } }; return result(''); }
+    function step7() {
+      return ask('Set DF bit in IP header?', 'no', function (a) { o.df = /^y/i.test(a); return ask('Validate reply data?', 'no', function () { return ask('Data pattern', '0xABCD', function () { return ask('Loose, Strict, Record, Timestamp, Verbose', 'none', function () { return ask('Sweep range of sizes', 'n', function () { var r = pingCmd.call(s, [target], o); return r; }); }); }); }); });
+    }
+    return ask('Protocol', 'ip', function () {
+      s.pending = { prompt: 'Target IP address: ', fn: function (t) {
+        if (!t) return result('% Bad IP address');
+        target = t;
+        return ask('Repeat count', '5', function (a) { o.count = Math.max(1, Math.min(100, parseInt(a, 10) || 5));
+          return ask('Datagram size', '100', function (b) { var z = parseInt(b, 10); if (!(z >= 36 && z <= 18024)) return result('% A decimal number between 36 and 18024.'); o.size = z;
+            return ask('Timeout in seconds', '2', function () {
+              return ask('Extended commands?', 'n', function (e) {
+                if (!/^y/i.test(e)) return pingCmd.call(s, [target], o);
+                return ask('Source address or interface', '', function (src) {
+                  if (src) {
+                    if (U.isIp(src)) o.src = src;
+                    else { var ifn = U.normIf(src); var ic = ifn && cfg(s).ifaces[ifn]; if (!ic || !ic.ip) return result('% Invalid source. Must use same-VRF IP address or full interface name without spaces (e.g. Serial0/1)'); o.src = ic.ip.addr; }
+                  }
+                  return ask('Type of service', '0', function () { return step7(); });
+                });
+              });
+            });
+          });
+        });
+      } };
+      return result('');
+    });
+  }, { no: false });
   // ping 192.168.2.1 source gi0/0.10 size 1500 df-bit repeat 10
   def('user exec', 'ping <iphost> <text>', function (v, neg, k, line) {
     var t = v[1].split(/\s+/);
@@ -689,7 +727,7 @@ NV.IosSession = (function () {
     }
     return pingCmd.call(this, [v[0]], o);
   });
-  function traceCmd(v) {
+  function traceCmd(v, src) {
     var d = this.dev, st = this.state;
     var ip = v[0];
     if (!U.isIp(ip)) {
@@ -697,7 +735,7 @@ NV.IosSession = (function () {
       if (r.error) return '% Unrecognized host or address, or protocol not running.\n';
       ip = r.ip;
     }
-    var tr = S.traceroute(st, d.id, ip);
+    var tr = S.traceroute(st, d.id, ip, src);
     var stream = [{ text: 'Type escape sequence to abort.\nTracing the route to ' + ip + '\nVRF info: (vrf in name/id, vrf out name/id)\n', delay: 100 }];
     var hops = tr.forward.hops.slice();
     var n = 1;
@@ -715,6 +753,11 @@ NV.IosSession = (function () {
     return result('', { stream: stream });
   }
   def('user exec', 'traceroute <iphost>', traceCmd);
+  def('user exec', 'traceroute <iphost> source <if>', function (v) {
+    var i = cfg(this).ifaces[v[1]];
+    if (!i || !i.ip) return '% Invalid source interface - IP not enabled or interface is down';
+    return traceCmd.call(this, [v[0]], i.ip.addr);
+  });
 
   // ------------------------------------------------------------------ CONFIG
   def('config', 'end', function () { this.mode = 'exec'; this.ctx = {}; S.pushLog(this.state, this.dev, '%SYS-5-CONFIG_I: Configured from ' + (this.via === 'console' ? 'console by console' : 'vty0 (192.168.1.200)')); return ''; }, { no: false });

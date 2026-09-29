@@ -19,6 +19,15 @@ NV.UI = (function () {
     Eva: ['"Jag granskar säkerheten. Telnet är en röd flagga."', '"Allt som skickas i klartext hamnar i min rapport."'],
     Nils: ['"Truckarna går på el, streckkodsläsarna på Wi-Fi."', '"Här ute är det kallt, men accesspunkterna ska vara varma."', '"Göteborg har fina kontor. Vi har pallar."'],
   };
+  // Vecka 10: den hyrda linan är uppsagd och alla pratar om VPN
+  var CHAT10 = {
+    Bo: ['"Sex tusen kronor i månaden för en lina som användes till fyra procent. Bra att den är borta."', '"Jag har hört att Mölndal också vill ha VPN. Vad kostar det?"'],
+    Maja: ['"Om tunneln är krypterad, kan operatören se våra fakturor?"'],
+    Omar: ['"Fas 1 är ISAKMP, fas 2 är IPsec. Jag har det på en lapp."', '"Tunneln byggs först när trafik matchar listan. Pinga från rätt källa!"', '"SD-WAN vore fint, men vi börjar med en vanlig crypto map."'],
+    Anna: ['"Borås känns närmare nu när allt går över internet. Eller?"'],
+    Sara: ['"Vad är skillnaden på en VPN-tunnel och en vanlig tunnel?"'],
+    Linnea: ['"En säljare från ett SD-WAN-företag ringde tre gånger i dag."'],
+  };
 
   var TIPS = [
     'Tryck G för nätverksglasögonen: kablarna lyser grönt, rött eller orange efter status.',
@@ -35,6 +44,16 @@ NV.UI = (function () {
   // Frontpaneler i rackvyn
   function hostName(game, id) { return function () { var d = game.state.devices[id]; return d && d.config ? d.config.hostname : id; }; }
   function rackSpecs(game) {
+    var r = rackSpecsBase(game);
+    // Kapitel 10: lastbalanseraren och tidrapportservrarna
+    if (game.state && game.state.devices.LB) {
+      r.A.push({ type: 'lb', units: 1, devId: 'LB', sticker: function () { return 'LB-Nordvik'; }, bg: '#243447', health: function () { return NV.shared.lbHealth(game.state); } });
+      r.B.push({ type: 'server', units: 1, sticker: function () { return 'Tid-1'; }, bg: '#1d2024', led: 'Tid-1' });
+      r.B.push({ type: 'server', units: 1, sticker: function () { return 'Tid-2'; }, bg: '#1d2024', led: 'Tid-2' });
+    }
+    return r;
+  }
+  function rackSpecsBase(game) {
     return {
       A: [
         { type: 'switch', units: 1, devId: 'SW1', brand: 'Catalyst 3560G', model: 'WS-C3560G-24PS', bg: '#4c5b6b', sticker: hostName(game, 'SW1') },
@@ -305,7 +324,7 @@ NV.UI = (function () {
     var open = g.def ? g.def.tasks.filter(function (t) { return t.npc === name; }) : [];
     var html = '<div class="npc-role">' + esc(cast.role || '') + '</div>';
     if (!open.length) {
-      var lines = CHAT[name] || ['"Allt verkar lugnt här i dag."'];
+      var lines = (g.week === 10 && CHAT10[name]) || CHAT[name] || ['"Allt verkar lugnt här i dag."'];
       html += '<p class="quote">' + lines[(U.hash(name) + (g.week || 0) + Math.floor(g.state.time / 60)) % lines.length] + '</p>';
     }
     this.talkingTo = name;
@@ -422,14 +441,40 @@ NV.UI = (function () {
     var g = this.game, self = this;
     var src = g.world.monitorCanvas();
     this.showDialog({
-      title: 'Övervakningen', wide: true, html: '<canvas id="mon-copy" width="1024" height="576" style="width:100%;border-radius:8px"></canvas><p class="muted small">Titta på grafen först, inte på enheten. En kurva som går rakt upp i taket är en loop. Sågtänder betyder en port som går upp och ner.</p>', buttons: [{ label: 'Stäng' }],
+      title: 'Övervakningen', wide: true, html: '<canvas id="mon-copy" width="1024" height="576" style="width:100%;border-radius:8px"></canvas>' + (g.state.devices.LB || g.state.devices.R1.config.crypto ? '<div id="mon-vpn" class="mon-vpn"></div>' : '') + '<p class="muted small">Titta på grafen först, inte på enheten. En kurva som går rakt upp i taket är en loop. Sågtänder betyder en port som går upp och ner.</p>', buttons: [{ label: 'Stäng' }],
       onOpen: function (d) {
         var c = $('#mon-copy', d);
-        function draw() { c.getContext('2d').drawImage(src, 0, 0); }
+        var vp = $('#mon-vpn', d);
+        function draw() { c.getContext('2d').drawImage(src, 0, 0); if (vp) vp.innerHTML = self.vpnPanel(); }
         draw();
         self.dialogTimer = setInterval(draw, 500);
       },
     });
+  };
+  // Kapitel 10: tunnelns och lastbalanserarens status, som på en riktig NOC-skärm
+  P.vpnPanel = function () {
+    var st = this.game.state, S = NV.sim;
+    var html = '';
+    if (st.devices.R1.config.crypto) {
+      var cs = S.cryptoStatus(st, 'R1');
+      var ike = cs.isakmp[0];
+      html += '<div class="mv-box"><div class="mv-title">🔐 VPN Göteborg ↔ Borås</div><div class="mv-row"><span>Fas 1 (ISAKMP)</span><b class="' + (ike && ike.state === 'QM_IDLE' ? 'ok' : 'bad') + '">' + (ike ? ike.state : 'ingen') + '</b></div>';
+      cs.sas.forEach(function (a) {
+        var name = NV.sim.specNorm(a.rule.src).split('/')[0] + ' ↔ ' + NV.sim.specNorm(a.rule.dst).split('/')[0];
+        html += '<div class="mv-row"><span>' + esc(name) + '</span><b class="' + (a.up ? 'ok' : 'bad') + '">' + (a.up ? 'SA uppe' : 'ingen SA') + '</b><small>⬆ ' + a.encaps + ' ⬇ ' + a.decaps + '</small></div>';
+      });
+      html += '</div>';
+    }
+    if (st.devices.LB && st.devices.LB.lb) {
+      S.lbStatus(st, 'LB').forEach(function (p) {
+        html += '<div class="mv-box"><div class="mv-title">⚖️ ' + esc(p.name) + ' · hälsokontroll ' + esc(p.pool.monitor) + '</div>';
+        p.members.forEach(function (m) {
+          html += '<div class="mv-row"><span>' + esc(m.m.name) + ' ' + esc(m.m.ip) + '</span><b class="' + (!m.m.enabled ? 'warn' : (m.up ? 'ok' : 'bad')) + '">' + (!m.m.enabled ? 'avstängd' : (m.up ? 'UP' : 'DOWN')) + '</b><small>' + m.req + ' förfr. · ' + m.fail + ' fel</small></div>';
+        });
+        html += '</div>';
+      });
+    }
+    return html;
   };
   // Tavlan: veckans genomgång och frågesport
   P.whiteboardDialog = function () {
@@ -540,7 +585,7 @@ NV.UI = (function () {
   // ------------------------------------------------------------------ Handbok
   P.handbook = function (tab) {
     var self = this;
-    var tabs = [['cmd', 'Kommandon'], ['mine', 'Mina kommandon'], ['fel', 'Felbibliotek'], ['plan', 'Adressplan'], ['calc', 'Subnätsräknare'], ['osi', 'OSI-modellen'], ['ord', 'Ordlista'], ['keys', 'Styrning']];
+    var tabs = [['cmd', 'Kommandon'], ['mine', 'Mina kommandon'], ['fel', 'Felbibliotek'], ['plan', 'Adressplan'], ['calc', 'Subnätsräknare'], ['vpn', 'VPN och LB'], ['osi', 'OSI-modellen'], ['ord', 'Ordlista'], ['keys', 'Styrning']];
     tab = tab || this.lastTab || 'cmd';
     this.lastTab = tab;
     var html = '<div class="tabs">' + tabs.map(function (t) { return '<button data-tab="' + t[0] + '" class="' + (t[0] === tab ? 'on' : '') + '">' + t[1] + '</button>'; }).join('') + '</div>' +
@@ -814,7 +859,7 @@ NV.UI = (function () {
     this.menu.querySelectorAll('[data-week]').forEach(function (b) { b.addEventListener('click', function () { NV.sfx.unlock(); start(parseInt(b.getAttribute('data-week'), 10)); }); });
     this.menu.querySelectorAll('[data-mode]').forEach(function (b) { b.addEventListener('click', function () { g.setMode(b.getAttribute('data-mode')); self.showMenu(); }); });
     var ex = $('[data-exam]', this.menu);
-    if (ex) ex.addEventListener('click', function () { start(1 + Math.floor(Math.random() * 9), { exam: true }); });
+    if (ex) ex.addEventListener('click', function () { start(NV.levels.WEEKS[Math.floor(Math.random() * NV.levels.WEEKS.length)].week, { exam: true }); });
     var c = $('[data-continue]', this.menu);
     if (c) c.addEventListener('click', function () { self.hideMenu(); g.resumeRun(); self.afterOverlay(); });
     var ac = $('[data-ach]', this.menu);

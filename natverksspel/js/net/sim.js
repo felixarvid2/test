@@ -1117,10 +1117,10 @@ NV.sim = (function () {
     opts.learnArp = true;
     return pingInternal(state, D, fromDev, dst, opts);
   }
-  function traceroute(state, fromDev, dst) {
+  function traceroute(state, fromDev, dst, src) {
     var D = get(state);
-    var out = send(state, D, fromDev, { dst: dst }, {});
-    var r = pingInternal(state, D, fromDev, dst, {});
+    var out = send(state, D, fromDev, { dst: dst, src: src }, {});
+    var r = pingInternal(state, D, fromDev, dst, { src: src });
     return { forward: out, full: r };
   }
 

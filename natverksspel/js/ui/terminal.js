@@ -193,6 +193,7 @@ NV.Terminal = (function () {
       if (tgt) chips.push(['screen 9600', 'sudo screen /dev/ttyUSB0 9600']);
       chips.push(['ssh R-Nordvik-1', 'ssh drift@192.168.1.193'], ['ping gateway', 'ping -c 4 192.168.1.193'], ['help', 'help']);
       if (this.game.week === 8) chips.push(['ssh WLC', 'ssh admin@192.168.1.196']);
+      if (this.game.week === 10) chips.push(['ssh R-Boras-1', 'ssh drift@192.168.2.193'], ['ssh LB', 'ssh admin@192.168.1.13'], ['curl ×4', 'for i in 1 2 3 4; do curl -s http://tid/; done'], ['tracepath Borås', 'tracepath 192.168.2.1']);
       chips.forEach(function (c) {
         var b = document.createElement('button');
         b.textContent = c[0];
@@ -254,6 +255,9 @@ NV.Terminal = (function () {
   var RULES = [
     ['t-err', /^%\s*(Invalid input|Incomplete command|Ambiguous command|Unknown command|Unrecognized|Bad|Error).*$/],
     ['t-log', /%[A-Z0-9_]+-\d-[A-Z0-9_]+/],
+    ['t-warn', /#pkts (?:encaps|decaps): 0\b|Frag needed and DF set|Paketet måste fragmenteras men DF har angetts\.|MM_KEY_EXCH|DOWN-NEGOTIATING|UP-IDLE/],
+    ['t-bad', /\b(?:MM_NO_STATE|502 Bad Gateway|503 Service Unavailable|proxy identities not supported|Begäran gjorde time out\.?|0 fil\(er\) kopierade)/],
+    ['t-ok', /\b(?:QM_IDLE|UP-ACTIVE|200 OK|1 fil\(er\) kopierade|Svar från)/],
     ['t-bad', /\b(administratively down|err-disabled|notconnect|not connected|down|DOWN|disabled|Request timed out|Destination host unreachable|unreachable|timed out|denied|Denied|refused|failed|FAILED|Success rate is 0 percent)\b/],
     ['t-warn', /\b(BLK|blocking|Blocking|flapping|mismatch|late collisions?|CRC|input errors|inactive|Altn|APIPA|Media disconnected)\b/],
     ['t-ok', /\b(connected|up|UP|FWD|forwarding|Established|Success rate is 100 percent|Reply from|bytes from|open|Connected|Enabled|Registered)\b|!{3,}/],
@@ -317,6 +321,10 @@ NV.Terminal = (function () {
     this.root.classList.toggle('caret-native', !atEnd);
   };
   // Statusrad: anslutning, läge och klocka
+  P.setStatusHint = function (txt) {
+    var m = this.el.status && this.el.status.querySelector('.ts-mode');
+    if (m) m.textContent = txt;
+  };
   P.updateStatus = function () {
     var t = this.top(), el = this.el.status;
     if (!t) return;
@@ -327,11 +335,17 @@ NV.Terminal = (function () {
       if (!t.started) mode = 'Tryck Enter';
       else if (/\(config-if[^)]*\)#/.test(p)) mode = 'Interfacekonfiguration';
       else if (/\(config-line\)#/.test(p)) mode = 'Linjekonfiguration';
+      else if (/\(config-isakmp\)#/.test(p)) mode = 'ISAKMP-policy (fas 1)';
+      else if (/\(config-crypto-map\)#/.test(p)) mode = 'Crypto map';
+      else if (/\(cfg-crypto-trans\)#/.test(p)) mode = 'Transform-set (fas 2)';
+      else if (/\(config-ext-nacl\)#|\(config-std-nacl\)#/.test(p)) mode = 'Åtkomstlista';
       else if (/\(config[^)]*\)#/.test(p)) mode = 'Konfigurationsläge';
       else if (/#\s*$/.test(p)) mode = 'Privilegierat läge (#)';
       else if (/>\s*$/.test(p)) mode = 'Användarläge (>)';
       else mode = p ? 'Inloggning' : '';
-    } else mode = t.kind === 'win' ? 'cmd.exe' : 'bash';
+    } else if (t.dev === 'LB') mode = 'Lastbalanserare';
+    else if (t.dev === 'WLC') mode = 'Controller (AireOS)';
+    else mode = t.kind === 'win' ? 'cmd.exe' : 'bash';
     var clock = this.game.state ? NV.sim.deviceClock(this.game.state, this.game.state.devices.R1).hms : '';
     el.querySelector('.ts-conn').textContent = conn;
     el.querySelector('.ts-mode').textContent = (this.busy ? '⏳ arbetar… (Ctrl+C avbryter) · ' : '') + mode;
@@ -341,8 +355,9 @@ NV.Terminal = (function () {
   P.drawIcon = function (t) {
     var c = this.el.icon, g = c.getContext('2d');
     g.clearRect(0, 0, 16, 16);
-    var kind = !t ? 'lap' : (t.kind === 'win' ? 'win' : (t.dev ? (/^R/.test(t.dev) ? 'router' : (t.dev === 'WLC' ? 'wlc' : 'switch')) : 'lap'));
+    var kind = !t ? 'lap' : (t.kind === 'win' ? 'win' : (t.dev ? (/^R/.test(t.dev) ? 'router' : (t.dev === 'WLC' ? 'wlc' : (t.dev === 'LB' ? 'lb' : 'switch'))) : 'lap'));
     function r(x, y, w, h, col) { g.fillStyle = col; g.fillRect(x, y, w, h); }
+    if (kind === 'lb') { r(1, 5, 14, 7, '#2a3a4a'); r(1, 5, 14, 1, '#6b8db0'); r(3, 8, 2, 2, '#3dff6a'); r(7, 8, 2, 2, '#3dff6a'); r(11, 8, 2, 2, '#ffb020'); r(7, 2, 2, 3, '#9fb4c8'); return; }
     if (kind === 'switch') { r(0, 5, 16, 7, '#4c5b6b'); r(0, 5, 16, 1, '#8ea3b8'); for (var i = 0; i < 6; i++) { r(2 + i * 2, 8, 1, 2, '#10151a'); r(2 + i * 2, 7, 1, 1, i % 2 ? '#3dff6a' : '#ffb020'); } }
     else if (kind === 'router') { r(1, 4, 14, 9, '#cfd2cf'); r(1, 4, 14, 1, '#ffffff'); r(3, 7, 3, 3, '#1d2226'); r(8, 7, 3, 3, '#1d2226'); r(13, 6, 1, 1, '#3dff6a'); }
     else if (kind === 'wlc') { r(1, 6, 14, 6, '#b9bcbf'); r(4, 2, 1, 4, '#555'); r(11, 2, 1, 4, '#555'); r(12, 8, 1, 1, '#3dff6a'); }
@@ -435,6 +450,35 @@ NV.Terminal = (function () {
     if (e.ctrlKey && (e.key === 'u' || e.key === 'U')) { e.preventDefault(); this.el.input.value = ''; this.updateGhost(); return; }
     if (e.ctrlKey && (e.key === 'w' || e.key === 'W')) { e.preventDefault(); this.el.input.value = this.el.input.value.replace(/\s*\S+\s*$/, ''); this.updateGhost(); return; }
     if (e.ctrlKey && (e.key === 'l' || e.key === 'L')) { e.preventDefault(); this.el.out.textContent = ''; this.renderPrompt(); return; }
+    // Ctrl+K: ta bort resten av raden från markören
+    if (e.ctrlKey && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); var inp = this.el.input; inp.value = inp.value.slice(0, inp.selectionStart); this.updateGhost(); return; }
+    // Ctrl+R: bläddra bakåt bland tidigare kommandon som innehåller det du skrivit
+    if (e.ctrlKey && (e.key === 'r' || e.key === 'R')) {
+      e.preventDefault();
+      var hr = this.hist[t.histKey || t.kind];
+      if (!hr || !hr.list.length) return;
+      if (!this.rsearch || this.rsearch.key !== (t.histKey || t.kind)) this.rsearch = { key: t.histKey || t.kind, q: this.el.input.value, from: hr.list.length };
+      for (var ri = this.rsearch.from - 1; ri >= 0; ri--) {
+        if (hr.list[ri].indexOf(this.rsearch.q) >= 0) { this.rsearch.from = ri; this.el.input.value = hr.list[ri]; this.setStatusHint('(sökning bakåt) ‘' + this.rsearch.q + '’'); this.updateGhost(); return; }
+      }
+      this.rsearch.from = hr.list.length;
+      return;
+    }
+    if (!(e.ctrlKey && (e.key === 'r' || e.key === 'R'))) this.rsearch = null;
+    // Alt+. : sista ordet i föregående kommando (som i bash)
+    if (e.altKey && e.key === '.') {
+      e.preventDefault();
+      var hl = this.hist[t.histKey || t.kind];
+      var prev = hl && hl.list[hl.list.length - 1];
+      if (prev) { var wds = prev.trim().split(/\s+/); this.el.input.value += wds[wds.length - 1]; this.updateGhost(); }
+      return;
+    }
+    // Ctrl+D på tom rad loggar ut, som i ett riktigt skal
+    if (e.ctrlKey && (e.key === 'd' || e.key === 'D') && !this.el.input.value && !this.busy && (t.kind === 'linux' || t.kind === 'ssh' || t.kind === 'win')) {
+      e.preventDefault();
+      this.submit(t.kind === 'win' ? 'exit' : (t.ios ? 'exit' : 'logout'));
+      return;
+    }
     if (e.ctrlKey && e.shiftKey && (e.key === 'c' || e.key === 'C')) { e.preventDefault(); this.copySelection(); return; }
     if (e.ctrlKey && (e.key === '+' || e.key === '=' || e.key === '-')) { e.preventDefault(); NV.settings.set('termFont', Math.max(11, Math.min(20, NV.settings.get('termFont') + (e.key === '-' ? -1 : 1)))); this.applyFont(); return; }
     if (e.key === 'PageUp' || e.key === 'PageDown') { e.preventDefault(); this.el.screen.scrollTop += (e.key === 'PageUp' ? -1 : 1) * this.el.screen.clientHeight * 0.85; return; }
@@ -512,7 +556,9 @@ NV.Terminal = (function () {
     this.echo(this.el.prompt.textContent || '', shown);
     if (!secret && line.trim()) {
       var h = this.hist[t.histKey || t.kind] = this.hist[t.histKey || t.kind] || { list: [], idx: 0 };
-      h.list.push(line); h.idx = h.list.length;
+      // Samma kommando två gånger i rad sparas bara en gång (som HISTCONTROL=ignoredups)
+      if (h.list[h.list.length - 1] !== line) h.list.push(line);
+      h.idx = h.list.length;
       this.game.logCommand(t, line);
     }
     // Seriell konsol: första Enter "väcker" konsolen

@@ -15,7 +15,7 @@ NV.career = (function () {
     ['walk2k', 'Maratontekniker', 'Gå två kilometer på jobbet.', '👟', function (s) { return s.dist >= 2000; }],
     ['goggles10', 'Glasögonorm', 'Använd nätverksglasögonen tio gånger.', '🥽', function (s) { return s.goggles >= 10; }],
     ['fix10', 'Felsökare', 'Lös tio fel.', '🔧', function (s) { return s.fixed >= 10; }],
-    ['fix27', 'Hela felbiblioteket', 'Lös 27 fel.', '📚', function (s) { return s.fixed >= 27; }],
+    ['fix27', 'Hela felbiblioteket', 'Lös 30 fel.', '📚', function (s) { return s.fixed >= 30; }],
     ['report20', 'Dokumenterare', 'Skriv 20 helt rätta felrapporter.', '📝', function (s) { return s.perfect >= 20; }],
     ['combo3', 'Kombo', 'Lös tre fel i rad, med högst tre minuter emellan.', '⚡', function (s) { return s.bestCombo >= 3; }],
     ['torch', 'Mörkrädd', 'Tänd ficklampan.', '🔦', function (s) { return s.torch >= 1; }],
@@ -23,8 +23,13 @@ NV.career = (function () {
     ['nohint', 'Utan ledtrådar', 'Klara en vecka utan ledtrådar.', '🧠', function (s) { return s.noHintWeeks >= 1; }],
     ['fast', 'Snabb tekniker', 'Klara en vecka på högst tio minuter.', '⏱️', function (s) { return s.fastWeeks >= 1; }],
     ['exam', 'Examen klarad', 'Klara en examen.', '🎓', function (s) { return s.exams >= 1; }],
-    ['allweeks', 'Veckans hjälte', 'Klara alla nio veckor.', '🏆', function (s, p) { return Object.keys(p.weeks || {}).length >= 9; }],
-    ['stars27', 'Stjärnsamlare', 'Samla alla 27 stjärnor.', '⭐', function (s, p) { var n = 0; Object.keys(p.weeks || {}).forEach(function (k) { n += p.weeks[k].stars || 0; }); return n >= 27; }],
+    ['allweeks', 'Veckans hjälte', 'Klara alla tio veckor.', '🏆', function (s, p) { return Object.keys(p.weeks || {}).length >= NV.levels.WEEKS.length; }],
+    ['stars27', 'Stjärnsamlare', 'Samla alla 30 stjärnor.', '⭐', function (s, p) { var n = 0; Object.keys(p.weeks || {}).forEach(function (k) { n += p.weeks[k].stars || 0; }); return n >= NV.levels.WEEKS.length * 3; }],
+    ['week10', 'Tunnelbyggare', 'Klara vecka 10 (VPN och lastbalansering).', '🔐', function (s, p) { return !!(p.weeks && p.weeks[10]); }],
+    ['df5', 'MTU-detektiv', 'Skicka fem ping med DF-biten satt.', '📏', function (s) { return s.dfPings >= 5; }],
+    ['crypto10', 'Tunnelseende', 'Titta på show crypto tio gånger.', '🔭', function (s) { return s.cryptoShows >= 10; }],
+    ['curl10', 'Lastbalanserad', 'Hämta tio webbsidor med curl.', '⚖️', function (s) { return s.curls >= 10; }],
+    ['trips10', 'Pendlare', 'Åk mellan Göteborg och Borås tio gånger.', '🚗', function (s) { return s.trips >= 10; }],
     ['hard', 'Hårding', 'Klara en vecka på svår nivå.', '💪', function (s) { return s.hardWeeks >= 1; }],
     ['night', 'Övertid', 'Spela i en timme totalt.', '🌙', function (s) { return s.playSec >= 3600; }],
   ];
@@ -40,7 +45,7 @@ NV.career = (function () {
   function stats() {
     var s = data.stats, out = {};
     Object.keys(s).forEach(function (k) { out[k] = s[k] || 0; });
-    ['dist', 'commands', 'pings', 'fixed', 'reports', 'perfect', 'coffees', 'crabs', 'hints', 'playSec', 'goggles', 'torch', 'cables', 'bestCombo', 'noHintWeeks', 'fastWeeks', 'exams', 'hardWeeks', 'weeks'].forEach(function (k) { out[k] = s[k] || 0; });
+    ['dist', 'commands', 'pings', 'fixed', 'reports', 'perfect', 'coffees', 'crabs', 'hints', 'playSec', 'goggles', 'torch', 'cables', 'bestCombo', 'noHintWeeks', 'fastWeeks', 'exams', 'hardWeeks', 'weeks', 'dfPings', 'cryptoShows', 'curls', 'trips'].forEach(function (k) { out[k] = s[k] || 0; });
     return out;
   }
   function progress() { try { return JSON.parse(localStorage.getItem('krabba-passet.v1') || '{}'); } catch (e) { return {}; } }

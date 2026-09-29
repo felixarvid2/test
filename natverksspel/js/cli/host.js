@@ -56,6 +56,34 @@
     return { text: '<!doctype html>\n<html><head><title>' + server + '</title></head>\n<body><h1>' + server + '</h1></body></html>', delay: 300 };
   }
 
+  // Enkla filter efter | (grep i Linux, findstr i Windows). Strömmande utskrift samlas ihop först.
+  function pipeFilter(r, pat, opts) {
+    var text = (r.out || '') + (r.stream ? r.stream.map(function (x) { return x.text; }).join('') : '');
+    var re;
+    try { re = new RegExp(pat, opts.i ? 'i' : ''); } catch (e) { re = new RegExp(pat.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), opts.i ? 'i' : ''); }
+    var lines = text.split('\n').filter(function (l) { return opts.count || l.length; });
+    var hit = lines.filter(function (l) { return re.test(l) !== !!opts.v; });
+    var total = r.stream ? r.stream.reduce(function (a, x) { return a + (x.delay || 0); }, 0) : (r.delay || 0);
+    var out = { out: opts.count ? String(hit.length) : hit.join('\n'), delay: Math.min(3000, total) };
+    ['push', 'close', 'clear'].forEach(function (k) { if (r[k]) out[k] = r[k]; });
+    return out;
+  }
+  function splitPipe(line) {
+    var m = /^(.*?)\s\|\s*(grep|findstr|egrep)\s+(.*)$/i.exec(line);
+    if (!m) return null;
+    var args = m[3].trim().split(/\s+/), o = { i: false, v: false, count: false }, pat = [];
+    args.forEach(function (x) {
+      var lx = x.toLowerCase();
+      if (lx === '-i' || lx === '/i') o.i = true;
+      else if (lx === '-v' || lx === '/v') o.v = true;
+      else if (lx === '-c' || lx === '/c') o.count = true;
+      else if (lx === '-e' || lx === '-E') return;
+      else pat.push(x.replace(/^["']|["']$/g, ''));
+    });
+    if (m[2].toLowerCase() === 'findstr') pat = [pat.join('|').replace(/\s+/g, '|')];
+    return { left: m[1], pat: pat.join(' '), opts: o };
+  }
+
   // ================================================================ Windows
   function WinShell(state, hostId) {
     this.state = state; this.h = state.devices[hostId]; this.closed = false; this.pending = null;
@@ -67,6 +95,8 @@
     return 'Microsoft Windows [Version 10.0.19045.4894]\n(c) Microsoft Corporation. Med ensamrätt.\n';
   };
   WinShell.prototype.handle = function (line) {
+    var pp = splitPipe(line);
+    if (pp) return pipeFilter(this.handle(pp.left), pp.pat, pp.opts);
     var a = splitArgs(line);
     if (NV.onHostCommand) NV.onHostCommand(this.h.id, line);
     if (!a.length) return res('');
@@ -406,6 +436,17 @@
   };
   LinuxShell.prototype.handle = function (line) {
     if (this.pending) { var p = this.pending; this.pending = null; return p.fn.call(this, line); }
+    // !! kör om senaste kommandot (bash skriver ut det först)
+    if (/!!/.test(line)) {
+      var lastCmd = (this.hist || []).filter(function (x) { return !/!!/.test(x); }).slice(-1)[0];
+      if (!lastCmd) return res('bash: !!: event not found');
+      var nl = line.replace(/!!/g, lastCmd);
+      var rr = this.handle(nl);
+      rr.out = nl + '\n' + (rr.out || '');
+      return rr;
+    }
+    var pp = splitPipe(line);
+    if (pp) { this.hist = this.hist || []; var r0 = this.handle(pp.left); this.hist[this.hist.length - 1] = line.trim(); return pipeFilter(r0, pp.pat, pp.opts); }
     if (NV.onHostCommand) NV.onHostCommand(this.h.id, line);
     var a = splitArgs(line);
     if (!a.length) return res('');
@@ -427,7 +468,9 @@
           '  traceroute <ip>              nslookup <namn>     clear',
           '  curl http://<ip|namn>/       ping -s 1400 -M do <ip>   (stora paket, DF satt)',
           '  for i in 1 2 3 4; do curl -s http://tid/; done   (testa lastbalanseraren)',
-          '  date   uptime   whoami   neofetch   fortune   history',
+          '  tracepath <ip>               ip route get <ip>   dig +short <namn>',
+          '  kommando | grep <mönster>    !! (kör om)         man <kommando>',
+          '  date   uptime   whoami   neofetch   fortune   history   echo',
         ].join('\n'));
       case 'clear': return res('', { clear: true });
       case 'exit': case 'logout': return res('', { close: true });
@@ -463,9 +506,17 @@
       case 'screen': case 'minicom': case 'picocom': return this.screen(a.slice(1), cmd);
       case 'ip': return res(this.ip(a.slice(1)));
       case 'ping': return this.ping(a.slice(1));
-      case 'traceroute': case 'tracepath': return this.trace(a.slice(1));
+      case 'traceroute': return this.trace(a.slice(1));
+      case 'tracepath': return this.tracepath(a.slice(1));
+      case 'man': return res(MAN[(a[1] || '').toLowerCase()] || (a[1] ? 'Ingen manualsida för ' + a[1] + '. Prova man ping, man ssh, man curl, man tracepath eller man ip.' : 'Vilken manualsida vill du ha?\nTill exempel: man ping'));
+      case 'echo': return res(a.slice(1).join(' ').replace(/^["']|["']$/g, '').replace(/\$USER/g, 'tekniker').replace(/\$HOSTNAME/g, 'laptop'));
+      case 'sl': return res(['      ====        ________                ___________', '  _D _|  |_______/        \\__I_I_____===__|_________|', '   |(_)---  |   H\\________/ |   |        =|___ ___|', '   /     |  |   H  |  |     |   |         ||_| |_||', '  |      |  |   H  |__--------------------| [___] |', '  | ________|___H__/__|_____/[][]~\\_______|       |', '  |/ |   |-----------I_____I [][] []  D   |=======|_', '(Du menade nog ls. Tåget går till Borås – via VPN.)'].join('\n'), { delay: 300 });
       case 'resolvectl': return res(this.resolvectl(a.slice(1)));
-      case 'nslookup': case 'host': case 'dig': return res(this.lookup(a[1]));
+      case 'nslookup': case 'host': case 'dig': {
+        var nm = a.slice(1).filter(function (x) { return x[0] !== '+' && x[0] !== '-'; })[0];
+        if (cmd === 'dig' && a.indexOf('+short') >= 0) { var rs = S.resolve(st, h.id, nm || ''); return res(rs.error ? '' : rs.ip); }
+        return res(this.lookup(nm));
+      }
       case 'ssh': return this.ssh(a.slice(1));
       case 'telnet': return this.telnet(a.slice(1));
       case 'cat': if (a[1] === '/etc/resolv.conf') return res('# This is /run/systemd/resolve/stub-resolv.conf managed by man:systemd-resolved(8).\nnameserver 127.0.0.53\noptions edns0 trust-ad\nsearch nordvik.example\n\n# Den riktiga DNS-servern: resolvectl status');
@@ -520,6 +571,15 @@
       var o = '1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000\n    inet 127.0.0.1/8 scope host lo\n       valid_lft forever preferred_lft forever\n2: enp0s31f6: <BROADCAST,MULTICAST' + (up ? ',UP,LOWER_UP' : ',UP') + '> mtu 1500 qdisc fq_codel state ' + (up ? 'UP' : 'DOWN') + ' group default qlen 1000';
       if (c) o += '\n    inet ' + c.ip + '/' + U.maskToPrefix(c.mask) + ' brd ' + U.broadcast(c.ip, c.mask) + ' scope global noprefixroute enp0s31f6\n       valid_lft forever preferred_lft forever';
       return o;
+    }
+    var rg = /(^|\s)(route|r)\s+get\s+(\S+)/.exec(s);
+    if (rg) {
+      if (!c) return 'RTNETLINK answers: Network is unreachable';
+      var dstIp = rg[3];
+      if (!U.isIp(dstIp)) return 'Error: any valid prefix is expected rather than "' + dstIp + '".';
+      var via = U.sameSubnet(dstIp, c.ip, c.mask) ? '' : (c.gw ? ' via ' + c.gw : '');
+      if (!via && !U.sameSubnet(dstIp, c.ip, c.mask)) return 'RTNETLINK answers: Network is unreachable';
+      return dstIp + via + ' dev enp0s31f6 src ' + c.ip + ' uid 1000 \n    cache ';
     }
     if (/(^|\s)(route|r)(\s|$)/.test(s)) {
       if (!c) return '';
@@ -586,6 +646,40 @@
     if (tr.full.ok) { if (!tr.forward.hops.length || tr.forward.hops[tr.forward.hops.length - 1].ip !== ip) stream.push({ text: U.padL(n, 2) + '  ' + ip + ' (' + ip + ')  1.012 ms  0.981 ms  0.977 ms\n', delay: 400 }); }
     else for (var k = 0; k < 4; k++) { stream.push({ text: U.padL(n, 2) + '  * * *\n', delay: 1500 }); n++; }
     return res('', { stream: stream });
+  };
+  // tracepath: vägen och den minsta MTU:n längs vägen (PMTU)
+  LinuxShell.prototype.tracepath = function (args) {
+    var target = args.filter(function (x) { return x[0] !== '-'; })[0];
+    if (!target) return res('Usage: tracepath [-n] <destination>');
+    var ip = target;
+    if (!U.isIp(target)) { var r = S.resolve(this.state, this.h.id, target); if (r.error) return res('tracepath: ' + target + ': Name or service not known'); ip = r.ip; }
+    var tr = S.traceroute(this.state, this.h.id, ip);
+    var big = S.ping(this.state, this.h.id, ip, { size: 1500, df: true });
+    var pmtu = !big.ok && big.reason === 'frag' ? big.mtu : 1500;
+    var stream = [{ text: ' 1?: [LOCALHOST]                      pmtu 1500\n', delay: 150 }];
+    var n = 1;
+    tr.forward.hops.forEach(function (hp, i) {
+      stream.push({ text: U.padL(n, 2) + ':  ' + U.pad(hp.ip, 34) + (0.4 + n * 0.6).toFixed(3) + 'ms ' + (i === 0 && pmtu < 1500 ? '\n' + U.padL(n, 2) + ':  ' + U.pad(hp.ip, 34) + (0.5 + n * 0.6).toFixed(3) + 'ms pmtu ' + pmtu : '') + '\n', delay: 350 });
+      n++;
+    });
+    if (tr.full.ok) {
+      if (!tr.forward.hops.length || tr.forward.hops[tr.forward.hops.length - 1].ip !== ip) { stream.push({ text: U.padL(n, 2) + ':  ' + U.pad(ip, 34) + (1 + n * 0.6).toFixed(3) + 'ms reached\n', delay: 350 }); n++; }
+      stream.push({ text: '     Resume: pmtu ' + pmtu + ' hops ' + (n - 1) + ' back ' + (n - 1), delay: 100 });
+    } else {
+      for (var k = 0; k < 3; k++) { stream.push({ text: U.padL(n, 2) + ':  no reply\n', delay: 1200 }); n++; }
+      stream.push({ text: '     Too many hops: pmtu ' + pmtu, delay: 100 });
+    }
+    return res('', { stream: stream });
+  };
+  var MAN = {
+    ping: 'PING(8)\n  ping [-c antal] [-s storlek] [-M do] mål\n  -c  antal paket\n  -s  datastorlek i byte (56 som standard, + 28 byte huvud)\n  -M do  sätt DF-biten: routrar får inte dela paketet (hittar MTU-problem)',
+    ssh: 'SSH(1)\n  ssh [-l användare] [användare@]värd\n  Krypterad inloggning. Första gången frågar ssh om värdens nyckel.',
+    curl: 'CURL(1)\n  curl [-I] [-s] URL\n  -I  bara svarshuvudet (statuskod, server)\n  -s  tyst läge\n  Testa en lastbalanserare: for i in 1 2 3 4; do curl -s http://tid/; done',
+    tracepath: 'TRACEPATH(8)\n  tracepath mål\n  Som traceroute, men visar också den minsta MTU:n på vägen (pmtu).',
+    ip: 'IP(8)\n  ip -4 addr show     adresser\n  ip route show       vägar\n  ip route get <ip>   vilken väg ett paket tar\n  ip -4 neigh show    ARP-tabellen',
+    screen: 'SCREEN(1)\n  screen /dev/ttyUSB0 9600\n  Seriell konsol. Ctrl+A K stänger.',
+    nc: 'NC(1)\n  nc -zv värd port\n  Testar om en TCP-port svarar.',
+    grep: 'GREP(1)\n  kommando | grep [-i] [-v] [-c] mönster\n  -i  skiftlägesokänsligt  -v  visa rader som INTE matchar  -c  räkna',
   };
   LinuxShell.prototype.resolvectl = function (args) {
     var c = conf(this.h);

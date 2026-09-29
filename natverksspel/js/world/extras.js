@@ -902,7 +902,7 @@ NV.extras3d = (function () {
       s.position.set(x, y, z);
       self.scene.add(s); self.gLabels.push(s);
     }
-    var racks = { A: ['SW1', 'SW2', 'R1', 'WLC'], BO: ['RB', 'SWB'] };
+    var racks = { A: ['SW1', 'SW2', 'R1', 'WLC', 'LB'], BO: ['RB', 'SWB'] };
     Object.keys(racks).forEach(function (rk) {
       var a = rk === 'A' ? self.A.rackA : self.A.borasRack;
       var lines = [], bad = false;
