@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Krabba-passet</title>
+  <meta name="description" content="Ett 3D-spel där du är nätverkstekniker på Nordvik och felsöker Cisco-utrustning via CLI.">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="view"></canvas>
+  <canvas id="view2d" style="display:none"></canvas>
+  <div id="loading"><div class="load-card"><div class="logo">🦀</div><div class="load-title">Bygger Nordvik…</div><div class="load-bar"><i></i></div></div></div>
+  <div id="compass" class="hidden"><span class="arrow">➤</span><span class="ctext"></span></div>
+  <div id="crosshair"></div>
+  <div id="hud"></div>
+  <div id="hint" style="display:none"></div>
+  <div id="toast"></div>
+  <div id="fade"></div>
+  <div id="boot-error"></div>
+
+  <div id="pause" class="hidden">
+    <div class="pause-card">
+      <div class="pause-title">Klicka för att fortsätta</div>
+      <div class="pause-sub">Musen styr blicken när den är låst. Går det inte att låsa: håll ned musknappen och dra.</div>
+      <div class="pause-buttons">
+        <button data-pause="resume" class="primary">Fortsätt</button>
+        <button data-pause="settings">Inställningar</button>
+        <button data-pause="map">Karta (M)</button>
+        <button data-pause="menu">Huvudmeny</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="terminal" class="overlay hidden">
+    <div class="term">
+      <div class="term-head">
+        <span class="dots"><i></i><i></i><i></i></span>
+        <span class="term-title">Terminal</span>
+        <span class="term-quick"></span>
+        <button data-act="font-" title="Mindre text">A−</button>
+        <button data-act="font+" title="Större text">A+</button>
+        <button data-act="copy" title="Kopiera markerad text (Ctrl+Shift+C)">Kopiera</button>
+        <button data-act="disconnect" title="Ctrl+A K">Koppla från</button>
+        <button data-act="close" title="Esc">Stäng</button>
+      </div>
+      <div class="term-screen">
+        <pre class="term-out"></pre>
+        <div class="term-line"><span class="term-prompt"></span><input class="term-input" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="dialog" class="overlay hidden"></div>
+  <div id="menu" class="overlay hidden"></div>
+
+  <script src="lib/three.min.js"></script>
+  <script src="js/net/util.js"></script>
+  <script src="js/net/model.js"></script>
+  <script src="js/net/sim.js"></script>
+  <script src="js/cli/ios_show.js"></script>
+  <script src="js/cli/ios.js"></script>
+  <script src="js/cli/host.js"></script>
+  <script src="js/cli/wlc.js"></script>
+  <script src="js/levels.js"></script>
+  <script src="js/world/tex.js"></script>
+  <script src="js/world/building.js"></script>
+  <script src="js/world/devices.js"></script>
+  <script src="js/world/people.js"></script>
+  <script src="js/world/shared.js"></script>
+  <script src="js/world/world.js"></script>
+  <script src="js/world/world2d.js"></script>
+  <script src="js/ui/settings.js"></script>
+  <script src="js/ui/handbook.js"></script>
+  <script src="js/ui/terminal.js"></script>
+  <script src="js/ui/ui.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
