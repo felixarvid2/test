@@ -26,6 +26,7 @@ NV.World2D = (function () {
   }
   // Mörk kontur runt allt som inte är genomskinligt (16-bitarskänsla)
   function outline(c, color) {
+    if (!color && NV.art2d) return NV.art2d.selout(c);
     var g = c.getContext('2d');
     var w = c.width, h = c.height;
     var img = g.getImageData(0, 0, w, h), d = img.data;
@@ -155,9 +156,9 @@ NV.World2D = (function () {
   }
   function spriteCache(look) {
     var cache = {};
-    return function (dir, frame, sitting) {
-      var k = dir + ':' + frame + ':' + (sitting ? 1 : 0);
-      return cache[k] || (cache[k] = drawPerson(look, dir, frame, sitting));
+    return function (dir, frame, sitting, blink) {
+      var k = dir + ':' + frame + ':' + (sitting ? 1 : 0) + ':' + (blink ? 1 : 0);
+      return cache[k] || (cache[k] = NV.art2d.person(look, dir, frame, sitting, blink));
     };
   }
 
@@ -168,11 +169,7 @@ NV.World2D = (function () {
     var W = Math.max(2, Math.round(w * PPM)), Dp = Math.max(1, Math.round(d * PPM * ZS)), Hp = Math.max(1, Math.round(h * PPM * HS));
     var c = cv(W + 2, Dp + Hp + 2), g = c.getContext('2d');
     g.translate(1, 1);
-    g.fillStyle = hex(top); g.fillRect(0, 0, W, Dp);
-    g.fillStyle = shade(top, 0.18); g.fillRect(0, 0, W, 1);
-    g.fillStyle = hex(front); g.fillRect(0, Dp, W, Hp);
-    g.fillStyle = shade(front, -0.25); g.fillRect(0, Dp + Hp - 1, W, 1);
-    g.fillStyle = shade(front, 0.12); g.fillRect(0, Dp, W, 1);
+    NV.art2d.shadeBox(g, W, Dp, Hp, hex(top), hex(front), opts);
     if (opts.stripes) { g.fillStyle = shade(front, -0.1); for (var x = 3; x < W; x += 5) g.fillRect(x, Dp + 1, 1, Hp - 2); }
     if (opts.drawers) { g.fillStyle = shade(front, -0.2); for (var y = Dp + 3; y < Dp + Hp - 2; y += 6) { g.fillRect(2, y, W - 4, 1); g.fillStyle = '#6b6b6b'; g.fillRect(W / 2 - 2, y + 2, 4, 1); g.fillStyle = shade(front, -0.2); } }
     if (opts.fn) opts.fn(g, W, Dp, Hp);
@@ -245,42 +242,149 @@ NV.World2D = (function () {
 
   // ------------------------------------------------------------------ Mark och statiska föremål
   W.groundFor = function (siteKey) {
-    var s = SITES[siteKey];
-    var gw = (s.x1 - s.x0) * PPM, gh = (s.z1 - s.z0) * PPM * ZS;
+    var s = SITES[siteKey], A2 = NV.art2d, M = A2.M;
+    var gw = Math.round((s.x1 - s.x0) * PPM), gh = Math.round((s.z1 - s.z0) * PPM * ZS);
     var c = cv(gw, gh), g = c.getContext('2d');
     var self = this;
+    function X(x) { return Math.round((x - s.x0) * PPM); }
+    function Y(z) { return Math.round((s.z1 - z) * PPM * ZS); }
     function rect(x1, z1, x2, z2) {
-      var X = (Math.min(x1, x2) - s.x0) * PPM, Y = (s.z1 - Math.max(z1, z2)) * PPM * ZS;
-      return [Math.round(X), Math.round(Y), Math.round(Math.abs(x2 - x1) * PPM), Math.round(Math.abs(z2 - z1) * PPM * ZS)];
+      var X0 = (Math.min(x1, x2) - s.x0) * PPM, Y0 = (s.z1 - Math.max(z1, z2)) * PPM * ZS;
+      return [Math.round(X0), Math.round(Y0), Math.round(Math.abs(x2 - x1) * PPM), Math.round(Math.abs(z2 - z1) * PPM * ZS)];
     }
-    // Utemiljö
-    var all = rect(s.x0, s.z0, s.x1, s.z1);
-    paintFloor(g, all[0], all[1], all[2], all[3], 'grass', 11);
+    // Materialkarta: ett material per pixel, sedan målas allt med paletter och dithering
+    var map = new Uint8Array(gw * gh);
+    function fill(x1, z1, x2, z2, m) {
+      var a = X(Math.min(x1, x2)), b = X(Math.max(x1, x2)), t = Y(Math.max(z1, z2)), u = Y(Math.min(z1, z2));
+      for (var y = Math.max(0, t); y < Math.min(gh, u); y++) for (var x = Math.max(0, a); x < Math.min(gw, b); x++) map[y * gw + x] = m;
+    }
+    function blob(cx, cz, rx, rz, m, wob, seed) {
+      var a = X(cx - rx - 1), b = X(cx + rx + 1), t = Y(cz + rz + 1), u = Y(cz - rz - 1);
+      for (var y = Math.max(0, t); y < Math.min(gh, u); y++) for (var x = Math.max(0, a); x < Math.min(gw, b); x++) {
+        var wx = x / PPM + s.x0, wz = s.z1 - y / (PPM * ZS);
+        var dx = (wx - cx) / rx, dz = (wz - cz) / rz;
+        if (dx * dx + dz * dz < 1 + (A2.vnoise(x / 9, y / 9, seed || 5) - 0.5) * (wob || 0)) map[y * gw + x] = m;
+      }
+    }
+    this.waters = this.waters || {};
+    var waters = this.waters[siteKey] = [];
     if (siteKey === 'gbg') {
-      var pth = rect(9.2, -18, 11.8, -10); paintFloor(g, pth[0], pth[1], pth[2], pth[3], 'dirt', 3);
-      var pth2 = rect(-21, -15.4, 21, -12.8); paintFloor(g, pth2[0], pth2[1], pth2[2], pth2[3], 'dirt', 4);
-      var park = rect(13, -18, 21, -12.8); paintFloor(g, park[0], park[1], park[2], park[3], 'asphalt', 5);
-      g.fillStyle = '#e8e8e8'; for (var px = 15; px < 21; px += 2.2) { var pl = rect(px, -18, px + 0.08, -13.5); g.fillRect(pl[0], pl[1], 2, pl[3]); }
-      var bld = rect(-15.3, -10.3, 15.3, 10.3); g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(bld[0] + 4, bld[1] + 6, bld[2], bld[3]);
+      // Grusgångar, stenlagd entré, parkering och en damm med strand
+      fill(-21, -15.4, 21, -12.8, M.DIRT);
+      fill(-15.8, -10.9, 15.8, -10, M.DIRT);
+      fill(9.2, -18, 11.8, -10, M.PAVING);
+      fill(8.2, -11.4, 12.8, -10, M.PAVING);
+      fill(13, -18, 21, -12.8, M.ASPHALT);
+      fill(-15.6, 10, 15.6, 10.6, M.DIRT);
+      blob(-18.3, -1.5, 2.55, 4.4, M.DIRT, 0.5, 3);
+      blob(-18.3, -1.5, 2.0, 3.8, M.WATER, 0.35, 4);
+      waters.push({ x: -18.3, z: -1.5, rx: 2.0, rz: 3.8 });
+      this.builder.colliders.push({ minX: -20.3, maxX: -16.4, minZ: -5.2, maxZ: 2.2 });
+      // Rabatter vid entrén
+      fill(6.2, -11.8, 8, -11, M.SOIL); fill(13, -11.8, 14.8, -11, M.SOIL);
     } else {
-      var yard = rect(82, -17, 118, -13); paintFloor(g, yard[0], yard[1], yard[2], yard[3], 'asphalt', 8);
-      var pth3 = rect(84, -1.5, 88, 1.5); paintFloor(g, pth3[0], pth3[1], pth3[2], pth3[3], 'dirt', 9);
-      var dock = rect(112, -3, 118, 3); paintFloor(g, dock[0], dock[1], dock[2], dock[3], 'asphalt', 10);
+      fill(82, -17, 118, -13, M.ASPHALT);
+      fill(84, -1.5, 88, 1.5, M.DIRT);
+      fill(112, -3, 118, 3, M.ASPHALT);
+      fill(87.4, -12.6, 112.6, 12.6, M.DIRT);
+      // Bäck längs norra kanten, med slingrande strand
+      for (var sx = 0; sx < gw; sx++) {
+        var wx = sx / PPM + s.x0, mid = 14.6 + Math.sin(wx * 0.35) * 0.35 + Math.sin(wx * 0.9) * 0.15;
+        var bank = 1.2 + (A2.vnoise(sx / 7, 1, 9) - 0.5) * 0.3, wet = 0.8 + (A2.vnoise(sx / 11, 2, 9) - 0.5) * 0.2;
+        for (var sy = Math.max(0, Y(mid + bank)); sy < Math.min(gh, Y(mid - bank)); sy++) {
+          var wz = s.z1 - sy / (PPM * ZS);
+          map[sy * gw + sx] = Math.abs(wz - mid) < wet ? M.WATER : M.DIRT;
+        }
+      }
+      waters.push({ x: 100, z: 14.6, rx: 18, rz: 0.8, stream: true });
+      this.builder.colliders.push({ minX: 82, maxX: 99.1, minZ: 13.7, maxZ: 16 });
+      this.builder.colliders.push({ minX: 100.9, maxX: 118, minZ: 13.7, maxZ: 16 });
     }
     // Golv inne
-    this.builder.sem.forEach(function (r, i) {
+    this.builder.sem.forEach(function (r) {
       if (r.type !== 'floor') return;
       if (r.x1 < s.x0 || r.x1 > s.x1) return;
-      var f = rect(r.x1, r.z1, r.x2, r.z2);
-      var tex = r.tex === 'concreteDark' ? 'concrete' : r.tex;
-      paintFloor(g, f[0], f[1], f[2], f[3], tex, 20 + i);
+      var m = { carpet: M.CARPET, wood: M.WOOD, raised: M.RAISED, concrete: M.CONCRETE, concreteDark: M.CONCRETE }[r.tex];
+      if (m === undefined) m = M.CARPET;
+      fill(r.x1, r.z1, r.x2, r.z2, m);
     });
-    // Platta föremål (mattor, gula linjer)
+    if (siteKey === 'gbg') fill(-6, -10, 3, -2, M.TILE);  // fikarummet får kakel
+    A2.paintGround(g, map, gw, gh, siteKey === 'gbg' ? 11 : 23);
+    A2.groundDetails(g, map, gw, gh, siteKey === 'gbg' ? 5 : 8);
+    // Punkter för glitter på vattnet, skum vid stranden och vattenpölar när det regnar
+    var wp = [], sp2 = [], pud = [];
+    for (var i = 0; i < map.length; i++) {
+      var m0 = map[i];
+      if (m0 === M.WATER) {
+        var xx0 = i % gw, yy0 = (i / gw) | 0;
+        var edge = map[i - 1] !== M.WATER || map[i + 1] !== M.WATER || map[i - gw] !== M.WATER || map[i + gw] !== M.WATER;
+        if (edge) sp2.push(xx0, yy0);
+        else if (A2.hash2(xx0, yy0, 71) < 0.14) wp.push(xx0, yy0);
+      } else if ((m0 === M.PAVING || m0 === M.ASPHALT || m0 === M.DIRT) && A2.hash2(i, 3, 91) < 0.00012) pud.push(i % gw, (i / gw) | 0);
+    }
+    this.waterPts = this.waterPts || {}; this.shorePts = this.shorePts || {}; this.puddles = this.puddles || {};
+    this.waterPts[siteKey] = wp; this.shorePts[siteKey] = sp2; this.puddles[siteKey] = pud;
+    // Platta föremål (mattor, gula linjer) med lite slitage
     this.builder.sem.forEach(function (r) {
       if (r.type !== 'box' || r.x < s.x0 || r.x > s.x1) return;
       if (r.h < 0.05 && r.y < 0.05) {
         var f = rect(r.x - r.w / 2, r.z - r.d / 2, r.x + r.w / 2, r.z + r.d / 2);
-        g.fillStyle = r.color; g.fillRect(f[0], f[1], Math.max(1, f[2]), Math.max(1, f[3]));
+        var col = hex(r.color);
+        for (var yy = 0; yy < Math.max(1, f[3]); yy++) for (var xx = 0; xx < Math.max(1, f[2]); xx++) {
+          var v = A2.hash2(f[0] + xx, f[1] + yy, 3);
+          g.fillStyle = v < 0.08 ? shade(col, -0.25) : (v > 0.94 ? shade(col, 0.2) : col);
+          g.fillRect(f[0] + xx, f[1] + yy, 1, 1);
+        }
+        if (f[3] > 6 && f[2] > 6) { g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(f[0] + 1, f[1] + 1, f[2] - 2, 1); g.fillStyle = 'rgba(0,0,30,0.2)'; g.fillRect(f[0], f[1] + f[3] - 1, f[2], 1); }
+      }
+    });
+    // Parkeringsrutor, brunnslock och målade linjer
+    if (siteKey === 'gbg') {
+      for (var px = 15; px < 21; px += 2.2) { var pl = rect(px, -18, px + 0.08, -13.5); g.fillStyle = '#e8e6de'; g.fillRect(pl[0], pl[1], 2, pl[3]); g.fillStyle = 'rgba(0,0,0,0.25)'; for (var q = 0; q < pl[3]; q += 3) if (A2.hash2(px * 10, q, 1) < 0.3) g.fillRect(pl[0], pl[1] + q, 2, 1); }
+      var hc = rect(13.4, -17.6, 14.6, -16.4); g.fillStyle = '#2f6fb0'; g.fillRect(hc[0], hc[1], hc[2], hc[3]); g.fillStyle = '#f2f2f2'; g.fillRect(hc[0] + 10, hc[1] + 5, 6, 2); g.fillRect(hc[0] + 12, hc[1] + 3, 2, 12);
+      manhole(g, X(6), Y(-14.1));
+    } else {
+      g.fillStyle = '#e4b52a';
+      for (var lx = 83; lx < 117; lx += 3) { var yl = rect(lx, -15.05, lx + 1.6, -14.95); g.fillRect(yl[0], yl[1], yl[2], 2); }
+      manhole(g, X(96), Y(-15.8));
+      var dz = rect(112.2, -3, 117.8, 3);
+      for (var sy = 0; sy < dz[3]; sy++) for (var sx = 0; sx < dz[2]; sx++) if (((sx + sy) >> 3) % 2 === 0 && (sx < 4 || sx > dz[2] - 5)) { g.fillStyle = '#e4b52a'; g.fillRect(dz[0] + sx, dz[1] + sy, 1, 1); }
+    }
+    function manhole(g2, x, y) {
+      g2.fillStyle = '#2a2c30'; g2.beginPath(); g2.ellipse(x, y, 9, 7, 0, 0, Math.PI * 2); g2.fill();
+      g2.fillStyle = '#4b4e55'; g2.beginPath(); g2.ellipse(x, y, 8, 6, 0, 0, Math.PI * 2); g2.fill();
+      g2.fillStyle = '#3a3d43'; for (var k = -5; k <= 5; k += 2) g2.fillRect(x + k, y - 4, 1, 8);
+      g2.fillStyle = '#6a6e76'; g2.fillRect(x - 6, y - 5, 5, 1);
+    }
+    // Mjuk skugga (ambient occlusion) längs väggarnas fot, i ditherade steg
+    function ao(x1, z1, x2, z2, dir) {
+      var r = rect(x1, z1, x2, z2);
+      for (var k = 0; k < 6; k++) {
+        var a = [0.26, 0.18, 0.12, 0.08, 0.05, 0.03][k];
+        g.fillStyle = 'rgba(20,18,50,' + a + ')';
+        if (dir === 'down') g.fillRect(r[0], r[1] + k, r[2], 1);
+        else if (dir === 'up') g.fillRect(r[0], r[1] + r[3] - 1 - k, r[2], 1);
+        else if (dir === 'right') g.fillRect(r[0] + k, r[1], 1, r[3]);
+        else g.fillRect(r[0] + r[2] - 1 - k, r[1], 1, r[3]);
+      }
+    }
+    this.builder.sem.forEach(function (r) {
+      if (r.type !== 'wall' && r.type !== 'glass') return;
+      var inSite = r.axis === 'x' ? (r.a >= s.x0 - 1 && r.b <= s.x1 + 1 && r.fixed > s.z0 && r.fixed < s.z1) : (r.fixed >= s.x0 && r.fixed <= s.x1);
+      if (!inSite) return;
+      var t = Math.max(0.16, r.t || 0.12) / 2;
+      if (r.axis === 'x') ao(r.a, r.fixed - t - 0.3, r.b, r.fixed - t, 'down');
+      else { ao(r.fixed + t, r.a, r.fixed + t + 0.3, r.b, 'right'); ao(r.fixed - t - 0.3, r.a, r.fixed - t, r.b, 'left'); }
+    });
+    // Byggnadens skugga på gräset (solen står uppe till vänster)
+    var B = siteKey === 'gbg' ? [-15, -10, 15, 10] : [88, -12, 112, 12];
+    var sh = rect(B[0] + 0.4, B[1] - 0.9, B[2] + 0.9, B[1]);
+    var sh2 = rect(B[2], B[1] - 0.9, B[2] + 0.9, B[3] - 0.6);
+    [sh, sh2].forEach(function (q) {
+      for (var yy = 0; yy < q[3]; yy++) for (var xx = 0; xx < q[2]; xx++) {
+        var edge = Math.min(q[3] - yy, q[2] - xx) / 6;
+        if (edge < 1 && A2.bayer(q[0] + xx, q[1] + yy) + 0.47 > edge) continue;
+        g.fillStyle = 'rgba(16,20,60,0.22)'; g.fillRect(q[0] + xx, q[1] + yy, 1, 1);
       }
     });
     return c;
@@ -292,7 +396,10 @@ NV.World2D = (function () {
     var sp = this.sprites = [];
     function add(canvas, x, z, opts) {
       opts = opts || {};
-      sp.push({ c: canvas, x: x, z: z, w: canvas ? canvas.width / PPM : 1, d: canvas ? canvas.height / (PPM * ZS) : 1, y: opts.y || 0, key: opts.key !== undefined ? opts.key : z, ox: opts.ox || 0, oy: opts.oy !== undefined ? opts.oy : (canvas ? canvas.height : 0), fade: opts.fade, dyn: opts.dyn, rect: opts.rect });
+      var o = { c: canvas, x: x, z: z, w: canvas ? canvas.width / PPM : 1, d: canvas ? canvas.height / (PPM * ZS) : 1, y: opts.y || 0, key: opts.key !== undefined ? opts.key : z, ox: opts.ox || 0, oy: opts.oy !== undefined ? opts.oy : (canvas ? canvas.height : 0), fade: opts.fade, dyn: opts.dyn, rect: opts.rect };
+      ['frames', 'shadow', 'light', 'kind', 'sway', 'emit', 'wall', 'noShadow'].forEach(function (k) { if (opts[k] !== undefined) o[k] = opts[k]; });
+      sp.push(o);
+      return o;
     }
     this.addSprite = add;
     var sem = this.builder.sem;
@@ -312,38 +419,20 @@ NV.World2D = (function () {
         if (s2[2] === 'lintel') return;
         var t = Math.max(0.16, r.t || 0.12);
         if (r.axis === 'x') {
-          var c = boxSprite(len, t, hh, '#4a3526', col, { noOutline: glass, fn: function (g, Wd, Dp, Hp) {
-            if (glass) { g.fillStyle = 'rgba(255,255,255,0.35)'; for (var k = 4; k < Wd; k += 29) g.fillRect(k, Dp + 2, 2, Hp - 4); g.fillStyle = '#3a4048'; g.fillRect(0, Dp, Wd, 2); g.fillRect(0, Dp + Hp - 2, Wd, 2); return; }
-            g.fillStyle = shade(col, -0.06);
-            for (var x = 2; x < Wd; x += 6) g.fillRect(x, Dp + 2, 1, Hp - 6);
-            g.fillStyle = shade(col, -0.35); g.fillRect(0, Dp + Hp - 4, Wd, 4);
-            g.fillStyle = shade(col, 0.2); g.fillRect(0, Dp + 1, Wd, 1);
-          } });
-          if (glass) { var gg = c.getContext('2d'); gg.globalCompositeOperation = 'destination-in'; gg.fillStyle = 'rgba(0,0,0,0.55)'; gg.fillRect(0, 0, c.width, c.height); }
-          add(c, s2[0] - 0.01, r.fixed - t / 2, { key: r.fixed - t / 2, fade: !glass, rect: [s2[0], s2[1]] });
+          var c = boxSprite(len, t, hh, '#4a3526', col, { noOutline: glass, fn: function (g, Wd, Dp, Hp) { self.paintWall(g, Wd, Dp, Hp, col, r, glass, s2[0]); } });
+          if (glass) { var gg = c.getContext('2d'); gg.globalCompositeOperation = 'destination-in'; gg.fillStyle = 'rgba(0,0,0,0.62)'; gg.fillRect(0, 0, c.width, c.height); }
+          add(c, s2[0] - 0.01, r.fixed - t / 2, { key: r.fixed - t / 2, fade: !glass, rect: [s2[0], s2[1]], wall: true });
         } else {
-          var c2 = boxSprite(t, len, hh, '#4a3526', col, { fn: function (g, Wd, Dp) { g.fillStyle = glass ? '#9fd0e3' : '#5a4232'; g.fillRect(0, 0, Wd, Dp); } });
-          add(c2, r.fixed - t / 2, s2[0], { key: s2[0], fade: !glass });
+          var c2 = boxSprite(t, len, hh, '#4a3526', col, { fn: function (g, Wd, Dp, Hp) { self.paintWallTop(g, Wd, Dp, Hp, col, glass); } });
+          add(c2, r.fixed - t / 2, s2[0], { key: s2[0], fade: !glass, wall: true });
         }
       });
     });
-    // Fönster på de vägar som vetter mot oss
+    // Fönster på de väggar som vetter mot oss
     sem.forEach(function (r) {
       if (r.type !== 'window') return;
-      var facing = Math.abs(Math.sin(r.ry)) < 0.5;
-      if (!facing) return;
-      var ww = Math.round(r.w * PPM * 0.8), wh = Math.round(WALL_H * PPM * HS * 0.55);
-      var c = cv(ww + 2, wh + 2), g = c.getContext('2d');
-      g.fillStyle = '#f2efe6'; g.fillRect(0, 0, ww + 2, wh + 2);
-      var grd = g.createLinearGradient(0, 0, 0, wh);
-      grd.addColorStop(0, '#9fd3f5'); grd.addColorStop(0.7, '#d8eefa'); grd.addColorStop(0.72, '#79b957'); grd.addColorStop(1, '#5e9a44');
-      g.fillStyle = grd; g.fillRect(2, 2, ww - 2, wh - 2);
-      g.fillStyle = '#f2efe6'; g.fillRect(ww / 2, 0, 2, wh + 2);
-      g.fillStyle = 'rgba(255,255,255,0.6)'; g.fillRect(4, 4, 3, 5);
-      // Fönstret sitter på väggen: placeras strax framför väggens nedre kant
-      var wallZ = r.z > 0 ? r.z - 0.08 : r.z + 0.08;
-      if (r.z < 0) return; // södra väggen syns bakifrån
-      add(outline(c), r.x - r.w * 0.4, wallZ - 0.1, { y: 0.35, key: wallZ - 0.09 });
+      if (Math.abs(Math.sin(r.ry)) >= 0.5) return;
+      self.addWindow(r);
     });
     // Möbler och övrigt
     sem.forEach(function (r) {
@@ -378,8 +467,14 @@ NV.World2D = (function () {
       var rot = Math.abs(Math.sin(a.ry || 0)) > 0.5;
       var w = rot ? 1.0 : 0.6, d = rot ? 0.6 : 1.0;
       var c = boxSprite(w, d, 2.05, '#26292e', '#15171a', { fn: function (g, Wd, Dp, Hp) {
-        g.fillStyle = '#2e3238'; g.fillRect(2, Dp + 2, Wd - 4, Hp - 4);
-        for (var y = Dp + 6; y < Dp + Hp - 6; y += 4) { g.fillStyle = '#1c1e22'; g.fillRect(3, y, Wd - 6, 1); }
+        // Ventilationsgaller på taket, perforerad dörr, handtag, märkning och sockel
+        g.fillStyle = '#1d1f23'; for (var x = 2; x < Wd - 2; x += 2) g.fillRect(x, 2, 1, Dp - 4);
+        g.fillStyle = '#23262b'; g.fillRect(1, Dp + 1, Wd - 2, Hp - 2);
+        for (var y = Dp + 4; y < Dp + Hp - 4; y += 2) for (var x2 = 3; x2 < Wd - 3; x2 += 2) { g.fillStyle = (x2 + y) % 4 === 0 ? '#3a3f47' : '#2c3036'; g.fillRect(x2, y, 1, 1); }
+        g.fillStyle = '#9aa0a8'; g.fillRect(Wd - 4, Math.round(Dp + Hp * 0.35), 1, 8); g.fillStyle = '#d0d4da'; g.fillRect(Wd - 4, Math.round(Dp + Hp * 0.35), 1, 2);
+        g.fillStyle = '#c8412f'; g.fillRect(3, Dp + 2, 4, 1);
+        g.fillStyle = '#0e0f12'; g.fillRect(0, Dp + Hp - 3, Wd, 3);
+        g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(1, Dp + 1, 1, Hp - 4);
       } });
       add(c, a.x - w / 2, a.z - d / 2, { key: a.z - d / 2 });
       self.rackSpots = self.rackSpots || [];
@@ -396,20 +491,27 @@ NV.World2D = (function () {
     // Whiteboard (fristående i 2D)
     var wb = boxSprite(0.12, 1.5, 1.3, '#9aa0a6', '#f7f8f6', { fn: function (g, Wd, Dp, Hp) { g.fillStyle = '#f7f8f6'; g.fillRect(0, 0, Wd, Dp); } });
     add(wb, A.whiteboard.x + 0.05, A.whiteboard.z - 0.75, { y: 0.4, key: A.whiteboard.z - 0.75 });
-    var board = cv(40, 26), bg = board.getContext('2d');
-    bg.fillStyle = '#f7f8f6'; bg.fillRect(0, 0, 40, 26); bg.fillStyle = '#9aa0a6'; bg.fillRect(0, 0, 40, 2); bg.fillRect(0, 24, 40, 2);
-    bg.fillStyle = '#1f4e79'; bg.fillRect(4, 5, 22, 2); bg.fillStyle = '#c0392b'; bg.fillRect(4, 10, 16, 2); bg.fillRect(28, 8, 6, 5); bg.fillStyle = '#333'; bg.fillRect(4, 15, 26, 1); bg.fillRect(4, 18, 20, 1);
+    var board = cv(40, 28), bg = board.getContext('2d');
+    // Whiteboard med aluminiumram, en liten nätverksskiss, suddiga rester och pennhylla
+    bg.fillStyle = '#b8bec6'; bg.fillRect(0, 0, 40, 26); bg.fillStyle = '#dfe3e8'; bg.fillRect(0, 0, 40, 1);
+    bg.fillStyle = '#f7f8f6'; bg.fillRect(2, 2, 36, 22); bg.fillStyle = '#ffffff'; bg.fillRect(3, 3, 12, 1);
+    bg.fillStyle = 'rgba(120,130,150,0.18)'; bg.fillRect(20, 16, 12, 3);
+    bg.fillStyle = '#1f4e79'; bg.fillRect(5, 5, 6, 4); bg.fillRect(27, 5, 6, 4); bg.fillRect(16, 15, 6, 4);
+    bg.fillStyle = '#c0392b'; bg.fillRect(11, 7, 16, 1); bg.fillRect(8, 9, 1, 8); bg.fillRect(8, 17, 8, 1); bg.fillRect(30, 9, 1, 8); bg.fillRect(22, 17, 8, 1);
+    bg.fillStyle = '#333'; bg.fillRect(4, 21, 14, 1); bg.fillRect(24, 21, 10, 1);
+    bg.fillStyle = '#8a9099'; bg.fillRect(2, 25, 36, 2);
+    bg.fillStyle = '#2f6fb0'; bg.fillRect(6, 24, 4, 1); bg.fillStyle = '#c0392b'; bg.fillRect(12, 24, 4, 1); bg.fillStyle = '#2b2d31'; bg.fillRect(30, 24, 5, 1);
     add(outline(board), A.whiteboard.x + 0.25, A.whiteboard.z - 0.8, { y: 0.55, key: A.whiteboard.z - 0.8 });
     // Övervakningsskärm på väggen (uppdateras)
     this.monSprite = { c: cv(38, 22), x: A.monitorWall.x - 0.75, z: -2.12, y: 0.45, key: -2.11 };
     sp.push(this.monSprite);
     // Utemiljö
     if (true) {
-      var trees = [[-18, 11], [-19, -2], [-17.5, -8], [18, 11], [19, 0], [17.5, -7], [-10, 12.5], [4, 12.6], [-4, -16.2], [5, -16.5], [-14, -16], [20, -11], [-20, 6]];
+      var trees = [[-18, 11], [-17.5, -8], [18, 11], [19, 0], [17.5, -7], [-10, 12.5], [4, 12.6], [-4, -16.2], [5, -16.5], [-14, -16], [20, -11], [-20, 6]];
       trees.forEach(function (t, i) { self.addTree(t[0], t[1], i); });
-      var bushes = [[-16, 11.2], [16, 11.2], [8.4, -10.8], [12.6, -10.8], [-16.3, -3], [16.2, 4], [-7, 11], [7, 11], [0, -11], [-6, -11]];
+      var bushes = [[-16, 11.2], [16, 11.2], [8.4, -10.8], [12.6, -10.8], [16.2, 4], [-7, 11], [7, 11], [0, -11], [-6, -11]];
       bushes.forEach(function (b2, i) { self.addBush(b2[0], b2[1], i); });
-      [[85, -15], [116, 12], [84, 10], [116, -9], [100, 14.5], [92, 14.8]].forEach(function (t, i) { self.addTree(t[0], t[1], i + 20); });
+      [[83.5, -11], [116, 12], [84, 10], [116, -9], [96, 12.9], [107, 12.9], [117, -15.5]].forEach(function (t, i) { self.addTree(t[0], t[1], i + 20); });
       self.addCar(16.4, -15.6, '#c8412f', 'Nordvik');
       self.addCar(84.4, -3.2, '#c8412f', 'Nordvik');
       self.addCar(18.6, -15.6, '#2f6fb0');
@@ -560,7 +662,7 @@ NV.World2D = (function () {
 
   // ------------------------------------------------------------------ Personer
   var LOOKS = {
-    Anna: { cap: null }, Karim: { glasses: true }, Sara: {}, Lisa: {}, Bo: { tie: true, glasses: true }, Maja: {}, Omar: {}, Linnea: {}, Eva: { glasses: true }, Nils: { vest: true },
+    Anna: { cap: null }, Karim: { glasses: true }, Sara: { lanyard: true }, Lisa: { lanyard: true }, Bo: { tie: true, glasses: true }, Maja: {}, Omar: { beard: true }, Linnea: { headset: true }, Eva: { glasses: true }, Nils: { vest: true },
   };
   W.buildPeople = function () {
     var self = this;
@@ -569,6 +671,7 @@ NV.World2D = (function () {
       var d = NV.people.CAST[n];
       var look = { skin: d.skin, hair: d.hair, shirt: d.shirt, pants: d.pants, long: d.long };
       Object.keys(LOOKS[n] || {}).forEach(function (k) { look[k] = LOOKS[n][k]; });
+      if (d.beard) look.beard = true;
       if (d.vest) look.vest = true;
       var pos, sit = !!d.desk;
       if (d.desk) { var p = A.desks[d.desk]; pos = { x: p.x + 0.35, z: p.z + 0.62 }; }
@@ -761,14 +864,23 @@ NV.World2D = (function () {
 
   // ------------------------------------------------------------------ Kamera och ritning
   W.scale = function () { return PPM * this.zoom(); };
+  // Världen ritas i en liten pixelbuffert (1 bildpunkt = 1 konstpixel) som sedan förstoras
+  // med skarpa kanter. Kameran rör sig i hela pixlar i bufferten och resten av rörelsen
+  // läggs på när bufferten förstoras – mjuk scrollning utan att pixlarna darrar.
   W.screenToWorld = function (sx, sy) {
-    var c = this.cam || { x: this.pos.x, z: this.pos.z };
-    var sc = this.zoom();
-    return { x: c.x + (sx - this.canvas.width / 2) / (PPM * sc), z: c.z - (sy - this.canvas.height / 2) / (PPM * ZS * sc) };
+    var v = this.view;
+    if (!v) return { x: this.pos.x, z: this.pos.z };
+    var cw = this.canvas.width, ch = this.canvas.height;
+    return { x: ((sx - cw / 2) / v.S + v.fx + v.cx0) / PPM, z: (v.cz0 - (sy - ch / 2) / v.S + v.fy) / (PPM * ZS) };
   };
   W.toScreen = function (x, z, y) {
-    var sc = this.zoom();
-    return { x: Math.round((x - this.cam.x) * PPM * sc + this.canvas.width / 2), y: Math.round((this.cam.z - z) * PPM * ZS * sc + this.canvas.height / 2 - (y || 0) * PPM * HS * sc) };
+    var v = this.view;
+    return { x: Math.round(x * PPM) - v.cx0 + v.hw, y: v.cz0 - Math.round(z * PPM * ZS) + v.hh - Math.round((y || 0) * PPM * HS) };
+  };
+  // Från pixelbufferten till skärmen (för text och annat som ritas i full upplösning)
+  W.hi = function (p) {
+    var v = this.view;
+    return { x: (p.x - v.hw - v.fx) * v.S + this.canvas.width / 2, y: (p.y - v.hh + v.fy) * v.S + this.canvas.height / 2 };
   };
 
   W.drawPC = function (g, s, id, sc) {
@@ -791,34 +903,49 @@ NV.World2D = (function () {
   };
 
   W.render = function () {
-    var g = this.ctx, cw = this.canvas.width, ch = this.canvas.height;
-    var sc = this.zoom();
+    var main = this.ctx, cw = this.canvas.width, ch = this.canvas.height;
+    var S = this.zoom();
     var siteKey = this.site, site = SITES[siteKey];
+    // Pixelbufferns storlek (lite marginal så att kanterna alltid täcks)
+    var vw = Math.ceil(cw / S) + 2, vh = Math.ceil(ch / S) + 2;
+    if (!this.low || this.low.width !== vw || this.low.height !== vh) { this.low = cv(vw, vh); this.lowG = this.low.getContext('2d'); }
+    var g = this.lowG;
     // Kameran följer mjukt och håller sig inom kartan
     var want = { x: this.pos.x, z: this.pos.z };
-    var halfW = cw / 2 / (PPM * sc), halfH = ch / 2 / (PPM * ZS * sc);
+    var halfW = (cw / S) / 2 / PPM, halfH = (ch / S) / 2 / (PPM * ZS);
     want.x = Math.max(site.x0 + halfW, Math.min(site.x1 - halfW, want.x));
     want.z = Math.max(site.z0 + halfH, Math.min(site.z1 - halfH, want.z));
     if ((site.x1 - site.x0) < halfW * 2) want.x = (site.x0 + site.x1) / 2;
     if ((site.z1 - site.z0) < halfH * 2) want.z = (site.z0 + site.z1) / 2;
     if (!this.cam) this.cam = { x: want.x, z: want.z };
-    this.cam.x += (want.x - this.cam.x) * 0.18;
-    this.cam.z += (want.z - this.cam.z) * 0.18;
-    g.imageSmoothingEnabled = false;
+    var k = 1 - Math.exp(-(this.frameDt || 0.016) * 9);
+    this.cam.x += (want.x - this.cam.x) * k;
+    this.cam.z += (want.z - this.cam.z) * k;
     this.shakeA = Math.max(0, (this.shakeA || 0) - 0.03);
-    var shx = (Math.random() - 0.5) * this.shakeA * this.shakeA * 0.6, shz = (Math.random() - 0.5) * this.shakeA * this.shakeA * 0.6;
-    this.cam.x += shx; this.cam.z += shz;
-    g.fillStyle = '#3f8a25'; g.fillRect(0, 0, cw, ch);
+    var camX = this.cam.x + (Math.random() - 0.5) * this.shakeA * this.shakeA * 0.6, camZ = this.cam.z + (Math.random() - 0.5) * this.shakeA * this.shakeA * 0.6;
+    var cxf = camX * PPM, czf = camZ * PPM * ZS;
+    var cx0 = Math.floor(cxf), cz0 = Math.floor(czf);
+    this.view = { S: S, vw: vw, vh: vh, hw: Math.floor(vw / 2), hh: Math.floor(vh / 2), cx0: cx0, cz0: cz0, fx: cxf - cx0, fy: czf - cz0 };
+    this.hiQueue = [];
+    this.inLow = true;
+    var sc = 1;
+    g.imageSmoothingEnabled = false;
+    g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+    g.fillStyle = '#3f8a25'; g.fillRect(0, 0, vw, vh);
     // Mark
     var gr = this.ground[siteKey];
-    var ox = (this.cam.x - site.x0) * PPM - cw / 2 / sc, oy = (site.z1 - this.cam.z) * PPM * ZS - ch / 2 / sc;
-    g.drawImage(gr, Math.round(ox * sc) / sc, Math.round(oy * sc) / sc, cw / sc, ch / sc, 0, 0, cw, ch);
+    var gx = cx0 - this.view.hw - Math.round(site.x0 * PPM), gy = Math.round(site.z1 * PPM * ZS) - cz0 - this.view.hh;
+    g.drawImage(gr, gx, gy, vw, vh, 0, 0, vw, vh);
+    this.gOff = [gx, gy];
+    if (this.drawGroundFx) this.drawGroundFx(g);
     // Figurer och föremål, sorterade bakifrån och framåt
     var self = this, st = this.game.state;
     var list = [];
-    var minX = this.cam.x - halfW - 4, maxX = this.cam.x + halfW + 4, minZ = this.cam.z - halfH - 4, maxZ = this.cam.z + halfH + 6;
+    halfW = vw / 2 / PPM; halfH = vh / 2 / (PPM * ZS);
+    var minX = camX - halfW - 4, maxX = camX + halfW + 4, minZ = camZ - halfH - 4, maxZ = camZ + halfH + 6;
+    this.visMin = { x: minX, z: minZ }; this.visMax = { x: maxX, z: maxZ };
     this.sprites.forEach(function (s) {
-      if (s.x + (s.w || 1) < minX || s.x > maxX || s.z + (s.d || 1) < minZ || s.z - 6 > maxZ) return;
+      if (s.x + (s.w || 1) < minX || s.x - (s.ox || 0) / PPM > maxX || s.z + (s.d || 1) < minZ || s.z - 6 > maxZ) return;
       list.push(s);
     });
     Object.keys(this.people).forEach(function (n) {
@@ -832,9 +959,11 @@ NV.World2D = (function () {
     if (cr && cr.active && cr.site === this.site) list.push({ crab: true, x: cr.x, z: cr.z, key: cr.z - 0.003 });
     var vc = this.game.vac;
     if (vc && this.site === 'gbg') list.push({ vac: true, x: vc.x, z: vc.z, key: vc.z - 0.004 });
+    this.swayOn = NV.gfx.profile().sway;
+    if (this.drawShadows) this.drawShadows(g, list);
     list.sort(function (a, b) { return b.key - a.key; });
     list.forEach(function (s) {
-      if (s.player) { self.drawChar(g, self.playerSpr(self.dir, self.frame, false), self.pos.x, self.pos.z, sc, false); return; }
+      if (s.player) { var pf = self.frame || (Math.sin(self.t * 2.1) > 0.55 ? 4 : 0); self.drawChar(g, self.playerSpr(self.dir, pf, false, self.t % 3.7 < 0.13), self.pos.x, self.pos.z, sc, false); return; }
       if (s.crab) { self.drawCrab(g, sc); return; }
       if (s.vac) { self.drawVac(g, sc); return; }
       if (s.person) {
@@ -845,14 +974,15 @@ NV.World2D = (function () {
           if (p.walking) d = p.wdir;
           else if (dd < 2.5) { var dxp = self.pos.x - p.x, dzp = self.pos.z - p.z; d = Math.abs(dxp) > Math.abs(dzp) ? (dxp < 0 ? 2 : 3) : (dzp < 0 ? 0 : 1); } else d = 0;
         } else d = 0;
-        var frame = p.sit ? 0 : (p.walking ? Math.floor(self.t * 8) % 4 : (Math.floor(self.t * 1.2 + p.phase) % 8 === 0 ? 1 : 0));
-        self.drawChar(g, p.spr(d, frame, p.sit), p.x, p.z, sc, p.sit);
+        var frame = p.walking ? Math.floor(self.t * 8) % 4 : (Math.sin(self.t * 2.1 + p.phase) > 0.55 ? 4 : 0);
+        self.drawChar(g, p.spr(d, frame, p.sit, (self.t + p.phase * 1.7) % 4.3 < 0.14), p.x, p.z, sc, p.sit, p);
         return;
       }
       if (s.dyn) {
         var sp = self.toScreen(s.x, s.z, s.y);
         if (s.dyn.pc) self.drawPC(g, sp, s.dyn.pc, sc);
         if (s.dyn.laptop) self.drawLaptop(g, sp, sc);
+        if (s.dyn.draw) s.dyn.draw.call(self, g, sp, s);
         return;
       }
       if (s === self.monSprite) { self.drawMonSprite(g, sc); return; }
@@ -863,8 +993,13 @@ NV.World2D = (function () {
         var bz = s.z, top = bz + WALL_H * HS / ZS;
         if (self.pos.x > s.rect[0] - 0.2 && self.pos.x < s.rect[1] + 0.2 && self.pos.z > bz && self.pos.z < top + 0.6) alpha = 0.45;
       }
+      var img = s.c, sway = 0;
+      if (s.frames) {
+        var wv = self.swayOn ? Math.sin(self.t * 1.1 + s.x * 0.7) + Math.sin(self.t * 2.3 + s.z) * 0.35 : 0;
+        img = s.frames[wv > 0.75 ? 2 : (wv < -0.75 ? 0 : 1)];
+      } else if (s.sway && self.swayOn) sway = Math.round(Math.sin(self.t * 1.3 + s.sway) * 0.9);
       g.globalAlpha = alpha;
-      g.drawImage(s.c, p2.x - (s.ox || 0) * sc, p2.y - s.oy * sc, s.c.width * sc, s.c.height * sc);
+      g.drawImage(img, p2.x - (s.ox || 0) + sway, p2.y - s.oy);
       g.globalAlpha = 1;
     });
     this.drawRackLeds(g, sc);
@@ -873,6 +1008,16 @@ NV.World2D = (function () {
     this.drawFx(g, sc);
     this.drawOverlay(g, sc);
     this.drawPost(g, sc);
+    if (this.postLow) this.postLow(g);
+    this.inLow = false;
+    // Förstora pixelbufferten till skärmen
+    var v = this.view;
+    main.imageSmoothingEnabled = false;
+    main.globalAlpha = 1; main.globalCompositeOperation = 'source-over';
+    main.drawImage(this.low, Math.round((-v.hw - v.fx) * S + cw / 2), Math.round((-v.hh + v.fy) * S + ch / 2), vw * S, vh * S);
+    if (this.postHi) this.postHi(main);
+    // Text och skyltar i full upplösning
+    this.hiQueue.forEach(function (f) { f(main); });
   };
   W.drawChar = function (g, spr, x, z, sc, sitting) {
     var s = this.toScreen(x, z, 0);
@@ -940,6 +1085,12 @@ NV.World2D = (function () {
     });
   };
   W.label = function (g, text, x, y, sc, bg, fg) {
+    // I pixelbufferten köas texten och ritas skarpt i full upplösning efteråt
+    if (this.inLow) {
+      var self = this, h = this.hi({ x: x, y: y }), S = this.view.S;
+      this.hiQueue.push(function (m) { self.label(m, text, h.x, h.y, sc * S, bg, fg); });
+      return;
+    }
     var size = Math.max(10, Math.round(5.5 * sc));
     g.font = 'bold ' + size + 'px "Trebuchet MS", "Segoe UI", sans-serif';
     var w = g.measureText(text).width + size * 0.8;
@@ -992,11 +1143,14 @@ NV.World2D = (function () {
       g.strokeStyle = 'rgba(255,240,180,0.8)'; g.lineWidth = sc;
       g.strokeRect(ts.x - 4 * sc, ts.y - 2 * sc, 8 * sc, 4 * sc);
     }
-    // Varm ton och vinjett
-    var cw = this.canvas.width, ch = this.canvas.height;
-    var v = g.createRadialGradient(cw / 2, ch / 2, Math.min(cw, ch) * 0.35, cw / 2, ch / 2, Math.max(cw, ch) * 0.75);
-    v.addColorStop(0, 'rgba(255,200,120,0)'); v.addColorStop(1, 'rgba(60,30,10,0.35)');
-    g.fillStyle = v; g.fillRect(0, 0, cw, ch);
+    // Varm ton och vinjett (i full upplösning, så att övergången blir mjuk)
+    var self2 = this;
+    this.hiQueue.push(function (m) {
+      var cw = self2.canvas.width, ch = self2.canvas.height;
+      var v = m.createRadialGradient(cw / 2, ch / 2, Math.min(cw, ch) * 0.35, cw / 2, ch / 2, Math.max(cw, ch) * 0.75);
+      v.addColorStop(0, 'rgba(255,200,120,0)'); v.addColorStop(1, 'rgba(60,30,10,0.35)');
+      m.fillStyle = v; m.fillRect(0, 0, cw, ch);
+    });
   };
 
   W.monitorCanvas = function () { return this.monitorCv; };
@@ -1005,6 +1159,7 @@ NV.World2D = (function () {
     var rdt = dt;
     if (this.slowT > 0) { this.slowT -= dt; dt *= 0.4; }
     this.t += dt;
+    this.frameDt = rdt;
     if (!(this.game.ui && this.game.ui.captures())) this.move(dt);
     this.updateFx(dt, rdt);
     this.hover = this.pick();
@@ -1222,11 +1377,11 @@ NV.World2D = (function () {
   // Moln, fåglar och dagsljus
   W.drawSky = function (g, sc) {
     var self = this, S0 = SITES[this.site];
-    var cw = this.canvas.width, ch = this.canvas.height;
+    var cw = this.view.vw, ch = this.view.vh;
     var b = this.site === 'boras' ? [88, -12, 112, 12] : [-15, -10, 15, 10];
     var tl = this.toScreen(b[0], b[3], 0), br = this.toScreen(b[2], b[1], 0);
     g.save();
-    g.beginPath(); g.rect(0, 0, cw, ch); g.rect(tl.x, tl.y - WALL_H * PPM * HS * this.zoom(), br.x - tl.x, br.y - tl.y + WALL_H * PPM * HS * this.zoom()); g.clip('evenodd');
+    g.beginPath(); g.rect(0, 0, cw, ch); g.rect(tl.x, tl.y - WALL_H * PPM * HS, br.x - tl.x, br.y - tl.y + WALL_H * PPM * HS); g.clip('evenodd');
     g.fillStyle = 'rgba(20,40,20,0.13)';
     this.clouds.forEach(function (cl) {
       var p = self.toScreen(cl.x + (self.site === 'boras' ? 70 : 0), cl.z, 0);
@@ -1270,7 +1425,7 @@ NV.World2D = (function () {
     (this.prints || []).forEach(function (p) {
       var s = self.toScreen(p.x, p.z, 0);
       g.fillStyle = 'rgba(70,50,30,' + (0.35 * (1 - p.age / 8)) + ')';
-      g.fillRect(s.x - sc, s.y - sc, 2 * sc, sc);
+      g.fillRect(s.x - 1, s.y - 2, 2, 1); g.fillRect(s.x - 1, s.y, 2, 1);
     });
     // Pratbubbla med "…" över den du pratar med
     var tk = this.game.ui && this.game.ui.talkingTo;
@@ -1282,13 +1437,16 @@ NV.World2D = (function () {
     }
     // Flytande text
     this.pops.forEach(function (p) {
-      var s = self.toScreen(p.x, p.z, (p.y || 1.8) + p.age * 0.8);
-      g.globalAlpha = Math.max(0, 1 - Math.pow(p.age / p.life, 3));
-      var size = Math.max(10, Math.round(4.5 * sc));
-      g.font = size + 'px "Press Start 2P", "Trebuchet MS", monospace'; g.textAlign = 'center';
-      g.fillStyle = OUT; g.fillText(p.text, s.x + 2, s.y + 2);
-      g.fillStyle = p.col; g.fillText(p.text, s.x, s.y);
-      g.textAlign = 'left'; g.globalAlpha = 1;
+      var h = self.hi(self.toScreen(p.x, p.z, (p.y || 1.8) + p.age * 0.8)), S = self.view.S;
+      var al = Math.max(0, 1 - Math.pow(p.age / p.life, 3));
+      self.hiQueue.push(function (m) {
+        m.globalAlpha = al;
+        var size = Math.max(10, Math.round(4.5 * S));
+        m.font = size + 'px "Press Start 2P", "Trebuchet MS", monospace'; m.textAlign = 'center';
+        m.fillStyle = OUT; m.fillText(p.text, h.x + 2, h.y + 2);
+        m.fillStyle = p.col; m.fillText(p.text, h.x, h.y);
+        m.textAlign = 'left'; m.globalAlpha = 1;
+      });
     });
   };
   W.drawGoggles = function (g, sc) {
@@ -1320,7 +1478,7 @@ NV.World2D = (function () {
   };
   // Dagsljus, glasögonton och blixt över hela bilden
   W.drawPost = function (g) {
-    var cw = this.canvas.width, ch = this.canvas.height;
+    var cw = this.view.vw, ch = this.view.vh;
     var hour = 8 + (this.game.state ? this.game.state.time : 0) / 3600;
     var warm = Math.max(0, Math.min(1, (hour - 8) / 8));
     if (warm > 0.02) { g.fillStyle = 'rgba(255,150,60,' + (warm * 0.12) + ')'; g.fillRect(0, 0, cw, ch); }
@@ -1328,12 +1486,12 @@ NV.World2D = (function () {
     if (this.weather === 'clouds') { g.fillStyle = 'rgba(60,70,90,0.1)'; g.fillRect(0, 0, cw, ch); }
     if (this.weather === 'rain') {
       g.fillStyle = 'rgba(30,40,70,0.18)'; g.fillRect(0, 0, cw, ch);
-      g.strokeStyle = 'rgba(200,220,255,0.35)'; g.lineWidth = Math.max(1, this.dpr);
+      g.strokeStyle = 'rgba(200,220,255,0.35)'; g.lineWidth = 1;
       g.beginPath();
       var n = NV.gfx.profile().particles < 0.5 ? 60 : 160;
       for (var i = 0; i < n; i++) {
-        var x = ((i * 97.3 + this.t * 60) % (cw + 60)) - 30, y = ((i * 61.7 + this.t * (420 + (i % 5) * 40)) % (ch + 40)) - 20;
-        g.moveTo(x, y); g.lineTo(x - 4 * this.dpr, y + 14 * this.dpr);
+        var x = ((i * 97.3 + this.t * 15) % (cw + 60)) - 30, y = ((i * 61.7 + this.t * (105 + (i % 5) * 10)) % (ch + 40)) - 20;
+        g.moveTo(x, y); g.lineTo(x - 1, y + 4);
       }
       g.stroke();
     }
@@ -1345,5 +1503,7 @@ NV.World2D = (function () {
     if (this.flashA > 0) { g.globalAlpha = this.flashA; g.fillStyle = this.flashCol || '#fff'; g.fillRect(0, 0, cw, ch); g.globalAlpha = 1; }
   };
 
+  // Konstanter och hjälpare för js/world/scene2d.js
+  World2D.K = { PPM: PPM, ZS: ZS, HS: HS, WALL_H: WALL_H, SITES: SITES, OUT: OUT, boxSprite: boxSprite, shade: shade, hex: hex, outline: outline, cv: cv, rng: rng };
   return World2D;
 })();

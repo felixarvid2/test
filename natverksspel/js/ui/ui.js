@@ -772,6 +772,7 @@ NV.UI = (function () {
       '<label for="s-cap">Max bildfrekvens</label><select id="s-cap">' + [[0, 'Obegränsad'], [60, '60 bilder/s'], [30, '30 bilder/s (sparar batteri)']].map(function (x) { return '<option value="' + x[0] + '"' + (+s.get('fpsCap') === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select>' +
       '<label for="s-post">Efterbehandling (glöd, vinjett, färgton)</label><input type="checkbox" id="s-post"' + (s.get('post') ? ' checked' : '') + '>' +
       '<label for="s-part">Partiklar</label><input type="checkbox" id="s-part"' + (s.get('particles') ? ' checked' : '') + '>' +
+      '<label for="s-dof">Skärpedjup i 2D (miniatyrkänsla)</label><input type="checkbox" id="s-dof"' + (s.get('dof2d') !== false ? ' checked' : '') + '>' +
       '<label for="s-smooth">Mjuk musrörelse</label><input type="checkbox" id="s-smooth"' + (s.get('smooth') ? ' checked' : '') + '>' +
       '<label for="s-fps">Visa bildfrekvens</label><input type="checkbox" id="s-fps"' + (s.get('showFps') ? ' checked' : '') + '>' +
       '<span>Svårighetsgrad</span><div class="seg" id="s-diff">' + [['easy', 'Lätt'], ['normal', 'Normal'], ['hard', 'Svår']].map(function (x) { return '<button data-diff="' + x[0] + '" class="' + (s.get('difficulty') === x[0] ? 'on' : '') + '">' + x[1] + '</button>'; }).join('') + '</div>' +
@@ -803,6 +804,7 @@ NV.UI = (function () {
         bind('s-cap', 'fpsCap', function (e) { return +e.value; });
         $('#s-q', d).addEventListener('change', function () { self.reloadOffer(); });
         bind('s-part', 'particles', function (e) { return e.checked; });
+        bind('s-dof', 'dof2d', function (e) { return e.checked; });
         bind('s-smooth', 'smooth', function (e) { return e.checked; });
         bind('s-fps', 'showFps', function (e) { return e.checked; });
         bind('s-mini', 'minimap', function (e) { return e.checked; });

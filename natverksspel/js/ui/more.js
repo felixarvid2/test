@@ -2,7 +2,7 @@
 // topplista, rumsskyltar, bättre notiser, sparad position och mycket annat smått.
 (function () {
   var S = NV.sim;
-  var VERSION = '5.0';
+  var VERSION = '6.0';
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function $(sel, root) { return (root || document).querySelector(sel); }
   var U = NV.UI.prototype;
@@ -216,7 +216,7 @@
     e.preventDefault();
   });
   U.whatsNew = function () {
-    this.showDialog({ title: 'Nytt i version ' + VERSION, html: '<ul class="news"><li><b>Kapitel 10: VPN, SD-WAN och lastbalansering.</b> Den hyrda linan till Borås är uppsagd – nu går trafiken i en IPsec-tunnel över internet.</li><li>Riktiga crypto-kommandon: <code>show crypto isakmp sa</code>, <code>show crypto ipsec sa</code>, crypto map, transform-set och <code>ip tcp adjust-mss</code>.</li><li>Veckans Krabba är två fel samtidigt, ett MTU-problem och en lastbalanserare som skickar trafik till en trasig server.</li><li>Nya verktyg: <code>curl</code>, <code>tracepath</code>, <code>ping -f -l</code>, utökad ping i IOS och lastbalanserarens egen CLI.</li><li>Och 100 andra förbättringar – se Hjälp och handboken.</li></ul>', buttons: [{ label: 'Kör!', primary: true }] });
+    this.showDialog({ title: 'Nytt i version ' + VERSION, html: '<ul class="news"><li><b>Ny grafik i 2D.</b> Allt är omritat pixel för pixel: gräs med blommor och tuvor, tegelfasad, trägolv med ådring, kakel och en damm med fiskar och näckrosor.</li><li>Träd som vajar i vinden (körsbär, ek, gran och höstlöv), fallande kronblad, fjärilar, trollsländor och eldflugor på kvällen.</li><li>Ljus och skuggor: lampor i taket, solstrålar genom fönstren, gatlyktor och billyktor på kvällen, mjuka skuggor under allt.</li><li>Figurerna blinkar och andas, dörrarna glider upp och du speglas i dammen.</li><li>Skärpedjup och glöd på hög grafiknivå – kan stängas av i inställningarna.</li><li>Kapitel 10 med VPN, SD-WAN och lastbalansering finns kvar från version 5.</li></ul>', buttons: [{ label: 'Kör!', primary: true }] });
   };
 
   // ------------------------------------------------------------------ Veckans utmaning

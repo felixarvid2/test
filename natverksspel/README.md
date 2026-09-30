@@ -103,6 +103,255 @@ När ett fel är löst skickar du in en felrapport med **F**. En gul ruta uppe t
 
 Varje fel är simulerat på riktigt. Symptomen räknas fram ur konfigurationen: länkar, duplex, VLAN och trunkar, STP, routing, ARP, ACL, NAT, DHCP, DNS, PoE, port security, IPsec, MTU och lastbalansering. Ett fel försvinner därför bara när orsaken är rättad.
 
+## Version 6: 200 grafiska förbättringar i 2D
+
+2D-versionen är omritad från grunden, med inspiration från HD-2D, Sea of Stars, Eastward och Owlboy: detaljerad pixelkonst, mjukt ljus, djup och liv i miljön. Allt ritas fortfarande i koden, utan bildfiler. Den nya grafiken finns i `js/world/art2d.js` (pixelkonsten) och `js/world/scene2d.js` (miljö, ljus och effekter).
+
+### Bildkedjan
+
+1. Världen ritas i en liten pixelbuffert där en bildpunkt är en konstpixel, och bufferten förstoras sedan med skarpa kanter.
+2. Kameran flyttar sig i hela pixlar i bufferten, och resten av rörelsen läggs på vid förstoringen. Scrollningen blir mjuk utan att pixlarna darrar.
+3. Kameran följer dig mjukt med exponentiell utjämning som inte beror på bildfrekvensen.
+4. Skakningar vid firanden fungerar som förut ovanpå den mjuka kameran.
+5. Text, skyltar och namn ritas skarpt i full upplösning ovanpå pixelbilden.
+6. Flytande text (XP, ”✓ svar”) ritas också skarpt.
+7. Musklick och muspekare räknar med den nya kameran, så att du träffar rätt föremål.
+8. Bara det som syns ritas.
+9. Föremål kan ha flera bildrutor (träd som vajar, flaggan) och egna ritfunktioner.
+10. Nya steg i ritordningen för mark, skuggor, ljus och efterbehandling.
+11. Pixelbufferten gör ritningen billigare, så den rikare grafiken går ungefär lika snabbt som den gamla.
+
+### Pixelkonst i koden
+
+12. Brus (value noise och fBm) ger naturliga fläckar i gräs, jord, betong och vatten.
+13. Bayer-dithering blandar färgerna i rutmönster som i gamla 16-bitarsspel.
+14. Paletter med 4–7 toner per material i stället för en enda färg.
+15. Skuggtoner drar mot blått och ljusa toner mot gult, som i handritad pixelkonst.
+16. En ”selektiv kontur” ger varje föremål en kant i en mörkare nyans av sin egen färg i stället för svart.
+17. Lådor och möbler skuggas med ljus uppifrån vänster, en ljus framkant och rundade hörn.
+
+### Marken
+
+18. Marken målas pixel för pixel utifrån en materialkarta.
+19. Gräset har stora ljusa och mörka fläckar, fint korn och svaga ränder som efter en gräsklippare.
+20. Grässtrån hänger ut över grus, stenplattor, asfalt och vattenkanter.
+21. En kantsten skiljer asfalten från gräset.
+22. Grusgångar med småsten och ljusa och mörka korn.
+23. Entrén har stenplattor i förband med fogar, avfasade kanter och lite gräs i fogarna.
+24. En grusremsa löper runt husen.
+25. Parkeringen har ny asfalt med korn.
+26. Sprickor i asfalten.
+27. Oljefläckar med en regnbågsskimrande kant.
+28. Nötta parkeringslinjer.
+29. En blå handikapparkering med symbol.
+30. Brunnslock i gången och på lagergården.
+31. Streckade gula linjer på lagergården i Borås.
+32. Gul-svarta varningsränder vid lastkajen.
+33. Heltäckningsmattan har ett rombmönster och plattor som skiftar lite i ton.
+34. Trägolvet har plankor med ådring, fogar, olika toner och kvistar.
+35. Serverrummets upphöjda golv har avfasade plattor och ventilationsplattor med hål.
+36. Lagergolvet har betong med fläckar, fogar med ljus kant och hjulspår.
+37. Fikarummet har fått grönt och vitt kakel med fogar och glans.
+38. Mattor och gula golvlinjer har slitage i ljusa och mörka prickar.
+39. Grästuvor.
+40. Högt gräs i klungor.
+41. Blomklungor i sex olika sorter.
+42. Klöverfläckar.
+43. Stenar med skugga och ljus ovansida.
+44. Flugsvampar här och där.
+45. En mjuk skugga (ambient occlusion) längs varje väggfot, i ditherade steg.
+46. Husen kastar en ditherad skugga på gräset.
+
+### Vatten
+
+47. En damm vid kontorets västra sida, med grusstrand och ojämn strandkant.
+48. Vattnet är mörkare under den bortre stranden och ljusare på grunt vatten.
+49. Glitter som vandrar över vattenytan.
+50. Skum som rör sig längs strandkanten.
+51. Tre koifiskar som simmar runt under ytan.
+52. Näckrosor som guppar, några med blommor.
+53. Ringar som sprids på vattnet.
+54. Du, bänken, stenarna och lyktan speglas i dammen och speglingen krusar sig.
+55. En slingrande bäck längs lagrets norra kant i Borås.
+56. Bäcken har jordbankar och varierande bredd.
+57. En träbro över bäcken som du kan gå över.
+58. Stenar med mossa och vass runt dammen.
+
+### Väggar och fönster
+
+59. Kontorets fasad mot entrén är av tegel i förband med fogar, sockel och en ljus list.
+60. Lagret i Borås har en fasad av korrugerad plåt med rostränder och betongsockel.
+61. Innerväggarna har tapet med svaga ränder, bröstlist och golvlist i trä.
+62. Tavlor med landskap hänger på innerväggarna.
+63. Väggkrönen har ljus och mörk kant.
+64. Glasväggar har en blå ton, lutande reflexer och smala karmar.
+65. Fönstren på innerväggen visar himmel, en trädrad och gräs.
+66. Fönstren har reflexer, spröjs och fönsterbräda.
+67. Gardiner i tre färger med veck.
+68. Fönster på tegelfasaden sedda utifrån, med varmt ljus inifrån.
+69. Blomlådor under fönstren på fasaden.
+70. Entréns glasdörrar glider isär när du kommer nära och stängs bakom dig.
+71. Vägglampor sitter på var sida om entrén.
+
+### Träd och växter
+
+72. Ek med krona av skuggade bladklungor, ljusa bladspetsar och fransig kant.
+73. Körsbärsträd med rosa krona och små vita blommor.
+74. Granar i fem våningar.
+75. Höstträd i orange och gult i Borås.
+76. Några lövträd har röda äpplen.
+77. Stammar har bark med ljus kant, grenar och rötter.
+78. Träden vajar i vinden i tre lägen, och varje träd i sin egen takt.
+79. Buskar av bladklungor, några med rosa eller vita blommor.
+80. Buskarna rör sig lite i vinden.
+81. En klippt häck längs norra sidan.
+82. Blomsterrabatter vid entrén med rader av blommor.
+83. Vass med kaveldun vid dammen, som vajar.
+84. Krukväxterna inne har terrakottakrukor med skuggning och blad som hänger ut.
+85. Stenar med mossa i gräset.
+
+### Föremål utomhus
+
+86. Gatlyktor längs gången och vid dammen.
+87. Parkbänkar med träribbor och metallben.
+88. En flaggstång med svensk flagga som vajar.
+89. Ett cykelställ med en röd cykel.
+90. Gröna soptunnor.
+91. Ett staket av trä längs tomtens norra kant.
+92. Företagsskylten ”NORDVIK” vid entrén.
+93. En bänk vid dammen.
+94. Oljefat i tre färger vid lastkajen.
+95. En grön container.
+96. Lastpallar med kartonger och plastband.
+97. Fler buskar och stenar runt lagret.
+98. Bilarna är omritade med bakruta, tak, vindruta med reflex, motorhuv, strålkastare, grill, nummerskylt och backspeglar.
+99. Bilarna går inte längre att gå igenom.
+100. Trucken har mast, gafflar, förarskydd, säte och varningslampa.
+
+### Möbler och inredning
+
+101. Skrivborden har björkskiva med ådring och metallben.
+102. Tangentbord och mus på varje skrivbord.
+103. Muggar i olika färger.
+104. Papper och gula lappar.
+105. Små krukväxter på några skrivbord.
+106. Kontorsstolar med rundad rygg, sits, gaskolv och femarmad fot med hjul.
+107. Racken har ventilationsgaller på taket, perforerad dörr, handtag, märkning och sockel.
+108. Whiteboarden har aluminiumram, en nätverksskiss, suddiga rester och en pennhylla med pennor.
+109. Soffor, skåp och lådor skuggas som alla andra föremål.
+
+### Figurerna
+
+110. Figurerna är lite större (18×31 pixlar).
+111. Hud, hår, tröja och byxor har tre toner var.
+112. Ögon med vitor och pupiller.
+113. Ögonbryn.
+114. Rosiga kinder.
+115. En näsa som skugga.
+116. Håret har ljus kant och skuggsida.
+117. Långt hår följer axlarna med ljus och skugga.
+118. Tröjan har ljus sida, skuggsida, halsringning och fåll.
+119. Byxor och skor har ljus kant.
+120. Figurerna blinkar, var och en i sin egen takt.
+121. Figurerna andas när de står eller sitter still.
+122. Kroppen sjunker lite i varje steg när figurerna går.
+123. Kepsar med ljus ovansida och skuggad skärm.
+124. Glasögon med glans.
+125. Nya tillbehör som skägg, headset och passerkort i band.
+126. En guldkant pulserar runt den person du kan prata med.
+127. Krabban har skuggad kropp, ljusa fläckar, ögon på skaft med glans och klor som knäpper.
+128. Dammsugarroboten är rund, med blank ovansida, stötfångare, blinkande lampa och snurrande borste.
+
+### Skuggor
+
+129. Mjuka ditherade skuggor under träd, buskar, lyktor, bänkar, bilar, skyltar och stenar.
+130. Skuggorna faller lite åt höger, bort från solen uppe till vänster.
+131. Möbler och lådor kastar en skugga av sin egen form på golvet.
+132. Figurerna har en mjuk skugga under fötterna.
+133. Fåglarna och trollsländan har skuggor på marken.
+134. Molnskuggorna har mjuka kanter i tre lager och glider över marken.
+135. Skuggorna sparas som färdiga bilder, så de kostar nästan inget att rita.
+
+### Ljus
+
+136. Ett ljuslager färgar hela bilden efter tid och väder.
+137. Inomhus är ljuset lite svalare och dämpat.
+138. Taklamporna lyser upp golvet i mjuka cirklar.
+139. Solen ger ljusa fläckar på golvet under fönstren.
+140. Skärmarna lyser upp skrivborden.
+141. Serverrummet har ett kallt blått ljus.
+142. En varm lampa hänger över fikabordet.
+143. Mot kvällen blir ljuset varmare och dovare.
+144. Regn gör ljuset grått och blått, mulet väder gör det lite gråare.
+145. Gatlyktorna tänds på kvällen och när det regnar, med en ljuscirkel på marken.
+146. Bilarnas strålkastare lyser framåt på kvällen.
+147. Vägglamporna vid entrén lyser upp stenplattorna.
+148. Fönstren på fasaden lyser varmt på kvällen.
+149. Lyktorna glöder svagt även på dagen.
+150. Skärmarna glöder blått och fladdrar lite.
+151. Racken glöder grönt.
+152. Solstrålar faller snett genom fönstren.
+153. Ljusschakt från takfönstren i lagret.
+154. Breda solstrålar sveper sakta över utomhusmiljön.
+
+### Efterbehandling
+
+155. Glöd (bloom) kring ljusa ytor på hög och ultra kvalitet.
+156. Skärpedjup ger suddig över- och underkant, som i HD-2D och miniatyrfoton.
+157. Skärpedjupet kan stängas av i inställningarna (”Skärpedjup i 2D”).
+158. Färgtoning med varmt ljus uppe till vänster och svalare skuggor nere till höger.
+159. Färgtoningen följer kvällsljuset.
+160. En mjukare vinjett i kanterna.
+161. Efterbehandlingen följer inställningen ”Efterbehandling”.
+162. Allt skalar med grafiknivån: lägsta nivån hoppar över ljuslagret, strålar och vajande träd och går fortfarande snabbt.
+
+### Liv i miljön
+
+163. Rosa kronblad faller och fladdrar från körsbärsträden och lägger sig på marken.
+164. Löv faller från höstträden i Borås.
+165. Fjärilar i fyra färger fladdrar runt när det inte regnar.
+166. En trollslända flyger över dammen.
+167. Eldflugor tänds på kvällen.
+168. Dammkorn glittrar i solljuset från fönstren.
+169. Regnet stänker på marken.
+170. Regnet ringar på vattnet.
+171. Vattenpölar växer fram när det regnar och torkar sedan långsamt upp.
+172. Grässtrån yr när du går över gräsmattan.
+173. Fåglarna har vingar som slår, ljus näbb och skugga.
+174. Regnet ritas som tunna streck i pixelbufferten.
+175. Fotspåren har tå och häl.
+176. Flaggan vajar i sex bildrutor.
+177. Fiskarna simmar i egna banor och hastigheter.
+178. Näckrosorna guppar i otakt.
+179. Glittret på vattnet rör sig i två vågmönster som korsar varandra.
+
+### Skyltar och markeringar
+
+180. Rumsskyltar är träskyltar med ram, ådring och två spikar.
+181. Namnskyltar är mörka etiketter med rundade hörn, tunn ljus kant och skugga.
+182. Texten på etiketterna har en skugga så att den syns mot alla bakgrunder.
+183. Utropstecknet och bocken över personerna sitter i skuggade bubblor med glans.
+184. Bubblorna guppar och blänker ibland till.
+185. Det du kan använda markeras med en pulserande ring på marken.
+186. Guldpilen ovanför har kontur, glans och skugga.
+187. Dit du klickar visas ringar som krymper in mot punkten, med ett litet kors i mitten.
+188. Etiketterna över accesspunkterna och glasögonvyn har samma nya stil.
+
+### Övrigt
+
+189. Marken i Göteborg och Borås målas med olika slumpfrön, så platserna ser olika ut.
+190. Kartan är lika stor som förut och alla dörrar, rack och datorer står på samma ställen.
+191. Dammen, bäcken, bilarna, bänkarna och de andra nya föremålen går inte att gå igenom.
+192. Bron och gången runt dammen går att gå på.
+193. Träd, bilar och bänkar ritas i rätt ordning när du går bakom dem.
+194. Konturer och skuggor räknas ut en gång när spelet startar, inte varje bild.
+195. Pixelbufferten byggs om när fönstret ändrar storlek.
+196. Zoomen fungerar som förut.
+197. 3D-versionen påverkas inte.
+198. ”Nytt i version 6.0” visas en gång i menyn.
+199. Testerna är uppdaterade för version 6.0.
+200. Samma pixelkonst används i hela 2D-världen, både i Göteborg och i Borås.
+
 ## Version 5: kapitel 10 och 100 förbättringar
 
 ### Kapitel 10 – VPN, SD-WAN och lastbalansering
@@ -691,7 +940,8 @@ natverksspel/
                              lastbalanseraren (lb.js)
   js/levels.js               veckorna, felen, kontrollerna och ledtrådarna
   js/world/                  3D-världen (world.js, efterbehandling i post.js, partiklar i fx.js,
-                             detaljer i extras.js), 2D-världen (world2d.js), delad kod (shared.js)
+                             detaljer i extras.js), 2D-världen (world2d.js, pixelkonst i art2d.js,
+                             miljö, ljus och effekter i scene2d.js), delad kod (shared.js)
   js/ui/                     terminal, dialoger, handbok, inställningar, ljud, karriär (career.js)
                              och minikarta (minimap.js)
   js/game.js                 spelloopen

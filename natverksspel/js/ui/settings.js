@@ -25,6 +25,7 @@ NV.settings = (function () {
     termFont: 14,
     hudCollapsed: false,
     zoom2d: 0,           // 0 = automatiskt
+    dof2d: true,         // skärpedjup (suddig över- och underkant) i 2D
     tutorialDone: false,
   };
   var cur = {};
