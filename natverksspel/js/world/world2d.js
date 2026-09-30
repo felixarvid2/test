@@ -902,7 +902,23 @@ NV.World2D = (function () {
     p(17, -2, 4, 3, '#7fc6f0');
   };
 
+  // Om ritningen kraschar i en webbläsare stängs effekterna av och bilden ritas ändå;
+  // kraschar det igen visas felet på skärmen i stället för en svart bild.
   W.render = function () {
+    try { this.renderFrame(); this.renderOk = true; }
+    catch (e) {
+      if (!this.safeMode) { this.safeMode = true; if (window.console) console.error('2D: effekterna stängs av efter fel', e); try { this.renderFrame(); return; } catch (e2) { e = e2; } }
+      if (window.console && !this.errLogged) { this.errLogged = true; console.error('2D-ritningen misslyckades', e); }
+      var m = this.ctx, cw = this.canvas.width, ch = this.canvas.height;
+      m.setTransform(1, 0, 0, 1, 0, 0); m.globalAlpha = 1; m.globalCompositeOperation = 'source-over';
+      m.fillStyle = '#1b2430'; m.fillRect(0, 0, cw, ch);
+      m.fillStyle = '#ffd23f'; m.font = 'bold ' + Math.round(16 * (this.dpr || 1)) + 'px sans-serif'; m.textAlign = 'center';
+      m.fillText('2D-grafiken kunde inte ritas: ' + (e && e.message ? e.message : e), cw / 2, ch / 2);
+      m.fillText('Byt till 3D i inställningarna eller ladda om sidan.', cw / 2, ch / 2 + 28 * (this.dpr || 1));
+      m.textAlign = 'left';
+    }
+  };
+  W.renderFrame = function () {
     var main = this.ctx, cw = this.canvas.width, ch = this.canvas.height;
     var S = this.zoom();
     var siteKey = this.site, site = SITES[siteKey];
@@ -935,9 +951,10 @@ NV.World2D = (function () {
     // Mark
     var gr = this.ground[siteKey];
     var gx = cx0 - this.view.hw - Math.round(site.x0 * PPM), gy = Math.round(site.z1 * PPM * ZS) - cz0 - this.view.hh;
-    g.drawImage(gr, gx, gy, vw, vh, 0, 0, vw, vh);
+    var sx0 = Math.max(0, gx), sy0 = Math.max(0, gy), sx1 = Math.min(gr.width, gx + vw), sy1 = Math.min(gr.height, gy + vh);
+    if (sx1 > sx0 && sy1 > sy0) g.drawImage(gr, sx0, sy0, sx1 - sx0, sy1 - sy0, sx0 - gx, sy0 - gy, sx1 - sx0, sy1 - sy0);
     this.gOff = [gx, gy];
-    if (this.drawGroundFx) this.drawGroundFx(g);
+    if (this.drawGroundFx && !this.safeMode) this.drawGroundFx(g);
     // Figurer och föremål, sorterade bakifrån och framåt
     var self = this, st = this.game.state;
     var list = [];
@@ -960,7 +977,7 @@ NV.World2D = (function () {
     var vc = this.game.vac;
     if (vc && this.site === 'gbg') list.push({ vac: true, x: vc.x, z: vc.z, key: vc.z - 0.004 });
     this.swayOn = NV.gfx.profile().sway;
-    if (this.drawShadows) this.drawShadows(g, list);
+    if (this.drawShadows && !this.safeMode) this.drawShadows(g, list);
     list.sort(function (a, b) { return b.key - a.key; });
     list.forEach(function (s) {
       if (s.player) { var pf = self.frame || (Math.sin(self.t * 2.1) > 0.55 ? 4 : 0); self.drawChar(g, self.playerSpr(self.dir, pf, false, self.t % 3.7 < 0.13), self.pos.x, self.pos.z, sc, false); return; }
@@ -1008,14 +1025,14 @@ NV.World2D = (function () {
     this.drawFx(g, sc);
     this.drawOverlay(g, sc);
     this.drawPost(g, sc);
-    if (this.postLow) this.postLow(g);
+    if (this.postLow && !this.safeMode) this.postLow(g);
     this.inLow = false;
     // Förstora pixelbufferten till skärmen
     var v = this.view;
     main.imageSmoothingEnabled = false;
     main.globalAlpha = 1; main.globalCompositeOperation = 'source-over';
     main.drawImage(this.low, Math.round((-v.hw - v.fx) * S + cw / 2), Math.round((-v.hh + v.fy) * S + ch / 2), vw * S, vh * S);
-    if (this.postHi) this.postHi(main);
+    if (this.postHi && !this.safeMode) this.postHi(main);
     // Text och skyltar i full upplösning
     this.hiQueue.forEach(function (f) { f(main); });
   };
