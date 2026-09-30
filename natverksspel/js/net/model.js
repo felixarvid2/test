@@ -100,10 +100,11 @@ NV.model = (function () {
 
   function commonMgmt(d, secret) {
     var c = d.config;
-    c.enableSecret = secret;
-    c.enablePlain = 'Krabba2026';
+    // Inget enable-lösenord: konsolen går rakt in. Bara SSH kräver ett konto (drift / nordvik, står på lappen).
+    c.enableSecret = null;
+    c.enablePlain = null;
     c.domainName = 'nordvik.example';
-    c.users = { drift: { priv: 15, secret: '$9$Kx7mP2qRwT$e8Ld0Qf3vB1nZ6yHs5gJ4aUcW9oXrEiM2tNpA7kYl', plain: 'Krabba2026' } };
+    c.users = { drift: { priv: 15, secret: '$9$Kx7mP2qRwT$e8Ld0Qf3vB1nZ6yHs5gJ4aUcW9oXrEiM2tNpA7kYl', plain: 'nordvik', byGame: true } };
     c.ssh.version = 2;
     c.cryptoKey = 2048;
     c.lines.con.logSync = true;

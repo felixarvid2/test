@@ -12,10 +12,10 @@ function ios(st, dev, cmds) {
   }
   S.refresh(st);
 }
-const SSH = ['ip domain-name nordvik.example', 'crypto key generate rsa modulus 2048', 'ip ssh version 2', 'username drift privilege 15 secret Krabba2026', 'line vty 0 15', 'transport input ssh', 'login local', 'exit'];
+const SSH = ['ip domain-name nordvik.example', 'crypto key generate rsa modulus 2048', 'ip ssh version 2', 'username drift privilege 15 secret nordvik', 'line vty 0 15', 'transport input ssh', 'login local', 'exit'];
 const trunk = (r, extra) => ['interface ' + r, 'switchport trunk encapsulation dot1q', 'switchport mode trunk'].concat(extra || []).concat(['exit']);
 const SOL = {
-  b1a: st => ios(st, 'SW1', ['conf t', 'hostname SW-Nordvik-1', 'enable secret Krabba2026', 'line con 0', 'logging synchronous', 'end', 'write memory']),
+  b1a: st => ios(st, 'SW1', ['conf t', 'hostname SW-Nordvik-1', 'line con 0', 'logging synchronous', 'end', 'write memory']),
   b1b: st => ios(st, 'SW1', ['conf t', 'vlan 10', 'name KONTOR', 'vlan 20', 'name EKONOMI', 'vlan 30', 'name GAST', 'vlan 99', 'name DRIFT', 'end']),
   b1c: st => ios(st, 'SW1', ['conf t', 'interface range gi0/5 - 6', 'switchport mode access', 'switchport access vlan 10', 'spanning-tree portfast', 'interface range gi0/11 - 12', 'switchport mode access', 'switchport access vlan 10',
     'interface range gi0/7 - 8', 'switchport mode access', 'switchport access vlan 20', 'interface gi0/9', 'switchport mode access', 'switchport access vlan 30', 'interface gi0/10', 'switchport mode access', 'switchport access vlan 99', 'interface gi0/20', 'switchport mode access', 'switchport access vlan 99', 'end']),
@@ -30,7 +30,7 @@ const SOL = {
   b2d: st => ios(st, 'R1', ['conf t', 'interface gi0/1', 'ip address 203.0.113.10 255.255.255.0', 'ip nat outside', 'no shutdown', 'interface gi0/0.10', 'ip nat inside', 'interface gi0/0.20', 'ip nat inside', 'interface gi0/0.30', 'ip nat inside', 'interface gi0/0.99', 'ip nat inside', 'exit',
     'ip route 0.0.0.0 0.0.0.0 203.0.113.1', 'access-list 1 permit 192.168.1.0 0.0.0.255', 'ip nat inside source list 1 interface gi0/1 overload', 'ip nat inside source static 192.168.1.10 203.0.113.11', 'end']),
   b2e: st => ios(st, 'R1', ['conf t', 'interface gi0/2', 'ip address 10.0.0.1 255.255.255.252', 'ip nat inside', 'no shutdown', 'exit', 'ip route 192.168.2.0 255.255.255.0 10.0.0.2', 'access-list 1 permit 192.168.2.0 0.0.0.255', 'end']),
-  b2f: st => ios(st, 'R1', ['conf t', 'hostname R-Nordvik-1', 'enable secret Krabba2026'].concat(SSH).concat(['end', 'wr'])),
+  b2f: st => ios(st, 'R1', ['conf t', 'hostname R-Nordvik-1'].concat(SSH).concat(['end', 'wr'])),
   b3a: st => ios(st, 'SWB', ['conf t', 'hostname SW-Boras-1', 'vlan 40', 'name LAGER', 'vlan 50', 'name TRADLOST-GAST', 'vlan 99', 'name DRIFT', 'exit', 'interface gi0/5', 'switchport mode access', 'switchport access vlan 40', 'spanning-tree portfast', 'end']),
   b3b: st => ios(st, 'SWB', ['conf t'].concat(trunk('range gi0/1 - 3', ['switchport trunk native vlan 99', 'switchport trunk allowed vlan 40,50,99'])).concat(trunk('gi0/24', ['switchport trunk native vlan 999', 'switchport trunk allowed vlan 40,50,99'])).concat(['end'])),
   b3c: st => ios(st, 'RB', ['conf t', 'interface gi0/0', 'no shutdown', 'interface gi0/0.40', 'encapsulation dot1Q 40', 'ip address 192.168.2.1 255.255.255.192', 'interface gi0/0.50', 'encapsulation dot1Q 50', 'ip address 192.168.2.65 255.255.255.192',

@@ -387,14 +387,14 @@ NV.IosSession = (function () {
   // ------------------------------------------------------------------ EXEC / USER
   def('user', 'enable', function () {
     var c = cfg(this);
-    if (this.via !== 'console' && !c.enableSecret && !c.enablePassword) return '% No password set';
+    if (this.via !== 'console' && !c.enableSecret && !c.enablePassword) return '% No password set\n💡 Över SSH behöver kontot privilege 15 (username <namn> privilege 15 secret <lösenord>) eller så måste ett enable secret vara satt.';
     if (!c.enableSecret && !c.enablePassword) { this.mode = 'exec'; return ''; }
     var tries = 0;
     var self = this;
     function ask() {
       self.pending = {
         prompt: 'Password: ', secret: true, fn: function (pw) {
-          if (pw === (c.enablePlain || 'Krabba2026')) { this.mode = 'exec'; return result(''); }
+          if (c.enablePlain != null && pw === c.enablePlain) { this.mode = 'exec'; return result(''); }
           tries++;
           if (tries >= 3) return result('% Bad secrets\n');
           ask();
@@ -443,7 +443,8 @@ NV.IosSession = (function () {
     var st = this.dev.startup;
     if (!st) return '%Error opening nvram:/startup-config (No such file or directory)';
     this.dev.config = U.clone(st);
-    return 'Destination filename [running-config]? \n' + 'xxxx bytes copied in 0.52 secs';
+    var bytes = SH.runningConfig(this.state, this.dev).length;
+    return 'Destination filename [running-config]? \n' + bytes + ' bytes copied in 0.520 secs (' + Math.round(bytes / 0.52) + ' bytes/sec)';
   });
   def('exec', 'reload', function () {
     var self = this;
@@ -778,6 +779,7 @@ NV.IosSession = (function () {
     var c = cfg(this);
     if (neg) { c.enableSecret = null; c.enablePlain = null; return ''; }
     var pw = v[v.length - 1];
+    if (c.minPwLen && pw.length < c.minPwLen) return '% Password too short - must be at least ' + c.minPwLen + ' characters. Password configuration failed';
     c.enableSecret = SH.hashSecret(pw); c.enablePlain = pw;
     return '';
   }
@@ -791,7 +793,9 @@ NV.IosSession = (function () {
     if (neg) { delete c.users[name]; return ''; }
     var priv = kws.indexOf('privilege') >= 0 ? v[1] : 1;
     var pw = v[v.length - 1];
+    if (c.minPwLen && pw.length < c.minPwLen) return '% Password too short - must be at least ' + c.minPwLen + ' characters. Password configuration failed';
     c.users[name] = { priv: priv, secret: SH.hashSecret(pw), plain: pw };
+    if (kws.indexOf('password') >= 0) c.users[name].pwType = 'password';
     return '';
   }
   def('config', 'username <word> secret <word>', setUser);
@@ -826,7 +830,7 @@ NV.IosSession = (function () {
   def('config', 'ip host <word>', function (v) { delete cfg(this).hosts[v[0].toLowerCase()]; return ''; }, { noOnly: true });
   function ipRoute(v, neg) {
     var c = cfg(this);
-    var net = v[0], mask = v[1], nh = v[2];
+    var net = v[0], mask = v[1], nh = v[2], ad = v[3] || 1;
     if (!U.isValidMask(mask)) return '%Inconsistent address and mask';
     if (U.network(net, mask) !== net) return '%Inconsistent address and mask';
     var viaIf = nh && !U.isIp(nh) ? U.normIf(nh) : null;
@@ -838,11 +842,16 @@ NV.IosSession = (function () {
       return '';
     }
     if (!isRouter(this) && !c.ipRouting) return '% Invalid input detected at \'^\' marker.';
-    if (c.routes.some(function (r) { return r.net === net && r.mask === mask && (r.nh === nh || r.iface === viaIf); })) return '';
-    c.routes.push(viaIf ? { net: net, mask: mask, iface: viaIf } : { net: net, mask: mask, nh: nh });
+    var same = c.routes.filter(function (r) { return r.net === net && r.mask === mask && (r.nh === nh || (viaIf && r.iface === viaIf)); })[0];
+    if (same) { if (ad !== 1) same.ad = ad; else delete same.ad; S.touch(this.state); return ''; }
+    var nr = viaIf ? { net: net, mask: mask, iface: viaIf } : { net: net, mask: mask, nh: nh };
+    if (ad !== 1) nr.ad = ad;
+    c.routes.push(nr);
     return '';
   }
   def('config', 'ip route <ip> <mask> <word>', ipRoute);
+  def('config', 'ip route <ip> <mask> <word> <n:1-255>', ipRoute);
+  def('config', 'ip route <ip> <mask> <if> <n:1-255>', function (v, neg) { return ipRoute.call(this, v, neg); });
   def('config', 'ip route <ip> <mask> <if>', function (v, neg) { return ipRoute.call(this, v, neg); });
   def('config', 'ip route <ip> <mask>', ipRoute, { noOnly: true });
   def('config', 'ip default-gateway <ip>', function (v, neg) { cfg(this).defaultGateway = neg ? null : v[0]; return ''; });
@@ -1565,6 +1574,594 @@ NV.IosSession = (function () {
   def('exec', 'clear crypto sa', function () { S.clearCrypto(this.state, this.dev.id); return ''; });
   def('exec', 'clear crypto isakmp', function () { S.clearCrypto(this.state, this.dev.id); return ''; });
   def('exec', 'clear crypto session', function () { S.clearCrypto(this.state, this.dev.id); return ''; });
+
+  // ================================================================== Fler kommandon (version 6.1)
+  // Kommandon som ofta används i CCNA-kurser. De som påverkar simuleringen gör det på riktigt
+  // (access-class, privilege level, flytande statiska rutter, cdp/lldp, root primary, banner,
+  // erase, ssh/telnet från enheten). Övriga sparas i konfigurationen och syns i show running-config.
+  function lpad(s, n) { s = String(s); while (s.length < n) s += ' '; return s; }
+  function rpad(s, n) { s = String(s); while (s.length < n) s = ' ' + s; return s; }
+  function gx(c) { return c.x || (c.x = {}); }
+  // Spara en rad i konfigurationen. kind 'on' = standard är på (bara no-formen syns), annars syns kommandot.
+  function keepG(key, text, def) {
+    return function (v, neg, kws, line) {
+      var X = gx(cfg(this));
+      if (def === 'on') { if (neg) X[key] = 'no ' + text(v); else delete X[key]; }
+      else if (neg) delete X[key]; else X[key] = text(v, line);
+      return '';
+    };
+  }
+  function keepIf(key, text, def) {
+    return function (v, neg) {
+      return eachIf(this, function (i) {
+        var X = i.x || (i.x = {});
+        if (def === 'on') { if (neg) X[key] = 'no ' + text(v); else delete X[key]; }
+        else if (neg) delete X[key]; else X[key] = text(v);
+      });
+    };
+  }
+  function keepLine(key, text) {
+    return function (v, neg) { eachLine(this, function (l) { var X = l.x || (l.x = {}); if (neg) delete X[key]; else X[key] = text(v); }); return ''; };
+  }
+  function lit(s) { return function () { return s; }; }
+  function rest(line, word) { var i = line.toLowerCase().indexOf(word.toLowerCase()); return i < 0 ? '' : line.slice(i + word.length).trim(); }
+
+  // ---------- banner motd / login / exec (med avgränsningstecken, även på flera rader)
+  ['motd', 'login', 'exec'].forEach(function (kind) {
+    def('config', 'banner ' + kind + ' <text>', function (v, neg, kws, line) {
+      var c = cfg(this);
+      c.banners = c.banners || {};
+      if (neg) { delete c.banners[kind]; return ''; }
+      var txt = rest(line, kind);
+      var delim = txt[0], body = txt.slice(1);
+      var end = body.indexOf(delim);
+      if (end >= 0) { c.banners[kind] = { d: delim, text: body.slice(0, end) }; return ''; }
+      var lines = [body], self = this;
+      function more() {
+        self.pending = { prompt: '', fn: function (l) {
+          var e = l.indexOf(delim);
+          if (e >= 0) { lines.push(l.slice(0, e)); c.banners[kind] = { d: delim, text: lines.join('\n').replace(/^\n/, '') }; return result(''); }
+          lines.push(l); more(); return result('');
+        } };
+      }
+      more();
+      return 'Enter TEXT message.  End with the character \'' + delim + '\'.';
+    });
+    def('config', 'banner ' + kind, function () { var c = cfg(this); if (c.banners) delete c.banners[kind]; return ''; }, { noOnly: true });
+  });
+
+  // ---------- Lösenord och inloggning
+  def('config', 'security passwords min-length <n:0-16>', function (v, neg) { cfg(this).minPwLen = neg ? 0 : v[0]; return ''; });
+  def('config', 'login block-for <n:1-65535> attempts <n:1-65535> within <n:1-65535>', keepG('login block-for', function (v) { return 'login block-for ' + v[0] + ' attempts ' + v[1] + ' within ' + v[2]; }));
+  def('config', 'login on-failure log', keepG('login on-failure', lit('login on-failure log')));
+  def('config', 'login on-success log', keepG('login on-success', lit('login on-success log')));
+  def('config', 'ip ssh time-out <n:1-120>', function (v, neg) { cfg(this).ssh.timeout = neg ? null : v[0]; return ''; });
+  def('config', 'ip ssh authentication-retries <n:0-5>', function (v, neg) { cfg(this).ssh.retries = neg ? null : v[0]; return ''; });
+  def('config', 'service password-encryption', function (v, neg) { cfg(this).pwEncrypt = !neg; return ''; });
+  function userAlgo(v, neg, kws) {
+    var c = cfg(this), name = v[0];
+    if (neg) { delete c.users[name]; return ''; }
+    var pw = v[v.length - 1];
+    if (c.minPwLen && pw.length < c.minPwLen) return '% Password too short - must be at least ' + c.minPwLen + ' characters. Password configuration failed';
+    var priv = kws.indexOf('privilege') >= 0 ? v[1] : 1;
+    c.users[name] = { priv: priv, secret: SH.hashSecret(pw), plain: pw };
+    return '';
+  }
+  def('config', 'username <word> algorithm-type <word> secret <word>', userAlgo);
+  def('config', 'username <word> privilege <n:0-15> algorithm-type <word> secret <word>', userAlgo);
+
+  // ---------- Linjer: access-class, privilege level och mer
+  def('line', 'access-class <word> in', function (v, neg) { eachLine(this, function (l) { l.accessClass = neg ? null : v[0]; }); return ''; });
+  def('line', 'access-class <word> out', keepLine('access-class out', function (v) { return 'access-class ' + v[0] + ' out'; }));
+  def('line', 'privilege level <n:0-15>', function (v, neg) { eachLine(this, function (l) { l.privLevel = neg ? null : v[0]; }); return ''; });
+  def('line', 'transport output <text>', function (v, neg, k, line) { var t = rest(line, 'output'); eachLine(this, function (l) { var X = l.x || (l.x = {}); if (neg) delete X.tout; else X.tout = 'transport output ' + t; }); return ''; });
+  def('line', 'history size <n:0-256>', keepLine('history', function (v) { return 'history size ' + v[0]; }));
+  def('line', 'session-timeout <n:0-35791>', keepLine('session-timeout', function (v) { return 'session-timeout ' + v[0]; }));
+  def('line', 'length <n:0-512>', keepLine('length', function (v) { return 'length ' + v[0]; }));
+  def('line', 'width <n:0-512>', keepLine('width', function (v) { return 'width ' + v[0]; }));
+  def('line', 'exec', function (v, neg) { eachLine(this, function (l) { var X = l.x || (l.x = {}); if (neg) X.exec = 'no exec'; else delete X.exec; }); return ''; });
+  def('line', 'motd-banner', function (v, neg) { eachLine(this, function (l) { var X = l.x || (l.x = {}); if (neg) X.motd = 'no motd-banner'; else delete X.motd; }); return ''; });
+
+  // ---------- VTP, spanning tree, CDP och LLDP
+  function vtp(c) { return c.vtp || (c.vtp = { mode: 'server', domain: '', version: 1, password: null }); }
+  def('config', 'vtp mode <word>', swOnly(function (v, neg, k, line) {
+    var m = ['server', 'client', 'transparent', 'off'].filter(function (x) { return x.indexOf(v[0].toLowerCase()) === 0; })[0];
+    if (!m) return invalidMarker(this, line, v[0]);
+    vtp(cfg(this)).mode = neg ? 'server' : m;
+    return neg ? '' : 'Setting device to VTP ' + m.toUpperCase() + ' mode' + (m === 'off' ? '.' : ' for VLANS.');
+  }));
+  def('config', 'vtp domain <word>', swOnly(function (v) { var t = vtp(cfg(this)); var old = t.domain; t.domain = v[0]; return old === v[0] ? 'Domain name already set to ' + v[0] + '.' : 'Changing VTP domain name from ' + (old || 'NULL') + ' to ' + v[0]; }));
+  def('config', 'vtp version <n:1-3>', swOnly(function (v, neg) { vtp(cfg(this)).version = neg ? 1 : v[0]; return ''; }));
+  def('config', 'vtp password <word>', swOnly(function (v, neg) { vtp(cfg(this)).password = neg ? null : v[0]; return neg ? 'Clearing device VTP password.' : 'Setting device VTP password to ' + v[0]; }));
+  def('config', 'spanning-tree vlan <vlist> root primary', swOnly(function (v, neg) { var c = cfg(this); v[0].forEach(function (x) { if (neg) delete c.stpPriority[x]; else c.stpPriority[x] = 24576; }); S.touch(this.state); return ''; }));
+  def('config', 'spanning-tree vlan <vlist> root secondary', swOnly(function (v, neg) { var c = cfg(this); v[0].forEach(function (x) { if (neg) delete c.stpPriority[x]; else c.stpPriority[x] = 28672; }); S.touch(this.state); return ''; }));
+  def('config', 'spanning-tree portfast default', swOnly(keepG('stp pf default', lit('spanning-tree portfast default'))));
+  def('config', 'spanning-tree portfast edge default', swOnly(keepG('stp pf default', lit('spanning-tree portfast edge default'))));
+  def('config', 'spanning-tree portfast bpduguard default', swOnly(keepG('stp bpdu default', lit('spanning-tree portfast bpduguard default'))));
+  def('config', 'spanning-tree portfast edge bpduguard default', swOnly(keepG('stp bpdu default', lit('spanning-tree portfast edge bpduguard default'))));
+  def('config', 'spanning-tree loopguard default', swOnly(keepG('stp loopguard', lit('spanning-tree loopguard default'))));
+  def('config', 'cdp run', function (v, neg) { cfg(this).cdpOff = !!neg; return ''; });
+  def('config', 'lldp run', function (v, neg) { cfg(this).lldp = !neg; return ''; });
+  def('config', 'cdp timer <n:5-254>', keepG('cdp timer', function (v) { return 'cdp timer ' + v[0]; }));
+  def('config', 'cdp holdtime <n:10-255>', keepG('cdp holdtime', function (v) { return 'cdp holdtime ' + v[0]; }));
+
+  // ---------- Loggning, NTP, klocka, SNMP och övrigt
+  ['trap', 'console', 'monitor'].forEach(function (w) {
+    def('config', 'logging ' + w + ' <word>', keepG('logging ' + w, function (v) { return 'logging ' + w + ' ' + v[0]; }));
+  });
+  def('config', 'logging console', function (v, neg) { var X = gx(cfg(this)); if (neg) X['logging console'] = 'no logging console'; else delete X['logging console']; return ''; });
+  def('config', 'logging source-interface <if>', keepG('logging source', function (v) { return 'logging source-interface ' + v[0]; }));
+  def('config', 'ntp update-calendar', keepG('ntp update-calendar', lit('ntp update-calendar')));
+  def('config', 'ntp master', keepG('ntp master', lit('ntp master')));
+  def('config', 'ntp master <n:1-15>', keepG('ntp master', function (v) { return 'ntp master ' + v[0]; }));
+  def('config', 'clock summer-time <word> recurring', keepG('clock summer-time', function (v) { return 'clock summer-time ' + v[0] + ' recurring'; }));
+  def('config', 'clock summer-time <word> recurring <text>', function (v, neg, k, line) { var X = gx(cfg(this)); if (neg) delete X['clock summer-time']; else X['clock summer-time'] = 'clock summer-time ' + v[0] + ' recurring ' + rest(line, 'recurring'); return ''; });
+  def('config', 'snmp-server community <word> <word>', function (v, neg, k, line) {
+    var c = cfg(this); c.snmp = c.snmp || { communities: {} };
+    var acc = v[1].toUpperCase();
+    if (acc !== 'RO' && acc !== 'RW') return invalidMarker(this, line, v[1]);
+    if (neg) delete c.snmp.communities[v[0]]; else c.snmp.communities[v[0]] = acc;
+    return '';
+  });
+  def('config', 'snmp-server community <word>', function (v, neg) { var c = cfg(this); c.snmp = c.snmp || { communities: {} }; if (neg) delete c.snmp.communities[v[0]]; else c.snmp.communities[v[0]] = 'RO'; return ''; });
+  def('config', 'snmp-server location <text>', function (v, neg, k, line) { var c = cfg(this); c.snmp = c.snmp || { communities: {} }; c.snmp.location = neg ? null : rest(line, 'location'); return ''; });
+  def('config', 'snmp-server contact <text>', function (v, neg, k, line) { var c = cfg(this); c.snmp = c.snmp || { communities: {} }; c.snmp.contact = neg ? null : rest(line, 'contact'); return ''; });
+  def('config', 'ipv6 unicast-routing', keepG('ipv6 unicast-routing', lit('ipv6 unicast-routing')));
+  def('config', 'errdisable recovery interval <n:30-86400>', keepG('errdisable interval', function (v) { return 'errdisable recovery interval ' + v[0]; }));
+  def('config', 'errdisable recovery cause <word>', function (v, neg) {
+    var c = cfg(this);
+    if (/^psec/.test(v[0])) { c.errRecovery = !neg; return ''; }
+    var X = gx(c), k = 'errdisable cause ' + v[0];
+    if (neg) delete X[k]; else X[k] = 'errdisable recovery cause ' + v[0];
+    return '';
+  });
+  def('config', 'mac address-table static <word> vlan <n:1-4094> interface <if>', swOnly(keepG('mac static', function (v) { return 'mac address-table static ' + v[0] + ' vlan ' + v[1] + ' interface ' + v[2]; })));
+  def('config', 'mac address-table aging-time <n:0-1000000>', swOnly(keepG('mac aging', function (v) { return 'mac address-table aging-time ' + v[0]; })));
+  def('config', 'port-channel load-balance <word>', swOnly(keepG('pc lb', function (v) { return 'port-channel load-balance ' + v[0]; })));
+  def('config', 'ip dhcp snooping', swOnly(keepG('dhcp snooping', lit('ip dhcp snooping'))));
+  def('config', 'ip dhcp snooping vlan <vlist>', swOnly(keepG('dhcp snooping vlan', function (v) { return 'ip dhcp snooping vlan ' + U.vlanListStr(v[0]); })));
+  def('config', 'ip dhcp snooping information option', swOnly(keepG('dhcp snooping opt82', lit('ip dhcp snooping information option'), 'on')));
+  def('config', 'ip arp inspection vlan <vlist>', swOnly(keepG('dai', function (v) { return 'ip arp inspection vlan ' + U.vlanListStr(v[0]); })));
+  def('config', 'ip domain lookup source-interface <if>', keepG('dns src', function (v) { return 'ip domain lookup source-interface ' + v[0]; }));
+  def('config', 'ip tftp source-interface <if>', keepG('tftp src', function (v) { return 'ip tftp source-interface ' + v[0]; }));
+  def('config', 'ip classless', function () { return ''; });
+  def('config', 'ip subnet-zero', function () { return ''; });
+  def('config', 'ip source-route', keepG('ip source-route', lit('ip source-route'), 'on'));
+  def('config', 'ip forward-protocol nd', function () { return ''; });
+
+  // ---------- Interface
+  def('if', 'switchport voice vlan <n:1-4094>', function (v, neg) { var s = this; return eachIf(this, function (i) { if (kindOf(s, i) !== 'l2') return '% Invalid input detected at \'^\' marker.'; i.voiceVlan = neg ? null : v[0]; }); });
+  def('if', 'spanning-tree portfast edge', function (v, neg) { return eachIf(this, function (i) { i.portfast = !neg; }); });
+  def('if', 'spanning-tree bpduguard enable', keepIf('bpduguard', lit('spanning-tree bpduguard enable')));
+  def('if', 'spanning-tree bpduguard disable', keepIf('bpduguard', lit('spanning-tree bpduguard disable')));
+  def('if', 'spanning-tree bpdufilter enable', keepIf('bpdufilter', lit('spanning-tree bpdufilter enable')));
+  def('if', 'spanning-tree guard <word>', keepIf('guard', function (v) { return 'spanning-tree guard ' + v[0]; }));
+  def('if', 'spanning-tree cost <n:1-200000000>', keepIf('stp cost', function (v) { return 'spanning-tree cost ' + v[0]; }));
+  def('if', 'spanning-tree port-priority <n:0-240>', keepIf('stp prio', function (v) { return 'spanning-tree port-priority ' + v[0]; }));
+  def('if', 'spanning-tree link-type <word>', keepIf('stp link', function (v) { return 'spanning-tree link-type ' + v[0]; }));
+  def('if', 'channel-group <n:1-48> mode <word>', function (v, neg, k, line) {
+    var m = ['active', 'passive', 'on', 'desirable', 'auto'].filter(function (x) { return x.indexOf(v[1].toLowerCase()) === 0; })[0];
+    if (!m) return invalidMarker(this, line, v[1]);
+    var s = this, made = false;
+    var out = eachIf(this, function (i) { if (neg) { i.chGroup = null; return; } if (!made && !Object.keys(cfg(s).ifaces).some(function (n) { var q = cfg(s).ifaces[n]; return q.chGroup && q.chGroup.n === v[0]; })) made = true; i.chGroup = { n: v[0], mode: m }; });
+    return (made ? 'Creating a port-channel interface Port-channel ' + v[0] + '\n' : '') + out;
+  });
+  def('if', 'channel-group', function () { return eachIf(this, function (i) { i.chGroup = null; }); }, { noOnly: true });
+  ['broadcast', 'multicast', 'unicast'].forEach(function (t) {
+    def('if', 'storm-control ' + t + ' level <text>', function (v, neg, k, line) { var lv = rest(line, 'level'); return eachIf(this, function (i) { var X = i.x || (i.x = {}); if (neg) delete X['storm ' + t]; else X['storm ' + t] = 'storm-control ' + t + ' level ' + lv; }); });
+  });
+  def('if', 'storm-control action <word>', keepIf('storm action', function (v) { return 'storm-control action ' + v[0]; }));
+  def('if', 'ip dhcp snooping trust', keepIf('snoop trust', lit('ip dhcp snooping trust')));
+  def('if', 'ip dhcp snooping limit rate <n:1-2048>', keepIf('snoop rate', function (v) { return 'ip dhcp snooping limit rate ' + v[0]; }));
+  def('if', 'ip arp inspection trust', keepIf('dai trust', lit('ip arp inspection trust')));
+  def('if', 'switchport port-security aging time <n:0-1440>', keepIf('ps aging', function (v) { return 'switchport port-security aging time ' + v[0]; }));
+  def('if', 'switchport port-security aging type <word>', keepIf('ps agetype', function (v) { return 'switchport port-security aging type ' + v[0]; }));
+  def('if', 'switchport port-security mac-address <word>', function (v, neg, k, line) {
+    if (/^sticky$/i.test(v[0])) return '';
+    return eachIf(this, function (i) { var X = i.x || (i.x = {}); var key = 'ps mac ' + v[0]; if (neg) delete X[key]; else X[key] = 'switchport port-security mac-address ' + v[0]; });
+  });
+  def('if', 'mdix auto', keepIf('mdix', lit('mdix auto'), 'on'));
+  def('if', 'load-interval <n:30-600>', keepIf('load', function (v) { return 'load-interval ' + v[0]; }));
+  def('if', 'udld port', keepIf('udld', lit('udld port')));
+  def('if', 'udld port aggressive', keepIf('udld', lit('udld port aggressive')));
+  def('if', 'bandwidth <n:1-10000000>', keepIf('bw', function (v) { return 'bandwidth ' + v[0]; }));
+  def('if', 'delay <n:1-16777215>', keepIf('delay', function (v) { return 'delay ' + v[0]; }));
+  def('if', 'mtu <n:64-9216>', keepIf('mtu', function (v) { return 'mtu ' + v[0]; }));
+  def('if', 'keepalive', keepIf('keepalive', lit('keepalive'), 'on'));
+  def('if', 'keepalive <n:0-32767>', keepIf('keepalive', function (v) { return 'keepalive ' + v[0]; }));
+  def('if', 'ip redirects', keepIf('redirects', lit('ip redirects'), 'on'));
+  def('if', 'ip unreachables', keepIf('unreach', lit('ip unreachables'), 'on'));
+  def('if', 'ip proxy-arp', keepIf('proxyarp', lit('ip proxy-arp'), 'on'));
+  def('if', 'ip virtual-reassembly', keepIf('vreasm', lit('ip virtual-reassembly')));
+  def('if', 'ip virtual-reassembly in', keepIf('vreasm', lit('ip virtual-reassembly in')));
+  def('if', 'ip ospf cost <n:1-65535>', keepIf('ospf cost', function (v) { return 'ip ospf cost ' + v[0]; }));
+  def('if', 'media-type <word>', keepIf('media', function (v) { return 'media-type ' + v[0]; }));
+  def('if', 'ipv6 address <word>', keepIf('ipv6 ' , function (v) { return 'ipv6 address ' + v[0]; }));
+  def('if', 'ipv6 enable', keepIf('ipv6 en', lit('ipv6 enable')));
+  def('if', 'standby <n:0-255> ip <ip>', function (v, neg) { return eachIf(this, function (i) { i.hsrp = i.hsrp || { grp: v[0], pri: 100, preempt: false }; if (neg) i.hsrp = null; else { i.hsrp.grp = v[0]; i.hsrp.ip = v[1]; } }); });
+  def('if', 'standby <n:0-255> priority <n:0-255>', function (v, neg) { return eachIf(this, function (i) { if (!i.hsrp) i.hsrp = { grp: v[0], pri: 100, preempt: false }; i.hsrp.pri = neg ? 100 : v[1]; }); });
+  def('if', 'standby <n:0-255> preempt', function (v, neg) { return eachIf(this, function (i) { if (!i.hsrp) i.hsrp = { grp: v[0], pri: 100, preempt: false }; i.hsrp.preempt = !neg; }); });
+
+  // ---------- Exec: debug
+  var DEBUGS = {
+    'ip packet': 'IP packet debugging is on', 'ip icmp': 'ICMP packet debugging is on', 'ip nat': 'IP NAT debugging is on',
+    'ip dhcp server events': 'DHCP server event debugging is on.', 'ip dhcp server packet': 'DHCP server packet debugging is on.',
+    'spanning-tree events': 'Spanning Tree event debugging is on', 'crypto isakmp': 'Crypto ISAKMP debugging is on', 'crypto ipsec': 'Crypto IPSEC debugging is on',
+    'ip ssh': 'Incoming ssh debugging is on', 'cdp packets': 'CDP packet info debugging is on', 'ip routing': 'IP routing debugging is on',
+  };
+  function dbg(s) { return s.dev.rt.debug || (s.dev.rt.debug = {}); }
+  Object.keys(DEBUGS).forEach(function (k) {
+    def('exec', 'debug ' + k, function () { dbg(this)[k] = true; return DEBUGS[k]; });
+    def('exec', 'undebug ' + k, function () { delete dbg(this)[k]; return DEBUGS[k].replace(' is on', ' is off'); });
+    def('exec', 'no debug ' + k, function () { delete dbg(this)[k]; return DEBUGS[k].replace(' is on', ' is off'); });
+  });
+  function allOff() { this.dev.rt.debug = {}; return 'All possible debugging has been turned off'; }
+  def('exec', 'undebug all', allOff);
+  def('exec', 'no debug all', allOff);
+  def('exec', 'debug all', function () { return 'This may severely impact network performance. Continue? (yes/[no]): \n% Nej – inte på en produktionsenhet mitt på dagen.'; });
+  showDef('debugging', function () {
+    var on = Object.keys(dbg(this));
+    if (!on.length) return '';
+    var groups = {};
+    on.forEach(function (k) { var g = k.split(' ')[0].toUpperCase(); (groups[g] = groups[g] || []).push('  ' + DEBUGS[k]); });
+    return Object.keys(groups).map(function (g) { return (g === 'IP' ? 'Generic IP' : g) + ':\n' + groups[g].join('\n'); }).join('\n');
+  });
+
+  // ---------- Exec: klocka, radera, ladda om senare, kopiera till TFTP
+  def('exec', 'clock set <word> <n:1-31> <word> <n:1993-2035>', function (v, neg, k, line) {
+    var m = /^(\d{1,2}):(\d{2}):(\d{2})$/.exec(v[0]);
+    var mon = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'].indexOf(v[2].slice(0, 3).toLowerCase());
+    if (!m) return invalidMarker(this, line, v[0]);
+    if (mon < 0) return invalidMarker(this, line, v[2]);
+    this.dev.rt.clockSet = { ms: Date.UTC(v[3], mon, v[1], +m[1], +m[2], +m[3]), at: this.state.time };
+    return '';
+  });
+  def('exec', 'clock set <word> <word> <n:1-31> <n:1993-2035>', function (v, neg, k, line) {
+    var m = /^(\d{1,2}):(\d{2}):(\d{2})$/.exec(v[0]);
+    var mon = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'].indexOf(v[1].slice(0, 3).toLowerCase());
+    if (!m) return invalidMarker(this, line, v[0]);
+    if (mon < 0) return invalidMarker(this, line, v[1]);
+    this.dev.rt.clockSet = { ms: Date.UTC(v[3], mon, v[2], +m[1], +m[2], +m[3]), at: this.state.time };
+    return '';
+  });
+  function eraseStartup() {
+    var self = this;
+    this.pending = { prompt: 'Erasing the nvram filesystem will remove all configuration files! Continue? [confirm]', fn: function (a) {
+      if (a && !/^y/i.test(a)) return result('');
+      self.dev.startup = null;
+      return result('[OK]\nErase of nvram: complete', { delay: 600 });
+    } };
+    return '';
+  }
+  def('exec', 'erase startup-config', eraseStartup);
+  def('exec', 'erase nvram:', eraseStartup);
+  def('exec', 'write erase', eraseStartup);
+  def('exec', 'delete flash:vlan.dat', swOnly(function () {
+    var self = this;
+    this.pending = { prompt: 'Delete filename [vlan.dat]? ', fn: function () {
+      self.pending = { prompt: 'Delete flash:/vlan.dat? [confirm]', fn: function (a) { if (a && !/^y/i.test(a)) return result(''); self.dev.rt.vlanDatDeleted = true; return result(''); } };
+      return result('');
+    } };
+    return '';
+  }));
+  def('exec', 'reload in <n:1-1440>', function (v) {
+    var self = this;
+    this.pending = { prompt: 'Proceed with reload? [confirm]', fn: function (a) {
+      if (a && !/^y/i.test(a)) return result('');
+      self.dev.rt.reloadAt = self.state.time + v[0] * 60;
+      return result('Reload scheduled in ' + v[0] + ' minutes by console\nReload reason: Reload Command');
+    } };
+    return '';
+  });
+  def('exec', 'reload cancel', function () {
+    if (!this.dev.rt.reloadAt) return '%No reload is scheduled.';
+    this.dev.rt.reloadAt = null;
+    return '\n\n***\n*** --- SHUTDOWN ABORTED ---\n***';
+  });
+  showDef('reload', function () {
+    var at = this.dev.rt.reloadAt;
+    if (!at) return 'No reload is scheduled.';
+    var left = Math.max(0, Math.round((at - this.state.time) / 60));
+    return 'Reload scheduled in ' + left + ' minutes by console\nReload reason: Reload Command';
+  });
+  function tftpCopy(what) {
+    return function () {
+      var self = this, host = null;
+      var file = this.dev.config.hostname.toLowerCase() + '-confg';
+      this.pending = { prompt: 'Address or name of remote host []? ', fn: function (a) {
+        host = a;
+        if (!host) return result('%Error parsing filename (Bad IP address or host name)');
+        self.pending = { prompt: 'Destination filename [' + file + ']? ', fn: function (f) {
+          var ip = U.isIp(host) ? host : (self.dev.config.hosts[host.toLowerCase()] || null);
+          if (!ip) return result('%Error parsing filename (Bad IP address or host name)');
+          var p = S.ping(self.state, self.dev.id, ip);
+          if (!p.ok) return result('.....\n%Error opening tftp://' + ip + '/' + (f || file) + ' (Timed out)', { delay: 2500 });
+          var bytes = SH.runningConfig(self.state, self.dev).length;
+          return result('!!\n' + bytes + ' bytes copied in 1.084 secs (' + Math.round(bytes / 1.084) + ' bytes/sec)', { delay: 900 });
+        } };
+        return result('');
+      } };
+      return '';
+    };
+  }
+  def('exec', 'copy running-config tftp:', tftpCopy('running'));
+  def('exec', 'copy running-config tftp', tftpCopy('running'));
+  def('exec', 'copy startup-config tftp:', tftpCopy('startup'));
+
+  // ---------- Exec: ssh och telnet från routern eller switchen
+  function remoteLogin(s, host, user, proto) {
+    var ip = U.isIp(host) ? host : (s.dev.config.hosts[host.toLowerCase()] || null);
+    if (!ip) return result('% Unknown command or computer name, or unable to find computer address');
+    var port = proto === 'ssh' ? 22 : 23;
+    var p = S.ping(s.state, s.dev.id, ip, { proto: 'tcp', dport: port });
+    var head = proto === 'telnet' ? 'Trying ' + ip + ' ... ' : '';
+    if (!p.ok) return result(head + (p.reason === 'refused' ? '\n% Connection refused by remote host' : '\n% Connection timed out; remote host not responding'), { delay: p.reason === 'refused' ? 300 : 3000 });
+    var tgt = null, D = S.get(s.state);
+    Object.keys(D.eps).forEach(function (k) { var e = D.eps[k]; if (e.ip === ip && e.up && s.state.devices[e.dev].os === 'ios') tgt = e.dev; });
+    tgt = tgt || p.at;
+    var dev = s.state.devices[tgt];
+    if (!dev || dev.os !== 'ios') return result(head + '\n% Connection refused by remote host');
+    if (tgt === s.dev.id) return result(head + '\n% Connection refused by remote host');
+    var c = dev.config, line = c.lines.vty0_4;
+    if (line.accessClass) {
+      var src = p.srcUsed || null;
+      if (src && !S.aclEval(s.state, tgt, line.accessClass, { src: src, dst: ip, proto: 'tcp', dport: port })) return result(head + '\n% Connection refused by remote host', { delay: 300 });
+    }
+    if (!line.loginLocal && !line.password) return result(head + 'Open\n\nPassword required, but none set\n\n[Connection to ' + host + ' closed by foreign host]');
+    var tries = 0;
+    function askPw(u) {
+      s.pending = { prompt: 'Password: ', secret: true, fn: function (pw) {
+        var uu = c.users[u];
+        var ok = line.loginLocal ? (uu && uu.plain === pw) : line.password === pw;
+        if (!ok) {
+          tries++;
+          var tip = uu && uu.byGame ? '\n💡 Lösenordet för ' + u + ' är ' + uu.plain + ' (står på lappen vid laptopen).' : (uu ? '\n💡 Det är lösenordet som sattes med username ' + u + ' ... secret: ' + uu.plain : '');
+          if (tries >= 3 || proto === 'telnet') return result('% ' + (proto === 'telnet' ? 'Login invalid' : 'Authentication failed.') + tip + (proto === 'telnet' ? '\n\n[Connection to ' + host + ' closed by foreign host]' : ''));
+          askPw(u);
+          return result('% Authentication failed.' + tip);
+        }
+        var priv = (uu && uu.priv === 15) || line.privLevel === 15;
+        return result('', { push: { kind: 'ios', dev: tgt, via: proto, privileged: priv, user: u } });
+      } };
+    }
+    if (proto === 'ssh') { askPw(user); return result(''); }
+    if (!line.loginLocal) { askPw(null); return result(head + 'Open\n\n\nUser Access Verification\n'); }
+    s.pending = { prompt: 'Username: ', fn: function (u) { askPw(u); return result(''); } };
+    return result(head + 'Open\n\n\nUser Access Verification\n');
+  }
+  def('user exec', 'ssh -l <word> <iphost>', function (v) { return remoteLogin(this, v[1], v[0], 'ssh'); });
+  def('user exec', 'ssh -v <n:1-2> -l <word> <iphost>', function (v) { return remoteLogin(this, v[2], v[1], 'ssh'); });
+  def('user exec', 'telnet <iphost>', function (v) { return remoteLogin(this, v[0], null, 'telnet'); });
+  def('user exec', 'connect <iphost>', function (v) { return remoteLogin(this, v[0], null, 'telnet'); });
+  def('user exec', 'terminal width <n:0-512>', function () { return ''; });
+
+  // ---------- Show-kommandon
+  showDef('ip protocols', function () {
+    if (!isRouter(this) && !cfg(this).ipRouting) return '';
+    return '*** IP Routing is NSF aware ***\n';
+  }, true);
+  showDef('privilege', function () { return 'Current privilege level is ' + (this.mode === 'user' ? 1 : 15); }, true);
+  showDef('sessions', function () { return '% No connections open'; }, true);
+  showDef('terminal', function () {
+    return 'Line 0, Location: "", Type: ""\nLength: 24 lines, Width: 80 columns\nBaud rate (TX/RX) is ' + ((cfg(this).lines.con.speed) || 9600) + '/' + ((cfg(this).lines.con.speed) || 9600) + ', no parity, 2 stopbits, 8 databits\nStatus: PSI Enabled, Ready, Active, No Exit Banner, Automore On\nCapabilities: none\nModem state: Ready\nSpecial Chars: Escape  Hold  Stop  Start  Disconnect  Activation\n                ^^x    none   -     -       none\nTimeouts:      Idle EXEC    Idle Session   Modem Answer  Session   Dispatch\n               00:10:00        never                        none     not set\nHistory is enabled, history size is 20.\nTransport protocol preferences: none';
+  }, true);
+  showDef('line', function () {
+    var c = cfg(this), rows = ['   Tty Typ     Tx/Rx    A Modem  Roty AccO AccI   Uses   Noise  Overruns   Int'];
+    rows.push('*    0 CTY              -    -      -    -    -      1       0     0/0       -');
+    if (isRouter(this)) rows.push('     1 AUX   9600/9600  -    -      -    -    -      0       0     0/0       -');
+    for (var n = 0; n <= 15; n++) {
+      var l = n <= 4 ? c.lines.vty0_4 : c.lines.vty5_15;
+      rows.push(rpad((isRouter(this) ? n + 2 : n + 1), 6) + ' VTY              -    -      -    -  ' + lpad(l.accessClass || '-', 4) + ' ' + rpad(n === 0 ? 3 : 0, 6) + '       0     0/0       -');
+    }
+    return rows.join('\n');
+  }, true);
+  showDef('hosts', function () {
+    var c = cfg(this);
+    var o = ['Default domain is ' + (c.domainName || 'not set'), 'Name/address lookup uses ' + (c.domainLookup ? 'domain service' : 'static mappings'), 'Name servers are ' + (c.nameServers.length ? c.nameServers.join(', ') : '255.255.255.255'), '',
+      'Codes: UN - unknown, EX - expired, OK - OK, ?? - revalidate', '       temp - temporary, perm - permanent', '       NA - Not Applicable None - Not defined', '',
+      'Host                      Port  Flags      Age Type   Address(es)'];
+    Object.keys(c.hosts).forEach(function (h) { o.push(lpad(h, 26) + 'None  (perm, OK)  0   IP     ' + c.hosts[h]); });
+    return o.join('\n');
+  }, true);
+  showDef('flash', function () { return flashList(this); }, true);
+  showDef('flash:', function () { return flashList(this); }, true);
+  def('user exec', 'dir', function () { return flashList(this, true); });
+  def('user exec', 'dir flash:', function () { return flashList(this, true); });
+  def('user exec', 'dir nvram:', function () {
+    var st = this.dev.startup, len = st ? SH.runningConfig(this.state, this.dev, st).length : 0;
+    return 'Directory of nvram:/\n\n  ' + (st ? '    1  -rw-' + rpad(len, 12) + '                    <no date>  startup-config' : '  No files in directory') + '\n\n524288 bytes total (' + (524288 - len) + ' bytes free)';
+  });
+  function flashList(s, dirStyle) {
+    var sw = isSwitch(s);
+    var files = sw
+      ? [['c3560-ipservicesk9-mz.122-55.SE12.bin', 16013384, 'Mar 1 1993 00:04:56 +00:00'], ['vlan.dat', 1916, 'Sep 29 2026 07:58:12 +02:00'], ['config.text', 3401, 'Sep 28 2026 16:22:40 +02:00'], ['private-config.text', 1245, 'Sep 28 2026 16:22:40 +02:00']]
+      : [['c2900-universalk9-mz.SPA.152-4.M11.bin', 97794040, 'Jun 11 2019 14:38:40 +00:00'], ['pnp-tech-time', 3, 'Sep 28 2026 16:22:40 +02:00']];
+    if (sw && s.dev.rt.vlanDatDeleted) files = files.filter(function (f) { return f[0] !== 'vlan.dat'; });
+    var total = sw ? 32514048 : 255744000, used = files.reduce(function (a, f) { return a + f[1]; }, 0);
+    var o = ['Directory of flash:/', ''];
+    files.forEach(function (f, i) { o.push(rpad(i + 2, 6) + '  -rwx' + rpad(f[1], 11) + '  ' + f[2] + '  ' + f[0]); });
+    o.push('');
+    o.push(total + ' bytes total (' + (total - used) + ' bytes free)');
+    return o.join('\n');
+  }
+  showDef('boot', swOnly(function () { return 'BOOT path-list      : flash:/c3560-ipservicesk9-mz.122-55.SE12.bin\nConfig file         : flash:/config.text\nPrivate Config file : flash:/private-config.text\nEnable Break        : no\nManual Boot         : no\nHELPER path-list    :\nAuto upgrade        : yes\nNVRAM/Config file\n      buffer size:   524288'; }), true);
+  showDef('license', rtOnly(function () { return 'Index 1 Feature: ipbasek9\n        Period left: Life time\n        License Type: Permanent\n        License State: Active, In Use\n        License Count: Non-Counted\n        License Priority: Medium\nIndex 2 Feature: securityk9\n        Period left: Life time\n        License Type: Permanent\n        License State: Active, In Use\n        License Count: Non-Counted\n        License Priority: Medium\nIndex 3 Feature: datak9\n        Period left: Not Activated\n        Period Used: 0  minute  0  second\n        License Type: EvalRightToUse\n        License State: Not in Use, EULA not accepted\n        License Count: Non-Counted\n        License Priority: None'; }));
+  showDef('env all', swOnly(function () { return 'FAN is OK\nTEMPERATURE is OK\nTemperature Value: 37 Degree Celsius\nTemperature State: GREEN\nYellow Threshold : 65 Degree Celsius\nRed Threshold    : 75 Degree Celsius\nPOWER is OK\nRPS is NOT PRESENT'; }));
+  showDef('environment all', swOnly(function () { return 'FAN is OK\nTEMPERATURE is OK\nPOWER is OK\nRPS is NOT PRESENT'; }));
+  showDef('processes memory', function () {
+    return 'Processor Pool Total:  ' + (isRouter(this) ? '414285504 Used:   98714424 Free:  315571080' : '94363276 Used:   27163948 Free:   67199328') + '\n      I/O Pool Total:   ' + (isRouter(this) ? '75497472 Used:   21011032 Free:   54486440' : '8388608 Used:    3207548 Free:    5181060');
+  }, true);
+  showDef('vtp status', swOnly(function () {
+    var t = vtp(cfg(this));
+    var vl = Object.keys(cfg(this).vlans).length + 4;
+    return 'VTP Version capable             : 1 to 3\nVTP version running             : ' + t.version + '\nVTP Domain Name                 : ' + t.domain + '\nVTP Pruning Mode                : Disabled\nVTP Traps Generation            : Disabled\nDevice ID                       : ' + U.macDots(this.dev.baseMac) + '\nConfiguration last modified by 0.0.0.0 at 3-1-93 00:02:11\n' + (t.mode === 'server' ? 'Local updater ID is 0.0.0.0 (no valid interface found)\n' : '') + '\nFeature VLAN:\n--------------\nVTP Operating Mode                : ' + t.mode.charAt(0).toUpperCase() + t.mode.slice(1) + '\nMaximum VLANs supported locally   : 1005\nNumber of existing VLANs          : ' + vl + '\nConfiguration Revision            : ' + (t.mode === 'transparent' || t.mode === 'off' ? 0 : 7) + '\nMD5 digest                        : 0x3F 0x37 0x45 0x9A 0x37 0x53 0xA6 0xDE\n                                    0xF9 0x1A 0x2B 0x5C 0x81 0x0E 0x4D 0x77';
+  }), true);
+  showDef('vtp password', swOnly(function () { var t = vtp(cfg(this)); return t.password ? 'VTP Password: ' + t.password : 'The VTP password is not configured.'; }));
+  showDef('vlan summary', swOnly(function () {
+    var n = Object.keys(cfg(this).vlans).length + 4;
+    return 'Number of existing VLANs              : ' + n + '\nNumber of existing VTP VLANs          : ' + n + '\nNumber of existing extended VLANS     : 0';
+  }), true);
+  showDef('ip default-gateway', swOnly(function () { return cfg(this).defaultGateway || '0.0.0.0'; }), true);
+  showDef('interfaces switchport', swOnly(function () {
+    var self = this;
+    return SH.physPorts(this.dev).map(function (n) { return SH.switchport(self.state, self.dev, n); }).join('\n\n');
+  }), true);
+  showDef('cdp', function () {
+    if (cfg(this).cdpOff) return '% CDP is not enabled';
+    return 'Global CDP information:\n\tSending CDP packets every 60 seconds\n\tSending a holdtime value of 180 seconds\n\tSending CDPv2 advertisements is  enabled';
+  }, true);
+  showDef('cdp interface', function () {
+    if (cfg(this).cdpOff) return '% CDP is not enabled';
+    var self = this, D = S.get(this.state);
+    return Object.keys(cfg(this).ifaces).filter(function (n) { var p = D.ports[S.key(self.dev.id, n)]; return !!p; }).map(function (n) {
+      var p = D.ports[S.key(self.dev.id, n)];
+      return n + ' is ' + (p.up ? 'up' : 'down') + ', line protocol is ' + (p.up ? 'up' : 'down') + '\n  Encapsulation ARPA\n  Sending CDP packets every 60 seconds\n  Holdtime is 180 seconds';
+    }).join('\n');
+  }, true);
+  showDef('lldp', function () { if (!cfg(this).lldp) return '% LLDP is not enabled'; return '\nGlobal LLDP Information:\n    Status: ACTIVE\n    LLDP advertisements are sent every 30 seconds\n    LLDP hold time advertised is 120 seconds\n    LLDP interface reinitialisation delay is 2 seconds'; }, true);
+  showDef('lldp neighbors', function () {
+    if (!cfg(this).lldp) return '% LLDP is not enabled';
+    var self = this, D = S.get(this.state), rows = [];
+    Object.keys(cfg(this).ifaces).forEach(function (n) {
+      var p = D.ports[S.key(self.dev.id, n)];
+      if (!p || !p.up) return;
+      var peer = self.state.devices[p.peer.dev];
+      if (!peer || peer.os !== 'ios' || !peer.config.lldp) return;
+      rows.push(lpad(peer.config.hostname.slice(0, 20), 21) + lpad(U.shortIf(n), 16) + lpad('120', 11) + lpad(peer.kind === 'router' ? 'R' : 'B', 16) + U.shortIf(p.peer.port));
+    });
+    return 'Capability codes:\n    (R) Router, (B) Bridge, (T) Telephone, (C) DOCSIS Cable Device\n    (W) WLAN Access Point, (P) Repeater, (S) Station, (O) Other\n\nDevice ID           Local Intf     Hold-time  Capability      Port ID\n' + rows.join('\n') + '\n\nTotal entries displayed: ' + rows.length;
+  }, true);
+  showDef('spanning-tree root', swOnly(function () {
+    var self = this, D = S.get(this.state), c = cfg(this);
+    var o = ['                                        Root    Hello Max Fwd', 'Vlan                   Root ID          Cost    Time  Age Dly  Root Port', '---------------- -------------------- --------- ----- --- ---  ------------'];
+    Object.keys(c.vlans).map(Number).sort(function (a, b) { return a - b; }).forEach(function (v) {
+      if (c.stpOff.indexOf(v) >= 0) return;
+      var info = D.stp[self.dev.id] && D.stp[self.dev.id][v];
+      var rootDev = info ? self.state.devices[info.root] : self.dev;
+      var rb = S.bridgeId(rootDev, v);
+      var isRoot = !info || info.isRoot;
+      o.push(lpad('VLAN' + ('000' + v).slice(-4), 17) + lpad(rb.pr + ' ' + U.macDots(rootDev.baseMac), 21) + rpad(isRoot ? 0 : 4, 9) + rpad(2, 6) + rpad(20, 4) + rpad(15, 4) + '  ' + (isRoot ? '' : U.shortIf(info.rootPort)));
+    });
+    return o.join('\n');
+  }), true);
+  showDef('spanning-tree interface <if>', swOnly(function (v) {
+    var n = v[0], short = U.shortIf(n), all = SH.spanningTree(this.state, this.dev), cur = null, rows = [];
+    all.split('\n').forEach(function (l) {
+      var m = /^VLAN(\d{4})$/.exec(l);
+      if (m) { cur = 'VLAN' + m[1]; return; }
+      if (cur && l.indexOf(short + ' ') === 0) rows.push(lpad(cur, 17) + l.slice(20));
+    });
+    if (!rows.length) return 'no spanning tree info available for ' + n;
+    return 'Vlan             Role Sts Cost      Prio.Nbr Type\n---------------- ---- --- --------- -------- --------------------------------\n' + rows.join('\n');
+  }), true);
+  showDef('spanning-tree detail', swOnly(function () { return SH.spanningTree(this.state, this.dev); }), true);
+  showDef('etherchannel summary', swOnly(function () {
+    var self = this, D = S.get(this.state), c = cfg(this), groups = {};
+    Object.keys(c.ifaces).forEach(function (n) { var i = c.ifaces[n]; if (i.chGroup) (groups[i.chGroup.n] = groups[i.chGroup.n] || []).push({ n: n, i: i }); });
+    var o = ['Flags:  D - down        P - bundled in port-channel', '        I - stand-alone s - suspended', '        H - Hot-standby (LACP only)', '        R - Layer3      S - Layer2', '        U - in use      f - failed to allocate aggregator', '', '        M - not in use, minimum links not met', '        u - unsuitable for bundling', '        w - waiting to be aggregated', '        d - default port', '', '',
+      'Number of channel-groups in use: ' + Object.keys(groups).length, 'Number of aggregators:           ' + Object.keys(groups).length, '', 'Group  Port-channel  Protocol    Ports', '------+-------------+-----------+-----------------------------------------------'];
+    Object.keys(groups).sort(function (a, b) { return a - b; }).forEach(function (g) {
+      var mem = groups[g], mode = mem[0].i.chGroup.mode;
+      var proto = mode === 'active' || mode === 'passive' ? 'LACP' : (mode === 'on' ? '-' : 'PAgP');
+      var anyUp = false;
+      var ports = mem.map(function (m) {
+        var p = D.ports[S.key(self.dev.id, m.n)];
+        var peer = p && p.up ? self.state.devices[p.peer.dev] : null;
+        var pi = peer && peer.config ? peer.config.ifaces[p.peer.port] : null;
+        var ok = !!(p && p.up && pi && pi.chGroup && (mode === 'on' ? pi.chGroup.mode === 'on' : (pi.chGroup.mode !== 'on' && !(mode === 'passive' && pi.chGroup.mode === 'passive') && !(mode === 'auto' && pi.chGroup.mode === 'auto'))));
+        if (ok) anyUp = true;
+        return U.shortIf(m.n) + '(' + (!p || !p.up ? 'D' : (ok ? 'P' : (mode === 'on' ? 'D' : 'I'))) + ')';
+      });
+      o.push(lpad(g, 7) + lpad('Po' + g + '(S' + (anyUp ? 'U' : 'D') + ')', 14) + lpad(proto, 12) + ports.join(' '));
+    });
+    return o.join('\n');
+  }), true);
+  showDef('ip dhcp server statistics', rtOnly(function () {
+    var n = (SH.dhcpBinding(this.state, this.dev).match(/Automatic/g) || []).length;
+    return 'Memory usage         ' + (24000 + n * 312) + '\nAddress pools        ' + Object.keys(cfg(this).dhcpPools).length + '\nDatabase agents      0\nAutomatic bindings   ' + n + '\nManual bindings      0\nExpired bindings     0\nMalformed messages   0\nSecure arp entries   0\nRenew messages       0\nWorkspace timeouts   0\nStatic routes        0\nRelay bindings       0\nRelay bindings active        0\nRelay bindings terminated    0\nRelay bindings selecting     0\n\nMessage              Received\nBOOTREQUEST          0\nDHCPDISCOVER         ' + (n + 2) + '\nDHCPREQUEST          ' + (n * 2 + 1) + '\nDHCPDECLINE          0\nDHCPRELEASE          0\nDHCPINFORM           0\n\nMessage              Sent\nBOOTREPLY            0\nDHCPOFFER            ' + (n + 2) + '\nDHCPACK              ' + (n * 2 + 1) + '\nDHCPNAK              0';
+  }));
+  showDef('ip nat translations verbose', rtOnly(function () {
+    var base = SH.natTranslations(this.state, this.dev).split('\n');
+    return base.map(function (l, i) { return i === 0 ? l : l + '\n    create 00:0' + (i % 6) + ':1' + i + ', use 00:00:0' + (i % 9) + ' timeout:' + (/^---/.test(l) ? '0' : '86400000') + ', left 23:5' + (i % 9) + ':12,\n    flags: \n' + (/^---/.test(l) ? 'static' : 'extended') + ', use_count: 0, entry-id: ' + (10 + i) + ', lc_entries: 0'; }).join('\n');
+  }));
+  showDef('ip route summary', function () {
+    var r = S.installedRoutes(this.state, S.get(this.state), this.dev.id);
+    var cnt = function (t) { return r.filter(function (x) { return x.type === t || (t === 'S' && x.type === 'S*'); }).length; };
+    return 'IP routing table name is default (0x0)\nIP routing table maximum-paths is 32\nRoute Source    Networks    Subnets     Replicates  Overhead    Memory (bytes)\nconnected       0           ' + lpad(cnt('C') + cnt('L'), 12) + '0           ' + lpad((cnt('C') + cnt('L')) * 72, 12) + (cnt('C') + cnt('L')) * 180 + '\nstatic          ' + lpad(cnt('S'), 12) + '0           0           ' + lpad(cnt('S') * 72, 12) + cnt('S') * 180 + '\ninternal        3                                               1380\nTotal           ' + lpad(cnt('S') + 3, 12) + lpad(cnt('C') + cnt('L'), 12) + '0           ' + lpad((cnt('C') + cnt('L') + cnt('S')) * 72, 12) + ((cnt('C') + cnt('L') + cnt('S')) * 180 + 1380);
+  });
+  showDef('crypto key mypubkey rsa', function () {
+    var c = cfg(this);
+    if (!c.cryptoKey) return '';
+    var h = U.hash(c.hostname + this.dev.baseMac).toString(16).toUpperCase();
+    return '% Key pair was generated at: 08:00:00 CEST Sep 28 2026\nKey name: ' + c.hostname + '.' + (c.domainName || '') + '\nKey type: RSA KEYS\n Storage Device: private-config\n Usage: General Purpose Key\n Key is not exportable.\n Key Data:\n  30820122 300D0609 2A864886 F70D0101 01050003 82010F00 3082010A 02820101\n  00' + (h + h + h).slice(0, 20) + ' ' + ('C0FFEE' + h).slice(0, 8) + ' 5A2E1B03 8D7C44F2 A91B0E6D 2F04C319 83B56E21\n  ...  (' + c.cryptoKey + ' bits)';
+  });
+  showDef('snmp', function () {
+    var sn = cfg(this).snmp;
+    if (!sn || !Object.keys(sn.communities).length) return '%SNMP agent not enabled';
+    return 'Chassis: FOC1133Z0R4\n' + (sn.contact ? 'Contact: ' + sn.contact + '\n' : '') + (sn.location ? 'Location: ' + sn.location + '\n' : '') + '0 SNMP packets input\n    0 Bad SNMP version errors\n    0 Unknown community name\n0 SNMP packets output\nSNMP logging: disabled';
+  });
+  showDef('snmp community', function () {
+    var sn = cfg(this).snmp;
+    if (!sn) return '';
+    return Object.keys(sn.communities).map(function (k) { return '\nCommunity name: ' + k + '\nCommunity Index: ' + k + '\nCommunity SecurityName: ' + k + '\nstorage-type: nonvolatile\t active\n'; }).join('');
+  });
+  showDef('standby brief', rtOnly(function () {
+    var c = cfg(this), o = ['                     P indicates configured to preempt.', '                     |', 'Interface   Grp  Pri P State   Active          Standby         Virtual IP'];
+    Object.keys(c.ifaces).forEach(function (n) {
+      var i = c.ifaces[n];
+      if (!i.hsrp || !i.hsrp.ip) return;
+      o.push(lpad(U.shortIf(n), 12) + lpad(i.hsrp.grp, 5) + lpad(i.hsrp.pri, 4) + lpad(i.hsrp.preempt ? 'P' : ' ', 2) + lpad('Active', 8) + lpad('local', 16) + lpad('unknown', 16) + i.hsrp.ip);
+    });
+    return o.join('\n');
+  }));
+  showDef('interfaces counters', function () { return counters(this); }, true);
+  showDef('interfaces <if> counters', function (v) { return counters(this, v[0]); }, true);
+  function counters(s, only) {
+    var D = S.get(s.state), names = (only ? [only] : SH.physPorts(s.dev));
+    function num(n, salt, big) { var p = D.ports[S.key(s.dev.id, n)]; if (!p || !p.up) return 0; return (U.hash(n + salt + s.dev.id) % (big ? 90000000 : 900000)) + (big ? 1000000 : 1000) + Math.floor(s.state.time * (big ? 1500 : 12)); }
+    var o = ['', 'Port            InOctets    InUcastPkts    InMcastPkts    InBcastPkts'];
+    names.forEach(function (n) { o.push(lpad(U.shortIf(n), 11) + rpad(num(n, 'io', 1), 13) + rpad(num(n, 'iu'), 15) + rpad(Math.floor(num(n, 'im') / 40), 15) + rpad(Math.floor(num(n, 'ib') / 90), 15)); });
+    o.push('');
+    o.push('Port           OutOctets   OutUcastPkts   OutMcastPkts   OutBcastPkts');
+    names.forEach(function (n) { o.push(lpad(U.shortIf(n), 11) + rpad(num(n, 'oo', 1), 13) + rpad(num(n, 'ou'), 15) + rpad(Math.floor(num(n, 'om') / 30), 15) + rpad(Math.floor(num(n, 'ob') / 70), 15)); });
+    return o.join('\n');
+  }
+  showDef('mac address-table count', swOnly(function () {
+    var t = SH.macTable(this.state, this.dev);
+    var dyn = (t.match(/DYNAMIC/g) || []).length, stat = (t.match(/STATIC/g) || []).length;
+    return '\nMac Entries for Vlan   : All\n---------------------------\nDynamic Address Count  : ' + dyn + '\nStatic  Address Count  : ' + stat + '\nTotal Mac Addresses    : ' + (dyn + stat) + '\n\nTotal Mac Address Space Available: ' + (12288 - dyn - stat);
+  }), true);
+  showDef('errdisable recovery', function () {
+    var c = cfg(this), X = c.x || {};
+    var causes = ['arp-inspection', 'bpduguard', 'channel-misconfig', 'dhcp-rate-limit', 'link-flap', 'loopback', 'psecure-violation', 'storm-control', 'udld'];
+    var o = ['ErrDisable Reason            Timer Status', '-----------------            --------------'];
+    causes.forEach(function (k) { var on = k === 'psecure-violation' ? !!c.errRecovery : !!X['errdisable cause ' + k]; o.push(lpad(k, 29) + (on ? 'Enabled' : 'Disabled')); });
+    var iv = X['errdisable interval'] ? X['errdisable interval'].split(' ').pop() : 300;
+    o.push('');
+    o.push('Timer interval: ' + iv + ' seconds');
+    o.push('');
+    o.push('Interfaces that will be enabled at the next timeout:');
+    return o.join('\n');
+  }, true);
+  showDef('ip dhcp snooping', swOnly(function () {
+    var X = cfg(this).x || {};
+    if (!X['dhcp snooping']) return 'Switch DHCP snooping is disabled';
+    var vl = X['dhcp snooping vlan'] ? X['dhcp snooping vlan'].split(' ').pop() : '';
+    var self = this, rows = [];
+    Object.keys(cfg(this).ifaces).forEach(function (n) { var i = cfg(self).ifaces[n]; if (i.x && (i.x['snoop trust'] || i.x['snoop rate'])) rows.push(lpad(n, 32) + lpad(i.x['snoop trust'] ? 'yes' : 'no', 16) + (i.x['snoop rate'] ? i.x['snoop rate'].split(' ').pop() : 'unlimited')); });
+    return 'Switch DHCP snooping is enabled\nDHCP snooping is configured on following VLANs:\n' + (vl || 'none') + '\nDHCP snooping is operational on following VLANs:\n' + (vl || 'none') + '\nInsertion of option 82 is ' + (X['dhcp snooping opt82'] ? 'disabled' : 'enabled') + '\nInterface                  Trusted    Allow option    Rate limit (pps)\n-----------------------    -------    ------------    ----------------\n' + rows.join('\n');
+  }), true);
+  showDef('archive', function () { return 'There are currently 0 archive configurations saved.'; });
+  showDef('ip sockets', function () { return 'Proto    Remote      Port      Local       Port  In Out  Stat TTY OutputIF\n 17 --listen--             ' + ((S.devEps(S.get(this.state), this.dev.id)[0] || {}).ip || '--any--') + '    123   0   0   211   0'; }, true);
+  showDef('tcp brief', function () { return 'TCB       Local Address               Foreign Address             (state)'; });
+  showDef('ip http server status', function () { return 'HTTP server status: Disabled\nHTTP server port: 80\nHTTP server active supplementary listener ports:\nHTTP server authentication method: enable\nHTTP secure server status: Disabled'; });
+  showDef('aaa sessions', function () { return '% AAA is not enabled (no aaa new-model)'; });
+  showDef('ip ospf neighbor', rtOnly(function () { return ''; }));
+  showDef('ip ospf interface brief', rtOnly(function () { return ''; }));
+  showDef('ipv6 interface brief', function () {
+    var c = cfg(this);
+    return Object.keys(c.ifaces).filter(function (n) { return c.ifaces[n].x && c.ifaces[n].x['ipv6 ']; }).map(function (n) { return lpad(n, 23) + '[up/up]\n    ' + c.ifaces[n].x['ipv6 '].split(' ').pop(); }).join('\n');
+  });
 
   // Användarläget får inte konfigurera men ska känna igen show-grenen
   Session.TRIES = TRIES;

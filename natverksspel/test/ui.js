@@ -6,7 +6,7 @@ const { chromium } = require('playwright');
   const errs = [];
   p.on('pageerror', e => errs.push('pageerror: ' + e.message + ' ' + e.stack));
   p.on('console', m => { if (m.type() === 'error') errs.push('console: ' + m.text()); });
-  await p.addInitScript(() => { try { const s = JSON.parse(localStorage.getItem('krabba-passet.settings') || '{}'); s.lastVersion = '6.0'; localStorage.setItem('krabba-passet.settings', JSON.stringify(s)); } catch (e) {} });
+  await p.addInitScript(() => { try { const s = JSON.parse(localStorage.getItem('krabba-passet.settings') || '{}'); s.lastVersion = '6.1'; localStorage.setItem('krabba-passet.settings', JSON.stringify(s)); } catch (e) {} });
   await p.goto('http://localhost:8765/index.html', { waitUntil: 'domcontentloaded' });
   await p.waitForTimeout(4000);
   await p.waitForTimeout(1500);
@@ -52,7 +52,7 @@ const { chromium } = require('playwright');
   await p.evaluate(() => NV.game.ui.taskOverview()); await p.waitForTimeout(200); await p.keyboard.press('Escape');
   // Laptop -> ssh till routern
   await p.evaluate(() => NV.game.openLaptop()); await p.waitForTimeout(200);
-  await type('ssh drift@192.168.1.193'); await type('yes'); await type('Krabba2026');
+  await type('ssh drift@192.168.1.193'); await type('yes'); await type('nordvik');
   await type('show ip dhcp pool KONTOR');
   await type('show ip route');
   await type('exit');
