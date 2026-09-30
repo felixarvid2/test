@@ -499,7 +499,7 @@ NV.UI = (function () {
     var ch = def && !g.exam && NV.challenge ? NV.challenge.of(def.week) : null;
     if (ch) html += '<div class="box"><div class="box-title">VECKANS UTMANING 🏅</div>' + esc(ch.title) + (NV.challenge.done(def.week) ? ' <span class="muted">(redan klarad)</span>' : ' – ger 75 XP och en medalj.') + '</div>';
     if (def) html += '<p class="muted small">Väder i dag: ' + ({ sun: '☀️ sol', clouds: '⛅ molnigt', rain: '🌧️ regn' }[g.weather] || '☀️ sol') + '</p>';
-    html += '<p class="muted small">Lösenord (står på lappen vid laptopen): enable <code>Krabba2026</code>, ssh <code>drift</code> / <code>Krabba2026</code>. Pilen högst upp visar vägen till nästa mål.</p>';
+    html += '<p class="muted small">Konsolen kräver inget lösenord. SSH-kontot står på lappen vid laptopen: <code>drift</code> / <code>nordvik</code>. Pilen högst upp visar vägen till nästa mål.</p>';
     this.showDialog({ title: first ? '🦀 Krabba-passet' : 'Tavlan', html: html, buttons: [{ label: first ? 'Sätt igång' : 'Stäng', primary: true }] });
   };
 
@@ -783,7 +783,7 @@ NV.UI = (function () {
       '<label for="s-snd">Ljud</label><input type="checkbox" id="s-snd"' + (s.get('sound') ? ' checked' : '') + '>' +
       '<label for="s-vol">Volym</label><input type="range" id="s-vol" min="0" max="1" step="0.05" value="' + s.get('volume') + '">' +
       '<label for="s-type">Tangentljud i terminalen</label><input type="checkbox" id="s-type"' + (s.get('typeSound') ? ' checked' : '') + '>' +
-      '<label for="s-font">Terminalens textstorlek</label><input type="range" id="s-font" min="11" max="20" step="1" value="' + s.get('termFont') + '">' +
+      '<label for="s-font">Terminalens textstorlek</label><input type="range" id="s-font" min="11" max="28" step="1" value="' + s.get('termFont') + '">' +
       '<label for="s-zoom">Pixelzoom (2D, 0 = auto)</label><input type="range" id="s-zoom" min="0" max="7" step="1" value="' + s.get('zoom2d') + '">' +
       '</div><p class="muted small">Grafikläge och efterbehandling ändras när sidan laddas om. Allt annat gäller direkt. Lätt: ledtrådar kostar inga poäng. Svår: ingen pil, markör eller utropstecken – men 50 % mer XP.</p>';
     this.showDialog({

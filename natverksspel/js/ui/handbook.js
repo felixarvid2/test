@@ -57,6 +57,29 @@ NV.handbook = (function () {
         [c('show access-lists'), 'Raderna och deras träffar (matches)'],
         [c('ip access-group GAST in'), 'Sätt en ACL på ett interface'],
         [c('show port-security interface gi0/9'), 'Max/antal MAC-adresser och överträdelser'],
+      ]) + '<h3>Inloggning och lösenord</h3>' + table(['Kommando', 'Vad det gör'], [
+        ['Konsolen', 'Inget lösenord – ' + c('enable') + ' tar dig direkt till #'],
+        [c('ssh drift@192.168.1.193'), 'SSH-kontot står på lappen: ' + c('drift') + ' / ' + c('nordvik')],
+        [c('username drift privilege 15 secret nordvik'), 'Skapa ett SSH-konto (privilege 15 = direkt till #)'],
+        [c('line vty 0 15') + ' → ' + c('login local') + ', ' + c('transport input ssh'), 'Bara SSH, med kontona i konfigurationen'],
+        [c('access-class 10 in') + ' (line vty)', 'Bara adresser som access-list 10 släpper får logga in'],
+        [c('banner motd #Endast behöriga#'), 'Text som visas när någon ansluter'],
+        [c('security passwords min-length 8'), 'Kräver minst åtta tecken i nya lösenord'],
+        [c('ssh -l drift 192.168.1.194') + ' / ' + c('telnet 192.168.1.194'), 'Logga in på en annan enhet direkt från routern'],
+      ]) + '<h3>Fler vanliga kommandon</h3>' + table(['Kommando', 'Vad det gör'], [
+        [c('show spanning-tree root') + ', ' + c('show spanning-tree interface gi0/1'), 'Vem är root per VLAN, och rollen per port'],
+        [c('spanning-tree vlan 10 root primary'), 'Gör switchen till root (prioritet 24576)'],
+        [c('ip route 192.168.2.0 255.255.255.0 203.0.113.1 200'), 'Flytande statisk väg: används bara om den vanliga försvinner'],
+        [c('show etherchannel summary') + ', ' + c('channel-group 1 mode active'), 'Länkaggregering med LACP'],
+        [c('show vtp status') + ', ' + c('vtp mode transparent'), 'VTP-läge och domän'],
+        [c('cdp run') + ' / ' + c('lldp run') + ', ' + c('show lldp neighbors'), 'Grannprotokoll'],
+        [c('erase startup-config') + ' + ' + c('reload'), 'Nollställ en enhet till fabriksinställning'],
+        [c('show flash') + ', ' + c('dir') + ', ' + c('show version'), 'Filer i flash och IOS-version'],
+        [c('debug ip icmp') + ', ' + c('show debugging') + ', ' + c('undebug all'), 'Felsökningsutskrifter på och av'],
+        [c('clock set 10:15:00 30 Sep 2026'), 'Ställ klockan (NTP tar över om den är synkad)'],
+        [c('show interfaces counters') + ', ' + c('show mac address-table count'), 'Trafikräknare och antal MAC-adresser'],
+        [c('switchport voice vlan 40') + ', ' + c('spanning-tree bpduguard enable'), 'Röst-VLAN och BPDU-skydd på en accessport'],
+        [c('show running-config | section line') + ', ' + c('| include') + ', ' + c('| begin'), 'Filtrera utskrifter'],
       ]) + '<h3>VPN och lastbalansering (kapitel 10)</h3>' + table(['Kommando', 'Svarar på'], [
         [c('show crypto isakmp sa'), 'Fas 1: QM_IDLE = uppe, MM_NO_STATE / MM_KEY_EXCH = problem'],
         [c('show crypto ipsec sa | include ident|encaps|decaps'), 'Fas 2: vilka nät som skyddas och om paketen räknas'],
@@ -222,7 +245,7 @@ NV.handbook = (function () {
     bygg: function () {
       return '<p class="muted">Bygg nätet i samma ordning som boken – nerifrån och upp. Testa efter varje steg innan du går vidare.</p>' +
         table(['Steg', 'Vad', 'Kommandon', 'Testa med'], [
-          ['1', 'Grundkonfiguration', c('hostname') + ', ' + c('enable secret') + ', ' + c('line con 0'), c('show running-config')],
+          ['1', 'Grundkonfiguration', c('hostname') + ', ' + c('line con 0') + ', ' + c('write memory'), c('show running-config')],
           ['2', 'VLAN', c('vlan 10') + ' → ' + c('name KONTOR'), c('show vlan brief')],
           ['3', 'Accessportar', c('switchport mode access') + ', ' + c('switchport access vlan 10'), c('show interfaces status')],
           ['4', 'Trunkar', c('switchport trunk encapsulation dot1q') + ', ' + c('switchport mode trunk') + ', ' + c('native vlan 999'), c('show interfaces trunk')],

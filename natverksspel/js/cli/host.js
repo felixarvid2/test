@@ -734,6 +734,9 @@
     if (!dev || (dev.os !== 'ios' && dev.kind !== 'wlc' && dev.kind !== 'lb')) return res('ssh: connect to host ' + host + ' port 22: Connection refused');
     var self = this;
     var isWlc = dev.kind === 'wlc';
+    // access-class på vty-linjerna: källadressen måste släppas igenom av listan
+    var vl = dev.config && dev.config.lines && dev.config.lines.vty0_4;
+    if (vl && vl.accessClass && p.srcUsed && !S.aclEval(this.state, devId, vl.accessClass, { src: p.srcUsed, dst: ip, proto: 'tcp', dport: 22 })) return res('ssh: connect to host ' + host + ' port 22: Connection refused', { delay: 300 });
     if (dev.kind === 'lb') {
       this.pending = { prompt: user + '@' + host + '\'s password: ', secret: true, fn: function () { return res('', { push: { kind: 'lb', dev: devId } }); } };
       return res('');
@@ -743,21 +746,25 @@
         var c = dev.config;
         var line = c.lines.vty0_4;
         var u = c.users[user];
-        var okLogin = line.loginLocal ? (u && (u.plain || 'Krabba2026') === pw) : (line.password && line.password === pw);
+        var okLogin = line.loginLocal ? (u && u.plain === pw) : (line.password && line.password === pw);
         if (!okLogin) {
           self.tries = (self.tries || 0) + 1;
-          if (self.tries >= 3) { self.tries = 0; return res(user + '@' + host + ': Permission denied (publickey,keyboard-interactive,password).'); }
+          var tip = pwTip(c, user, line);
+          if (self.tries >= 3) { self.tries = 0; return res(user + '@' + host + ': Permission denied (publickey,keyboard-interactive,password).' + tip); }
           ask();
-          return res('Permission denied, please try again.');
+          return res('Permission denied, please try again.' + tip);
         }
         self.tries = 0;
-        var priv = u && u.priv === 15;
+        var priv = (u && u.priv === 15) || line.privLevel === 15;
         return res('', { push: { kind: 'ios', dev: devId, via: 'ssh', privileged: priv, user: user } });
       } };
     };
     var go = function () {
       if (isWlc) return res('', { push: { kind: 'wlc', dev: devId } });
       ask();
+      // Första gången visas lösenordet som spelet har satt, så att du vet vad du ska skriva
+      var gu = dev.config && dev.config.users[user];
+      if (gu && gu.byGame && !self.pwShown) { self.pwShown = true; return res('💡 Kontot ' + user + ' har lösenordet ' + gu.plain + ' (står på lappen vid laptopen).'); }
       return res('');
     };
     if (!this.known[ip]) {
@@ -772,6 +779,17 @@
     }
     return go();
   };
+  // Spelets tips om lösenordet efter ett felaktigt försök (i riktiga livet får man förstås inget sådant)
+  function pwTip(c, user, line) {
+    var u = c.users[user];
+    if (!line.loginLocal) return line.password ? '\n💡 Linjen använder lösenordet som står under line vty i konfigurationen.' : '';
+    if (!u) {
+      var names = Object.keys(c.users);
+      return '\n💡 Det finns inget konto som heter ' + user + '.' + (names.length ? ' Konton: ' + names.join(', ') + '.' : ' Skapa ett med username <namn> privilege 15 secret <lösenord>.');
+    }
+    if (u.byGame) return '\n💡 Lösenordet för ' + user + ' är ' + u.plain + ' (står på lappen vid laptopen).';
+    return '\n💡 Det är lösenordet du själv satte med username ' + user + ' ... secret: ' + u.plain;
+  }
   function btoa32(s) {
     var alpha = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
     var h = U.hash(s), o = '';
@@ -799,9 +817,9 @@
       user = u;
       self.pending = { prompt: 'Password: ', secret: true, fn: function (pw) {
         var uu = c.users[user];
-        var okLogin = line.loginLocal ? (uu && (uu.plain || 'Krabba2026') === pw) : line.password === pw;
-        if (!okLogin) return res('% Login invalid\n\nConnection closed by foreign host.');
-        return res('', { push: { kind: 'ios', dev: dev.id, via: 'telnet', privileged: uu && uu.priv === 15, user: user } });
+        var okLogin = line.loginLocal ? (uu && uu.plain === pw) : line.password === pw;
+        if (!okLogin) return res('% Login invalid\n\nConnection closed by foreign host.' + pwTip(c, user, line));
+        return res('', { push: { kind: 'ios', dev: dev.id, via: 'telnet', privileged: (uu && uu.priv === 15) || line.privLevel === 15, user: user } });
       } };
       return res('');
     } };

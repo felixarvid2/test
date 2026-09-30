@@ -507,8 +507,8 @@ NV.devices3d = (function () {
     var note = T.canvas(256, 200), ng = note.getContext('2d');
     ng.fillStyle = '#fff27a'; ng.fillRect(0, 0, 256, 200);
     ng.fillStyle = '#222'; ng.font = 'bold 22px "Segoe Print", cursive';
-    ng.fillText('enable:', 16, 44); ng.fillText('Krabba2026', 30, 76); ng.fillText('ssh: drift /', 16, 120); ng.fillText('Krabba2026', 30, 152);
-    ng.font = '14px sans-serif'; ng.fillText('(byt efter kursen!)', 16, 186);
+    ng.fillText('SSH-konto:', 16, 44); ng.fillText('drift', 30, 82); ng.fillText('lösen: nordvik', 16, 130);
+    ng.font = '14px sans-serif'; ng.fillText('(konsolen: inget lösenord)', 16, 180);
     var nt = T.toTex(note);
     var nm = new THREE.Mesh(new THREE.PlaneGeometry(0.09, 0.07), new THREE.MeshStandardMaterial({ map: nt, roughness: 0.9 }));
     nm.position.set(-0.24, 0.011, 0.08); nm.rotation.x = -Math.PI / 2; g.add(nm);

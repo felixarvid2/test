@@ -32,7 +32,7 @@ NV.Terminal = (function () {
     this.el.screen.addEventListener('mousedown', function (e) { if (e.target === self.el.screen || e.target === self.el.out) setTimeout(function () { self.focus(); }, 0); });
     this.el.close.addEventListener('click', function () { self.hide(); });
     root.querySelector('[data-act="font-"]').addEventListener('click', function () { NV.settings.set('termFont', Math.max(11, NV.settings.get('termFont') - 1)); self.applyFont(); self.focus(); });
-    root.querySelector('[data-act="font+"]').addEventListener('click', function () { NV.settings.set('termFont', Math.min(20, NV.settings.get('termFont') + 1)); self.applyFont(); self.focus(); });
+    root.querySelector('[data-act="font+"]').addEventListener('click', function () { NV.settings.set('termFont', Math.min(28, NV.settings.get('termFont') + 1)); self.applyFont(); self.focus(); });
     root.querySelector('[data-act="copy"]').addEventListener('click', function () { self.copySelection(); });
     root.querySelector('[data-act="copyall"]').addEventListener('click', function () { self.game.ui.copyText(self.el.out.textContent + (self.el.prompt.textContent || '')); });
     // Klicka på en adress eller ett portnamn i utskriften för att använda det
@@ -57,11 +57,14 @@ NV.Terminal = (function () {
     this.el.screen.addEventListener('scroll', function () { self.userUp = !self.atBottom(); if (!self.userUp) self.el.newlines.classList.add('hidden'); });
     // Fönstrets storlek sparas
     if (window.ResizeObserver) new ResizeObserver(function () {
-      if (!self.open || window.innerWidth < 760) return;
+      if (!self.open || window.innerWidth < 760 || self.el.term.classList.contains('maxed')) return;
+      if (self.skipSize) { self.skipSize = false; return; }
       var r = self.el.term.getBoundingClientRect();
-      if (r.width > 300) NV.settings.set('termSize', [Math.round(r.width), Math.round(r.height)]);
+      if (r.width > 300) NV.settings.set('termSize2', [Math.round(r.width), Math.round(r.height)]);
     }).observe(this.el.term);
     this.applyFont();
+    var mx = root.querySelector('[data-act="max"]');
+    if (mx) mx.addEventListener('click', function () { self.toggleMax(); self.focus(); });
     root.querySelector('[data-act="hist"]').addEventListener('click', function () { self.toggleHistory(); });
     // Tangentraden för mobiler (och den som vill klicka)
     root.querySelectorAll('.term-keys [data-k]').forEach(function (b) {
@@ -111,6 +114,13 @@ NV.Terminal = (function () {
     }
     this.onKey(ev);
   };
+  // Helskärm: terminalen fyller hela fönstret (knappen ⛶ eller F11 när terminalen är öppen)
+  P.toggleMax = function () {
+    var on = !this.el.term.classList.contains('maxed');
+    this.el.term.classList.toggle('maxed', on); this.root.classList.toggle('maxed', on);
+    NV.settings.set('termMax', on);
+    this.el.screen.scrollTop = this.el.screen.scrollHeight;
+  };
   P.applyFont = function () {
     var pix = this.theme() === 'snes';
     this.el.screen.style.fontSize = (NV.settings.get('termFont') + (pix ? 6 : 0)) + 'px';
@@ -138,7 +148,10 @@ NV.Terminal = (function () {
   P.show = function () {
     var was = this.open;
     this.applyTheme();
-    var sz = NV.settings.get('termSize');
+    var sz = NV.settings.get('termSize2');
+    this.skipSize = true;
+    var mxOn = !!NV.settings.get('termMax');
+    this.el.term.classList.toggle('maxed', mxOn); this.root.classList.toggle('maxed', mxOn);
     if (sz && window.innerWidth >= 760) { this.el.term.style.width = Math.min(sz[0], window.innerWidth - 16) + 'px'; this.el.term.style.height = Math.min(sz[1], window.innerHeight - 16) + 'px'; }
     this.root.classList.remove('hidden');
     this.open = true;
@@ -453,6 +466,7 @@ NV.Terminal = (function () {
       this.ctrlA = false;
       if (e.key === 'k' || e.key === 'K' || e.key === '\\') { e.preventDefault(); this.popSerial(true); return; }
     }
+    if (e.key === 'F11') { e.preventDefault(); this.toggleMax(); return; }
     if (e.key === 'Escape') { e.preventDefault(); if (!this.el.histBox.classList.contains('hidden')) { this.el.histBox.classList.add('hidden'); return; } this.hide(); return; }
     if (e.ctrlKey && (e.key === 'f' || e.key === 'F')) { e.preventDefault(); this.el.find.focus(); this.el.find.select(); return; }
     if (e.key === 'ArrowRight' && this.ghostText && this.el.input.selectionStart === this.el.input.value.length) { e.preventDefault(); this.el.input.value += this.ghostText; this.updateGhost(); return; }
@@ -489,7 +503,7 @@ NV.Terminal = (function () {
       return;
     }
     if (e.ctrlKey && e.shiftKey && (e.key === 'c' || e.key === 'C')) { e.preventDefault(); this.copySelection(); return; }
-    if (e.ctrlKey && (e.key === '+' || e.key === '=' || e.key === '-')) { e.preventDefault(); NV.settings.set('termFont', Math.max(11, Math.min(20, NV.settings.get('termFont') + (e.key === '-' ? -1 : 1)))); this.applyFont(); return; }
+    if (e.ctrlKey && (e.key === '+' || e.key === '=' || e.key === '-')) { e.preventDefault(); NV.settings.set('termFont', Math.max(11, Math.min(28, NV.settings.get('termFont') + (e.key === '-' ? -1 : 1)))); this.applyFont(); return; }
     if (e.key === 'PageUp' || e.key === 'PageDown') { e.preventDefault(); this.el.screen.scrollTop += (e.key === 'PageUp' ? -1 : 1) * this.el.screen.clientHeight * 0.85; return; }
     if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) NV.sfx.key();
     if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) {
@@ -645,12 +659,14 @@ NV.Terminal = (function () {
       this.checkSpeed();
       this.print('\n');
       if (sess.booting) { this.print('\n'); }
+      else if (dev.config && dev.config.banners && dev.config.banners.motd) this.print(dev.config.banners.motd.text + '\n');
       this.game.onConsoleConnected(p.target, entry.garbled);
     } else if (p.kind === 'ios') {
       var s2 = new NV.IosSession(st, p.dev, { via: p.via, privileged: p.privileged, user: p.user });
       var d2 = st.devices[p.dev];
       this.push({ kind: 'ssh', session: s2, dev: p.dev, ios: true, started: true, histKey: 'ssh:' + p.dev, title: p.via + ' ' + (p.user || '') + '@' + d2.config.hostname });
       if (p.via === 'ssh') this.print('\n');
+      if (d2.config.banners && d2.config.banners.motd) this.print(d2.config.banners.motd.text + '\n');
       this.game.onRemoteLogin(p.dev, p.via);
     } else if (p.kind === 'wlc') {
       var w = new NV.WlcSession(st, p.dev);

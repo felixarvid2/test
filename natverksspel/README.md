@@ -56,7 +56,7 @@ Välj visning i startmenyn (valet sparas och kan bytas mitt i en vecka via menyn
 | 1–9 (menyn) | Starta en vecka |
 | Esc | Paus / stäng |
 
-I terminalen fungerar `?`, Tab, → (ta den grå kompletteringen), ↑/↓, Ctrl+C, Ctrl+Z, Ctrl+A K (stäng `screen`), Ctrl+L (rensa), Ctrl+U (rensa raden), Ctrl+W (ta bort ordet), Ctrl+F (sök), Ctrl + / Ctrl − (textstorlek), Ctrl+Shift+C (kopiera markering) och PageUp/PageDown. Klicka på en IP-adress för att pinga den och på ett portnamn för `show interfaces`.
+I terminalen fungerar `?`, Tab, → (ta den grå kompletteringen), ↑/↓, Ctrl+C, Ctrl+Z, Ctrl+A K (stäng `screen`), Ctrl+L (rensa), Ctrl+U (rensa raden), Ctrl+W (ta bort ordet), Ctrl+F (sök), Ctrl + / Ctrl − (textstorlek), F11 eller ⛶ (helskärm), Ctrl+Shift+C (kopiera markering) och PageUp/PageDown. Klicka på en IP-adress för att pinga den och på ett portnamn för `show interfaces`.
 
 ### På mobilen
 
@@ -66,7 +66,7 @@ Spelet går att spela på en pekskärm och startar då i 2D. Styrspaken nere til
 
 Spelet väljer själv en nivå efter grafikkort, minne och om det är en mobil (Automatiskt). Du kan också välja Minimal, Låg, Medel, Hög eller Ultra i inställningarna. Går spelet trögt föreslår det en lägre nivå, och din vecka fortsätter där du var efter omladdningen.
 
-Lösenord (står på lappen vid laptopen): enable `Krabba2026`, ssh `drift` / `Krabba2026`.
+Routrar och switchar har inget enable-lösenord: via konsolkabeln kommer du rakt in med `enable`. Bara SSH kräver inloggning, med kontot som står på lappen vid laptopen: `drift` / `nordvik`. Skriver du fel lösenord visar terminalen vilket som gäller. I byggena sätter du själv SSH-kontot med `username drift privilege 15 secret nordvik`.
 
 ## Bygg från grunden
 
@@ -75,7 +75,7 @@ Lösenord (står på lappen vid laptopen): enable `Krabba2026`, ssh `drift` / `K
 | Bygge | Kapitel | Enheter | Steg |
 |---|---|---|---|
 | 1 Switchen från kartongen | 1, 2, 4 | SW-Nordvik-1 | Grundkonfiguration och spara · VLAN · accessportar · trunkar (native 999) · driftadress och SSH |
-| 2 Routern från grunden | 3, 5, 6 | R-Nordvik-1 | Router-on-a-stick · DHCP-pooler · DNS på routern · NAT/PAT och statisk NAT · länken till Borås · namn, lösenord och bara SSH |
+| 2 Routern från grunden | 3, 5, 6 | R-Nordvik-1 | Router-on-a-stick · DHCP-pooler · DNS på routern · NAT/PAT och statisk NAT · länken till Borås · namn, SSH-konto och bara SSH |
 | 3 Lagret i Borås | 4, 5, 8 | SW-Boras-1, R-Boras-1 | VLAN och lagerporten · trunkar till router och accesspunkter · sub-interface och default route · DHCP · Wi-Fi · gäst-ACL |
 | 4 Säkerhet och drift | 6, 7, 9 | R-Nordvik-1, båda switcharna | GAST-ACL · KONTOR-UT · port security · NTP · loggning |
 | 5 VPN från grunden | 10 | R-Nordvik-1, R-Boras-1 | Fas 1 · fas 2 och spegelvända listor · crypto map och NAT-undantag · drift genom tunneln · adjust-mss |
@@ -102,6 +102,22 @@ Datorerna beter sig som riktiga Windows-datorer: saknar de adress försöker de 
 När ett fel är löst skickar du in en felrapport med **F**. En gul ruta uppe till vänster visar hur många rapporter som saknas, och när alla Krabba-fel (eller alla fel) är lösta påminner spelet dig med en ruta där du kan skriva rapporterna direkt. Veckan är klar först när alla rapporter är inlämnade.
 
 Varje fel är simulerat på riktigt. Symptomen räknas fram ur konfigurationen: länkar, duplex, VLAN och trunkar, STP, routing, ARP, ACL, NAT, DHCP, DNS, PoE, port security, IPsec, MTU och lastbalansering. Ett fel försvinner därför bara när orsaken är rättad.
+
+## Version 6.1: terminal, lösenord och fler Cisco-kommandon
+
+- **Större terminal.** Fönstret fyller nästan hela skärmen och texten är större från början. ⛶ eller F11 gör terminalen till helskärm, och storleken du själv drar fram sparas.
+- **Inget enable-lösenord.** Routrar och switchar släpper in dig direkt via konsolen. Lösenord används bara där det behövs, som för SSH-kontot `drift` / `nordvik`. Lösenordet står på lappen vid laptopen, visas första gången du loggar in med SSH och igen om du skriver fel. I byggena sätter du själv kontot när du sätter upp SSH.
+- **Granskade utskrifter.** `show ip route` visar nu administrativt avstånd och "is directly connected" för vägar mot ett interface, `show running-config` visar `service password-encryption`, `enable password` och `username … password` som på en riktig enhet, och `copy startup-config running-config` visar riktiga byte.
+- **Omkring 90 nya kommandon:**
+  - Inloggning: `banner motd/login/exec` (även på flera rader), `access-class` och `privilege level` på vty-linjerna (påverkar inloggningen på riktigt), `security passwords min-length`, `login block-for`, `ip ssh time-out`, `ip ssh authentication-retries`, `username … algorithm-type scrypt secret`, `ssh -l` och `telnet` från routern eller switchen.
+  - Routing: flytande statiska vägar (`ip route … 200`), `show ip route summary`, `show ip protocols`.
+  - Switchar: `show spanning-tree root`, `show spanning-tree interface`, `spanning-tree vlan … root primary/secondary`, `spanning-tree portfast default`, `bpduguard`, `guard root`, `channel-group` och `show etherchannel summary`, `vtp mode/domain/password` och `show vtp status`, `switchport voice vlan`, `storm-control`, `ip dhcp snooping`, `show mac address-table count`, `show interfaces switchport`, `show vlan summary`, `show ip default-gateway`, `show boot`, `show env all`.
+  - Drift: `cdp run`/`no cdp run`, `lldp run` och `show lldp neighbors`, `show cdp`, `snmp-server community/location/contact` och `show snmp`, `logging trap/console/source-interface`, `ntp update-calendar`, `clock set`, `clock summer-time`, `debug`/`undebug all`/`show debugging`, `show interfaces counters`, `show errdisable recovery`.
+  - Filer och omstart: `erase startup-config`, `write erase`, `dir`, `show flash`, `copy running-config tftp:`, `reload in` och `reload cancel`, `show reload`, `delete flash:vlan.dat`.
+  - Övrigt: `show hosts`, `show line`, `show privilege`, `show terminal`, `show sessions`, `show ip nat translations verbose`, `show ip dhcp server statistics`, `show crypto key mypubkey rsa`, `standby` och `show standby brief`, samt interfacekommandon som `bandwidth`, `delay`, `mtu`, `load-interval`, `no ip redirects`, `no ip proxy-arp` och `ipv6 address`.
+- Handboken har två nya tabeller: "Inloggning och lösenord" och "Fler vanliga kommandon".
+
+Loopback-interface och dynamisk routing (OSPF) finns inte i simuleringen, eftersom nätet i spelet bara använder statiska vägar.
 
 ## Version 6: 200 grafiska förbättringar i 2D
 

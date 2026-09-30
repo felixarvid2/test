@@ -38,14 +38,14 @@
       title: 'Switchen från kartongen',
       chips: ['show running-config', 'show vlan brief', 'show interfaces trunk'],
       intro: 'Bygge 1: SW-Nordvik-1 har bytts mot en ny switch direkt från kartongen. Den har ingen konfiguration alls – prompten är Switch>.\n\nBygg upp den igen efter adressplanen:\n• VLAN 10 KONTOR, 20 EKONOMI, 30 GAST, 99 DRIFT\n• Gi0/5–6 och Gi0/11–12 kontor, Gi0/7–8 ekonomi, Gi0/9 gäst, Gi0/10 och Gi0/20 drift\n• Trunkar: Gi0/1 mot routern, Gi0/24 och Gi0/25 mot SW-Nordvik-2 (native VLAN 999)\n• Drift: Vlan99 192.168.1.194/26, gateway 192.168.1.193, bara SSH\n\nKoppla in konsolkabeln i racket och börja med enable.',
-      learn: ['hostname och enable secret', 'vlan och name', 'switchport mode access', 'Trunkar och native VLAN', 'SVI och ip default-gateway', 'SSH på en switch'],
+      learn: ['hostname och spara konfigurationen', 'vlan och name', 'switchport mode access', 'Trunkar och native VLAN', 'SVI och ip default-gateway', 'SSH på en switch'],
       setup: function (st) { wipe(st, 'SW1'); },
       tasks: [
         {
           id: 'b1a', npc: 'Omar', target: 'SW1', title: 'Grundkonfiguration och spara',
-          ticket: 'Omar: "Den nya switchen heter bara Switch och har inget lösenord. Ge den rätt namn, ett enable secret och spara – annars är allt borta efter nästa strömavbrott."',
-          hints: ['Konsolen: 9600 8N1. Skriv enable och sedan configure terminal.', 'hostname SW-Nordvik-1 → enable secret Krabba2026 → line con 0 → logging synchronous.', 'end och sedan write memory (eller copy running-config startup-config). Kontrollera med show startup-config.'],
-          check: function (st) { var d = st.devices.SW1; return d.config.hostname === 'SW-Nordvik-1' && !!d.config.enableSecret && !!d.startup && d.startup.hostname === 'SW-Nordvik-1'; },
+          ticket: 'Omar: "Den nya switchen heter bara Switch. Ge den rätt namn och spara – annars är allt borta efter nästa strömavbrott."',
+          hints: ['Konsolen: 9600 8N1. Skriv enable och sedan configure terminal.', 'hostname SW-Nordvik-1 → line con 0 → logging synchronous. Inget lösenord behövs på konsolen.', 'end och sedan write memory (eller copy running-config startup-config). Kontrollera med show startup-config.'],
+          check: function (st) { var d = st.devices.SW1; return d.config.hostname === 'SW-Nordvik-1' && !!d.startup && d.startup.hostname === 'SW-Nordvik-1'; },
         },
         {
           id: 'b1b', npc: 'Omar', target: 'SW1', title: 'Skapa VLAN:en',
@@ -73,7 +73,7 @@
         {
           id: 'b1e', npc: 'Omar', target: 'SW1', title: 'Driftadress och SSH',
           ticket: 'Omar: "Mitt övervakningsskript når inte switchen. Den behöver en adress i drift-VLAN:et och SSH – inget telnet."',
-          hints: ['interface vlan 99 → ip address 192.168.1.194 255.255.255.192 → no shutdown. Sedan ip default-gateway 192.168.1.193.', 'ip domain-name nordvik.example → crypto key generate rsa modulus 2048 → ip ssh version 2 → username drift privilege 15 secret Krabba2026.', 'line vty 0 15 → transport input ssh → login local. Testa från laptopen: ssh drift@192.168.1.194.'],
+          hints: ['interface vlan 99 → ip address 192.168.1.194 255.255.255.192 → no shutdown. Sedan ip default-gateway 192.168.1.193.', 'ip domain-name nordvik.example → crypto key generate rsa modulus 2048 → ip ssh version 2 → username drift privilege 15 secret nordvik. SSH kräver ett konto, och lösenordet (här nordvik) är det du skriver när du loggar in.', 'line vty 0 15 → transport input ssh → login local. Testa från laptopen: ssh drift@192.168.1.194 och lösenordet nordvik.'],
           check: function (st) { return sshOk(st, 'SW1') && ok(st, 'Tekniker', '192.168.1.194') && ok(st, 'SW1', '192.168.1.10'); },
         },
       ],
@@ -125,10 +125,10 @@
           check: function (st) { return ok(st, 'PC-Lager', '192.168.1.10') && ok(st, 'PC-Lager', '198.51.100.80'); },
         },
         {
-          id: 'b2f', npc: 'Eva', target: 'R1', title: 'Namn, lösenord och bara SSH',
-          ticket: 'Eva från revisionen: "Routern heter Router och tar emot telnet utan lösenord. Det måste åtgärdas innan jag går hem."',
-          hints: ['hostname R-Nordvik-1 → enable secret Krabba2026 → ip domain-name nordvik.example.', 'crypto key generate rsa modulus 2048 → ip ssh version 2 → username drift privilege 15 secret Krabba2026.', 'line vty 0 15 → transport input ssh → login local. Glöm inte write memory.'],
-          check: function (st) { var c = cfg(st, 'R1'); return c.hostname === 'R-Nordvik-1' && !!c.enableSecret && sshOk(st, 'R1') && ok(st, 'Tekniker', '192.168.1.193'); },
+          id: 'b2f', npc: 'Eva', target: 'R1', title: 'Namn, SSH-konto och bara SSH',
+          ticket: 'Eva från revisionen: "Routern heter Router och tar emot telnet utan inloggning. Den ska bara gå att nå med SSH och ett konto."',
+          hints: ['hostname R-Nordvik-1 → ip domain-name nordvik.example.', 'crypto key generate rsa modulus 2048 → ip ssh version 2 → username drift privilege 15 secret nordvik (lösenordet du loggar in med).', 'line vty 0 15 → transport input ssh → login local. Glöm inte write memory.'],
+          check: function (st) { var c = cfg(st, 'R1'); return c.hostname === 'R-Nordvik-1' && sshOk(st, 'R1') && ok(st, 'Tekniker', '192.168.1.193'); },
         },
       ],
     },

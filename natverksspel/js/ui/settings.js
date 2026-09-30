@@ -22,7 +22,7 @@ NV.settings = (function () {
     sound: true,
     typeSound: true,
     volume: 0.6,
-    termFont: 14,
+    termFont: 17,
     hudCollapsed: false,
     zoom2d: 0,           // 0 = automatiskt
     dof2d: true,         // skärpedjup (suddig över- och underkant) i 2D

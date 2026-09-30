@@ -53,16 +53,19 @@ NV.iosShow = (function () {
   function portName(p) {
     return { 22: '22', 23: 'telnet', 53: 'domain', 80: 'www', 443: '443' }[p] || String(p);
   }
-  function lineCfg(l, isCon) {
+  function lineCfg(l, isCon, enc) {
     var out = [];
+    if (l.accessClass && !isCon) out.push(' access-class ' + l.accessClass + ' in');
+    if (l.privLevel != null) out.push(' privilege level ' + l.privLevel);
     if (isCon && l.logSync) out.push(' logging synchronous');
-    if (l.password) out.push(' password 7 ' + fakeType7(l.password));
+    if (l.password) out.push(enc ? ' password 7 ' + fakeType7(l.password) : ' password ' + l.password);
     if (l.loginLocal) out.push(' login local');
     else if (l.password && !isCon) out.push(' login');
     if (isCon && l.speed && l.speed !== 9600) out.push(' speed ' + l.speed);
     if (!isCon) {
       if (l.transport === 'all') { /* standard, visas inte */ } else out.push(' transport input ' + l.transport);
     }
+    Object.keys(l.x || {}).forEach(function (k) { out.push(' ' + l.x[k]); });
     return out;
   }
   function fakeType7(s) {
@@ -127,6 +130,14 @@ NV.iosShow = (function () {
         }
       }
     }
+    if (i.voiceVlan) o.push(' switchport voice vlan ' + i.voiceVlan);
+    if (i.chGroup) o.push(' channel-group ' + i.chGroup.n + ' mode ' + i.chGroup.mode);
+    if (i.hsrp && i.hsrp.ip) {
+      o.push(' standby ' + i.hsrp.grp + ' ip ' + i.hsrp.ip);
+      if (i.hsrp.pri !== 100) o.push(' standby ' + i.hsrp.grp + ' priority ' + i.hsrp.pri);
+      if (i.hsrp.preempt) o.push(' standby ' + i.hsrp.grp + ' preempt');
+    }
+    Object.keys(i.x || {}).forEach(function (k) { o.push(' ' + i.x[k]); });
     if (i.shutdown) o.push(' shutdown');
     return o;
   }
@@ -140,7 +151,7 @@ NV.iosShow = (function () {
     o.push('no service pad');
     o.push('service timestamps debug datetime msec');
     o.push(c.timestampsMsec ? 'service timestamps log datetime msec' : 'service timestamps log uptime');
-    o.push('no service password-encryption');
+    o.push(c.pwEncrypt ? 'service password-encryption' : 'no service password-encryption');
     o.push('!');
     o.push('hostname ' + c.hostname);
     o.push('!');
@@ -150,11 +161,15 @@ NV.iosShow = (function () {
     if (c.logging.buffered) o.push('logging buffered ' + c.logging.size);
     else o.push('no logging buffered');
     if (c.enableSecret) o.push('enable secret 9 ' + c.enableSecret);
+    if (c.enablePassword) o.push('enable password ' + (c.pwEncrypt ? '7 ' + fakeType7(c.enablePassword) : c.enablePassword));
     o.push('!');
     Object.keys(c.users).forEach(function (u) {
-      o.push('username ' + u + ' privilege ' + c.users[u].priv + ' secret 9 ' + c.users[u].secret);
+      var us = c.users[u];
+      o.push('username ' + u + ' privilege ' + us.priv + (us.pwType === 'password' ? ' password ' + (c.pwEncrypt ? '7 ' + fakeType7(us.plain) : '0 ' + us.plain) : ' secret 9 ' + us.secret));
     });
     o.push('no aaa new-model');
+    if (c.minPwLen) o.push('security passwords min-length ' + c.minPwLen);
+    if (c.vtp && (c.vtp.domain || c.vtp.mode !== 'server')) { if (c.vtp.domain) o.push('vtp domain ' + c.vtp.domain); if (c.vtp.mode !== 'server') o.push('vtp mode ' + c.vtp.mode); }
     if (!router) o.push('system mtu routing 1500');
     if (!router && c.ipRouting) o.push('ip routing');
     if (router) {
@@ -179,6 +194,8 @@ NV.iosShow = (function () {
     if (router) o.push('ip cef');
     o.push('no ipv6 cef');
     o.push('!');
+    if (c.ssh.timeout) o.push('ip ssh time-out ' + c.ssh.timeout);
+    if (c.ssh.retries != null) o.push('ip ssh authentication-retries ' + c.ssh.retries);
     if (c.ssh.version) o.push('ip ssh version ' + c.ssh.version);
     o.push('!');
     o.push('spanning-tree mode pvst');
@@ -215,7 +232,7 @@ NV.iosShow = (function () {
       o.push('ip nat inside source list ' + n.acl + ' interface ' + n.iface + (n.overload ? ' overload' : ''));
     });
     c.nat.statics.forEach(function (n) { o.push('ip nat inside source static ' + n.local + ' ' + n.global); });
-    c.routes.forEach(function (r) { o.push('ip route ' + r.net + ' ' + r.mask + ' ' + (r.nh || r.iface)); });
+    c.routes.forEach(function (r) { o.push('ip route ' + r.net + ' ' + r.mask + ' ' + (r.nh || r.iface) + (r.ad && r.ad !== 1 ? ' ' + r.ad : '')); });
     o.push('!');
     Object.keys(c.acls).forEach(function (name) {
       var a = c.acls[name];
@@ -225,19 +242,29 @@ NV.iosShow = (function () {
       o.push('!');
     });
     c.logging.hosts.forEach(function (h) { o.push('logging host ' + h); });
+    if (c.cdpOff) o.push('no cdp run');
+    if (c.lldp) o.push('lldp run');
+    Object.keys(c.x || {}).forEach(function (k) { o.push(c.x[k]); });
+    if (c.snmp) {
+      Object.keys(c.snmp.communities).forEach(function (k) { o.push('snmp-server community ' + k + ' ' + c.snmp.communities[k]); });
+      if (c.snmp.location) o.push('snmp-server location ' + c.snmp.location);
+      if (c.snmp.contact) o.push('snmp-server contact ' + c.snmp.contact);
+    }
     Object.keys(c.acls).forEach(function (name) {
       var a = c.acls[name];
       if (!/^\d+$/.test(name)) return;
       a.rules.forEach(function (r) { o.push('access-list ' + name + ' ' + aceText(a.type, r)); });
     });
     o.push('!');
+    ['exec', 'login', 'motd'].forEach(function (k) { var b = c.banners && c.banners[k]; if (b) o.push('banner ' + k + ' ^C' + b.text + '^C'); });
+    o.push('!');
     o.push('line con 0');
-    lineCfg(c.lines.con, true).forEach(function (l) { o.push(l); });
+    lineCfg(c.lines.con, true, c.pwEncrypt).forEach(function (l) { o.push(l); });
     if (router) { o.push('line aux 0'); }
     o.push('line vty 0 4');
-    lineCfg(c.lines.vty0_4, false).forEach(function (l) { o.push(l); });
+    lineCfg(c.lines.vty0_4, false, c.pwEncrypt).forEach(function (l) { o.push(l); });
     o.push('line vty 5 15');
-    lineCfg(c.lines.vty5_15, false).forEach(function (l) { o.push(l); });
+    lineCfg(c.lines.vty5_15, false, c.pwEncrypt).forEach(function (l) { o.push(l); });
     o.push('!');
     if (c.ntpSource) o.push('ntp source ' + c.ntpSource);
     c.ntpServers.forEach(function (n) { o.push('ntp server ' + n); });
@@ -847,7 +874,7 @@ NV.iosShow = (function () {
       '       ia - IS-IS inter area, * - candidate default, U - per-user static route',
       '       o - ODR, P - periodic downloaded static route, H - NHRP, l - LISP',
       '       + - replicated route, % - next hop override', '',
-      'Gateway of last resort is ' + (def ? def.nh + ' to network 0.0.0.0' : 'not set'), ''];
+      'Gateway of last resort is ' + (def ? (def.nh || '0.0.0.0') + ' to network 0.0.0.0' : 'not set'), ''];
     // Gruppera per klassfullt nät för utskriftens rubriker
     var groups = {};
     routes.forEach(function (r) {
@@ -858,7 +885,7 @@ NV.iosShow = (function () {
     Object.keys(groups).sort(function (a, b) { return U.ipToInt(a.split('/')[0]) - U.ipToInt(b.split('/')[0]); }).forEach(function (g) {
       var rs = groups[g];
       if (g === '0.0.0.0/0') {
-        rs.forEach(function (r) { o.push('S*    0.0.0.0/0 [1/0] via ' + r.nh); });
+        rs.forEach(function (r) { o.push(r.nh ? 'S*    0.0.0.0/0 [' + (r.ad || 1) + '/0] via ' + r.nh : 'S*    0.0.0.0/0 is directly connected, ' + r.iface); });
         return;
       }
       var masks = {};
@@ -871,7 +898,8 @@ NV.iosShow = (function () {
         var pfx = r.net + '/' + U.maskToPrefix(r.mask);
         if (r.type === 'C') o.push('C        ' + pfx + ' is directly connected, ' + r.iface);
         else if (r.type === 'L') o.push('L        ' + pfx + ' is directly connected, ' + r.iface);
-        else o.push('S        ' + pfx + ' [1/0] via ' + (r.nh || r.iface));
+        else if (r.nh) o.push('S        ' + pfx + ' [' + (r.ad || 1) + '/0] via ' + r.nh);
+        else o.push('S        ' + pfx + ' is directly connected, ' + r.iface);
       });
     });
     return o.join('\n');
@@ -1045,7 +1073,7 @@ NV.iosShow = (function () {
   function ipSsh(state, d) {
     var v = S.sshEnabled(d);
     if (!v) return 'SSH Disabled - version 1.99\n%Please create RSA keys to enable SSH (and of atleast 768 bits for SSH v2).\nAuthentication methods:publickey,keyboard-interactive,password\nAuthentication timeout: 120 secs; Authentication retries: 3';
-    return 'SSH Enabled - version ' + (v === 2 ? '2.0' : '1.99') + '\nAuthentication methods:publickey,keyboard-interactive,password\nAuthentication Publickey Algorithms:x509v3-ssh-rsa,ssh-rsa\nHostkey Algorithms:x509v3-ssh-rsa,ssh-rsa\nEncryption Algorithms:aes128-ctr,aes192-ctr,aes256-ctr\nMAC Algorithms:hmac-sha2-256,hmac-sha2-512,hmac-sha1\nAuthentication timeout: 120 secs; Authentication retries: 3\nMinimum expected Diffie Hellman key size : 2048 bits\nIOS Keys in SECSH format(ssh-rsa, base64 encoded): ' + d.config.hostname + '\nssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC' + d.baseMac + 'k9Xp2vT...';
+    return 'SSH Enabled - version ' + (v === 2 ? '2.0' : '1.99') + '\nAuthentication methods:publickey,keyboard-interactive,password\nAuthentication Publickey Algorithms:x509v3-ssh-rsa,ssh-rsa\nHostkey Algorithms:x509v3-ssh-rsa,ssh-rsa\nEncryption Algorithms:aes128-ctr,aes192-ctr,aes256-ctr\nMAC Algorithms:hmac-sha2-256,hmac-sha2-512,hmac-sha1\nAuthentication timeout: ' + (d.config.ssh.timeout || 120) + ' secs; Authentication retries: ' + (d.config.ssh.retries != null ? d.config.ssh.retries : 3) + '\nMinimum expected Diffie Hellman key size : 2048 bits\nIOS Keys in SECSH format(ssh-rsa, base64 encoded): ' + d.config.hostname + '\nssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC' + d.baseMac + 'k9Xp2vT...';
   }
 
   function showVersion(state, d) {

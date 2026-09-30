@@ -552,16 +552,17 @@ NV.sim = (function () {
         // Rekursiv upplösning: nästa hopp måste ligga i ett anslutet nät
         var via = null;
         devEps(D, dev).forEach(function (e) { if (e.up && U.sameSubnet(r.nh, e.ip, e.mask)) via = e; });
-        if (via) cand.push({ type: 'S', net: r.net, mask: r.mask, nh: r.nh, iface: via.iface, ep: via });
+        if (via) cand.push({ type: 'S', net: r.net, mask: r.mask, nh: r.nh, iface: via.iface, ep: via, ad: r.ad || 1 });
       } else if (r.iface) {
         var ep = epOf(D, dev, r.iface);
-        if (ep && ep.up) cand.push({ type: 'S', net: r.net, mask: r.mask, iface: r.iface, ep: ep, direct: true });
+        if (ep && ep.up) cand.push({ type: 'S', net: r.net, mask: r.mask, iface: r.iface, ep: ep, direct: true, ad: r.ad || 1 });
       }
     });
     cand.forEach(function (c) {
       if (U.inNet(dst, c.net, c.mask)) {
         var p = U.maskToPrefix(c.mask);
-        if (!best || p > best.p || (p === best.p && c.type === 'C')) { best = c; best.p = p; }
+        // Längsta prefix vinner; vid lika prefix vinner anslutet nät och sedan lägst administrativt avstånd (flytande statiska rutter)
+        if (!best || p > best.p || (p === best.p && c.type === 'C' && best.type !== 'C') || (p === best.p && c.type === 'S' && best.type === 'S' && c.ad < best.ad)) { best = c; best.p = p; }
       }
     });
     return best;
@@ -574,14 +575,21 @@ NV.sim = (function () {
       out.push({ type: 'C', net: U.network(e.ip, e.mask), mask: e.mask, iface: e.iface });
       out.push({ type: 'L', net: e.ip, mask: '255.255.255.255', iface: e.iface });
     });
+    var st = [];
     d.config.routes.forEach(function (r) {
+      var dflt = r.net === '0.0.0.0' && r.mask === '0.0.0.0';
       if (r.nh) {
         var ok = devEps(D, dev).some(function (e) { return e.up && U.sameSubnet(r.nh, e.ip, e.mask); });
-        if (ok) out.push({ type: r.net === '0.0.0.0' && r.mask === '0.0.0.0' ? 'S*' : 'S', net: r.net, mask: r.mask, nh: r.nh });
+        if (ok) st.push({ type: dflt ? 'S*' : 'S', net: r.net, mask: r.mask, nh: r.nh, ad: r.ad || 1 });
       } else if (r.iface) {
         var ep = epOf(D, dev, r.iface);
-        if (ep && ep.up) out.push({ type: 'S', net: r.net, mask: r.mask, iface: r.iface });
+        if (ep && ep.up) st.push({ type: dflt ? 'S*' : 'S', net: r.net, mask: r.mask, iface: r.iface, ad: r.ad || 1 });
       }
+    });
+    // Bara rutterna med lägst administrativt avstånd per nät installeras
+    st.forEach(function (r) {
+      var best = st.every(function (q) { return q.net !== r.net || q.mask !== r.mask || q.ad >= r.ad; });
+      if (best) out.push(r);
     });
     return out;
   }
@@ -1263,6 +1271,7 @@ NV.sim = (function () {
     var synced = d.os === 'ios' ? ntpSynced(state, d) : true;
     var ms;
     if (synced) ms = START + state.time * 1000 + 2 * 3600 * 1000;
+    else if (d.rt && d.rt.clockSet) ms = d.rt.clockSet.ms + (state.time - d.rt.clockSet.at) * 1000;
     else ms = Date.UTC(1993, 2, 1, 0, 0, 0) + (state.time - d.rt.bootTime) * 1000;
     var t = new Date(ms);
     return {
