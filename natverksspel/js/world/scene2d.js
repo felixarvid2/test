@@ -278,7 +278,7 @@
   var ORIG_BUILD = W.buildSprites;
   W.buildSprites = function () {
     ORIG_BUILD.call(this);
-    this.addScenery();
+    try { this.addScenery(); } catch (e) { if (window.console) console.error('2D: utomhusmiljön kunde inte byggas', e); }
     // Entrédörrarna glider isär när du närmar dig
     var self = this;
     this.sprites.forEach(function (s) {
@@ -639,6 +639,7 @@
   };
   var ORIG_FX = W.drawFx;
   W.drawFx = function (g, sc) {
+    if (this.safeMode) return ORIG_FX.call(this, g, sc);
     var self = this, t = this.t;
     (this.amb || []).forEach(function (a) {
       var s = self.toScreen(a.x, a.z, a.y), f = a.age / a.life, al = Math.min(1, a.age * 2, (1 - f) * 3);
