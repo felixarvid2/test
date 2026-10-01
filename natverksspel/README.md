@@ -103,6 +103,349 @@ När ett fel är löst skickar du in en felrapport med **F**. En gul ruta uppe t
 
 Varje fel är simulerat på riktigt. Symptomen räknas fram ur konfigurationen: länkar, duplex, VLAN och trunkar, STP, routing, ARP, ACL, NAT, DHCP, DNS, PoE, port security, IPsec, MTU och lastbalansering. Ett fel försvinner därför bara när orsaken är rättad.
 
+## Version 7: 300 förbättringar
+
+Version 7 handlar om att det ska finnas mer att göra i terminalerna, mer att lära sig i handboken och mer liv i 2D-världen. Här är alla 300 förbättringar.
+
+### Cisco IOS: nya kommandon och funktioner
+
+1. `interface loopback <n>` skapar ett loopback-interface som alltid är uppe (så länge det inte är avstängt).
+2. `no interface loopback <n>` tar bort det igen.
+3. Tab-komplettering känner till `loopback`.
+4. `hostname` kontrollerar namnet som en riktig enhet: det måste börja med en bokstav, får inte sluta med bindestreck och får vara högst 63 tecken.
+5. Extended-ACL:er förstår `neq`, `gt`, `lt` och `range` för portar, inte bara `eq`.
+6. Fler portnamn i ACL:er (bland annat `ftp-data`, `pop3`, `snmp`, `syslog`, `tftp`, `bootps` och `isakmp`).
+7. Nyckelordet `log` i slutet av en ACL-rad sparas och visas.
+8. `state suspend` och `state active` under `vlan <n>`.
+9. `shutdown` under `vlan <n>` (visas som act/lshut).
+10. `show vlan name <namn>`.
+11. `alias exec <namn> <kommando>` gör egna kortkommandon som sedan går att köra.
+12. `show aliases`.
+13. `ip access-list resequence <acl> <start> <steg>` numrerar om raderna.
+14. `test cable-diagnostics tdr interface <if>` testar kabeln.
+15. `show cable-diagnostics tdr interface <if>` visar resultatet. En trasig kabel visas som Open på ett visst avstånd.
+16. `show interfaces <if> transceiver` för fiberportar.
+17. `show interfaces status err-disabled`.
+18. `show mac address-table static`.
+19. `show ip arp <ip>`.
+20. `clear arp-cache` och `clear ip arp`.
+21. `show port-security address`.
+22. `show tech-support`.
+23. `show controllers <if>`.
+24. `lease <dagar> <timmar> <minuter>` i DHCP-pooler.
+25. `option 150 ip <adress>` i DHCP-pooler (TFTP-server för IP-telefoner).
+26. Hjälptexter för alla nya kommandon när du trycker `?`.
+27. Stavar du fel på första ordet föreslår IOS-terminalen rätt kommando ("💡 Menade du …?").
+28. `config-register`. Värdet visas i `show version`, med "(will be … at next reload)".
+29. Med `config-register 0x2142` hoppar enheten över startup-config vid nästa omstart, som vid lösenordsåterställning.
+30. `boot system flash:<fil>`.
+31. `logging buffered <storlek> <nivå>`.
+32. `ntp server <ip> prefer`.
+33. `clock timezone <namn> <timmar> <minuter>`.
+34. `show users` visar om du är inloggad via konsol eller SSH.
+35. `show interfaces summary`.
+36. `show spanning-tree vlan <n> brief`.
+37. `show memory statistics`.
+38. `ip scp server enable` låter laptopen hämta konfigurationen med scp.
+39. `verify /md5 flash:<fil>`.
+40. `show cdp entry *`.
+41. `show cdp neighbors <if>`.
+42. `show line console 0`.
+43. `show ssh` visar SSH-sessionen när du är inloggad via SSH.
+44. `show environment` på både switchar och routrar.
+45. `show license` på switcharna (lanbasek9).
+46. `show file systems`.
+47. `show storm-control` läser den storm-control som du har konfigurerat på portarna.
+48. `show monitor session all`.
+49. `show udld`.
+50. `show system mtu`.
+51. `show sdm prefer`.
+52. `show ip igmp snooping`.
+53. `show authentication sessions`, med en förklaring om varför 802.1X inte används på Nordvik.
+54. `show ip interface` utan interface visar alla interface.
+55. `show platform`.
+56. `show diag` på routrarna.
+57. `show ip traffic`, med räknare som växer med speltiden.
+58. `show buffers`.
+59. `show ip cef` visar hela FIB-tabellen (anslutna nät, receive, statiska vägar och drop).
+60. `show policy-map`.
+61. `show login`.
+62. `show cdp traffic`.
+63. `show interfaces stats`.
+64. `show stacks`.
+65. `show protocols`.
+66. `show logging history`.
+67. `show ?` beskriver alla nya show-kommandon.
+
+### Cisco IOS: rättningar och simulering
+
+68. Loopback visas i `show ip interface brief`, `show interfaces` och `show running-config`.
+69. `show interfaces loopback` visar inga duplex- och hastighetsrader, precis som en riktig enhet.
+70. `show vlan brief` visar suspended och act/lshut, och varnar bara för att ett VLAN saknas när det faktiskt saknas.
+71. `show running-config` visar VLAN-state, DHCP-lease i dagar, timmar och minuter, option 150, loggnivå, `ntp … prefer` och `ip scp server enable`.
+72. Pingar du ett loopback-interface svarar det, även från andra enheter om det finns en väg.
+73. Simulatorn tar hänsyn till `neq`, `gt`, `lt` och `range` när den avgör om en ACL släpper igenom trafik.
+74. En router eller switch som pingar sin egen adress får svar direkt.
+75. En /32-adress (som en loopback) ger ingen dubbel L-rad i `show ip route`.
+76. Loggen visar `%LINEPROTO-5-UPDOWN` när ett loopback-interface skapas.
+77. Rättat: `show ip interface` visade fel protokollstatus på switchportar (alltid down) och en trasig rad för avstängda interface ("stratively down").
+
+### Windows-datorerna
+
+78. `ipconfig /displaydns` visar de namn som datorn har slagit upp.
+79. `ipconfig /flushdns` tömmer DNS-cachen på riktigt.
+80. `ping -t` pingar tills du avbryter.
+81. `ping -a` slår upp namnet för en adress.
+82. `arp -d` tömmer ARP-tabellen.
+83. `netstat -an`.
+84. `pathping` visar vägen och förlusten per hopp.
+85. PowerShell: `Test-Connection`.
+86. PowerShell: `Resolve-DnsName`.
+87. PowerShell: `Get-NetIPAddress`.
+88. PowerShell: `Get-NetIPConfiguration`.
+89. PowerShell: `Get-NetAdapter`.
+90. PowerShell: `Get-NetRoute`.
+91. PowerShell: `Get-DnsClientServerAddress`.
+92. `net use` visar de mappade enheterna.
+93. `net view`.
+94. `w32tm /query /status` visar tidskällan (NTP-servern).
+95. `dir`.
+96. `cd`.
+97. `type` av hosts-filen.
+98. `tasklist`.
+99. `set` visar miljövariablerna.
+100. `netsh interface show interface`.
+101. `netsh interface ipv4 show config`.
+102. `getmac /v`.
+103. `help` listar alla nya kommandon.
+104. Tab-komplettering av de nya kommandona.
+105. `?` fungerar som `help`.
+106. Stavar du fel föreslås rätt kommando.
+107. `nbtstat -n`.
+108. PowerShell: `Get-NetNeighbor` (ARP-tabellen).
+109. PowerShell: `Clear-DnsClientCache`.
+110. PowerShell: `Get-NetTCPConnection`.
+111. PowerShell: `Get-Date`.
+112. PowerShell: `Get-Command` listar nätverkskommandona.
+113. `telnet` förklarar att klienten inte är installerad och föreslår `Test-NetConnection -Port` i stället.
+114. `doskey /history` och PowerShell-kommandot `Get-History` (eller `h`) visar kommandona du har skrivit.
+
+### Laptopen (Linux)
+
+115. `nmap -sn <nät>` visar vilka adresser som svarar (laptopen själv räknas med).
+116. `nmap -p <portar> <ip>` visar öppna portar.
+117. `mtr` visar förlust och svarstid per hopp.
+118. `ss`, med flaggor som `-tuln`.
+119. `netstat -rn`.
+120. `netstat -tuln`.
+121. `route -n`.
+122. `ethtool` visar hastighet och duplex som porten har förhandlat fram.
+123. `nmcli`.
+124. `dhclient` (laptopen har fast adress och säger det).
+125. `arping`.
+126. `ssh-keygen -R` tar bort en gammal nyckel ur known_hosts.
+127. `hostnamectl`.
+128. `pwd`.
+129. `cd`.
+130. `cat ~/.ssh/known_hosts`.
+131. `cat /etc/os-release`.
+132. `ip -br a`.
+133. `ip -s link` visar trafikräknare.
+134. `ip neigh flush`.
+135. `ip -6 a`.
+136. `dig -x` gör omvänd uppslagning.
+137. `sudo tcpdump -i enp0s31f6 -c <n>` visar ARP, DNS, NTP, STP och syslog på porten.
+138. `iperf3 -c <server>` mäter överföringshastigheten och tipsar om duplexfel när den är låg.
+139. `scp drift@<ip>:running-config <fil>` hämtar konfigurationen från en router eller switch.
+140. `ls` och `cat` visar filerna du har hämtat.
+141. `curl -v`.
+142. `ping -q`.
+143. `ssh -V`.
+144. Nya man-sidor för nmap, mtr, ss, tcpdump, iperf3, ethtool med flera.
+145. `help` listar de nya kommandona.
+146. Tab-komplettering av de nya kommandona.
+147. Stavar du fel föreslås rätt kommando.
+148. `free -h`.
+149. `df -h`.
+150. `ps`.
+151. `lsof -i`.
+152. `w`.
+153. `last`.
+154. `env`.
+155. `ping6`: `::1` svarar, men andra adresser förklarar att nätet bara kör IPv4.
+156. `ssh-copy-id` förklarar hur nycklar läggs in på Cisco-enheter.
+157. `wget` sparar sidan som index.html och skriver sina felmeddelanden som wget, inte som curl.
+158. `ip maddr` visar multicastgrupperna.
+159. Man-sidor för wget, ps, df, free, lsof, ping6 och w.
+160. `!<n>` kör om kommando nummer n i historiken.
+161. `history <n>` visar bara de senaste n kommandona.
+162. Rättat: kommandon som de nya funktionerna hanterade (till exempel `pwd` och `nmap`) hamnade inte i historiken, eller hamnade där med fel namn (`wget` sparades som `curl`). Nu räknar spelet också varje kommando en gång med det namn du skrev, så att XP och statistik för nya kommandon som `nmap` och `wget` fungerar.
+163. Förslagen vid stavfel är smartare: korta ord får inga orelaterade förslag (`df` föreslår inte längre `dig`).
+164. Rättat: webbsidor på internet fick den interna nyckeln ("INTERNET:198.51.100.80") som titel i stället för sajtens namn.
+
+### WLC och lastbalanserare
+
+165. WLC: `show client summary` visar de trådlösa klienterna och deras SSID.
+166. WLC: `show ap config general <ap>`.
+167. WLC: `show time`.
+168. WLC: `show network summary`.
+169. WLC: `ping`.
+170. WLC: hjälptexter för de nya kommandona.
+171. Lastbalanseraren: `show version`.
+172. Lastbalanseraren: `show interfaces`.
+173. Lastbalanseraren: `ping`.
+174. Lastbalanseraren: hjälptexter för de nya kommandona.
+
+### Terminalen
+
+175. Kommandohistoriken sparas mellan spelomgångar.
+176. Historiken har plats för 200 kommandon.
+177. Tryck Tab två gånger för att se alla möjliga fortsättningar.
+178. Ctrl+A och Ctrl+E hoppar till början och slutet av raden (utanför den seriella konsolen).
+179. Ctrl+P och Ctrl+N bläddrar i historiken, som på en riktig Cisco-enhet.
+180. F1 visar alla kortkommandon.
+181. Alt+C kopierar senaste utskriften.
+182. Klicka på ett tidigare kommando för att lägga in det på raden igen.
+183. Ctrl+mushjul ändrar textstorleken.
+184. Alt+B och Alt+F flyttar markören ett ord bakåt eller framåt, som Esc B och Esc F i IOS.
+185. Alt+D raderar ordet framför markören.
+186. Ctrl+T byter plats på de två tecknen vid markören.
+
+### Prestationer
+
+187. Portskannare: skanna med nmap.
+188. Kabeltestare: kör ett TDR-test.
+189. Loopback: skapa ett loopback-interface.
+190. Skyltmakare: sätt en banner motd.
+191. Genvägar: skapa ett alias.
+192. Ruttspanare: kör mtr eller pathping.
+193. Frågvis: tryck `?` 50 gånger.
+194. Sparsam: spara konfigurationen tio gånger.
+195. Konfigläsare: kör `show running-config` 20 gånger.
+196. Fjärrtekniker: logga in med SSH fem gånger.
+197. Avlusare: stäng av debug med `undebug all`.
+198. Portintervall: skriv en ACL-rad med range, gt eller lt.
+199. Kartläsare: öppna topologin.
+200. Stavfelsjägare: låt terminalen rätta dig tio gånger.
+201. Kattvän: klappa kontorskatten.
+202. Ankmatare: mata ankorna.
+203. Nedladdare: spara en webbsida med wget.
+204. Stormvakt: konfigurera storm-control.
+205. Hälsokontroll: kör `show environment`.
+206. 10 XP första gången du använder ett nytt verktyg (nmap, mtr, kabeltest, alias, wget, nbtstat, storm-control och fler).
+
+### Handboken
+
+207. Ny flik: **Topologi**, en karta över hela nätet med länkarnas status just nu.
+208. Topologin uppdateras medan den är öppen.
+209. Klicka på en enhet i topologin för att se namn, modell och adresser.
+210. Ny flik: **Portnummer** med de vanligaste TCP- och UDP-portarna.
+211. Ny flik: **Binärt** med en omvandlare mellan decimalt och binärt.
+212. En CIDR-tabell med mask, wildcard och antal adresser för /8 till /32.
+213. Ny flik: **Kommandologg** med allt du har skrivit.
+214. En knapp som kopierar kommandologgen.
+215. Ny flik: **Felsökningsordning**, steg för steg från kabel till applikation.
+216. Ny flik: **Teori** med 14 korta avsnitt (lägena i IOS, felmeddelanden, kablar, DHCP, ARP, TCP, STP, NAT, ACL, wildcard och mer).
+217. Teori: Broadcaststormar och storm-control.
+218. Teori: RIB och FIB (`show ip route` jämfört med `show ip cef`).
+219. Teori: Multicast och IGMP snooping.
+220. Ny flik: **Övningar** med praktiska uppgifter som bockas av automatiskt när du gör dem.
+221. 15 XP för varje klar övning.
+222. Ny övning: storm-control.
+223. Ny övning: hämta en webbsida med wget.
+224. Ny övning: jämför RIB och FIB.
+225. 31 nya ord i ordlistan.
+226. Sökningen i handboken letar också i teoriavsnitten.
+227. Tangenten I öppnar topologin direkt.
+228. ← och → byter flik i handboken.
+229. Handboken minns vilken flik du hade öppen senast.
+
+### Spelet och gränssnittet
+
+230. HUD:en varnar när en enhet har ändringar som inte är sparade.
+231. HUD:en visar hur många länkar som är nere.
+232. Ett meddelande dyker upp när en länk går ner eller kommer upp igen.
+233. Dagens tips i menyn (45 tips).
+234. En knapp som visar nästa tips.
+235. Dagens övning i menyn.
+236. Antal dagar i rad som du har spelat ("🔥 3 dagar i rad").
+237. 2D-världen följer inställningen "Minska rörelse" (färre skakningar och blixtar).
+238. Veckosammanfattningen varnar för enheter som har ändringar som inte är sparade.
+239. Inställning: visa eller dölj dagens tips.
+240. Inställning: meddelanden om länkar.
+241. Inställning: djur i 2D-världen.
+242. Två nya repliker för var och en av tio kollegor.
+243. Två nya quizfrågor för varje vecka 1–10.
+244. Tio nya `fortune`-citat på laptopen.
+245. Nyhetsrutan beskriver version 7.
+246. Skripten laddas med `?v=7.0`, så att webbläsaren inte använder gamla filer efter uppdateringen.
+
+### 2D: miljön
+
+247. En väggklocka som visar speltiden.
+248. En nödutgångsskylt som lyser grönt.
+249. En affisch i köket.
+250. En dörrmatta vid entrén.
+251. En kalender på väggen.
+252. En anslagstavla.
+253. Borås: en släpvagn vid lastkajen.
+254. Borås: en pallvagn.
+255. Borås: kärl för återvinning.
+256. Höstlöv på marken under höstträden.
+257. Skum i bäcken och ett löv som flyter med strömmen.
+258. Lampan speglas i dammen.
+259. Omar går runt med sin kaffemugg.
+260. Kaffemaskinen har en lampa som lyser.
+261. Kall dimma vid golvet i serverrummet.
+262. Skrivaren har en grön lampa som blinkar.
+
+### 2D: djur
+
+263. Ankor som simmar i dammen.
+264. Ankorna dyker ibland.
+265. Ankorna kvackar när du kommer nära.
+266. Du kan mata ankorna (E). Då simmar de fram till dig.
+267. En groda hoppar mellan näckrosorna.
+268. En kontorskatt strövar runt och sätter sig ibland.
+269. Katten springer undan om du går för nära, och jamar.
+270. Du kan klappa katten (E). Då sätter den sig och spinner.
+271. Duvor pickar vid entrén och flyger iväg när du kommer nära, med ljud.
+272. En ekorre springer längs staketet.
+273. Fiskar hoppar i dammen.
+274. En mås trippar fram och tillbaka vid lastkajen i Borås.
+275. Bin surrar runt blommorna.
+
+### 2D: väder och ljus
+
+276. Vindbyar som får kronblad och löv att yra.
+277. Flaggan fladdrar snabbare i vindbyarna.
+278. Träden vajar mer i vindbyarna.
+279. Fönster och bilrutor glänser.
+280. Truckens varningsljus blinkar.
+281. Ett lysrör i serverrummet flimrar.
+282. Skuggorna blir längre mot kvällen.
+283. Regnet rinner på fönsterrutorna.
+284. Solnedgången färgar fönstren på kvällen.
+285. Nattfjärilar flyger runt de tända lamporna.
+286. Regnet ger ringar i vattenpölarna.
+287. Blixtar och åska när det regnar (blixtarna stängs av med "Minska rörelse").
+288. Morgondimma utomhus tidigt på dagen.
+289. Vattnet stänker när du går i regnet.
+290. Dammkorn svävar i ljuset från takfönstren i Borås.
+
+### 2D: figurerna
+
+291. Kollegor som sitter vid skrivbordet vänder huvudet mot dig.
+292. Händerna skriver på tangentbordet hos dem som sitter.
+293. Hjärtan stiger när någon tackar dig.
+294. Ånga stiger från muggarna på skrivborden.
+295. Står du still en stund tar du upp mobilen.
+296. Svettdroppar efter en lång spurt.
+297. Bubblor i vattenautomaten.
+298. Dammsugaren lämnar ett ljusare spår i mattan.
+299. Krukväxterna gungar när du går förbi.
+300. Buskarna prasslar och tappar löv när du går förbi.
+
 ## Version 6.1: terminal, lösenord och fler Cisco-kommandon
 
 - **Större terminal.** Fönstret fyller nästan hela skärmen och texten är större från början. ⛶ eller F11 gör terminalen till helskärm, och storleken du själv drar fram sparas.
@@ -117,7 +460,7 @@ Varje fel är simulerat på riktigt. Symptomen räknas fram ur konfigurationen: 
   - Övrigt: `show hosts`, `show line`, `show privilege`, `show terminal`, `show sessions`, `show ip nat translations verbose`, `show ip dhcp server statistics`, `show crypto key mypubkey rsa`, `standby` och `show standby brief`, samt interfacekommandon som `bandwidth`, `delay`, `mtu`, `load-interval`, `no ip redirects`, `no ip proxy-arp` och `ipv6 address`.
 - Handboken har två nya tabeller: "Inloggning och lösenord" och "Fler vanliga kommandon".
 
-Loopback-interface och dynamisk routing (OSPF) finns inte i simuleringen, eftersom nätet i spelet bara använder statiska vägar.
+Dynamisk routing (OSPF) finns inte i simuleringen, eftersom nätet i spelet bara använder statiska vägar. Loopback-interface kom i version 7.
 
 ## Version 6: 200 grafiska förbättringar i 2D
 
@@ -952,14 +1295,16 @@ natverksspel/
   lib/three.min.js           three.js r158 (MIT, se lib/THREE-LICENSE)
   lib/fonts/                 VT323 och Press Start 2P (SIL Open Font License, se OFL-*.txt)
   js/net/                    nätverksmodell (model.js) och simulator (sim.js)
-  js/cli/                    Cisco IOS (ios.js, ios_show.js), Windows/Linux (host.js), WLC (wlc.js),
-                             lastbalanseraren (lb.js)
+  js/cli/                    Cisco IOS (ios.js, ios_show.js), Windows/Linux (host.js, fler kommandon
+                             i host_more.js), WLC (wlc.js), lastbalanseraren (lb.js), fler WLC- och
+                             LB-kommandon (more7.js)
   js/levels.js               veckorna, felen, kontrollerna och ledtrådarna
   js/world/                  3D-världen (world.js, efterbehandling i post.js, partiklar i fx.js,
                              detaljer i extras.js), 2D-världen (world2d.js, pixelkonst i art2d.js,
-                             miljö, ljus och effekter i scene2d.js), delad kod (shared.js)
+                             miljö, ljus och effekter i scene2d.js, djur och liv i life2d.js),
+                             delad kod (shared.js)
   js/ui/                     terminal, dialoger, handbok, inställningar, ljud, karriär (career.js)
-                             och minikarta (minimap.js)
+                             och minikarta (minimap.js); det nya i version 7 i v7.js och css/v7.css
   js/game.js                 spelloopen
   test/                      tester
 ```

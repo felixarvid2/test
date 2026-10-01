@@ -8,16 +8,16 @@ NV.UI = (function () {
 
   // Kollegornas småprat, olika varje vecka
   var CHAT = {
-    Anna: ['"Jag har lärt mig att ringa dig innan jag startar om datorn."', '"Är det sant att Krabban har en egen nyckel till serverrummet?"', '"Kaffet i fikarummet är bättre än nätet i dag."'],
-    Karim: ['"Kunderna säger att vår nya offert-portal är snabb. Tack!"', '"Jag har tre kablar hemma som ser likadana ut. Vilken är nätverkskabel?"', '"Om nätet går ner igen tar jag med mig laptopen till fiket."'],
-    Sara: ['"Jag är ny här. Är det normalt att switcharna blinkar så mycket?"', '"Vad betyder DHCP egentligen?"', '"Min förra arbetsplats hade bara Wi-Fi."'],
-    Lisa: ['"Skrivaren och jag har ett komplicerat förhållande."', '"Jag gör nyhetsbrevet – vill du vara med som månadens tekniker?"', '"Filservern fungerar, det är det viktigaste."'],
-    Bo: ['"Bokslutet väntar inte på nätverket."', '"Ekonomisystemet ska vara stängt för alla utom oss. Det vet du väl?"', '"Jag litar på dig, men jag litar mer på loggar."'],
-    Maja: ['"Siffrorna stämmer. Gör nätet det?"', '"Bo räknar på kalkylatorn, jag räknar i Excel."', '"Vi på ekonomi gillar när saker har rätt VLAN."'],
-    Omar: ['"Jag skriver Python-skript som frågar routrarna varje timme."', '"Glöm inte write memory. Jag har lärt mig den läxan."', '"Lösenordet står på lappen vid laptopen. Byt det efter kursen!"', '"Krabban brukar slå till på natten. Jag har aldrig sett hen."'],
-    Linnea: ['"Välkommen till Nordvik! Gästnätet heter Nordvik-Gast."', '"Besökarna frågar alltid efter Wi-Fi-lösenordet först."', '"Någon lämnade en konstig liten låda med blinkande lampor här."'],
-    Eva: ['"Jag granskar säkerheten. Telnet är en röd flagga."', '"Allt som skickas i klartext hamnar i min rapport."'],
-    Nils: ['"Truckarna går på el, streckkodsläsarna på Wi-Fi."', '"Här ute är det kallt, men accesspunkterna ska vara varma."', '"Göteborg har fina kontor. Vi har pallar."'],
+    Anna: ['"Har du sett katten? Den sov på mitt tangentbord i morse."', '"Klockan på väggen går rätt sedan NTP började fungera."', '"Jag har lärt mig att ringa dig innan jag startar om datorn."', '"Är det sant att Krabban har en egen nyckel till serverrummet?"', '"Kaffet i fikarummet är bättre än nätet i dag."'],
+    Karim: ['"Kan du göra ett kortkommando åt mig också? alias exec kaffe?"', '"Jag pingade min telefon. Den svarade inte. Är det DNS?"', '"Kunderna säger att vår nya offert-portal är snabb. Tack!"', '"Jag har tre kablar hemma som ser likadana ut. Vilken är nätverkskabel?"', '"Om nätet går ner igen tar jag med mig laptopen till fiket."'],
+    Sara: ['"Vad är skillnaden mellan running-config och startup-config?"', '"Jag såg ankorna i dammen. De har bättre Wi-Fi än jag."', '"Jag är ny här. Är det normalt att switcharna blinkar så mycket?"', '"Vad betyder DHCP egentligen?"', '"Min förra arbetsplats hade bara Wi-Fi."'],
+    Lisa: ['"Nyhetsbrevet: Månadens tips – skriv write memory innan du går hem."', '"Skrivaren säger PC LOAD LETTER. Vad betyder det ens?"', '"Skrivaren och jag har ett komplicerat förhållande."', '"Jag gör nyhetsbrevet – vill du vara med som månadens tekniker?"', '"Filservern fungerar, det är det viktigaste."'],
+    Bo: ['"Varje minut nätet ligger nere kostar oss pengar. Jag har räknat."', '"En reservväg låter som en bra investering. Vad kostar den?"', '"Bokslutet väntar inte på nätverket."', '"Ekonomisystemet ska vara stängt för alla utom oss. Det vet du väl?"', '"Jag litar på dig, men jag litar mer på loggar."'],
+    Maja: ['"Jag har ett kalkylark över alla VLAN. Vill du ha en kopia?"', '"Om ekonominätet är suspenderat, får jag gå hem då?"', '"Siffrorna stämmer. Gör nätet det?"', '"Bo räknar på kalkylatorn, jag räknar i Excel."', '"Vi på ekonomi gillar när saker har rätt VLAN."'],
+    Omar: ['"nmap -sn är det snabbaste sättet att se vad som lever i ett nät."', '"Ett loopback-interface går aldrig ner. Det är därför jag gillar dem."', '"Jag skriver Python-skript som frågar routrarna varje timme."', '"Glöm inte write memory. Jag har lärt mig den läxan."', '"Lösenordet står på lappen vid laptopen. Byt det efter kursen!"', '"Krabban brukar slå till på natten. Jag har aldrig sett hen."'],
+    Linnea: ['"Duvorna vid entrén flyger iväg varje gång du kommer. De känner igen dig."', '"Gästerna frågar om nätverkskabeln i receptionen. Ingen får röra den."', '"Välkommen till Nordvik! Gästnätet heter Nordvik-Gast."', '"Besökarna frågar alltid efter Wi-Fi-lösenordet först."', '"Någon lämnade en konstig liten låda med blinkande lampor här."'],
+    Eva: ['"access-class på vty-linjerna – det vill jag se i nästa revision."', '"En banner som säger Endast behöriga gör juristerna glada."', '"Jag granskar säkerheten. Telnet är en röd flagga."', '"Allt som skickas i klartext hamnar i min rapport."'],
+    Nils: ['"Truckens varningslampa blinkar hela dagen. Det är meningen."', '"Måsen vid lastkajen har bott här längre än jag."', '"Truckarna går på el, streckkodsläsarna på Wi-Fi."', '"Här ute är det kallt, men accesspunkterna ska vara varma."', '"Göteborg har fina kontor. Vi har pallar."'],
   };
   // Vecka 10: den hyrda linan är uppsagd och alla pratar om VPN
   var CHAT10 = {
@@ -592,7 +592,7 @@ NV.UI = (function () {
   // ------------------------------------------------------------------ Handbok
   P.handbook = function (tab) {
     var self = this;
-    var tabs = [['cmd', 'Kommandon'], ['mine', 'Mina kommandon'], ['fel', 'Felbibliotek'], ['plan', 'Adressplan'], ['calc', 'Subnätsräknare'], ['bygg', 'Bygg från grunden'], ['vpn', 'VPN och LB'], ['osi', 'OSI-modellen'], ['ord', 'Ordlista'], ['keys', 'Styrning']];
+    var tabs = [['cmd', 'Kommandon'], ['mine', 'Mina kommandon'], ['fel', 'Felbibliotek'], ['plan', 'Adressplan'], ['calc', 'Subnätsräknare'], ['bygg', 'Bygg från grunden'], ['vpn', 'VPN och LB'], ['osi', 'OSI-modellen'], ['ord', 'Ordlista'], ['topo', 'Topologi'], ['teori', 'Teori'], ['ovn', 'Övningar'], ['flow', 'Felsökningsordning'], ['ports', 'Portnummer'], ['bin', 'Binärt'], ['logg', 'Kommandologg'], ['keys', 'Styrning']].filter(function (t) { return !!NV.handbook[t[0]]; });
     tab = tab || this.lastTab || 'cmd';
     this.lastTab = tab;
     var html = '<div class="tabs">' + tabs.map(function (t) { return '<button data-tab="' + t[0] + '" class="' + (t[0] === tab ? 'on' : '') + '">' + t[1] + '</button>'; }).join('') + '</div>' +
@@ -607,6 +607,7 @@ NV.UI = (function () {
           var q = s.value.toLowerCase();
           d.querySelectorAll('.tab-body tr').forEach(function (tr, i) { if (tr.querySelector('th')) return; tr.style.display = !q || tr.textContent.toLowerCase().indexOf(q) >= 0 ? '' : 'none'; });
           d.querySelectorAll('.tab-body .osi-layer').forEach(function (el) { el.style.display = !q || el.textContent.toLowerCase().indexOf(q) >= 0 ? '' : 'none'; });
+          d.querySelectorAll('.tab-body details').forEach(function (el) { var hit = !q || el.textContent.toLowerCase().indexOf(q) >= 0; el.style.display = hit ? '' : 'none'; if (q && hit) el.open = true; });
         });
         if (tab === 'calc') {
           NV.handbook.bindCalc(d);
@@ -614,6 +615,7 @@ NV.UI = (function () {
           $('.tab-body', d).appendChild(tb);
           $('#sn-go', d).addEventListener('click', function () { self.subnetTrainer(tb); });
         }
+        if (NV.handbook['bind_' + tab]) NV.handbook['bind_' + tab](d, self);
         if (tab === 'mine') d.querySelectorAll('[data-cmd]').forEach(function (b) { b.addEventListener('click', function () { self.copyText(b.getAttribute('data-cmd')); }); });
       },
     });

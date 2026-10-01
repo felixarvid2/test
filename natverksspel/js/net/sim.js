@@ -132,7 +132,7 @@ NV.sim = (function () {
   }
 
   // ---------------------------------------------------------------- Lager 2
-  function vlanExists(sw, v) { return !!sw.config.vlans[v]; }
+  function vlanExists(sw, v) { return !!sw.config.vlans[v] && !(sw.config.vlanState && sw.config.vlanState[v] === 'suspend'); }
   function opMode(state, dev, port) {
     var d = state.devices[dev];
     var i = ifc(d, port);
@@ -375,6 +375,7 @@ NV.sim = (function () {
           var i = d.config.ifaces[n];
           if (!i.ip || i.internal) return;
           var up;
+          if (i.loop) { var ekl = 'E:' + id + ':' + n; D.eps[ekl] = { key: ekl, dev: id, iface: n, ip: i.ip.addr, mask: i.ip.mask, mac: d.baseMac, up: !i.shutdown, loop: true }; return; }
           if (i.svi) up = !i.shutdown && vlanExists(d, i.svi) && svIUp(state, D, id, i.svi);
           else if (i.parent) { var par = D.ports[key(id, i.parent)]; up = !i.shutdown && par && par.up; }
           else { var pp = D.ports[key(id, n)]; up = !!(pp && pp.up); }
@@ -573,7 +574,7 @@ NV.sim = (function () {
     devEps(D, dev).forEach(function (e) {
       if (!e.up) return;
       out.push({ type: 'C', net: U.network(e.ip, e.mask), mask: e.mask, iface: e.iface });
-      out.push({ type: 'L', net: e.ip, mask: '255.255.255.255', iface: e.iface });
+      if (e.mask !== '255.255.255.255') out.push({ type: 'L', net: e.ip, mask: '255.255.255.255', iface: e.iface });
     });
     var st = [];
     d.config.routes.forEach(function (r) {
@@ -632,7 +633,15 @@ NV.sim = (function () {
     if (type === 'standard') return true;
     if (r.proto && r.proto !== 'ip' && r.proto !== pkt.proto) return false;
     if (!addrMatch(r.dst, pkt.dst)) return false;
-    if (r.dport && pkt.dport !== r.dport) return false;
+    if (r.dport) {
+      var pd = pkt.dport, op = r.dop || 'eq';
+      if (pd === undefined || pd === null) return false;
+      if (op === 'eq' && pd !== r.dport) return false;
+      if (op === 'neq' && pd === r.dport) return false;
+      if (op === 'gt' && !(pd > r.dport)) return false;
+      if (op === 'lt' && !(pd < r.dport)) return false;
+      if (op === 'range' && !(pd >= r.dport && pd <= r.dport2)) return false;
+    }
     return true;
   }
   function natMatchList(state, dev, aclName, src, dst) {
@@ -820,6 +829,9 @@ NV.sim = (function () {
     var dev = fromDev, ingress = null;
     var d, i;
     pkt = { src: pkt.src, dst: pkt.dst, proto: pkt.proto || 'icmp', dport: pkt.dport, ttl: pkt.ttl || 64, count: pkt.count, natLocal: pkt.natLocal };
+    // En router eller switch som pingar en av sina egna adresser (t.ex. en loopback) svarar direkt
+    var fd0 = state.devices[fromDev];
+    if (fd0 && fd0.os === 'ios' && routerOwns(D, fromDev, pkt.dst)) { if (!pkt.src) pkt.src = pkt.dst; return { ok: true, at: fromDev, pkt: pkt, hops: [], loss: 0 }; }
     for (var step = 0; step < 40; step++) {
       d = state.devices[dev];
       var egressEp = null, nh = null;
@@ -1319,13 +1331,16 @@ NV.sim = (function () {
         var i = d.config.ifaces[n];
         if (i.internal) return;
         var s;
-        if (i.svi || i.parent) {
+        if (i.loop) s = i.shutdown ? 'admin' : 'up';
+        else if (i.svi || i.parent) {
           var ep = D.eps['E:' + id + ':' + n];
           s = i.shutdown ? 'admin' : (ep && ep.up ? 'up' : 'down');
         } else s = statusOf(state, D, id, n);
         var k = key(id, n);
         snap[k] = s;
         var b = before[k];
+        // Ett nytt loopback-interface loggas när det kommer upp, som på en riktig router
+        if (b === undefined && i.loop && s === 'up' && Object.keys(before).length) { pushLog(state, d, '%LINEPROTO-5-UPDOWN: Line protocol on Interface ' + n + ', changed state to up'); return; }
         if (b === undefined || b === s) return;
         if (i.parent) return;
         var sh = n;

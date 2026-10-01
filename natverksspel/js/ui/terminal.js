@@ -10,6 +10,8 @@ NV.Terminal = (function () {
     this.busy = false;
     this.queue = [];
     this.hist = {};
+    // Kommandohistoriken sparas mellan omladdningar (högst 60 rader per enhet)
+    try { var sv = NV.settings.store('krabba-passet.termhist'); if (sv && typeof sv === 'object') Object.keys(sv).forEach(function (k) { this.hist[k] = { list: (sv[k] || []).slice(-60), idx: (sv[k] || []).slice(-60).length }; }, this); } catch (e) { /* ingen sparad historik */ }
     this.el = {
       title: root.querySelector('.term-title'),
       out: root.querySelector('.term-out'),
@@ -90,6 +92,19 @@ NV.Terminal = (function () {
       lines.forEach(function (l, i) { if (i < lines.length - 1 || l) self.queue.push(l); });
       self.drain();
     });
+    // Klicka på ett tidigare kommando för att lägga in det på raden igen
+    this.el.out.addEventListener('click', function (e) {
+      var el = e.target;
+      if (!el || !el.classList || !el.classList.contains('t-cmd') || (window.getSelection && String(window.getSelection()))) return;
+      self.el.input.value = el.textContent; self.updateGhost(); self.focus();
+    });
+    // Ctrl + mushjulet ändrar textstorleken
+    this.el.screen.addEventListener('wheel', function (e) {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      NV.settings.set('termFont', Math.max(11, Math.min(28, NV.settings.get('termFont') + (e.deltaY < 0 ? 1 : -1))));
+      self.applyFont();
+    }, { passive: false });
     NV.onLog = function (devId, line) { self.onDeviceLog(devId, line); };
     NV.onConsoleSpeed = function () { self.checkSpeed(); };
   }
@@ -137,6 +152,16 @@ NV.Terminal = (function () {
     var r = this.root;
     ['classic', 'green', 'amber', 'snes'].forEach(function (x) { r.classList.toggle('theme-' + x, x === th); });
     this.applyFont();
+  };
+  // Kopiera utskriften efter det senaste kommandot
+  P.copyLastOutput = function () {
+    var cmds = this.el.out.querySelectorAll('.t-cmd');
+    if (!cmds.length) return;
+    var last = cmds[cmds.length - 1], txt = '', n = last.nextSibling;
+    while (n) { txt += n.textContent; n = n.nextSibling; }
+    txt = txt.replace(/^\n/, '');
+    var self = this;
+    try { navigator.clipboard.writeText(txt).then(function () { self.setStatusHint('Senaste utskriften kopierad (' + txt.split('\n').length + ' rader)'); }, function () { self.setStatusHint('Kunde inte kopiera – markera texten och tryck Ctrl+Shift+C'); }); } catch (e) { this.setStatusHint('Kunde inte kopiera'); }
   };
   P.copySelection = function () {
     var sel = window.getSelection ? String(window.getSelection()) : '';
@@ -461,6 +486,12 @@ NV.Terminal = (function () {
     var t = this.top();
     if (!t) return;
     var s = t.session;
+    // Utanför screen-konsolen fungerar Ctrl+A och Ctrl+E som i IOS och bash: början och slutet av raden
+    if (e.ctrlKey && (e.key === 'a' || e.key === 'A') && t.kind !== 'serial') { e.preventDefault(); try { this.el.input.setSelectionRange(0, 0); } catch (er) { /* äldre webbläsare */ } return; }
+    if (e.ctrlKey && (e.key === 'e' || e.key === 'E')) { e.preventDefault(); var ln = this.el.input.value.length; try { this.el.input.setSelectionRange(ln, ln); } catch (er) { /* äldre webbläsare */ } return; }
+    if (e.ctrlKey && (e.key === 'p' || e.key === 'P' || e.key === 'n' || e.key === 'N')) { e.preventDefault(); this.onKey({ key: /p/i.test(e.key) ? 'ArrowUp' : 'ArrowDown', preventDefault: function () {} }); return; }
+    if (e.key === 'F1') { e.preventDefault(); this.print('\nTangenter i terminalen:\n  Tab / Tab Tab     komplettera / visa alternativ      ?          hjälp (Cisco)\n  ↑ ↓ eller Ctrl+P/N  tidigare kommandon             Ctrl+R     sök bakåt i historiken\n  Ctrl+A / Ctrl+E   början / slutet av raden           Ctrl+U/K/W rensa rad / resten / ordet\n  Ctrl+C            avbryt                            Ctrl+Z     tillbaka till # (Cisco)\n  Ctrl+L            rensa skärmen                      Ctrl+F     sök i utskriften\n  Ctrl + / −, Ctrl+mushjul  textstorlek                F11        helskärm\n  Alt+.             sista ordet i förra kommandot      Alt+C      kopiera senaste utskriften\n  Alt+B / Alt+F     ett ord bakåt / framåt             Alt+D      radera ordet framåt\n  Ctrl+T            byt plats på två tecken\n  Ctrl+A K          stäng screen-konsolen              Ctrl+D     logga ut\n  Klicka på ett tidigare kommando för att skriva in det igen.\n\n'); this.renderPrompt(); return; }
+    if (e.altKey && (e.key === 'c' || e.key === 'C')) { e.preventDefault(); this.copyLastOutput(); return; }
     if (e.ctrlKey && (e.key === 'a' || e.key === 'A')) { this.ctrlA = true; e.preventDefault(); return; }
     if (this.ctrlA) {
       this.ctrlA = false;
@@ -489,6 +520,12 @@ NV.Terminal = (function () {
     }
     if (!(e.ctrlKey && (e.key === 'r' || e.key === 'R'))) this.rsearch = null;
     // Alt+. : sista ordet i föregående kommando (som i bash)
+    // Ordvis redigering som i IOS och bash: Alt+B/Alt+F flyttar ett ord, Alt+D raderar ordet framåt, Ctrl+T byter plats på två tecken
+    var inpW = this.el.input, cur = inpW.selectionStart, val = inpW.value;
+    if (e.altKey && (e.key === 'b' || e.key === 'B' || e.code === 'KeyB')) { e.preventDefault(); var pb = val.slice(0, cur).replace(/\S+\s*$/, '').length; inpW.setSelectionRange(pb, pb); return; }
+    if (e.altKey && (e.key === 'f' || e.key === 'F' || e.code === 'KeyF')) { e.preventDefault(); var mf = /^\s*\S+/.exec(val.slice(cur)), pf = cur + (mf ? mf[0].length : 0); inpW.setSelectionRange(pf, pf); return; }
+    if (e.altKey && (e.key === 'd' || e.key === 'D' || e.code === 'KeyD')) { e.preventDefault(); var md = /^\s*\S+/.exec(val.slice(cur)); if (md) { inpW.value = val.slice(0, cur) + val.slice(cur + md[0].length); inpW.setSelectionRange(cur, cur); this.updateGhost(); } return; }
+    if (e.ctrlKey && (e.key === 't' || e.key === 'T') && val.length > 1) { e.preventDefault(); var pt = cur >= val.length ? val.length - 1 : Math.max(1, cur); inpW.value = val.slice(0, pt - 1) + val[pt] + val[pt - 1] + val.slice(pt + 1); inpW.setSelectionRange(pt + 1, pt + 1); this.updateGhost(); return; }
     if (e.altKey && e.key === '.') {
       e.preventDefault();
       var hl = this.hist[t.histKey || t.kind];
@@ -537,7 +574,10 @@ NV.Terminal = (function () {
       e.preventDefault();
       if (s && s.complete && !t.garbled) {
         var c = s.complete(this.el.input.value);
-        if (c) this.el.input.value = c;
+        var now = Date.now();
+        if (c) { this.el.input.value = c; this.lastTab = 0; }
+        else if (this.lastTab && now - this.lastTab < 700) { this.lastTab = 0; this.listCandidates(); }
+        else this.lastTab = now;
         this.updateGhost();
       }
       return;
@@ -556,6 +596,30 @@ NV.Terminal = (function () {
       this.updateGhost();
       return;
     }
+  };
+  P.saveHist = function () {
+    var out = {}, self = this;
+    Object.keys(this.hist).forEach(function (k) { out[k] = self.hist[k].list.slice(-60); });
+    NV.settings.store('krabba-passet.termhist', out);
+  };
+  // Dubbel-Tab: visa vilka ord som passar när kompletteringen inte är entydig
+  P.listCandidates = function () {
+    var t = this.top(), s = t && t.session, cur = this.el.input.value;
+    var words = [];
+    if (t.ios && s && s.help) {
+      var h = s.help(cur);
+      words = h.split('\n').map(function (l) { return l.trim().split(/\s+/)[0]; }).filter(function (w) { return w && !/^</.test(w) && w !== '%'; });
+    } else {
+      var m = /(\S*)$/.exec(cur), last = m ? m[1] : '';
+      var pool = t.kind === 'win' ? ['ipconfig', 'ping', 'tracert', 'nslookup', 'arp', 'netsh', 'curl', 'copy', 'route', 'netstat', 'getmac', 'hostname', 'whoami', 'systeminfo', 'test-netconnection', 'pathping', 'test-connection', 'resolve-dnsname', 'get-netipaddress', 'get-netadapter', 'net', 'w32tm', 'cls', 'exit', 'help']
+        : ['ssh', 'screen', 'ping', 'traceroute', 'tracepath', 'curl', 'nslookup', 'dig', 'resolvectl', 'ip', 'telnet', 'nc', 'man', 'history', 'clear', 'exit', 'nmap', 'mtr', 'ss', 'netstat', 'route', 'ethtool', 'nmcli', 'arping', 'ssh-keygen', 'hostnamectl', 'uname', 'help'];
+      words = pool.filter(function (w) { return w.indexOf(last) === 0; });
+    }
+    if (!words.length) return;
+    this.echo(this.el.prompt.textContent, cur);
+    this.print(words.join('   ') + '\n');
+    this.renderPrompt();
+    this.el.input.value = cur;
   };
   P.helpNow = function () {
     var t = this.top();
@@ -581,7 +645,9 @@ NV.Terminal = (function () {
       var h = this.hist[t.histKey || t.kind] = this.hist[t.histKey || t.kind] || { list: [], idx: 0 };
       // Samma kommando två gånger i rad sparas bara en gång (som HISTCONTROL=ignoredups)
       if (h.list[h.list.length - 1] !== line) h.list.push(line);
+      if (h.list.length > 200) h.list.splice(0, h.list.length - 200);
       h.idx = h.list.length;
+      this.saveHist();
       this.game.logCommand(t, line);
     }
     // Seriell konsol: första Enter "väcker" konsolen

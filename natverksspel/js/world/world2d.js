@@ -990,7 +990,11 @@ NV.World2D = (function () {
           var dd = Math.hypot(self.pos.x - p.x, self.pos.z - p.z);
           if (p.walking) d = p.wdir;
           else if (dd < 2.5) { var dxp = self.pos.x - p.x, dzp = self.pos.z - p.z; d = Math.abs(dxp) > Math.abs(dzp) ? (dxp < 0 ? 2 : 3) : (dzp < 0 ? 0 : 1); } else d = 0;
-        } else d = 0;
+        } else {
+          // Den som sitter vänder huvudet mot dig när du står bredvid
+          var ds = Math.hypot(self.pos.x - p.x, self.pos.z - p.z);
+          d = ds < 2.2 && Math.abs(self.pos.x - p.x) > 0.5 ? (self.pos.x < p.x ? 2 : 3) : 0;
+        }
         var frame = p.walking ? Math.floor(self.t * 8) % 4 : (Math.sin(self.t * 2.1 + p.phase) > 0.55 ? 4 : 0);
         self.drawChar(g, p.spr(d, frame, p.sit, (self.t + p.phase * 1.7) % 4.3 < 0.14), p.x, p.z, sc, p.sit, p);
         return;
@@ -1012,7 +1016,7 @@ NV.World2D = (function () {
       }
       var img = s.c, sway = 0;
       if (s.frames) {
-        var wv = self.swayOn ? Math.sin(self.t * 1.1 + s.x * 0.7) + Math.sin(self.t * 2.3 + s.z) * 0.35 : 0;
+        var wv = self.swayOn ? Math.sin(self.t * (1.1 + (self.gust || 0) * 1.5) + s.x * 0.7) + Math.sin(self.t * 2.3 + s.z) * 0.35 + (self.gust || 0) * 1.1 : 0;
         img = s.frames[wv > 0.75 ? 2 : (wv < -0.75 ? 0 : 1)];
       } else if (s.sway && self.swayOn) sway = Math.round(Math.sin(self.t * 1.3 + s.sway) * 0.9);
       g.globalAlpha = alpha;

@@ -21,6 +21,16 @@
     'Den som dokumenterar slipper felsöka samma sak två gånger.',
     'show logging vet mer än du tror.',
     'Om det fungerade i går: vad ändrades i natt?',
+    'Ett loopback-interface går aldrig ner. Det går inte att säga om resten av nätet.',
+    'Den som kör debug all på en produktionsrouter får lära sig vad CPU betyder.',
+    'Stavar du fel kommer terminalen att föreslå rätt. Livet är inte lika snällt.',
+    'nmap utan tillstånd är ett samtal med juristen. nmap med tillstånd är felsökning.',
+    'Kabeltest först, teori sedan.',
+    'En ACL som släpper allt är ingen ACL. En ACL som stoppar allt är ett ärende.',
+    'Katten på kontoret är inte ett säkerhetshot. Troligen.',
+    'Skriv felrapporten medan du minns vad du gjorde.',
+    'Native VLAN 1 är som att lämna nyckeln under dörrmattan.',
+    'Det finns två sorters tekniker: de som tar backup och de som kommer att göra det.',
   ];
 
   // ---------------------------------------------------------------- Webb och filkopiering (kapitel 10)
@@ -50,7 +60,9 @@
     var inet = S.INTERNET[ip];
     if (h.code === 503) return { text: headOnly ? 'HTTP/1.1 503 Service Unavailable\nServer: LB-Nordvik\nContent-Length: 107' : '<html><body><h1>503 Service Unavailable</h1>\nNo server is available to handle this request.\n</body></html>', delay: 400 };
     if (h.code === 502) return { text: headOnly ? 'HTTP/1.1 502 Bad Gateway\nServer: LB-Nordvik\nContent-Length: 107' : '<html><body><h1>502 Bad Gateway</h1>\nThe server returned an invalid or incomplete response.\n</body></html>', delay: 1200 };
-    var server = h.server ? (state.devices[h.server] ? state.devices[h.server].label : h.server) : (inet ? inet.name : u.host);
+    var hs = h.server && /^INTERNET:/.test(h.server) ? null : h.server;
+    if (!inet && h.server && /^INTERNET:/.test(h.server)) inet = S.INTERNET[h.server.slice(9)];
+    var server = hs ? (state.devices[hs] ? state.devices[hs].label : hs) : (inet ? inet.name : u.host);
     if (headOnly) return { text: 'HTTP/1.1 200 OK\nServer: ' + (h.member ? 'nginx/1.24.0' : 'Apache') + '\nContent-Type: text/html; charset=utf-8' + (h.member ? '\nX-Backend: ' + h.member.name : ''), delay: 250 };
     if (h.member) return { text: '<!doctype html>\n<title>Tidrapport – Nordvik</title>\n<h1>Tidrapport</h1>\n<p>Vecka 40 · inloggad via SSO</p>\n<!-- betjänad av ' + h.member.name + ' (' + h.member.ip + ') -->', delay: 300 };
     return { text: '<!doctype html>\n<html><head><title>' + server + '</title></head>\n<body><h1>' + server + '</h1></body></html>', delay: 300 };
