@@ -1,0 +1,28 @@
+/* ===================== Version 7 ===================== */
+.t-cmd { cursor: pointer; }
+.t-cmd:hover { text-decoration: underline dotted; }
+.hud-v7 { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.hud-v7:empty { display: none; }
+.hud-v7 .chip { font-size: 12px; padding: 2px 8px; border-radius: 99px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); cursor: help; }
+.hud-v7 .chip.warn { background: rgba(240,180,41,0.18); border-color: rgba(240,180,41,0.6); color: #ffe39a; }
+.hud-v7 .chip.bad { background: rgba(255,90,79,0.18); border-color: rgba(255,90,79,0.6); color: #ffc2bc; }
+.tip-day { margin: 10px auto 4px; max-width: 640px; padding: 8px 12px; border-radius: 10px; background: rgba(240,180,41,0.12); border: 1px solid rgba(240,180,41,0.35); font-size: 14px; display: flex; gap: 8px; align-items: baseline; }
+.tip-day .tip-txt { flex: 1; }
+.tip-day .tip-next { padding: 0 8px; font-size: 16px; }
+svg.topo { width: 100%; max-width: 100%; height: auto; background: rgba(0,0,0,0.25); border-radius: 12px; }
+svg.topo .topo-site { fill: rgba(255,255,255,0.03); stroke: rgba(255,255,255,0.15); stroke-dasharray: 4 4; }
+svg.topo .topo-site-t { fill: rgba(255,255,255,0.55); font-size: 12px; font-weight: 700; }
+svg.topo .topo-n { cursor: pointer; }
+svg.topo .topo-n rect { fill: #1e2633; stroke: #8a95a5; stroke-width: 1.5; }
+svg.topo .topo-n.r rect { fill: #213a5c; stroke: #7fb6ff; }
+svg.topo .topo-n.s rect { fill: #1f4a3a; stroke: #7ee0a0; }
+svg.topo .topo-n.v rect { fill: #4a3a1f; stroke: #f0c070; }
+svg.topo .topo-n:hover rect, svg.topo .topo-n:focus rect { stroke: #fff; stroke-width: 2.5; }
+svg.topo .topo-n text { fill: #eef2f7; font-size: 11px; text-anchor: middle; pointer-events: none; }
+.topo-info { margin-top: 8px; min-height: 2.6em; }
+.bin-conv { display: flex; flex-wrap: wrap; gap: 12px; }
+.bin-conv input { width: 110px; font-family: "Cascadia Mono", Consolas, monospace; font-size: 16px; margin-left: 6px; }
+.bin-bits { display: flex; gap: 6px; margin: 10px 0; flex-wrap: wrap; }
+.bin-bits .bit { display: inline-flex; flex-direction: column; align-items: center; min-width: 38px; padding: 6px 4px; border-radius: 8px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); font: 700 18px "Cascadia Mono", Consolas, monospace; cursor: pointer; }
+.bin-bits .bit.on { background: rgba(63,191,111,0.25); border-color: #3fbf6f; }
+.bin-bits .bit small { font-size: 10px; font-weight: 400; opacity: 0.7; }

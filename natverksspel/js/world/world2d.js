@@ -1012,7 +1012,7 @@ NV.World2D = (function () {
       }
       var img = s.c, sway = 0;
       if (s.frames) {
-        var wv = self.swayOn ? Math.sin(self.t * 1.1 + s.x * 0.7) + Math.sin(self.t * 2.3 + s.z) * 0.35 : 0;
+        var wv = self.swayOn ? Math.sin(self.t * (1.1 + (self.gust || 0) * 1.5) + s.x * 0.7) + Math.sin(self.t * 2.3 + s.z) * 0.35 + (self.gust || 0) * 1.1 : 0;
         img = s.frames[wv > 0.75 ? 2 : (wv < -0.75 ? 0 : 1)];
       } else if (s.sway && self.swayOn) sway = Math.round(Math.sin(self.t * 1.3 + s.sway) * 0.9);
       g.globalAlpha = alpha;

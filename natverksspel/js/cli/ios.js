@@ -249,6 +249,12 @@ NV.IosSession = (function () {
 
   P.exec = function (line, pipe) {
     var toks = tokenize(line);
+    // alias exec: ett eget kortkommando byts mot det riktiga kommandot
+    var al = this.dev.config.aliases;
+    if (al && (this.mode === 'exec' || this.mode === 'user') && toks.length && al[toks[0].t] && !this.inAlias) {
+      this.inAlias = true;
+      try { return this.exec(al[toks[0].t] + line.slice(toks[0].pos + toks[0].t.length), pipe); } finally { this.inAlias = false; }
+    }
     var neg = false;
     var mode = this.mode;
     var root = modeTrie(mode === 'user' ? 'user' : mode);
@@ -281,11 +287,20 @@ NV.IosSession = (function () {
         var w0 = ptoks[0].t.toLowerCase();
         var known = Object.keys(TRIES.exec.kw).some(function (k) { return k.indexOf(w0) === 0; });
         if (known) return result(this.errAt(line, 0, toks));
+        if (NV.suggestCmd) {
+          var sg = NV.suggestCmd(w0, Object.keys(root.kw).filter(function (k) { return k.length > 2; }));
+          if (sg) return result(this.errAt(line, 0, toks) + '💡 Menade du ' + sg + '?');
+        }
         var dom = this.dev.config.domainLookup;
         var ns = this.dev.config.nameServers[0] || '255.255.255.255';
         var word = ptoks[0].t;
         if (dom) return result('Translating "' + word + '"...domain server (' + ns + ')\n% Unknown command or computer name, or unable to find computer address', { delay: 2500 });
         return result('% Unknown command or computer name, or unable to find computer address');
+      }
+      var bad = ptoks[pr.pos] ? ptoks[pr.pos].t.toLowerCase() : '';
+      if (bad && NV.suggestCmd && pr.pos === 0) {
+        var sg2 = NV.suggestCmd(bad, Object.keys(root.kw).filter(function (k) { return k.length > 2; }));
+        if (sg2) return result(this.errAt(line, pr.pos + start, toks) + '💡 Menade du ' + sg2 + '?');
       }
       return result(this.errAt(line, pr.pos + start, toks));
     }
@@ -357,7 +372,7 @@ NV.IosSession = (function () {
     var last = toks[toks.length - 1].t.toLowerCase();
     var ks = Object.keys(node.kw).filter(function (k) { return k.indexOf(last) === 0; });
     if (!ks.length && /^[a-z]+$/.test(last) && node.params.some(function (p) { return p.spec === '<if>'; })) {
-      var types = ['GigabitEthernet', 'Vlan'].filter(function (t) { return t.toLowerCase().indexOf(last) === 0; });
+      var types = ['GigabitEthernet', 'Vlan', 'Loopback'].filter(function (t) { return t.toLowerCase().indexOf(last) === 0; });
       if (types.length === 1) return line.slice(0, toks[toks.length - 1].pos) + types[0];
     }
     if (ks.length !== 1) return null;
@@ -467,8 +482,12 @@ NV.IosSession = (function () {
   });
   function doReload(s) {
     var d = s.dev;
-    // Utan sparad konfiguration startar enheten med fabriksinställningar
-    d.config = d.startup ? U.clone(d.startup) : NV.model.factoryConfig(d);
+    // Konfigurationsregistret gäller vid nästa start även om det inte sparats (det ligger i NVRAM)
+    var reg = d.config.confRegNext || d.config.confReg || null;
+    // Utan sparad konfiguration startar enheten med fabriksinställningar.
+    // Med registret 0x2142 hoppar enheten över startup-config (så går lösenordsåterställning till)
+    d.config = d.startup && reg !== '0x2142' ? U.clone(d.startup) : NV.model.factoryConfig(d);
+    if (reg) { d.config.confReg = reg; delete d.config.confRegNext; }
     d.rt.logs = [];
     d.rt.dhcpBindings = {};
     d.rt.natTrans = [];
@@ -771,6 +790,7 @@ NV.IosSession = (function () {
   def('config', 'exit', function () { this.mode = 'exec'; this.ctx = {}; S.pushLog(this.state, this.dev, '%SYS-5-CONFIG_I: Configured from ' + (this.via === 'console' ? 'console by console' : 'vty0 (192.168.1.200)')); return ''; }, { no: false });
 
   def('config', 'hostname <word>', function (v, neg) {
+    if (!neg && (!/^[A-Za-z][A-Za-z0-9-]*$/.test(v[0]) || /-$/.test(v[0]) || v[0].length > 63)) return '% Hostname contains one or more illegal characters.';
     cfg(this).hostname = neg ? (isRouter(this) ? 'Router' : 'Switch') : v[0];
     return '';
   });
@@ -966,13 +986,21 @@ NV.IosSession = (function () {
     if (type === 'extended') {
       r.dst = addr();
       if (!r.dst) return { err: i };
-      if ((t[i] || '').toLowerCase() === 'eq') {
-        var pn = { ssh: 22, telnet: 23, www: 80, http: 80, domain: 53, https: 443, ntp: 123, smtp: 25 }[(t[i + 1] || '').toLowerCase()] || parseInt(t[i + 1], 10);
-        if (!pn) return { err: i + 1 };
-        r.dport = pn; i += 2;
+      var opw = (t[i] || '').toLowerCase();
+      if (['eq', 'neq', 'gt', 'lt', 'range'].indexOf(opw) >= 0) {
+        var PN = { ssh: 22, telnet: 23, www: 80, http: 80, domain: 53, https: 443, ntp: 123, smtp: 25, ftp: 21, 'ftp-data': 20, pop3: 110, bootps: 67, bootpc: 68, snmp: 161, syslog: 514, tftp: 69, isakmp: 500 };
+        var pn = PN[(t[i + 1] || '').toLowerCase()] || parseInt(t[i + 1], 10);
+        if (!pn || pn > 65535) return { err: i + 1 };
+        r.dport = pn; r.dop = opw; i += 2;
+        if (opw === 'range') {
+          var pn2 = PN[(t[i] || '').toLowerCase()] || parseInt(t[i], 10);
+          if (!pn2 || pn2 < pn || pn2 > 65535) return { err: i };
+          r.dport2 = pn2; i++;
+        }
+        if (opw === 'eq') delete r.dop;
       }
     }
-    while (i < t.length && ['log', 'log-input'].indexOf(t[i].toLowerCase()) >= 0) i++;
+    while (i < t.length && ['log', 'log-input'].indexOf(t[i].toLowerCase()) >= 0) { r.log = true; i++; }
     if (i < t.length) return { err: i };
     return r;
   }
@@ -1236,11 +1264,15 @@ NV.IosSession = (function () {
     if (neg) {
       if (sub && c.ifaces[n]) { delete c.ifaces[n]; return ''; }
       if (svi && c.ifaces[n] && n !== 'Vlan1') { delete c.ifaces[n]; return ''; }
+      if (/^Loopback/.test(n) && c.ifaces[n]) { delete c.ifaces[n]; S.touch(this.state); return ''; }
       return invalidMarker(this, line, line.trim().split(/\s+/).slice(2).join(' ') || 'interface');
     }
     if (!c.ifaces[n]) {
       if (sub && isRouter(this) && c.ifaces[n.split('.')[0]]) {
         c.ifaces[n] = { parent: n.split('.')[0], encap: null, ip: null, shutdown: false, natDir: null, aclIn: null, aclOut: null, description: '' };
+      } else if (/^Loopback(\d+)$/.test(n) && parseInt(n.slice(8), 10) <= 2147483647) {
+        c.ifaces[n] = { loop: true, shutdown: false, ip: null, description: '', natDir: null, aclIn: null, aclOut: null };
+        S.touch(this.state);
       } else if (svi && isSwitch(this)) {
         var vid = parseInt(svi[1], 10);
         if (vid < 1 || vid > 4094) return invalidMarker(this, line, svi[1]);
@@ -1262,7 +1294,7 @@ NV.IosSession = (function () {
     return '';
   }, { no: false });
 
-  function kindOf(s, i) { return i.parent ? 'sub' : (i.svi ? 'svi' : (isSwitch(s) ? 'l2' : 'l3')); }
+  function kindOf(s, i) { return i.parent ? 'sub' : (i.svi ? 'svi' : (i.loop ? 'l3' : (isSwitch(s) ? 'l2' : 'l3'))); }
   def('if', 'description <text>', function (v, neg) { return eachIf(this, function (i) { i.description = neg ? '' : v[0]; }); });
   def('if', 'description', function () { return eachIf(this, function (i) { i.description = ''; }); }, { noOnly: true });
   def('if', 'shutdown', function (v, neg) {
@@ -2162,6 +2194,172 @@ NV.IosSession = (function () {
     var c = cfg(this);
     return Object.keys(c.ifaces).filter(function (n) { return c.ifaces[n].x && c.ifaces[n].x['ipv6 ']; }).map(function (n) { return lpad(n, 23) + '[up/up]\n    ' + c.ifaces[n].x['ipv6 '].split(' ').pop(); }).join('\n');
   });
+
+  // ================================================================== Version 7
+  // ---------- VLAN: state suspend/active och shutdown
+  def('vlan', 'state suspend', function (v, neg) { var c = cfg(this); c.vlanState = c.vlanState || {}; var ids = this.ctx.vlans || []; ids.forEach(function (x) { if (neg) delete c.vlanState[x]; else c.vlanState[x] = 'suspend'; }); S.touch(this.state); return ''; });
+  def('vlan', 'state active', function () { var c = cfg(this); c.vlanState = c.vlanState || {}; (this.ctx.vlans || []).forEach(function (x) { delete c.vlanState[x]; }); S.touch(this.state); return ''; });
+  def('vlan', 'shutdown', function (v, neg) { var c = cfg(this); c.vlanState = c.vlanState || {}; (this.ctx.vlans || []).forEach(function (x) { if (neg) delete c.vlanState[x]; else c.vlanState[x] = 'shutdown'; }); return ''; });
+  showDef('vlan name <word>', swOnly(function (v) {
+    var c = cfg(this), id = Object.keys(c.vlans).filter(function (k) { return c.vlans[k].toLowerCase() === v[0].toLowerCase(); })[0];
+    if (!id) return 'VLAN ' + v[0] + ' not found in current VLAN database';
+    return SH.vlanId(this.state, this.dev, parseInt(id, 10));
+  }), true);
+
+  // ---------- Alias: alias exec <namn> <kommando>
+  def('config', 'alias exec <word> <text>', function (v, neg, k, line) {
+    var c = cfg(this); c.aliases = c.aliases || {};
+    if (neg) { delete c.aliases[v[0]]; return ''; }
+    c.aliases[v[0]] = rest(line, v[0]);
+    return '';
+  });
+  def('config', 'alias exec <word>', function (v) { var c = cfg(this); if (c.aliases) delete c.aliases[v[0]]; return ''; }, { noOnly: true });
+  showDef('aliases', function () {
+    var a = cfg(this).aliases || {};
+    return 'Exec mode aliases:\n  h                     help\n  lo                    logout\n  p                     ping\n  r                     resume\n  s                     show\n  u                     undebug\n  un                    undebug\n  w                     where' + Object.keys(a).map(function (k) { return '\n  ' + lpad(k, 22) + a[k]; }).join('');
+  }, true);
+
+  // ---------- ACL: numrera om raderna
+  def('config', 'ip access-list resequence <word> <n:1-2147483647> <n:1-2147483647>', function (v) {
+    var a = cfg(this).acls[v[0]];
+    if (!a) return '% Access list ' + v[0] + ' does not exist';
+    var n = v[1];
+    a.rules.forEach(function (r) { r.seq = n; n += v[2]; });
+    return '';
+  });
+
+  // ---------- Kabeltest (TDR) och SFP-värden
+  function tdrFor(s, n) {
+    var D = S.get(s.state), p = D.ports[S.key(s.dev.id, n)];
+    var link = s.state.links.filter(function (l) { return (l.a.dev === s.dev.id && l.a.port === n) || (l.b.dev === s.dev.id && l.b.port === n); })[0];
+    var len = link ? 3 + (U.hash(link.id) % 45) : 0;
+    if (!link) return { st: 'Open', len: 0, pairs: 'Open' };
+    if (link.state === 'broken') { var at = 1 + (U.hash(link.id + 'x') % Math.max(2, len - 1)); return { st: 'Open', len: at, pairs: 'Open' }; }
+    if (link.kind === 'fiber') return { fiber: true };
+    if (p && p.neg && p.neg.speed === 100) return { st: 'Normal', len: len, pairs: 'Normal', half: true };
+    return { st: 'Normal', len: len, pairs: 'Normal' };
+  }
+  def('exec', 'test cable-diagnostics tdr interface <if>', swOnly(function (v) {
+    if (!cfg(this).ifaces[v[0]]) return '% Invalid interface';
+    this.dev.rt.tdr = this.dev.rt.tdr || {};
+    this.dev.rt.tdr[v[0]] = tdrFor(this, v[0]);
+    return 'TDR test started on interface ' + U.shortIf(v[0]) + '\nA TDR test can take a few seconds to run on an interface\nUse \'show cable-diagnostics tdr\' to read the TDR results.';
+  }));
+  showDef('cable-diagnostics tdr interface <if>', swOnly(function (v) {
+    var t = (this.dev.rt.tdr || {})[v[0]];
+    if (!t) return '% TDR test was never issued on ' + U.shortIf(v[0]);
+    if (t.fiber) return '% TDR test is not supported on fiber interface ' + U.shortIf(v[0]);
+    var sp = t.half ? '100M' : (t.st === 'Open' ? 'auto' : '1000M');
+    var o = ['TDR test last run on: ' + SH.showClock(this.state, this.dev).replace(/^\*/, ''), '', 'Interface Speed Local pair Pair length        Remote pair Pair status', '--------- ----- ---------- ------------------ ----------- --------------------'];
+    ['Pair A', 'Pair B', 'Pair C', 'Pair D'].forEach(function (pr, i) {
+      var remote = t.st === 'Open' ? 'N/A        ' : ['Pair B     ', 'Pair A     ', 'Pair D     ', 'Pair C     '][i];
+      o.push((i === 0 ? lpad(U.shortIf(v[0]), 10) + lpad(sp, 6) : '                ') + lpad(pr, 11) + lpad(t.len + '   +/- ' + (t.st === 'Open' ? 1 : 4) + '  meters', 19) + ' ' + remote + ' ' + t.pairs);
+    });
+    return o.join('\n');
+  }), true);
+  showDef('interfaces <if> transceiver', swOnly(function (v) {
+    var D = S.get(this.state), p = D.ports[S.key(this.dev.id, v[0])];
+    var link = this.state.links.filter(function (l) { var me = this; return (l.a.dev === me.id && l.a.port === v[0]) || (l.b.dev === me.id && l.b.port === v[0]); }, this.dev)[0];
+    if (!link || link.kind !== 'fiber') return '% No transceiver present on ' + v[0];
+    var rx = p && p.up ? (-5.1 - (U.hash(link.id) % 30) / 10).toFixed(1) : '-40.0';
+    return 'If device is externally calibrated, only calibrated values are printed.\n++ : high alarm, +  : high warning, -  : low warning, -- : low alarm.\nNA or N/A: not applicable, Tx: transmit, Rx: receive.\n\n                                            Optical   Optical\n           Temperature  Voltage  Current   Tx Power  Rx Power\nPort       (Celsius)    (Volts)  (mA)      (dBm)     (dBm)\n---------  -----------  -------  --------  --------  --------\n' + lpad(U.shortIf(v[0]), 11) + lpad('31.2', 13) + lpad('3.29', 9) + lpad('6.8', 10) + lpad('-5.3', 10) + rx + (p && p.up ? '' : ' --');
+  }), true);
+
+  // ---------- Fler show- och clear-kommandon
+  showDef('interfaces status err-disabled', swOnly(function () {
+    var self = this, rows = SH.interfacesStatus(this.state, this.dev).split('\n').filter(function (l) { return /err-disabled/.test(l); });
+    return '\nPort      Name               Status       Reason               Err-disabled Vlans\n' + rows.map(function (l) { return l.slice(0, 29) + 'err-disabled ' + (self.dev.config.ifaces[U.normIf(l.split(' ')[0])] && self.dev.config.ifaces[U.normIf(l.split(' ')[0])].portSec ? 'psecure-violation' : 'link-flap'); }).join('\n');
+  }), true);
+  showDef('mac address-table static', swOnly(function () {
+    var X = cfg(this).x || {}, rows = [];
+    Object.keys(X).forEach(function (k) { var m = /^mac address-table static (\S+) vlan (\d+) interface (\S+)$/.exec(X[k]); if (m) rows.push(lpad(m[2], 5) + lpad(m[1].toLowerCase(), 19) + lpad('STATIC', 12) + U.shortIf(m[3])); });
+    var D = S.get(this.state), d = this.dev;
+    SH.physPorts(d).forEach(function (n) { var i = d.config.ifaces[n]; if (i.portSec && i.portSec.sticky) i.portSec.macs.forEach(function (m) { rows.push(lpad(i.accessVlan, 5) + lpad(U.macDots(m), 19) + lpad('STATIC', 12) + U.shortIf(n)); }); });
+    return '          Mac Address Table\n-------------------------------------------\n\nVlan    Mac Address       Type        Ports\n----    -----------       --------    -----\n' + rows.join('\n') + '\nTotal Mac Addresses for this criterion: ' + rows.length;
+  }), true);
+  showDef('ip arp <ip>', function (v) {
+    var t = SH.arpTable(this.state, this.dev).split('\n');
+    var hit = t.filter(function (l) { return l.indexOf(' ' + v[0] + ' ') >= 0; });
+    return hit.length ? t[0] + '\n' + hit.join('\n') : '';
+  }, true);
+  def('exec', 'clear arp-cache', function () { if (this.dev.arp) this.dev.arp = {}; S.touch(this.state); return ''; });
+  def('exec', 'clear ip arp <ip>', function (v) { if (this.dev.arp) delete this.dev.arp[v[0]]; return ''; });
+  showDef('port-security address', swOnly(function () {
+    var d = this.dev, rows = [];
+    SH.physPorts(d).forEach(function (n) { var i = d.config.ifaces[n]; if (i.portSec) (i.portSec.macs || []).forEach(function (m) { rows.push(lpad(i.accessVlan, 5) + lpad(U.macDots(m), 19) + lpad(i.portSec.sticky ? 'SecureSticky' : 'SecureDynamic', 21) + lpad(U.shortIf(n), 10) + '   -'); }); });
+    return '               Secure Mac Address Table\n-----------------------------------------------------------------------------\nVlan    Mac Address       Type                          Ports   Remaining Age\n                                                                   (mins)\n----    -----------       ----                          -----   -------------\n' + rows.join('\n') + '\n-----------------------------------------------------------------------------\nTotal Addresses in System (excluding one mac per port)     : ' + Math.max(0, rows.length - 1) + '\nMax Addresses limit in System (excluding one mac per port) : 4096';
+  }), true);
+  showDef('tech-support', function () {
+    var parts = [['show version', SH.showVersion(this.state, this.dev)], ['show running-config', SH.runningConfig(this.state, this.dev)], ['show ip interface brief', SH.ipIntBrief(this.state, this.dev)], ['show logging', SH.showLogging(this.state, this.dev)]];
+    if (isSwitch(this)) parts.push(['show vlan brief', SH.vlanBrief(this.state, this.dev)], ['show interfaces status', SH.interfacesStatus(this.state, this.dev)]);
+    else parts.push(['show ip route', SH.ipRoute(this.state, this.dev)]);
+    return parts.map(function (p) { return '\n------------------ ' + p[0] + ' ------------------\n\n' + p[1]; }).join('\n');
+  });
+  showDef('controllers <if>', function (v) {
+    var D = S.get(this.state), p = D.ports[S.key(this.dev.id, v[0])];
+    return 'Interface ' + v[0] + '\nHardware is ' + (isRouter(this) ? 'BCM1125 Internal MAC' : 'Gigabit Ethernet') + '\nLink is ' + (p && p.up ? 'up' : 'down') + ', speed ' + (p && p.neg ? p.neg.speed : 'auto') + ', ' + (p && p.neg ? p.neg.duplex + '-duplex' : 'auto-duplex') + '\nautonegotiation enabled\n\n Transmit                      Receive\n        0 Bytes                       0 Bytes\n        0 Unicast frames              0 Unicast frames\n        0 Collision frames            0 FCS errors';
+  }, true);
+  // DHCP: lease i dagar, timmar och minuter
+  def('dhcp', 'lease <n:0-365> <n:0-23>', function (v) { var p = cfg(this).dhcpPools[this.ctx.pool]; if (p) p.lease = v[0] + v[1] / 24; return ''; });
+  def('dhcp', 'lease <n:0-365> <n:0-23> <n:0-59>', function (v) { var p = cfg(this).dhcpPools[this.ctx.pool]; if (p) p.lease = v[0] + v[1] / 24 + v[2] / 1440; return ''; });
+  def('dhcp', 'option 150 ip <ip>', function (v, neg) { var p = cfg(this).dhcpPools[this.ctx.pool]; if (p) p.opt150 = neg ? null : v[0]; return ''; });
+
+  // ---------- Hjälptexter (?) för nyckelorden från version 6.1 och 7
+  [['banner', 'Define a login banner'], ['motd', 'Set Message of the Day banner'], ['vtp', 'Configure global VTP state'], ['lldp', 'Global LLDP configuration subcommands'],
+   ['alias', 'Create command alias'], ['security', 'Infra Security CLIs'], ['login', 'Enable secure login checking'], ['snmp-server', 'Modify SNMP engine parameters'],
+   ['errdisable', 'Error disable'], ['ipv6', 'Global IPv6 configuration commands'], ['voice', 'Set voice vlan characteristics'], ['channel-group', 'Etherchannel/port bundling configuration'],
+   ['storm-control', 'storm configuration'], ['bpduguard', 'Don\'t accept BPDUs on this interface'], ['standby', 'HSRP interface configuration commands'], ['bandwidth', 'Set bandwidth informational parameter'],
+   ['access-class', 'Filter connections based on an IP access list'], ['privilege', 'Change privilege level for line'], ['debug', 'Debugging functions (see also \'undebug\')'], ['undebug', 'Disable debugging functions (see also \'debug\')'],
+   ['erase', 'Erase a filesystem'], ['dir', 'List files on a filesystem'], ['ssh', 'Open a secure shell client connection'], ['telnet', 'Open a telnet connection'],
+   ['test', 'Test subsystems, memory, and interfaces'], ['cable-diagnostics', 'Cable diagnostic tests'], ['tdr', 'Time Domain Reflectometry'], ['loopback', 'Loopback interface'],
+   ['resequence', 'Resequence Access List'], ['state', 'Operational state of the VLAN'], ['suspend', 'VLAN Suspended state'], ['active', 'VLAN Active State'],
+   ['root', 'Configure switch as root'], ['primary', 'Configure this switch as primary root for this spanning tree'], ['secondary', 'Configure switch as secondary root'],
+   ['range', 'Match only packets in the range of port numbers'], ['gt', 'Match only packets with a greater port number'], ['lt', 'Match only packets with a lower port number'], ['neq', 'Match only packets not on a given port number'],
+   ['eq', 'Match only packets on a given port number'], ['log', 'Log matches against this entry'], ['clock', 'Configure time-of-day clock'], ['reload', 'Halt and perform a cold restart'],
+   ['tech-support', 'Show system information for Tech-Support'], ['transceiver', 'interface transceiver'], ['etherchannel', 'EtherChannel information'], ['lease', 'Address lease time']].forEach(function (h) { if (!HELP[h[0]]) HELP[h[0]] = h[1]; });
+  [['vtp', 'VTP information'], ['lldp', 'LLDP information'], ['etherchannel', 'EtherChannel information'], ['flash', 'display information about flash: file system'], ['debugging', 'State of each debugging option'],
+   ['hosts', 'IP domain-name, lookup style, nameservers, and host table'], ['line', 'TTY line information'], ['privilege', 'Show current privilege level'], ['reload', 'Scheduled reload information'],
+   ['snmp', 'snmp statistics'], ['standby', 'HSRP information'], ['tech-support', 'Show system information for Tech-Support'], ['cable-diagnostics', 'Show Cable Diagnostics Results'],
+   ['aliases', 'Display alias commands'], ['errdisable', 'Error disable'], ['root', 'Report on spanning tree root'], ['counters', 'Show interface counters'], ['summary', 'Summary of entries']].forEach(function (h) { if (!SHOW_HELP[h[0]]) SHOW_HELP[h[0]] = h[1]; });
+
+  // ---------- Version 7: konfigurationsregister, boot, sessioner och mer
+  def('config', 'config-register <word>', function (v, neg, kk, line) {
+    if (!/^0x[0-9a-f]{1,4}$/i.test(v[0])) return invalidMarker(this, line, v[0]);
+    cfg(this).confRegNext = v[0].toLowerCase();
+    return '';
+  });
+  def('config', 'boot system <text>', function (v, neg, kk, line) { var X = gx(cfg(this)); if (neg) delete X['boot system']; else X['boot system'] = 'boot system ' + rest(line, 'system'); return ''; });
+  def('config', 'logging buffered <n:4096-2147483647> <word>', function (v, neg) { var l = cfg(this).logging; l.buffered = !neg; if (!neg) { l.size = v[0]; l.level = v[1]; } return ''; });
+  def('config', 'ntp server <ip> prefer', function (v, neg) {
+    var c = cfg(this);
+    if (neg) { c.ntpServers = c.ntpServers.filter(function (x) { return x !== v[0]; }); S.touch(this.state); return ''; }
+    if (c.ntpServers.indexOf(v[0]) < 0) c.ntpServers.unshift(v[0]);
+    c.ntpPrefer = v[0];
+    S.touch(this.state);
+    return '';
+  });
+  def('config', 'clock timezone <word> <n:0-23> <n:0-59>', function () { return ''; });
+  showDef('users', function () {
+    var me = this.via === 'console' ? '*  0 con 0' : '*  2 vty 0', user = this.user || '';
+    return '    Line       User       Host(s)              Idle       Location\n' + lpad(me, 15) + lpad(user, 11) + lpad('idle', 21) + '00:00:00   ' + (this.via === 'console' ? '' : '192.168.1.200') + '\n\n  Interface    User               Mode         Idle     Peer Address';
+  }, true);
+  showDef('interfaces summary', function () {
+    var D = S.get(this.state), self = this;
+    var o = [' *: interface is up', ' IHQ: pkts in input hold queue     IQD: pkts dropped from input queue', ' OHQ: pkts in output hold queue    OQD: pkts dropped from output queue', ' RXBS: rx rate (bits/sec)          RXPS: rx rate (pkts/sec)', ' TXBS: tx rate (bits/sec)          TXPS: tx rate (pkts/sec)', ' TRTL: throttle count', '',
+      '  Interface                   IHQ       IQD       OHQ       OQD      RXBS      RXPS      TXBS      TXPS      TRTL', '-----------------------------------------------------------------------------------------------------------------'];
+    SH.ifaceNames(this.dev).forEach(function (n) {
+      var i = self.dev.config.ifaces[n], p = D.ports[S.key(self.dev.id, n)], ep = D.eps['E:' + self.dev.id + ':' + n];
+      var up = i.loop ? !i.shutdown : (p ? p.up : (ep ? ep.up : false));
+      var rx = up ? (U.hash(n + 'rx') % 90000) + 1000 : 0, tx = up ? (U.hash(n + 'tx') % 90000) + 1000 : 0;
+      o.push((up ? '* ' : '  ') + lpad(n, 26) + rpad(0, 5) + rpad(0, 10) + rpad(0, 10) + rpad(0, 10) + rpad(rx, 10) + rpad(Math.round(rx / 800), 10) + rpad(tx, 10) + rpad(Math.round(tx / 800), 10) + rpad(0, 10));
+    });
+    return o.join('\n');
+  }, true);
+  showDef('spanning-tree vlan <n:1-4094> brief', swOnly(function (v) { return SH.spanningTree(this.state, this.dev, v[0]); }), true);
+  showDef('memory statistics', function () {
+    var r = isRouter(this);
+    return '                Head    Total(b)     Used(b)     Free(b)   Lowest(b)  Largest(b)\nProcessor   ' + (r ? '2A6B7E40   414285504    98714424   315571080   314892000   312004096' : '1B2C3D40    94363276    27163948    67199328    66900120    66511072') + '\n      I/O   ' + (r ? 'E800000     75497472    21011032    54486440    54400000    54442780' : '7400000      8388608     3207548     5181060     5100000     5160012');
+  }, true);
 
   // Användarläget får inte konfigurera men ska känna igen show-grenen
   Session.TRIES = TRIES;

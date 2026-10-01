@@ -592,7 +592,7 @@ NV.UI = (function () {
   // ------------------------------------------------------------------ Handbok
   P.handbook = function (tab) {
     var self = this;
-    var tabs = [['cmd', 'Kommandon'], ['mine', 'Mina kommandon'], ['fel', 'Felbibliotek'], ['plan', 'Adressplan'], ['calc', 'Subnätsräknare'], ['bygg', 'Bygg från grunden'], ['vpn', 'VPN och LB'], ['osi', 'OSI-modellen'], ['ord', 'Ordlista'], ['keys', 'Styrning']];
+    var tabs = [['cmd', 'Kommandon'], ['mine', 'Mina kommandon'], ['fel', 'Felbibliotek'], ['plan', 'Adressplan'], ['calc', 'Subnätsräknare'], ['bygg', 'Bygg från grunden'], ['vpn', 'VPN och LB'], ['osi', 'OSI-modellen'], ['ord', 'Ordlista'], ['topo', 'Topologi'], ['flow', 'Felsökningsordning'], ['ports', 'Portnummer'], ['bin', 'Binärt'], ['logg', 'Kommandologg'], ['keys', 'Styrning']].filter(function (t) { return !!NV.handbook[t[0]]; });
     tab = tab || this.lastTab || 'cmd';
     this.lastTab = tab;
     var html = '<div class="tabs">' + tabs.map(function (t) { return '<button data-tab="' + t[0] + '" class="' + (t[0] === tab ? 'on' : '') + '">' + t[1] + '</button>'; }).join('') + '</div>' +
@@ -614,6 +614,7 @@ NV.UI = (function () {
           $('.tab-body', d).appendChild(tb);
           $('#sn-go', d).addEventListener('click', function () { self.subnetTrainer(tb); });
         }
+        if (NV.handbook['bind_' + tab]) NV.handbook['bind_' + tab](d, self);
         if (tab === 'mine') d.querySelectorAll('[data-cmd]').forEach(function (b) { b.addEventListener('click', function () { self.copyText(b.getAttribute('data-cmd')); }); });
       },
     });

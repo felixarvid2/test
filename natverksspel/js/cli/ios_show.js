@@ -10,9 +10,11 @@ NV.iosShow = (function () {
       if (/^Embedded/.test(n)) return [0, 0, 0];
       var m = /^GigabitEthernet0\/(\d+)(?:\.(\d+))?$/.exec(n);
       if (m) return [1, parseInt(m[1], 10), m[2] ? parseInt(m[2], 10) : -1];
+      var lo = /^Loopback(\d+)$/.exec(n);
+      if (lo) return [2, parseInt(lo[1], 10), 0];
       var v = /^Vlan(\d+)$/.exec(n);
-      if (v) return [2, parseInt(v[1], 10), 0];
-      return [3, 0, 0];
+      if (v) return [3, parseInt(v[1], 10), 0];
+      return [4, 0, 0];
     }
     names.sort(function (a, b) {
       var x = rank(a), y = rank(b);
@@ -47,11 +49,12 @@ NV.iosShow = (function () {
     var act = r.action === 'deny' ? 'deny  ' : 'permit';
     if (type === 'standard') return act + ' ' + addr(r.src);
     var s = act + ' ' + (r.proto || 'ip') + ' ' + addr(r.src) + ' ' + addr(r.dst);
-    if (r.dport) s += ' eq ' + portName(r.dport);
+    if (r.dport) s += r.dop === 'range' ? ' range ' + portName(r.dport) + ' ' + portName(r.dport2) : ' ' + (r.dop || 'eq') + ' ' + portName(r.dport);
+    if (r.log) s += ' log';
     return s;
   }
   function portName(p) {
-    return { 22: '22', 23: 'telnet', 53: 'domain', 80: 'www', 443: '443' }[p] || String(p);
+    return { 21: 'ftp', 22: '22', 23: 'telnet', 25: 'smtp', 53: 'domain', 67: 'bootps', 68: 'bootpc', 80: 'www', 110: 'pop3', 123: 'ntp', 161: 'snmp', 443: '443', 514: 'syslog' }[p] || String(p);
   }
   function lineCfg(l, isCon, enc) {
     var out = [];
@@ -90,7 +93,7 @@ NV.iosShow = (function () {
     if (i.parent) {
       if (i.encap) o.push(' encapsulation dot1Q ' + i.encap);
     }
-    if (isSw(d) && !i.svi) {
+    if (isSw(d) && !i.svi && !i.loop) {
       if (i.mode === 'trunk' || i.mode === 'dynamic auto' || i.mode === 'dynamic desirable' || i.mode === 'access') {
         if (i.accessVlan !== 1) o.push(' switchport access vlan ' + i.accessVlan);
         if (i.encap === 'dot1q') o.push(' switchport trunk encapsulation dot1q');
@@ -123,7 +126,7 @@ NV.iosShow = (function () {
       if (i.mtu) o.push(' ip mtu ' + i.mtu);
       if (i.adjustMss) o.push(' ip tcp adjust-mss ' + i.adjustMss);
       if (i.cryptoMap) o.push(' crypto map ' + i.cryptoMap);
-      if (!i.svi && !i.parent && !i.internal) {
+      if (!i.svi && !i.parent && !i.internal && !i.loop) {
         if (d.kind === 'router') {
           o.push(i.duplex === 'auto' ? ' duplex auto' : ' duplex ' + i.duplex);
           o.push(i.speed === 'auto' ? ' speed auto' : ' speed ' + i.speed);
@@ -158,7 +161,7 @@ NV.iosShow = (function () {
     o.push('boot-start-marker');
     o.push('boot-end-marker');
     o.push('!');
-    if (c.logging.buffered) o.push('logging buffered ' + c.logging.size);
+    if (c.logging.buffered) o.push('logging buffered ' + c.logging.size + (c.logging.level ? ' ' + c.logging.level : ''));
     else o.push('no logging buffered');
     if (c.enableSecret) o.push('enable secret 9 ' + c.enableSecret);
     if (c.enablePassword) o.push('enable password ' + (c.pwEncrypt ? '7 ' + fakeType7(c.enablePassword) : c.enablePassword));
@@ -182,7 +185,11 @@ NV.iosShow = (function () {
         if (pl.network) o.push(' network ' + pl.network + ' ' + pl.mask);
         if (pl.defaultRouter.length) o.push(' default-router ' + pl.defaultRouter.join(' '));
         if (pl.dns.length) o.push(' dns-server ' + pl.dns.join(' '));
-        if (pl.lease !== 1) o.push(' lease ' + pl.lease);
+        if (pl.lease !== 1) {
+          if (pl.lease === Math.floor(pl.lease)) o.push(' lease ' + pl.lease);
+          else { var mins = Math.round(pl.lease * 1440); o.push(' lease ' + Math.floor(mins / 1440) + ' ' + Math.floor((mins % 1440) / 60) + (mins % 60 ? ' ' + (mins % 60) : '')); }
+        }
+        if (pl.opt150) o.push(' option 150 ip ' + pl.opt150);
         o.push('!');
       });
     }
@@ -212,6 +219,8 @@ NV.iosShow = (function () {
         if (v === 1) return;
         o.push('vlan ' + v);
         o.push(' name ' + c.vlans[v]);
+        if (c.vlanState && c.vlanState[v] === 'suspend') o.push(' state suspend');
+        if (c.vlanState && c.vlanState[v] === 'shutdown') o.push(' shutdown');
         o.push('!');
       });
     }
@@ -267,7 +276,7 @@ NV.iosShow = (function () {
     lineCfg(c.lines.vty5_15, false, c.pwEncrypt).forEach(function (l) { o.push(l); });
     o.push('!');
     if (c.ntpSource) o.push('ntp source ' + c.ntpSource);
-    c.ntpServers.forEach(function (n) { o.push('ntp server ' + n); });
+    c.ntpServers.forEach(function (n) { o.push('ntp server ' + n + (c.ntpPrefer === n ? ' prefer' : '')); });
     o.push('end');
     var body = o.join('\n');
     return 'Building configuration...\n\nCurrent configuration : ' + (body.length + 40) + ' bytes\n' + body;
@@ -454,9 +463,10 @@ NV.iosShow = (function () {
     ifaceNames(d).forEach(function (n) {
       var i = d.config.ifaces[n];
       var st, pr;
-      if (i.svi || i.parent || i.internal || d.kind === 'router') {
+      if (i.svi || i.parent || i.internal || i.loop || d.kind === 'router') {
         var ep = D.eps['E:' + d.id + ':' + n];
         if (i.shutdown) { st = 'administratively down'; pr = 'down'; }
+        else if (i.loop) { st = 'up'; pr = 'up'; }
         else if (i.parent) {
           var parent = d.config.ifaces[i.parent];
           var pp = D.ports[S.key(d.id, i.parent)];
@@ -485,6 +495,10 @@ NV.iosShow = (function () {
   function showInterface(state, d, n) {
     var D = S.get(state);
     var i = d.config.ifaces[n];
+    if (i.loop) {
+      var lst = i.shutdown ? 'administratively down' : 'up';
+      return n + ' is ' + lst + ', line protocol is ' + (i.shutdown ? 'down' : 'up') + ' \n  Hardware is Loopback\n' + (i.description ? '  Description: ' + i.description + '\n' : '') + (i.ip ? '  Internet address is ' + i.ip.addr + '/' + U.maskToPrefix(i.ip.mask) + '\n' : '') + '  MTU 1514 bytes, BW 8000000 Kbit/sec, DLY 5000 usec, \n     reliability 255/255, txload 1/255, rxload 1/255\n  Encapsulation LOOPBACK, loopback not set\n  Keepalive set (10 sec)\n  Last input never, output never, output hang never\n  Last clearing of "show interface" counters never\n  Input queue: 0/75/0/0 (size/max/drops/flushes); Total output drops: 0\n  Queueing strategy: fifo\n  Output queue: 0/0 (size/max)\n  5 minute input rate 0 bits/sec, 0 packets/sec\n  5 minute output rate 0 bits/sec, 0 packets/sec\n     0 packets input, 0 bytes, 0 no buffer\n     0 packets output, 0 bytes, 0 underruns';
+    }
     var p = D.ports[S.key(d.id, n)];
     var up, lp, extra = '';
     if (i.parent) {
@@ -615,7 +629,7 @@ NV.iosShow = (function () {
       var lines = [];
       for (var k = 0; k < ports.length; k += 4) lines.push(ports.slice(k, k + 4).join(', '));
       if (!lines.length) lines.push('');
-      o.push(pad(v, 5) + pad(d.config.vlans[v], 33) + pad('active', 10) + lines[0]);
+      o.push(pad(v, 5) + pad(d.config.vlans[v], 33) + pad(d.config.vlanState && d.config.vlanState[v] === 'suspend' ? 'suspended' : (d.config.vlanState && d.config.vlanState[v] === 'shutdown' ? 'act/lshut' : 'active'), 10) + lines[0]);
       for (var j = 1; j < lines.length; j++) o.push(pad('', 48) + lines[j]);
     });
     o.push('1002 fddi-default                     act/unsup ');
@@ -625,7 +639,7 @@ NV.iosShow = (function () {
     // Portar vars VLAN saknas
     physPorts(d).forEach(function (n) {
       var i = d.config.ifaces[n];
-      if (S.opMode(state, d.id, n) !== 'trunk' && !S.vlanExists(d, i.accessVlan)) {
+      if (S.opMode(state, d.id, n) !== 'trunk' && !d.config.vlans[i.accessVlan]) {
         o.push('% Port ' + U.shortIf(n) + ' is assigned to VLAN ' + i.accessVlan + ', which does not exist');
       }
     });
@@ -1100,7 +1114,7 @@ NV.iosShow = (function () {
         '255K bytes of non-volatile configuration memory.',
         '255744K bytes of ATA System CompactFlash 0 (Read/Write)',
         '',
-        'Configuration register is 0x2102'].join('\n');
+        'Configuration register is ' + (d.config.confReg || '0x2102') + (d.config.confRegNext && d.config.confRegNext !== (d.config.confReg || '0x2102') ? ' (will be ' + d.config.confRegNext + ' at next reload)' : '')].join('\n');
     }
     var img = d.model.indexOf('3750') >= 0 ? 'C3750-IPSERVICESK9-M' : 'C3560-IPSERVICESK9-M';
     return ['Cisco IOS Software, ' + img.split('-')[0] + ' Software (' + img + '), Version 12.2(55)SE12, RELEASE SOFTWARE (fc2)',
@@ -1122,7 +1136,7 @@ NV.iosShow = (function () {
       'Base ethernet MAC Address       : ' + U.macColon(d.baseMac).toUpperCase(),
       'Model number                    : ' + d.model,
       '',
-      'Configuration register is 0xF'].join('\n');
+      'Configuration register is ' + (d.config.confReg || '0xF') + (d.config.confRegNext && d.config.confRegNext !== (d.config.confReg || '0xF') ? ' (will be ' + d.config.confRegNext + ' at next reload)' : '')].join('\n');
   }
 
   function showClock(state, d) {
