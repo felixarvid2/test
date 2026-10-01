@@ -23,12 +23,18 @@
     ['debug', 'Avlusare', 'Slå på debug och stäng av den igen med undebug all.', '🐞', function (s) { return s.undebugs >= 1; }],
     ['range', 'Portintervall', 'Skriv en ACL-rad med range, gt eller lt.', '🎚️', function (s) { return s.aclRanges >= 1; }],
     ['topo', 'Kartläsare', 'Öppna topologin i handboken.', '🗺️', function (s) { return s.topos >= 1; }],
+    ['cat', 'Kattvän', 'Klappa kontorskatten.', '🐈', function (s) { return s.cats >= 1; }],
+    ['ducks', 'Ankmatare', 'Mata ankorna i dammen.', '🦆', function (s) { return s.duckFeeds >= 1; }],
+    ['wget', 'Nedladdare', 'Spara en webbsida till disk med wget.', '📥', function (s) { return s.wgets >= 1; }],
+    ['storm', 'Stormvakt', 'Skydda en port mot broadcaststormar med storm-control.', '🌩️', function (s) { return s.storms >= 1; }],
+    ['env', 'Hälsokontroll', 'Kontrollera fläktar och temperatur med show environment.', '🌡️', function (s) { return s.envs >= 1; }],
     ['typo10', 'Stavfelsjägare', 'Låt terminalen föreslå rätt kommando tio gånger.', '✏️', function (s) { return s.typos >= 10; }],
   ].forEach(function (a) { if (!A.some(function (x) { return x[0] === a[0]; })) A.push(a); });
   var PATS = [
     [/^\s*nmap\b/, 'nmaps'], [/^\s*test cable/i, 'tdrs'], [/^\s*int(erface)?\s+lo/i, 'loops'], [/^\s*banner\s+(motd|login|exec)/i, 'banners'],
     [/^\s*alias exec/i, 'aliases'], [/^\s*(mtr|pathping)\b/i, 'mtrs'], [/^\s*(wr(ite)?( mem(ory)?)?|copy run(ning-config)? start(up-config)?)\s*$/i, 'saves'],
     [/^\s*(do\s+)?sh(ow?)?\s+run/i, 'showRuns'], [/^\s*(undebug all|u all|no debug all)\s*$/i, 'undebugs'], [/\b(range|gt|lt)\s+\d+/i, 'aclRanges'],
+    [/^\s*wget\s+\S/, 'wgets'], [/^\s*storm-control\s+(broadcast|multicast|unicast)\s+level/i, 'storms'], [/^\s*(do\s+)?sh(ow?)?\s+env/i, 'envs'],
   ];
   function track(line) {
     PATS.forEach(function (p) { if (p[0].test(line)) NV.career.stat(p[1]); });
@@ -39,6 +45,18 @@
     if (!g) return;
     var origLog = g.logCommand;
     g.logCommand = function (entry, line) { try { track(line); } catch (e) { /* statistik är inte viktig */ } return origLog.apply(this, arguments); };
+    var origDescribe = g.describe;
+    g.describe = function (i) {
+      if (i.type === 'cat') return 'Klappa katten';
+      if (i.type === 'ducks') return 'Mata ankorna';
+      return origDescribe.apply(this, arguments);
+    };
+    var origInteract = g.onInteract;
+    g.onInteract = function (i) {
+      if (i && i.type === 'cat') { if (this.world.petCat) this.world.petCat(); NV.career.stat('cats'); return; }
+      if (i && i.type === 'ducks') { if (this.world.feedDucks) this.world.feedDucks(); NV.career.stat('duckFeeds'); return; }
+      return origInteract.apply(this, arguments);
+    };
     var origRemote = g.onRemoteLogin;
     g.onRemoteLogin = function (dev, via) { if (via === 'ssh') NV.career.stat('sshLogins'); return origRemote.apply(this, arguments); };
     var t = g.terminal;
@@ -49,7 +67,78 @@
       t.print = function (text) { if (text && text.indexOf('💡 Menade du') >= 0) NV.career.stat('typos'); return origPrint.apply(this, arguments); };
     }
     setInterval(hudBadges, 2000);
+    // XP första gången du använder ett av de nya verktygen
+    var NEWFAM = { nmap: 'nmap', mtr: 'mtr', pathping: 'pathping', arping: 'arping', ethtool: 'ethtool', nmcli: 'nmcli', test: 'kabeltest', alias: 'alias', banner: 'banner', vtp: 'vtp', lldp: 'lldp', erase: 'erase', 'test-connection': 'Test-Connection', 'resolve-dnsname': 'Resolve-DnsName', 'config-register': 'config-register', 'channel-group': 'EtherChannel', wget: 'wget', nbtstat: 'nbtstat', lsof: 'lsof', 'storm-control': 'storm-control', 'get-netneighbor': 'Get-NetNeighbor' };
+    var origCount = g.countCommand;
+    g.countCommand = function (line) {
+      var r = origCount.apply(this, arguments);
+      var w = String(line || '').trim().split(/\s+/)[0].toLowerCase();
+      if (NEWFAM[w] && NV.career.firstUse(NEWFAM[w])) this.xp(10, 'Nytt verktyg: ' + NEWFAM[w]);
+      return r;
+    };
+    var origOnCmd = g.onCommand;
+    g.onCommand = function (dev, line) {
+      var w = String(line || '').trim().split(/\s+/)[0].toLowerCase();
+      if (NEWFAM[w] && NV.career.firstUse(NEWFAM[w])) this.xp(10, 'Nytt kommando: ' + NEWFAM[w]);
+      return origOnCmd.apply(this, arguments);
+    };
+    // Dagar i rad som du har spelat
+    try {
+      var today = new Date(), key = today.getFullYear() + '-' + (today.getMonth() + 1) + '-' + today.getDate();
+      var sk = NV.settings.store('krabba-passet.streak') || { last: null, n: 0 };
+      if (sk.last !== key) {
+        var y = new Date(today.getTime() - 86400000), ykey = y.getFullYear() + '-' + (y.getMonth() + 1) + '-' + y.getDate();
+        sk.n = sk.last === ykey ? sk.n + 1 : 1; sk.last = key;
+        NV.settings.store('krabba-passet.streak', sk);
+      }
+      NV.streak = sk.n;
+    } catch (e) { NV.streak = 1; }
   });
+  // Handboken minns senaste fliken och ← → byter flik
+  if (U && U.handbook) {
+    var origHb = U.handbook;
+    U.handbook = function (tab) {
+      if (!tab && !this.lastTab) tab = NV.settings.get('hbTab') || undefined;
+      var r = origHb.call(this, tab);
+      NV.settings.set('hbTab', this.lastTab);
+      return r;
+    };
+  }
+  document.addEventListener('keydown', function (e) {
+    var g = NV.game, ui = g && g.ui;
+    if (!ui || !ui.dialogOpen() || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+    if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+    var tabs = Array.prototype.slice.call(document.querySelectorAll('#dialog .tabs [data-tab]'));
+    if (!tabs.length) return;
+    var i = tabs.findIndex(function (b) { return b.classList.contains('on'); });
+    var n = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+    if (n) { e.preventDefault(); n.click(); }
+  });
+  // I öppnar topologin
+  document.addEventListener('keydown', function (e) {
+    var g = NV.game, ui = g && g.ui;
+    if (!ui || g.terminal.open || ui.dialogOpen() || ui.menuOpen() || ui.pauseOpen()) return;
+    if (e.code === 'KeyI') { e.preventDefault(); ui.handbook('topo'); }
+  });
+  // Meddelanden när en länk går ner eller kommer upp igen
+  var linkPrev = null, lastToast = 0;
+  function linkWatch(st) {
+    var now = {}, msgs = [];
+    (st.links || []).forEach(function (l) { var s; try { s = NV.shared.linkStatus(st, l); } catch (e) { return; } now[l.id] = s; });
+    if (linkPrev && linkPrev._st === st) {
+      (st.links || []).forEach(function (l) {
+        var a = linkPrev[l.id], b = now[l.id];
+        if (!a || a === b) return;
+        var name = l.a.dev + ' ' + NV.util.shortIf(l.a.port) + ' ↔ ' + l.b.dev + (l.b.port !== 'nic' ? ' ' + NV.util.shortIf(l.b.port) : '');
+        if (b === 'down' && a !== 'down') msgs.push('🔴 Länken ' + name + ' gick ner');
+        else if (a === 'down' && b !== 'down') msgs.push('🟢 Länken ' + name + ' är uppe igen');
+      });
+    }
+    now._st = st;
+    linkPrev = now;
+    if (msgs.length && Date.now() - lastToast > 1500 && NV.game.ui && NV.settings.get('linkAlerts') !== false) { lastToast = Date.now(); NV.game.ui.toast(msgs.slice(0, 2).join('<br>') + (msgs.length > 2 ? '<br>… och ' + (msgs.length - 2) + ' till' : '')); }
+  }
+  NV.linkWatch = linkWatch;
 
   // ------------------------------------------------------------------ HUD: osparad konfiguration och länkar som är nere
   function hudBadges() {
@@ -62,6 +151,7 @@
       if (JSON.stringify(d.config) !== JSON.stringify(d.startup)) unsaved.push(d.config.hostname || id);
     });
     (st.links || []).forEach(function (l) { try { if (NV.shared.linkStatus(st, l) === 'down') down++; } catch (e) { /* länk utan status */ } });
+    try { linkWatch(st); } catch (e) { /* ignoreras */ }
     var box = hud.querySelector('.hud-v7');
     if (!box) { box = document.createElement('div'); box.className = 'hud-v7'; hud.appendChild(box); }
     var html = '';
@@ -72,6 +162,8 @@
 
   // ------------------------------------------------------------------ Dagens tips i menyn
   var TIPS = [
+    'show ip cef visar vad routern faktiskt skickar paket efter – show ip route visar vad den har lärt sig.', 'storm-control broadcast level 10 begränsar skadan om någon kopplar en slinga.',
+    'wget sparar sidan som en fil. Läs den sedan med cat index.html.', 'Get-NetNeighbor är PowerShells arp -a.', 'show protocols ger status och adress för varje interface på en skärm.',
     'Pinga gatewayen först. Svarar den inte är felet nära dig.', 'show interfaces status visar notconnect, err-disabled och fel duplex på en gång.',
     'Native VLAN måste vara samma i båda ändarna av en trunk.', 'switchport trunk allowed vlan add lägger till – utan add skrivs listan över.',
     'En adress som börjar på 169.254 betyder att datorn inte fick något DHCP-svar.', 'show ip route visar vägarna. Mest exakta nätet vinner.',
@@ -101,7 +193,7 @@
     U.showMenu = function () {
       origMenu.apply(this, arguments);
       var inner = this.menu && this.menu.querySelector('.menu-inner');
-      if (inner && !inner.querySelector('.tip-day')) {
+      if (inner && !inner.querySelector('.tip-day') && NV.settings.get('menuTips') !== false) {
         var p = document.createElement('div');
         p.className = 'tip-day';
         var i = TIPS.indexOf(tipOfDay());
@@ -109,7 +201,42 @@
         p.querySelector('.tip-next').addEventListener('click', function (e) { e.stopPropagation(); i = (i + 1) % TIPS.length; p.querySelector('.tip-txt').textContent = TIPS[i]; });
         var sum = inner.querySelector('.menu-sum');
         if (sum) sum.parentNode.insertBefore(p, sum); else inner.appendChild(p);
+        var de = NV.dailyExercise && NV.dailyExercise();
+        if (de) p.insertAdjacentHTML('afterend', '<div class="tip-day ex-day"><b>🎯 Dagens övning</b> <span class="tip-txt">' + esc(de[1]) + ': ' + esc(de[2]) + '</span></div>');
+        if (NV.streak > 1) { var sumEl = inner.querySelector('.menu-sum'); if (sumEl) sumEl.insertAdjacentHTML('beforeend', ' · 🔥 ' + NV.streak + ' dagar i rad'); }
       }
+    };
+  }
+
+  // Veckosammanfattningen varnar för enheter som har ändringar som inte är sparade
+  if (U && U.weekDone) {
+    var origDone = U.weekDone;
+    U.weekDone = function () {
+      origDone.apply(this, arguments);
+      var st = this.game.state, body = document.querySelector('#dialog .dlg-body'), un = [];
+      if (!st || !body) return;
+      Object.keys(st.devices).forEach(function (id) { var d = st.devices[id]; if (d.os === 'ios' && d.startup && JSON.stringify(d.config) !== JSON.stringify(d.startup)) un.push(d.config.hostname || id); });
+      if (un.length) body.insertAdjacentHTML('beforeend', '<p class="warn-box">💾 Osparade ändringar på ' + esc(un.join(', ')) + '. På riktigt hade de försvunnit vid nästa strömavbrott – kom ihåg <code>write memory</code>.</p>');
+    };
+  }
+
+  // Inställningar för det nya i version 7
+  var Dd = NV.settings.defaults;
+  Dd.menuTips = true; Dd.linkAlerts = true; Dd.animals2d = true;
+  if (U && U.settingsDialog) {
+    var origSet = U.settingsDialog;
+    U.settingsDialog = function () {
+      origSet.apply(this, arguments);
+      var body = document.querySelector('#dialog .dlg-body'), st = NV.settings;
+      if (!body) return;
+      var box = document.createElement('div');
+      box.innerHTML = '<h3>Mer</h3><div class="set-grid">' +
+        '<label for="v7-tips">Dagens tips i menyn</label><input type="checkbox" id="v7-tips"' + (st.get('menuTips') ? ' checked' : '') + '>' +
+        '<label for="v7-links">Meddelande när en länk går ner eller upp</label><input type="checkbox" id="v7-links"' + (st.get('linkAlerts') ? ' checked' : '') + '>' +
+        '<label for="v7-anim">Djur i 2D (ankor, katt, duvor med flera)</label><input type="checkbox" id="v7-anim"' + (st.get('animals2d') ? ' checked' : '') + '>' +
+        '</div>';
+      body.appendChild(box);
+      [['v7-tips', 'menuTips'], ['v7-links', 'linkAlerts'], ['v7-anim', 'animals2d']].forEach(function (x) { var el = box.querySelector('#' + x[0]); el.addEventListener('input', function () { st.set(x[1], el.checked); }); });
     };
   }
 
@@ -150,7 +277,7 @@
       var s = 'up';
       try { s = NV.shared.linkStatus(st, l); } catch (e) { /* okänd */ }
       var color = s === 'down' ? col.bad : (s === 'warn' ? col.warn : (s === 'off' ? '#667080' : col.ok));
-      svg += '<line x1="' + (a[0] + 35) + '" y1="' + (a[1] + 14) + '" x2="' + (b[0] + 35) + '" y2="' + (b[1] + 14) + '" stroke="' + color + '" stroke-width="' + (l.kind === 'fiber' ? 4 : 2.5) + '"' + (s === 'down' ? ' stroke-dasharray="6 5"' : '') + '><title>' + esc(l.a.dev + ' ' + l.a.port + ' ↔ ' + l.b.dev + ' ' + l.b.port + ' (' + s + ')') + '</title></line>';
+      svg += '<line data-l="' + esc(l.id) + '" x1="' + (a[0] + 35) + '" y1="' + (a[1] + 14) + '" x2="' + (b[0] + 35) + '" y2="' + (b[1] + 14) + '" stroke="' + color + '" stroke-width="' + (l.kind === 'fiber' ? 4 : 2.5) + '"' + (s === 'down' ? ' stroke-dasharray="6 5"' : '') + '><title>' + esc(l.a.dev + ' ' + l.a.port + ' ↔ ' + l.b.dev + ' ' + l.b.port + ' (' + s + ')') + '</title></line>';
     });
     if (st.devices.R1 && st.devices.RB) svg += '<line x1="285" y1="134" x2="675" y2="134" stroke="#c58bff" stroke-width="2" stroke-dasharray="3 6"><title>Länken / VPN-tunneln mellan Göteborg och Borås</title></line>';
     Object.keys(POS).forEach(function (id) {
@@ -165,6 +292,14 @@
   };
   H.bind_topo = function (d) {
     NV.career.stat('topos');
+    // Topologin uppdateras medan den är öppen
+    var iv = setInterval(function () {
+      var svg = d.querySelector('svg.topo');
+      if (!svg || !document.body.contains(svg)) { clearInterval(iv); return; }
+      var st2 = NV.game.state, col = NV.palette ? NV.palette() : { ok: '#3dff6a', bad: '#ff3b30', warn: '#ffb020' };
+      var lines = svg.querySelectorAll('line[data-l]');
+      lines.forEach(function (ln) { var l = st2.links.filter(function (x) { return x.id === ln.getAttribute('data-l'); })[0]; if (!l) return; var s2 = 'up'; try { s2 = NV.shared.linkStatus(st2, l); } catch (e) { /* okänd */ } ln.setAttribute('stroke', s2 === 'down' ? col.bad : (s2 === 'warn' ? col.warn : (s2 === 'off' ? '#667080' : col.ok))); if (s2 === 'down') ln.setAttribute('stroke-dasharray', '6 5'); else ln.removeAttribute('stroke-dasharray'); });
+    }, 1500);
     var st = NV.game.state, S = NV.sim;
     d.querySelectorAll('.topo-n').forEach(function (n) {
       function show() {
@@ -243,6 +378,66 @@
       ['9. Spara och dokumentera', 'Spara och skriv felrapporten', c('write memory') + ', F'],
     ];
     return '<p class="muted small">Börja nerifrån (OSI-lager 1) och gå uppåt. Stanna där något inte stämmer.</p>' + table(['Steg', 'Fråga', 'Kommandon'], steps);
+  };
+  // Teori: korta avsnitt om det som ligger bakom felen i spelet
+  H.teori = function () {
+    function sec(t, body) { return '<details class="teori"><summary>' + t + '</summary>' + body + '</details>'; }
+    return '<p class="muted small">Klicka på en rubrik för att öppna den.</p>' +
+      sec('Lägena i Cisco IOS', '<p>' + c('Router>') + ' användarläge → ' + c('enable') + ' → ' + c('Router#') + ' privilegierat läge → ' + c('configure terminal') + ' → ' + c('Router(config)#') + '. Därifrån går du in i ' + c('interface') + ' (config-if), ' + c('line') + ' (config-line), ' + c('vlan') + ' (config-vlan) och ' + c('ip dhcp pool') + ' (dhcp-config). ' + c('exit') + ' backar ett steg, ' + c('end') + ' eller Ctrl+Z går direkt till #.</p>') +
+      sec('Felmeddelanden i IOS', table(['Meddelande', 'Betyder'], [[c('% Invalid input detected at \'^\' marker.'), 'Ordet vid ^ finns inte här – fel stavat eller fel läge'], [c('% Incomplete command.'), 'Det saknas något på slutet – tryck ? för att se vad'], [c('% Ambiguous command'), 'Förkortningen passar flera kommandon – skriv fler bokstäver'], [c('% Unknown command or computer name'), 'Användarläget tror att du vill ansluta till en dator med det namnet'], [c('Translating "…"...domain server'), 'Ett felstavat kommando tolkas som ett värdnamn – stäng av med ' + c('no ip domain-lookup')]])) +
+      sec('Kablar', table(['Kabel', 'Används till'], [['Rak (straight-through)', 'Dator–switch, router–switch'], ['Korsad (crossover)', 'Switch–switch och dator–dator på gammal utrustning (auto-MDIX löser det i dag)'], ['Konsolkabel (ljusblå)', 'Laptopens USB till enhetens konsolport, 9600 baud 8N1'], ['Fiber (LC)', 'Långa avstånd och störningsfritt, t.ex. reservlänken Gi0/25']])) +
+      sec('Privata adresser och specialadresser', table(['Nät', 'Vad det är'], [['10.0.0.0/8', 'Privat'], ['172.16.0.0/12', 'Privat'], ['192.168.0.0/16', 'Privat – används på Nordvik'], ['169.254.0.0/16', 'APIPA: datorn fick inget DHCP-svar'], ['127.0.0.0/8', 'Den egna datorn (loopback)'], ['203.0.113.0/24, 198.51.100.0/24', 'Dokumentationsnät – här ”internet”']])) +
+      sec('DHCP: DORA', '<p><b>D</b>iscover (klienten ropar), <b>O</b>ffer (servern erbjuder en adress), <b>R</b>equest (klienten tackar ja), <b>A</b>ck (servern bekräftar). Discover är en broadcast, så den stannar i VLAN:et – därför behövs ' + c('ip helper-address') + ' när servern sitter i ett annat nät.</p>') +
+      sec('ARP', '<p>Innan en dator kan skicka till en IP-adress i samma nät måste den veta MAC-adressen. Den skickar en broadcast: ”Vem har 192.168.1.1?” och sparar svaret i ARP-tabellen (' + c('arp -a') + ', ' + c('show arp') + '). Till andra nät skickas paketet till gatewayens MAC-adress.</p>') +
+      sec('TCP:s trevägshandskakning', '<p>SYN → SYN-ACK → ACK. Svarar mottagaren med RST är porten stängd (' + c('Connection refused') + '). Kommer inget svar alls är det oftast en brandvägg eller ACL som slänger paketet (timeout).</p>') +
+      sec('Spanning tree: roller och tillstånd', table(['Roll / tillstånd', 'Betyder'], [['Root', 'Bästa vägen mot rootbryggan'], ['Desg (designated)', 'Skickar vidare på segmentet'], ['Altn (alternate)', 'Reservväg – blockerad'], ['FWD', 'Skickar trafik'], ['BLK', 'Blockerar för att undvika loopar'], ['Edge (portfast)', 'Port mot en dator, går direkt till FWD']])) +
+      sec('Administrativt avstånd', table(['Källa', 'Avstånd'], [['Anslutet nät', '0'], ['Statisk väg', '1'], ['EIGRP', '90'], ['OSPF', '110'], ['RIP', '120'], ['Flytande statisk väg (t.ex.)', '200'], ['Okänd', '255 – används aldrig']])) +
+      sec('NAT-typer', table(['Typ', 'Kommando', 'Används till'], [['Statisk', c('ip nat inside source static 192.168.1.10 203.0.113.11'), 'En server som ska nås utifrån'], ['Dynamisk', c('ip nat inside source list 1 pool UT'), 'En pool med publika adresser'], ['PAT (overload)', c('ip nat inside source list 1 interface gi0/1 overload'), 'Hela kontoret delar en adress']])) +
+      sec('Var ska en ACL sitta?', '<p><b>Standard-ACL</b> (bara källadress) placeras nära <b>målet</b>, annars stoppar den för mycket. <b>Extended-ACL</b> (källa, mål, protokoll, port) placeras nära <b>källan</b>, så att oönskad trafik stoppas tidigt. Sist i varje lista finns ett osynligt ' + c('deny any') + '.</p>') +
+      sec('Wildcardmasker', table(['Wildcard', 'Matchar'], [[c('0.0.0.0'), 'Exakt en adress (samma som host)'], [c('0.0.0.255'), 'Ett /24-nät'], [c('0.0.0.63'), 'Ett /26-nät'], [c('255.255.255.255'), 'Alla adresser (samma som any)']]) + '<p class="muted small">Tips: wildcard = 255.255.255.255 minus nätmasken.</p>') +
+      sec('VLAN som alltid finns', '<p>VLAN 1 (default) och 1002–1005 (gamla FDDI/Token Ring) finns på alla Catalyst-switchar och går inte att ta bort. Använd inte VLAN 1 för användare, och lägg native VLAN på ett oanvänt VLAN (här 999).</p>') +
+      sec('Broadcaststormar och storm-control', '<p>Om två switchportar kopplas ihop utan att spanning tree blockerar den ena, snurrar broadcastramar runt för evigt och tar hela nätet. ' + c('storm-control broadcast level 10') + ' på en port tappar broadcast när den passerar 10 % av länkens kapacitet. ' + c('show storm-control') + ' visar gränserna. Det ersätter inte spanning tree, men begränsar skadan.</p>') +
+      sec('RIB och FIB: show ip route och show ip cef', '<p><b>RIB</b> (Routing Information Base) är routingtabellen som du ser med ' + c('show ip route') + '. Routern väljer där den bästa vägen till varje nät. <b>FIB</b> (Forwarding Information Base, ' + c('show ip cef') + ') är kopian som används när paket faktiskt skickas vidare. Den har också raderna <i>receive</i> (routerns egna adresser) och <i>drop</i>. Om en väg finns i RIB men inte i FIB är något fel på nästa hopp.</p>') +
+      sec('Multicast och IGMP snooping', '<p>Multicast skickas till en grupp (224.0.0.0/4) i stället för till alla. Datorer anmäler sig till en grupp med IGMP. Med <b>IGMP snooping</b> (' + c('show ip igmp snooping') + ') lyssnar switchen på anmälningarna och skickar bara gruppens trafik till de portar som vill ha den. Annars behandlas multicast som broadcast. ' + c('ip maddr') + ' på laptopen visar grupperna som datorn är med i.</p>') +
+      sec('IPv6 i korthet', '<p>128 bitar, skrivs i hexadecimalt med kolon. ' + c('fe80::/10') + ' är länklokala adresser som varje interface har automatiskt, ' + c('2001:db8::/32') + ' är dokumentationsnät. Det finns ingen broadcast och ingen ARP – grannar hittas med Neighbor Discovery.</p>');
+  };
+  // Övningar: praktiska uppgifter som bockas av automatiskt när du gör dem
+  var EX = [
+    ['nmap', 'Skanna driftnätet', 'Kör nmap -sn 192.168.1.192/26 på laptopen och se vilka enheter som svarar.', /^\s*nmap\s.*-sn/],
+    ['ports', 'Hitta öppna portar', 'Kör nmap -p 22,23,80 192.168.1.193. Vilka portar är öppna på routern?', /^\s*nmap\s.*-p/],
+    ['loop', 'Skapa en loopback', 'interface loopback 0 → ip address 10.255.255.1 255.255.255.255 på R-Nordvik-1, och pinga den.', /^\s*int(erface)?\s+lo/i],
+    ['banner', 'Sätt en banner', 'banner motd #Endast behöriga# – och se den när du loggar in med SSH.', /^\s*banner\s+motd/i],
+    ['scp', 'Ta en säkerhetskopia', 'ip scp server enable på routern, sedan scp drift@192.168.1.193:running-config backup.cfg på laptopen.', /^\s*scp\s/],
+    ['tdr', 'Testa en kabel', 'test cable-diagnostics tdr interface gi0/5 och show cable-diagnostics tdr interface gi0/5 på switchen.', /^\s*(do\s+)?sh(ow?)?\s+cable/i],
+    ['float', 'Bygg en reservväg', 'ip route 192.168.2.0 255.255.255.0 203.0.113.1 200 – och kontrollera att den inte syns i show ip route förrän den behövs.', /^\s*ip route .* \d{2,3}\s*$/],
+    ['alias', 'Gör ett eget kortkommando', 'alias exec sib show ip interface brief – skriv sedan bara sib.', /^\s*alias exec/i],
+    ['mtr', 'Mät förlust per hopp', 'mtr -r 192.168.2.20 på laptopen (eller pathping på en Windows-dator).', /^\s*(mtr|pathping)\s/i],
+    ['tcpdump', 'Fånga paket', 'sudo tcpdump -i enp0s31f6 -c 10 – vilka protokoll syns på porten?', /^\s*(sudo\s+)?tcpdump/],
+    ['acl', 'Skriv en ACL med portintervall', 'permit tcp any any range 8000 8080 i en extended-ACL.', /\brange\s+\d+\s+\d+/i],
+    ['storm', 'Stoppa en broadcaststorm i förväg', 'interface gi0/5 → storm-control broadcast level 10 på switchen, och kontrollera med show storm-control.', /^\s*(do\s+)?sh(ow?)?\s+storm/i],
+    ['wget', 'Hämta en webbsida', 'wget http://www.example.com på laptopen, och läs filen med cat index.html.', /^\s*wget\s+\S/],
+    ['cef', 'Jämför RIB och FIB', 'show ip route och sedan show ip cef på routern. Ser du samma vägar i båda?', /^\s*(do\s+)?sh(ow?)?\s+ip\s+cef\s*$/i],
+    ['root', 'Bli rootbrygga', 'spanning-tree vlan 10 root primary på SW-Nordvik-1 och kontrollera med show spanning-tree root.', /root primary/i],
+  ];
+  NV.EXERCISES = EX;
+  function exDone() { return NV.settings.store('krabba-passet.exercises') || {}; }
+  function exMark(line) {
+    var d = exDone(), changed = false;
+    EX.forEach(function (e) { if (!d[e[0]] && e[3].test(line)) { d[e[0]] = Date.now(); changed = true; if (NV.game && NV.game.ui) NV.game.ui.toast('✅ Övning klar: ' + esc(e[1])); if (NV.game && NV.game.xp) NV.game.xp(15, 'Övning: ' + e[1], true); } });
+    if (changed) NV.settings.store('krabba-passet.exercises', d);
+  }
+  var prevTrack = track;
+  track = function (line) { prevTrack(line); exMark(line); };
+  H.ovn = function () {
+    var d = exDone(), n = EX.filter(function (e) { return d[e[0]]; }).length;
+    return '<p class="muted small">Praktiska övningar med de nya verktygen. De bockas av automatiskt när du gör dem i terminalen. ' + n + ' av ' + EX.length + ' klara.</p>' +
+      table(['', 'Övning', 'Så gör du'], EX.map(function (e) { return [d[e[0]] ? '✅' : '⬜', '<b>' + esc(e[1]) + '</b>', esc(e[2])]; }));
+  };
+  NV.dailyExercise = function () {
+    var d = exDone(), left = EX.filter(function (e) { return !d[e[0]]; });
+    if (!left.length) return null;
+    var t = new Date();
+    return left[(t.getDate() + t.getMonth() * 31) % left.length];
   };
   // Fler ord i ordlistan
   var origOrd = H.ord;

@@ -10,7 +10,7 @@ const { chromium } = require('playwright');
   p.setDefaultTimeout(30000);
   const out = (process.env.OUT || require('os').tmpdir()) + '/';
   const step = s => console.log('• ' + s);
-  await p.addInitScript(() => { try { const s = JSON.parse(localStorage.getItem('krabba-passet.settings') || '{}'); s.lastVersion = '6.1'; localStorage.setItem('krabba-passet.settings', JSON.stringify(s)); } catch (e) {} });
+  await p.addInitScript(() => { try { const s = JSON.parse(localStorage.getItem('krabba-passet.settings') || '{}'); s.lastVersion = '7.0'; localStorage.setItem('krabba-passet.settings', JSON.stringify(s)); } catch (e) {} });
   await p.goto('http://localhost:8765/index.html', { waitUntil: 'domcontentloaded' });
   await p.waitForTimeout(4000);
   await p.waitForTimeout(2000);

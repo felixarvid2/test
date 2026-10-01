@@ -1331,13 +1331,16 @@ NV.sim = (function () {
         var i = d.config.ifaces[n];
         if (i.internal) return;
         var s;
-        if (i.svi || i.parent) {
+        if (i.loop) s = i.shutdown ? 'admin' : 'up';
+        else if (i.svi || i.parent) {
           var ep = D.eps['E:' + id + ':' + n];
           s = i.shutdown ? 'admin' : (ep && ep.up ? 'up' : 'down');
         } else s = statusOf(state, D, id, n);
         var k = key(id, n);
         snap[k] = s;
         var b = before[k];
+        // Ett nytt loopback-interface loggas när det kommer upp, som på en riktig router
+        if (b === undefined && i.loop && s === 'up' && Object.keys(before).length) { pushLog(state, d, '%LINEPROTO-5-UPDOWN: Line protocol on Interface ' + n + ', changed state to up'); return; }
         if (b === undefined || b === s) return;
         if (i.parent) return;
         var sh = n;

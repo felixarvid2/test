@@ -2361,6 +2361,104 @@ NV.IosSession = (function () {
     return '                Head    Total(b)     Used(b)     Free(b)   Lowest(b)  Largest(b)\nProcessor   ' + (r ? '2A6B7E40   414285504    98714424   315571080   314892000   312004096' : '1B2C3D40    94363276    27163948    67199328    66900120    66511072') + '\n      I/O   ' + (r ? 'E800000     75497472    21011032    54486440    54400000    54442780' : '7400000      8388608     3207548     5181060     5100000     5160012');
   }, true);
 
+  // ---------- Version 7: scp-server, md5-kontroll och fler CDP-vyer
+  def('config', 'ip scp server enable', function (v, neg) { cfg(this).scpServer = !neg; return ''; });
+  def('exec', 'verify /md5 <word>', function (v) {
+    var f = v[0].replace(/^flash:\/?/, '');
+    if (!/\.bin$/.test(f)) return '%Error verifying flash:' + f + ' (No such file or directory)';
+    var h = ''; for (var i = 0; i < 4; i++) h += ('00000000' + U.hash(f + i).toString(16)).slice(-8);
+    return '.....................................................................................Done!\nverify /md5 (flash:' + f + ') = ' + h;
+  });
+  showDef('cdp entry *', function () { return SH.cdpDetail(this.state, this.dev); }, true);
+  showDef('cdp neighbors <if>', function (v) {
+    var all = SH.cdpNeighbors(this.state, this.dev).split('\n'), short = U.shortIf(v[0]).replace('Gi', 'Gig ');
+    var head = all.slice(0, 5), rows = all.filter(function (l) { return l.indexOf(short + ' ') >= 0; });
+    return head.join('\n') + '\n' + rows.join('\n') + '\n\nTotal cdp entries displayed : ' + rows.length;
+  }, true);
+  showDef('line console 0', function () {
+    var l = cfg(this).lines.con;
+    return '   Tty Typ     Tx/Rx    A Modem  Roty AccO AccI   Uses   Noise  Overruns   Int\n*    0 CTY              -    -      -    -    -      1       0     0/0       -\n\nLine 0, Location: "", Type: ""\nLength: 24 lines, Width: 80 columns\nBaud rate (TX/RX) is ' + (l.speed || 9600) + '/' + (l.speed || 9600) + ', no parity, 2 stopbits, 8 databits\nStatus: PSI Enabled, Ready, Active, No Exit Banner\nCapabilities: none\nModem state: Ready\nTimeouts:      Idle EXEC    Idle Session   Modem Answer  Session   Dispatch\n               00:10:00        never                        none     not set\nLogging synchronous: ' + (l.logSync ? 'enabled' : 'disabled');
+  }, true);
+
+  // ---------- Version 7: fler show-kommandon som finns på riktiga Catalyst- och ISR-enheter
+  showDef('ssh', function () {
+    var rows = this.via === 'ssh' ? '\n0          2.0     IN   aes256-ctr  hmac-sha2-256     Session started       drift\n0          2.0     OUT  aes256-ctr  hmac-sha2-256     Session started       drift' : '';
+    return rows ? 'Connection Version Mode Encryption  Hmac         State                 Username' + rows : '%No SSHv1 server connections running.\n%No SSHv2 server connections running.';
+  });
+  showDef('environment', function () { return isRouter(this) ? 'Redundant Power System is not present.\n\nSystem Temperature: Normal (34 C)\nFan: All fans normal' : 'FAN is OK\nTEMPERATURE is OK\nTemperature Value: 38 Degree Celsius\nTemperature State: GREEN\nPOWER is OK\nRPS is NOT PRESENT'; });
+  showDef('license', swOnly(function () { return 'Index 1 Feature: lanbasek9\n        Period left: Life time\n        License Type: Permanent\n        License State: Active, In Use\n        License Priority: Medium\n        License Count: Non-Counted'; }));
+  showDef('file systems', function () {
+    return 'File Systems:\n\n       Size(b)       Free(b)      Type  Flags  Prefixes\n*    ' + (isRouter(this) ? '256589824     201412608' : '122185728      98820096') + '      disk     rw   flash:\n             -             -    opaque     rw   system:\n             -             -    opaque     rw   tmpsys:\n        524288        519680     nvram     rw   nvram:\n             -             -   network     rw   tftp:\n             -             -   network     rw   scp:\n             -             -   network     rw   ftp:';
+  });
+  showDef('storm-control', swOnly(function () {
+    var c = cfg(this), out = ['Interface  Filter State   Upper        Lower        Current'];
+    SH.ifaceNames(this.dev).forEach(function (n) {
+      var X = c.ifaces[n].x || {}; ['broadcast', 'multicast', 'unicast'].forEach(function (t) {
+        var e = X['storm ' + t]; if (!e) return;
+        var lv = e.replace(/^.*level\s+/, '').split(/\s+/);
+        out.push(lpad(U.shortIf(n), 11) + lpad('Forwarding', 15) + lpad(lv[0] + '%', 13) + lpad((lv[1] || lv[0]) + '%', 13) + '0.00%');
+      });
+    });
+    return out.length > 1 ? out.join('\n') : out[0] + '\n💡 Inget storm-control är konfigurerat. Exempel: interface g0/5 → storm-control broadcast level 10';
+  }));
+  showDef('monitor session all', swOnly(function () { return 'No SPAN configuration is present in the system.'; }));
+  showDef('udld', swOnly(function () { return '\nInterface Gi1/0/1\n---\nPort enable administrative configuration setting: Follows device default\nPort enable operational state: Disabled\nCurrent bidirectional state: Unknown'; }));
+  showDef('system mtu', swOnly(function () { return 'Global Ethernet MTU is 1500 bytes.'; }));
+  showDef('sdm prefer', swOnly(function () { return ' Showing SDM Template Info\n\n This is the Advanced (default) template.\n  Number of VLANs:                                  4094\n  Unicast MAC addresses:                            32768\n  IPv4 routes (direct+indirect):                    3072\n  Security Access Control Entries:                  1536'; }));
+  showDef('ip igmp snooping', swOnly(function () { return 'Global IGMP Snooping configuration:\n-------------------------------------------\nIGMP snooping                : Enabled\nIGMPv3 snooping (minimal)    : Enabled\nReport suppression           : Enabled\nTCN solicit query            : Disabled\nTCN flood query count        : 2\nRobustness variable          : 2\nLast member query count      : 2\nLast member query interval   : 1000'; }));
+  showDef('authentication sessions', swOnly(function () { return 'No sessions currently exist\n💡 802.1X/MAB används inte på Nordviks switchar. Port-security skyddar portmottagningen i stället.'; }));
+  showDef('ip interface', function () {
+    var self = this;
+    return SH.ifaceNames(this.dev).filter(function (n) { return !cfg(self).ifaces[n].internal; }).map(function (n) { return SH.ipInterface(self.state, self.dev, n); }).join('\n');
+  }, true);
+  showDef('platform', function () {
+    var m = isRouter(this) ? 'ISR4321/K9' : 'WS-C2960X-24PS-L';
+    return 'Chassis type: ' + m + '\n\nSlot      Type                State                 Insert time (ago)\n--------- ------------------- --------------------- -----------------\n0         ' + lpad(m, 20) + 'ok                    ' + Math.floor(3 + (this.state.time || 0) / 3600) + 'd' + Math.floor((this.state.time || 0) / 3600 % 24) + 'h';
+  });
+  showDef('diag', rtOnly(function () { return 'Slot 0:\n        ISR4321/K9 Mainboard\n        Hardware Revision        : 1.0\n        PCB Serial Number        : FOC21' + (U.hash(this.dev.id) % 100000) + '\n\nSlot 0 SPA 0:\n        ISR4321-2x1GE Built-In NIM controller'; }));
+  showDef('ip traffic', function () {
+    var n = Math.floor((this.state.time || 0) * 3) + 18240;
+    return 'IP statistics:\n  Rcvd:  ' + n + ' total, ' + Math.floor(n * 0.4) + ' local destination\n         0 format errors, 0 checksum errors, 0 bad hop count\n  Frags: 0 reassembled, 0 timeouts, 0 couldn\'t reassemble\n  Bcast: ' + Math.floor(n * 0.08) + ' received, ' + Math.floor(n * 0.01) + ' sent\n  Sent:  ' + Math.floor(n * 0.42) + ' generated, ' + Math.floor(n * 0.5) + ' forwarded\n\nICMP statistics:\n  Rcvd: 0 format errors, 0 checksum errors, ' + Math.floor(n / 900) + ' redirects, 0 unreachable, ' + Math.floor(n / 300) + ' echo\n  Sent: ' + Math.floor(n / 300) + ' echo reply, 0 unreachable\n\nARP statistics:\n  Rcvd: ' + Math.floor(n / 60) + ' requests, ' + Math.floor(n / 80) + ' replies\n  Sent: ' + Math.floor(n / 90) + ' requests, ' + Math.floor(n / 60) + ' replies';
+  });
+  showDef('buffers', function () { return 'Buffer elements:\n     1119 in free list (1119 max allowed)\n     ' + (2400 + Math.floor((this.state.time || 0) / 4)) + ' hits, 0 misses, 619 created\n\nPublic buffer pools:\nSmall buffers, 104 bytes (total 50, permanent 50):\n     48 in free list (20 min, 150 max allowed)\n     0 failures (0 no memory)\nMiddle buffers, 600 bytes (total 25, permanent 25):\n     24 in free list (10 min, 150 max allowed)\n     0 failures (0 no memory)'; });
+  showDef('ip cef', function () {
+    if (!isRouter(this) && !cfg(this).ipRouting) return '%IPv4 CEF not running';
+    var rs = S.installedRoutes(this.state, S.get(this.state), this.dev.id), out = ['Prefix               Next Hop             Interface'];
+    rs.forEach(function (r) { out.push(lpad(r.net + '/' + U.maskToPrefix(r.mask), 21) + lpad(r.nh || (r.type === 'L' ? 'receive' : 'attached'), 21) + U.shortIf(r.iface || '')); });
+    out.push(lpad('224.0.0.0/4', 21) + 'drop', lpad('255.255.255.255/32', 21) + 'receive');
+    return out.join('\n');
+  }, true);
+  showDef('policy-map', function () { return ''; });
+  showDef('login', function () { return '     No login delay has been applied.\n     No Quiet-Mode access list has been configured.\n\n     Router NOT enabled to watch for login Attacks'; });
+  showDef('cdp traffic', function () {
+    var k = Math.floor((this.state.time || 0) / 60) + 12;
+    return 'CDP counters :\n        Total packets output: ' + k + ', Input: ' + (k - 1) + '\n        Hdr syntax: 0, Chksum error: 0, Encaps failed: 0\n        No memory: 0, Invalid packet: 0,\n        CDP version 1 advertisements output: 0, Input: 0\n        CDP version 2 advertisements output: ' + k + ', Input: ' + (k - 1);
+  }, true);
+  showDef('interfaces stats', function () {
+    var self = this, t = this.state.time || 0;
+    return SH.ifaceNames(this.dev).filter(function (n) { return !cfg(self).ifaces[n].internal; }).map(function (n, i) {
+      var pk = Math.floor(t * (3 + i % 4)) + 100 * (i + 1);
+      return n + '\n          Switching path    Pkts In   Chars In   Pkts Out  Chars Out\n               Processor' + rpad(Math.floor(pk / 20), 11) + rpad(Math.floor(pk / 20) * 64, 11) + rpad(Math.floor(pk / 22), 11) + rpad(Math.floor(pk / 22) * 64, 11) + '\n             Route cache' + rpad(pk, 11) + rpad(pk * 480, 11) + rpad(pk, 11) + rpad(pk * 512, 11);
+    }).join('\n');
+  }, true);
+  showDef('stacks', function () { return 'Minimum process stacks:\n Free/Size   Name\n 5744/6000   Router Init\n 9432/12000  Init\n 5420/6000   RADIUS INITCONFIG\n\nInterrupt level stacks:\nLevel    Called Unused/Size  Name\n  1     ' + (5000 + Math.floor((this.state.time || 0))) + '   8432/9000  Network interfaces'; });
+  showDef('protocols', function () {
+    var self = this, out = ['Global values:', '  Internet Protocol routing is ' + (isRouter(this) || cfg(this).ipRouting ? 'enabled' : 'disabled')];
+    SH.ifaceNames(this.dev).filter(function (n) { return !cfg(self).ifaces[n].internal; }).forEach(function (n) {
+      var L = SH.ipInterface(self.state, self.dev, n).split('\n');
+      out.push(L[0]);
+      L.forEach(function (l) { if (/Internet address is/.test(l)) out.push(l); });
+    });
+    return out.join('\n');
+  }, true);
+  showDef('logging history', function () { return 'Syslog History Table:1 maximum table entries,\nsaving level warnings or higher\n 0 messages ignored, 0 dropped, 0 recursion drops\n 0 table entries flushed\n SNMP notifications not enabled'; });
+
+  [['environment', 'Environmental monitor statistics'], ['file', 'Show filesystem information'], ['storm-control', 'Show storm control configuration'], ['monitor', 'SPAN information and statistics'],
+   ['udld', 'UDLD information'], ['system', 'Show the system configuration'], ['sdm', 'Switching Database Manager'], ['igmp', 'IGMP information'], ['authentication', 'Shows Auth Manager registrations or sessions'],
+   ['platform', 'Show platform information'], ['diag', 'Show diagnostic information for port adapters/modules'], ['traffic', 'IP protocol statistics'], ['buffers', 'Buffer pool statistics'], ['cef', 'Cisco Express Forwarding'],
+   ['policy-map', 'Show QoS Policy Map'], ['login', 'Display Secure Login Configurations and State'], ['stats', 'Show interface packets & octets, in & out, by switching path'], ['stacks', 'Process stack utilization'],
+   ['protocols', 'Active network routing protocols'], ['history', 'Display the session command history'], ['license', 'Show license information'], ['traffic', 'CDP statistics']].forEach(function (h) { if (!SHOW_HELP[h[0]]) SHOW_HELP[h[0]] = h[1]; });
+
   // Användarläget får inte konfigurera men ska känna igen show-grenen
   Session.TRIES = TRIES;
   Session.parseAce = parseAce;

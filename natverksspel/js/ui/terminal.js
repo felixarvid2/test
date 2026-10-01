@@ -490,7 +490,7 @@ NV.Terminal = (function () {
     if (e.ctrlKey && (e.key === 'a' || e.key === 'A') && t.kind !== 'serial') { e.preventDefault(); try { this.el.input.setSelectionRange(0, 0); } catch (er) { /* äldre webbläsare */ } return; }
     if (e.ctrlKey && (e.key === 'e' || e.key === 'E')) { e.preventDefault(); var ln = this.el.input.value.length; try { this.el.input.setSelectionRange(ln, ln); } catch (er) { /* äldre webbläsare */ } return; }
     if (e.ctrlKey && (e.key === 'p' || e.key === 'P' || e.key === 'n' || e.key === 'N')) { e.preventDefault(); this.onKey({ key: /p/i.test(e.key) ? 'ArrowUp' : 'ArrowDown', preventDefault: function () {} }); return; }
-    if (e.key === 'F1') { e.preventDefault(); this.print('\nTangenter i terminalen:\n  Tab / Tab Tab     komplettera / visa alternativ      ?          hjälp (Cisco)\n  ↑ ↓ eller Ctrl+P/N  tidigare kommandon             Ctrl+R     sök bakåt i historiken\n  Ctrl+A / Ctrl+E   början / slutet av raden           Ctrl+U/K/W rensa rad / resten / ordet\n  Ctrl+C            avbryt                            Ctrl+Z     tillbaka till # (Cisco)\n  Ctrl+L            rensa skärmen                      Ctrl+F     sök i utskriften\n  Ctrl + / −, Ctrl+mushjul  textstorlek                F11        helskärm\n  Alt+.             sista ordet i förra kommandot      Alt+C      kopiera senaste utskriften\n  Ctrl+A K          stäng screen-konsolen              Ctrl+D     logga ut\n  Klicka på ett tidigare kommando för att skriva in det igen.\n\n'); this.renderPrompt(); return; }
+    if (e.key === 'F1') { e.preventDefault(); this.print('\nTangenter i terminalen:\n  Tab / Tab Tab     komplettera / visa alternativ      ?          hjälp (Cisco)\n  ↑ ↓ eller Ctrl+P/N  tidigare kommandon             Ctrl+R     sök bakåt i historiken\n  Ctrl+A / Ctrl+E   början / slutet av raden           Ctrl+U/K/W rensa rad / resten / ordet\n  Ctrl+C            avbryt                            Ctrl+Z     tillbaka till # (Cisco)\n  Ctrl+L            rensa skärmen                      Ctrl+F     sök i utskriften\n  Ctrl + / −, Ctrl+mushjul  textstorlek                F11        helskärm\n  Alt+.             sista ordet i förra kommandot      Alt+C      kopiera senaste utskriften\n  Alt+B / Alt+F     ett ord bakåt / framåt             Alt+D      radera ordet framåt\n  Ctrl+T            byt plats på två tecken\n  Ctrl+A K          stäng screen-konsolen              Ctrl+D     logga ut\n  Klicka på ett tidigare kommando för att skriva in det igen.\n\n'); this.renderPrompt(); return; }
     if (e.altKey && (e.key === 'c' || e.key === 'C')) { e.preventDefault(); this.copyLastOutput(); return; }
     if (e.ctrlKey && (e.key === 'a' || e.key === 'A')) { this.ctrlA = true; e.preventDefault(); return; }
     if (this.ctrlA) {
@@ -520,6 +520,12 @@ NV.Terminal = (function () {
     }
     if (!(e.ctrlKey && (e.key === 'r' || e.key === 'R'))) this.rsearch = null;
     // Alt+. : sista ordet i föregående kommando (som i bash)
+    // Ordvis redigering som i IOS och bash: Alt+B/Alt+F flyttar ett ord, Alt+D raderar ordet framåt, Ctrl+T byter plats på två tecken
+    var inpW = this.el.input, cur = inpW.selectionStart, val = inpW.value;
+    if (e.altKey && (e.key === 'b' || e.key === 'B' || e.code === 'KeyB')) { e.preventDefault(); var pb = val.slice(0, cur).replace(/\S+\s*$/, '').length; inpW.setSelectionRange(pb, pb); return; }
+    if (e.altKey && (e.key === 'f' || e.key === 'F' || e.code === 'KeyF')) { e.preventDefault(); var mf = /^\s*\S+/.exec(val.slice(cur)), pf = cur + (mf ? mf[0].length : 0); inpW.setSelectionRange(pf, pf); return; }
+    if (e.altKey && (e.key === 'd' || e.key === 'D' || e.code === 'KeyD')) { e.preventDefault(); var md = /^\s*\S+/.exec(val.slice(cur)); if (md) { inpW.value = val.slice(0, cur) + val.slice(cur + md[0].length); inpW.setSelectionRange(cur, cur); this.updateGhost(); } return; }
+    if (e.ctrlKey && (e.key === 't' || e.key === 'T') && val.length > 1) { e.preventDefault(); var pt = cur >= val.length ? val.length - 1 : Math.max(1, cur); inpW.value = val.slice(0, pt - 1) + val[pt] + val[pt - 1] + val.slice(pt + 1); inpW.setSelectionRange(pt + 1, pt + 1); this.updateGhost(); return; }
     if (e.altKey && e.key === '.') {
       e.preventDefault();
       var hl = this.hist[t.histKey || t.kind];

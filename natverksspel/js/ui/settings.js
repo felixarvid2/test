@@ -166,6 +166,8 @@ NV.sfx = (function () {
     achievement: function () { [784, 988, 1175, 1568].forEach(function (f, i) { tone(f, 0.25, 'triangle', 0.08, i * 0.07); }); tone(2093, 0.6, 'sine', 0.05, 0.3); },
     door: function (slide) { if (slide) { noise(0.6, 300, 0.05, { type: 'bandpass', sweep: 900, q: 1, attack: 0.1 }); tone(880, 0.06, 'sine', 0.03, 0.05); tone(1320, 0.08, 'sine', 0.03, 0.12); } else { noise(0.35, 250, 0.04, { type: 'lowpass', sweep: 600, attack: 0.05 }); tone(140, 0.12, 'triangle', 0.03, 0.02); } },
     whoosh: function () { noise(0.5, 400, 0.06, { type: 'bandpass', sweep: 2400, q: 1.2, attack: 0.15 }); },
+    thunder: function () { noise(1.8, 160, 0.16); tone(48, 1.4, 'sine', 0.07, 0.05, 0, 32); },
+    flap: function () { for (var i = 0; i < 4; i++) noise(0.05, 900, 0.03, { when: i * 0.07 }); },
     thud: function () { tone(110, 0.15, 'sine', 0.12, 0, 0, 60); noise(0.08, 300, 0.08); },
     bell: function () { tone(1760, 0.12, 'sine', 0.05); },
     crt: function () { tone(15000, 0.5, 'sine', 0.012); noise(0.25, 1200, 0.05, { type: 'highpass' }); tone(60, 0.2, 'sine', 0.08, 0, 0, 40); },

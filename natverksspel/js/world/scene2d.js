@@ -166,7 +166,8 @@
   };
   W.addBush = function (x, z, seed) {
     var c = A2.bush(seed, seed % 2 ? true : (seed % 3 === 0 ? ['#ffffff', '#fff1a8'] : false));
-    this.addSprite(c, x, z, { ox: 17, oy: 22, key: z, shadow: { rx: 0.7, rz: 0.3, dx: 0.2 }, sway: seed + 1 });
+    var bs = this.addSprite(c, x, z, { ox: 17, oy: 22, key: z, shadow: { rx: 0.7, rz: 0.3, dx: 0.2 }, sway: seed + 1 });
+    if (bs) { bs.rustle = 'bush'; bs.rx = x; bs.rz = z; }
   };
   W.addPlant = function (x, z, s) {
     s = s || 1;
@@ -187,7 +188,8 @@
     A2.canopy(g, w / 2, h - 16 * s, bl, P.leafGreen, seed);
     g.fillStyle = css(P.leafGreen[4]);
     for (var j = 0; j < 4; j++) { var lx = w / 2 + (rr() - 0.5) * 16 * s, ly = h - ph - 2; g.fillRect(lx, ly - 3, 1, 3); g.fillRect(lx + (lx < w / 2 ? -1 : 1), ly - 4, 1, 1); }
-    this.addSprite(A2.selout(c, 0.35), x - w / PPM / 2, z - 0.15, { key: z - 0.15 });
+    var ps = this.addSprite(A2.selout(c, 0.35), x - w / PPM / 2, z - 0.15, { key: z - 0.15 });
+    if (ps) { ps.rustle = 'plant'; ps.rx = x; ps.rz = z; }
   };
   W.addCar = function (x, z, color, text) {
     var c = cv(50, 42), g = c.getContext('2d'), col = K.hex(color);
@@ -341,7 +343,7 @@
       bench(-8.5, -12.3); bench(0.5, -12.3); bench(-19.2, 3.2);
       this.flag = { x: 4.8, z: -11.7, frames: [] };
       for (var f = 0; f < 6; f++) this.flag.frames.push(A2.flagPole(f / 6 * Math.PI * 2 / 5));
-      add(this.flag.frames[0], 4.8, -11.7, { ox: 3, oy: 79, key: -11.7, shadow: { rx: 0.2, rz: 0.1, dx: 0.1 }, dyn: { draw: function (g, sp) { var fr = self.flag.frames[Math.floor(self.t * 6) % 6]; g.drawImage(fr, sp.x - 3, sp.y - 79); } } });
+      add(this.flag.frames[0], 4.8, -11.7, { ox: 3, oy: 79, key: -11.7, shadow: { rx: 0.2, rz: 0.1, dx: 0.1 }, dyn: { draw: function (g, sp) { self.flagT = (self.flagT || 0) + (self.frameDt || 0.016) * (6 + (self.gust || 0) * 10); var fr = self.flag.frames[Math.floor(self.flagT) % 6]; g.drawImage(fr, sp.x - 3, sp.y - 79); } } });
       col(4.7, -11.8, 4.9, -11.6);
       add(A2.bikeRack(), -11, -11.3, { ox: 20, oy: 19, key: -11.3 }); col(-11.8, -11.4, -10.2, -11);
       add(A2.bin(), 8.6, -12.2, { ox: 6, oy: 16, key: -12.2 }); col(8.4, -12.3, 8.8, -12.1);

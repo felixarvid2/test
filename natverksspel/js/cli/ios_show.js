@@ -204,6 +204,7 @@ NV.iosShow = (function () {
     if (c.ssh.timeout) o.push('ip ssh time-out ' + c.ssh.timeout);
     if (c.ssh.retries != null) o.push('ip ssh authentication-retries ' + c.ssh.retries);
     if (c.ssh.version) o.push('ip ssh version ' + c.ssh.version);
+    if (c.scpServer) o.push('ip scp server enable');
     o.push('!');
     o.push('spanning-tree mode pvst');
     o.push('spanning-tree extend system-id');
@@ -1032,8 +1033,9 @@ NV.iosShow = (function () {
     var ep = D.eps['E:' + d.id + ':' + n];
     var up = ep && ep.up;
     var first = ipIntBrief(state, d).split('\n').filter(function (l) { return l.indexOf(n + ' ') === 0; })[0];
-    var st = first ? first.slice(60, 82).trim() : 'down';
-    var o = [n + ' is ' + st + ', line protocol is ' + (up ? 'up' : 'down')];
+    var m = first && /^(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(.+?)\s+(\S+)\s*$/.exec(first);
+    var st = m ? m[5] : 'down', pr = m ? m[6] : (up ? 'up' : 'down');
+    var o = [n + ' is ' + st + ', line protocol is ' + pr];
     if (i.ip) {
       o.push('  Internet address is ' + i.ip.addr + '/' + U.maskToPrefix(i.ip.mask));
       o.push('  Broadcast address is 255.255.255.255');

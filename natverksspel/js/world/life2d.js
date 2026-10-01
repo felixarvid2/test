@@ -39,6 +39,23 @@
       add(A2.selout(c, 0.4), 84.2 + i * 0.6, -12.2, { key: -12.2, shadow: { rx: 0.25, rz: 0.1, dx: 0.1 } });
     });
     col(84.2, -12.3, 86.1, -12.0);
+    // Dörrmatta vid entrén, kalender och anslagstavla
+    var mat = cv(40, 12), mg = mat.getContext('2d');
+    mg.fillStyle = '#5a3f2e'; mg.fillRect(0, 0, 40, 12); mg.fillStyle = '#7a5a40'; for (var mx = 1; mx < 40; mx += 2) mg.fillRect(mx, 1, 1, 10);
+    mg.fillStyle = '#e8d8b0'; mg.font = 'bold 6px monospace'; mg.fillText('VÄLKOMMEN', 4, 8);
+    add(mat, 9.7, -11.05, { key: 99, noShadow: true });
+    var cal = cv(12, 14), cg = cal.getContext('2d');
+    cg.fillStyle = '#ffffff'; cg.fillRect(0, 0, 12, 14); cg.fillStyle = '#c0392b'; cg.fillRect(0, 0, 12, 4);
+    cg.fillStyle = '#333'; for (var cy = 6; cy < 13; cy += 2) for (var cx2 = 1; cx2 < 11; cx2 += 2) cg.fillRect(cx2, cy, 1, 1);
+    cg.fillStyle = '#c0392b'; cg.fillRect(5, 8, 2, 2);
+    add(A2.selout(cal, 0.4), 6.1, 9.75, { y: 0.75, key: 9.74, noShadow: true });
+    var nb = cv(26, 18), ng = nb.getContext('2d');
+    ng.fillStyle = '#b8864a'; ng.fillRect(0, 0, 26, 18); ng.fillStyle = '#d9a866'; ng.fillRect(1, 1, 24, 16);
+    [['#ffe14a', 3, 3], ['#ffffff', 11, 2], ['#9fd3f5', 18, 4], ['#ff9ccf', 5, 10], ['#ffffff', 14, 10]].forEach(function (q) { ng.fillStyle = q[0]; ng.fillRect(q[1], q[2], 6, 5); ng.fillStyle = '#c0392b'; ng.fillRect(q[1] + 2, q[2], 1, 1); });
+    add(A2.selout(nb, 0.4), 0.6, -2.09, { y: 0.55, key: -2.1, noShadow: true });
+    // Höstlöv på marken under höstträden i Borås
+    this.groundLeaves = [];
+    (this.trees || []).forEach(function (t) { if (t.kind !== 'autumn') return; for (var i = 0; i < 26; i++) self.groundLeaves.push({ x: t.x + R(-1.6, 1.6), z: t.z + R(-0.9, 0.5), c: ['#e08b36', '#cc6e2a', '#f0a947', '#ad5422'][i % 4], r: Math.random() < 0.5 }); });
     // Djur
     this.ducks = [0, 1].map(function (i) { return { a: i * 2.6, sp: 0.18 + i * 0.07, rx: 1.1 + i * 0.3, rz: 2.2 + i * 0.5, ph: i }; });
     this.frog = { lily: 0, jump: 0, t: 6, from: null };
@@ -48,6 +65,27 @@
     this.gull = { x: 114, z: 3.6, tx: 114, wait: 2, dir: 1 };
     this.gust = 0; this.gustT = R(15, 35);
     this.idleT = 0;
+  };
+
+  // Katten och ankorna går att interagera med (klappa, mata)
+  var ORIG_COLLECT = W.collectInteractables;
+  W.collectInteractables = function () {
+    ORIG_COLLECT.apply(this, arguments);
+    this.catInter = { x: 0, z: -100, inter: { type: 'cat' }, r: 0.7 };
+    this.duckInter = { x: -16.25, z: -1.5, inter: { type: 'ducks' }, r: 1.3 };
+    this.inters.push(this.catInter, this.duckInter);
+  };
+  W.petCat = function () {
+    var c = this.cat; if (!c) return;
+    c.wait = 6; c.sit = true; c.purr = 3;
+    this.pops.push({ text: 'Purr…', col: '#ffd0a0', x: c.x, z: c.z, y: 0.7, age: 0, life: 2 });
+    for (var i = 0; i < 4; i++) this.part({ x: c.x + R(-0.2, 0.2), z: c.z, y: 0.5, vy: R(0.4, 0.7), life: 1.4, size: 2, col: '#ff9ccf', force: true });
+  };
+  W.feedDucks = function () {
+    this.feedT = 10;
+    for (var i = 0; i < 10; i++) this.part({ x: -16.6, z: -1.5 + R(-0.6, 0.6), y: 0.8, vx: -R(0.6, 1.4), vy: R(0.5, 1.2), g: 5, life: 0.9, size: 1, col: '#e6c081', force: true });
+    var self = this; setTimeout(function () { for (var k = 0; k < 4; k++) self.ripples.push({ x: -17.2 - Math.random() * 0.6, z: -1.5 + R(-0.6, 0.6), age: 0, life: 1, size: 3 }); }, 600);
+    this.pops.push({ text: 'Kvack kvack!', col: '#fff1a8', x: -17.4, z: -1.5, y: 0.6, age: 0, life: 2 });
   };
 
   // Väggklockan: analog, visar speltiden
@@ -121,20 +159,88 @@
       var pick = A.desks[ids[Math.floor(Math.random() * ids.length)]];
       if (pick && dist(me.x, me.z, pick.x, pick.z) < 9) this.part({ x: pick.x - 0.55, z: pick.z - 0.25, y: 0.85, vx: R(-0.03, 0.03), vy: R(0.15, 0.3), life: 1.6, size: 1, grow: 1, col: 'rgba(255,255,255,0.35)' });
     }
+    if (this.catInter) { this.catInter.x = this.site === 'gbg' ? c.x : 0; this.catInter.z = this.site === 'gbg' && NV.settings.get('animals2d') !== false ? c.z : -100; }
+    if (this.duckInter) this.duckInter.z = this.site === 'gbg' && NV.settings.get('animals2d') !== false ? -1.5 : -100;
+    this.feedT = Math.max(0, (this.feedT || 0) - dt);
+    // Blixtar och åska när det regnar ute
+    this.boltFlash = Math.max(0, (this.boltFlash || 0) - dt * 4);
+    this.boltT = (this.boltT === undefined ? R(25, 60) : this.boltT) - (this.weather === 'rain' ? dt : 0);
+    if (this.boltT <= 0) { this.boltT = R(30, 70); this.boltFlash = 1; var snd = NV.sfx; setTimeout(function () { if (snd && snd.thunder) snd.thunder(); }, 900 + Math.random() * 1500); }
+    // Plask i vattenpölarna när du går ute i regnet
+    var outdoor = /Utanför/.test(this.zone().name);
+    if (this.frame && outdoor && (this.wet || 0) > 0.3 && Math.random() < dt * 6) for (var sk = 0; sk < 3; sk++) this.part({ x: me.x + R(-0.15, 0.15), z: me.z + 0.05, y: 0.05, vx: R(-0.6, 0.6), vy: R(0.6, 1.2), g: 6, life: 0.4, size: 1, col: 'rgba(190,215,255,0.8)' });
+    // Svettdroppar efter en lång spurt
+    var running = this.frame && ((this.keys && (this.keys.ShiftLeft || this.keys.ShiftRight)) || this.game.touchRun);
+    this.runT = running ? (this.runT || 0) + dt : Math.max(0, (this.runT || 0) - dt * 0.5);
+    if (this.runT > 6 && Math.random() < dt * 3) this.part({ x: me.x + R(-0.12, 0.12), z: me.z, y: 1.55, vx: R(-0.4, 0.4), vy: R(0.4, 0.8), g: 4, life: 0.6, size: 1, col: '#9fd8ff', force: true });
+    // Dammkorn som svävar i takfönstrens ljus i Borås
+    if (this.site === 'boras' && /Lagret/.test(this.zone().name) && this.weather !== 'rain' && Math.random() < dt * 4) { var bx = [93, 101, 109][Math.floor(Math.random() * 3)]; this.part({ x: bx + R(0, 2.4), z: R(-2, 8), y: R(0.5, 3), vx: R(-0.05, 0.05), vy: R(-0.04, 0.04), life: R(3, 5), size: 1, col: 'rgba(255,245,215,0.7)', glow: true }); }
     // Spelaren tar upp mobilen när den har stått still en stund
     this.idleT = this.frame ? 0 : this.idleT + dt;
+    // Växter och buskar prasslar när du går förbi
+    var mv = !!this.frame;
+    (this.sprites || []).forEach(function (sp) {
+      if (!sp.rustle) return;
+      var near = mv && Math.abs(sp.rx - me.x) < 0.8 && Math.abs(sp.rz - me.z) < 0.7;
+      if (near && !sp.rusNear) {
+        sp.rusNear = true;
+        if (sp.rustle === 'plant') { sp.sway = R(1, 6); delete sp.rustleT; }
+        else if (self.part) for (var i = 0; i < 3; i++) self.part({ x: sp.rx + R(-0.3, 0.3), z: sp.rz, y: R(0.2, 0.6), vx: R(-0.6, 0.6), vy: R(0.3, 0.8), g: 2, life: 0.9, size: 1, col: ['#5da236', '#8fcc4d'][i % 2] });
+      }
+      if (!near && sp.rusNear) { sp.rusNear = false; if (sp.rustle === 'plant') sp.rustleT = 1.2; }
+      if (sp.rustleT !== undefined) { sp.rustleT -= dt; if (sp.rustleT <= 0) { sp.sway = 0; delete sp.rustleT; } }
+    });
+    // Dammsugaren lämnar ett ljusare spår i mattan
+    var vac = this.game.vac;
+    if (vac && this.site === 'gbg') { this.vacTrail = this.vacTrail || []; var lt = this.vacTrail[this.vacTrail.length - 1]; if (!lt || Math.hypot(lt.x - vac.x, lt.z - vac.z) > 0.12) { this.vacTrail.push({ x: vac.x, z: vac.z, t: this.t }); if (this.vacTrail.length > 120) this.vacTrail.shift(); } }
+    // Ankorna dyker ibland, kvackar om du är nära; katten jamar
+    this.ducks.forEach(function (d) {
+      d.dive = Math.max(0, (d.dive || 0) - dt);
+      if (!d.dive && Math.random() < dt * 0.05) { d.dive = 1.4; var dx2 = -18.3 + Math.cos(d.a) * d.rx, dz2 = -1.5 + Math.sin(d.a) * d.rz; self.ripples.push({ x: dx2, z: dz2, age: 0, life: 1.2, size: 5 }); }
+    });
+    this.quackT = (this.quackT || 0) - dt;
+    if (this.site === 'gbg' && NV.settings.get('animals2d') !== false && this.quackT <= 0 && dist(me.x, me.z, -18.3, -1.5) < 4.5) { this.quackT = R(6, 14); var dk = this.ducks[0], qx = -18.3 + Math.cos(dk.a) * dk.rx, qz = -1.5 + Math.sin(dk.a) * dk.rz; this.pops.push({ text: 'Kvack!', col: '#fff1a8', x: qx, z: qz, y: 0.6, age: 0, life: 1.4 }); }
+    this.meowT = (this.meowT || 0) - dt;
+    if (this.site === 'gbg' && NV.settings.get('animals2d') !== false && this.meowT <= 0 && dist(me.x, me.z, c.x, c.z) < 1.6) { this.meowT = R(8, 16); this.pops.push({ text: 'Mjau', col: '#ffd0a0', x: c.x, z: c.z, y: 0.6, age: 0, life: 1.3 }); }
+    // Ett löv flyter med bäcken i Borås
+    this.streamLeaf = this.streamLeaf || { x: 82, ph: 0 };
+    this.streamLeaf.x += dt * 0.45; this.streamLeaf.ph += dt;
+    if (this.streamLeaf.x > 118) this.streamLeaf.x = 82;
   };
 
   // ------------------------------------------------------------------ Ritning
   var ORIG_GFX = W.drawGroundFx;
   W.drawGroundFx = function (g) {
     ORIG_GFX.call(this, g);
-    if (!this.ducks) return;
+    if (!this.ducks || NV.settings.get('animals2d') === false) return;
     var self = this, t = this.t;
+    // Dammsugarens spår i mattan
+    if (this.site === 'gbg' && this.vacTrail) this.vacTrail.forEach(function (p) { var age = t - p.t; if (age > 12) return; var sv = self.toScreen(p.x, p.z, 0); g.fillStyle = 'rgba(255,255,255,' + (0.08 * (1 - age / 12)) + ')'; g.fillRect(sv.x - 4, sv.y - 1, 8, 2); });
+    // Höstlöv på marken
+    if (this.site === 'boras' && this.groundLeaves) this.groundLeaves.forEach(function (l) { var sl = self.toScreen(l.x, l.z, 0); g.fillStyle = l.c; g.fillRect(sl.x, sl.y, l.r ? 2 : 1, l.r ? 1 : 2); });
+    // Skum som flyter med bäcken och ett löv på vattnet
+    if (this.site === 'boras') {
+      for (var fi = 0; fi < 14; fi++) {
+        var fx = 82 + ((t * 0.45 + fi * 2.7) % 36), fz = 14.6 + Math.sin(fx * 0.35) * 0.35 + Math.sin(fx * 0.9) * 0.15 + ((fi % 3) - 1) * 0.25;
+        var sfm = this.toScreen(fx, fz, 0); g.fillStyle = 'rgba(230,248,250,0.55)'; g.fillRect(sfm.x, sfm.y, 3, 1);
+      }
+      var lf = this.streamLeaf;
+      if (lf) { var lz = 14.6 + Math.sin(lf.x * 0.35) * 0.35 + Math.sin(lf.x * 0.9) * 0.15, slf = this.toScreen(lf.x, lz, 0); g.fillStyle = '#e08b36'; g.fillRect(slf.x, slf.y, 3, 2); g.fillStyle = '#ad5422'; g.fillRect(slf.x + 1, slf.y, 1, 2); }
+    }
+    // Lyktornas sken speglas i dammen på kvällen
+    if (this.site === 'gbg' && ((this.eve || 0) > 0.35 || this.weather === 'rain')) {
+      var rl = this.toScreen(-17, 1.6, 0);
+      g.save(); g.globalCompositeOperation = 'lighter'; A2.glow(g, rl.x, rl.y, 12, '255,200,120', 0.35); g.restore();
+    }
     // Ankor med kölvatten
     if (this.site === 'gbg') this.ducks.forEach(function (d) {
+      if (d.dive > 0.2) return;
       d.a += (self.frameDt || 0.016) * d.sp;
-      var x = -18.3 + Math.cos(d.a) * d.rx, z = -1.5 + Math.sin(d.a) * d.rz, s = self.toScreen(x, z, 0);
+      var x = -18.3 + Math.cos(d.a) * d.rx, z = -1.5 + Math.sin(d.a) * d.rz;
+      // När du matar dem simmar ankorna fram till stranden där du står
+      if (self.feedT > 0) { d.fk = Math.min(1, (d.fk || 0) + (self.frameDt || 0.016) * 0.8); } else d.fk = Math.max(0, (d.fk || 0) - (self.frameDt || 0.016) * 0.4);
+      if (d.fk) { x = x + (-16.9 - x) * d.fk * 0.85; z = z + (-1.5 + d.ph * 0.5 - z) * d.fk * 0.7; }
+      var s = self.toScreen(x, z, 0);
       var dir = -Math.sin(d.a) > 0 ? 1 : -1, bob = Math.round(Math.sin(t * 2 + d.ph));
       g.strokeStyle = 'rgba(220,245,250,0.45)'; g.lineWidth = 1;
       g.beginPath(); g.moveTo(s.x - dir * 4, s.y + 1); g.lineTo(s.x - dir * 9, s.y - 1); g.moveTo(s.x - dir * 4, s.y + 2); g.lineTo(s.x - dir * 9, s.y + 4); g.stroke();
@@ -173,9 +279,9 @@
   W.drawFx = function (g, sc) {
     ORIG_FX.call(this, g, sc);
     if (!this.cat) return;
-    var self = this, t = this.t;
+    var self = this, t = this.t, animals = NV.settings.get('animals2d') !== false;
     // Katten
-    if (this.site === 'gbg') {
+    if (this.site === 'gbg' && animals) {
       var c = this.cat, s = this.toScreen(c.x, c.z, 0), moving = c.wait <= 0, leg = moving ? Math.floor(t * 10) % 2 : 0, d = c.dir;
       g.fillStyle = 'rgba(16,20,60,0.25)'; g.fillRect(s.x - 4, s.y, 9, 1);
       g.fillStyle = K.OUT;
@@ -220,13 +326,25 @@
       }
     }
     // Måsen vid lastkajen
-    if (this.site === 'boras') {
+    if (this.site === 'boras' && animals) {
       var gl = this.gull, sg = this.toScreen(gl.x, gl.z, 0), stp = gl.wait > 0 ? 0 : Math.floor(t * 8) % 2;
       g.fillStyle = 'rgba(16,20,60,0.22)'; g.fillRect(sg.x - 3, sg.y, 7, 1);
       g.fillStyle = K.OUT; g.fillRect(sg.x - 4, sg.y - 5, 8, 4); g.fillRect(sg.x + gl.dir * 3 - 1, sg.y - 8, 4, 4);
       g.fillStyle = '#f4f6f8'; g.fillRect(sg.x - 3, sg.y - 4, 6, 2); g.fillRect(sg.x + gl.dir * 3, sg.y - 7, 2, 2);
       g.fillStyle = '#8f96a3'; g.fillRect(sg.x - 3, sg.y - 4, 3, 1); g.fillStyle = '#f0b429'; g.fillRect(sg.x + gl.dir * 5, sg.y - 6, 2, 1);
       g.fillStyle = '#f0b429'; g.fillRect(sg.x - 1, sg.y - 1, 1, 1 + stp); g.fillRect(sg.x + 1, sg.y - 1, 1, 2 - stp);
+    }
+    // Omar håller en kaffekopp när han står still
+    var om = this.people && this.people.Omar;
+    if (om && this.site === 'gbg' && !om.walking && this.npcVisible('Omar')) { var so = this.toScreen(om.x, om.z, 0); g.fillStyle = '#ffffff'; g.fillRect(so.x + 6, so.y - 12, 3, 3); g.fillStyle = '#6b4a30'; g.fillRect(so.x + 6, so.y - 12, 3, 1); g.fillStyle = '#ffffff'; g.fillRect(so.x + 9, so.y - 11, 1, 1); }
+    // Kaffemaskinens lampa och kall luft ur golvventilerna i serverrummet
+    if (this.site === 'gbg') {
+      var cm = this.toScreen(-2.8, -9.45, 1.0); g.fillStyle = Math.floor(t * 1.5) % 2 ? '#3dff6a' : '#1d4a26'; g.fillRect(cm.x + 3, cm.y, 1, 1);
+      for (var mi = 0; mi < 8; mi++) {
+        var ph2 = (t * 0.35 + mi * 0.37) % 1, mxx = -14 + (mi * 1.13) % 7.5, mz = -9.4 + (mi * 0.97) % 6.8;
+        var smi = this.toScreen(mxx, mz, ph2 * 0.9);
+        g.fillStyle = 'rgba(180,220,255,' + (0.28 * (1 - ph2)) + ')'; g.fillRect(smi.x, smi.y, 2, 1);
+      }
     }
     // Spelaren tittar på mobilen när den stått still länge
     if (this.idleT > 8) {
@@ -265,6 +383,17 @@
         g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillRect(x, p.y - 24, 3, 7);
       });
     }
+    g.restore();
+    // Regn som rinner på fönsterrutorna och solnedgång i fönstren på kvällen
+    var rain = this.weather === 'rain', eve = this.eve || 0;
+    if (rain || eve > 0.25) this.sprites.forEach(function (s) {
+      if (!s.emit || !s.emit.win) return;
+      var p = self.toScreen(s.emit.x - s.emit.w * 0.4, s.emit.z - 0.18, 0.3), w = Math.round(s.emit.w * PPM * 0.8), hh = 20;
+      if (p.x < -60 || p.x > vw + 20 || p.y < -10 || p.y > vh + 40) return;
+      if (eve > 0.25) { g.fillStyle = 'rgba(255,' + Math.round(150 - eve * 40) + ',90,' + (eve * 0.22) + ')'; g.fillRect(p.x + 2, p.y - hh, w - 2, hh - 6); }
+      if (rain) { g.fillStyle = 'rgba(220,235,255,0.55)'; for (var k = 0; k < 6; k++) { var rx = p.x + 3 + ((k * 7 + Math.floor(t * 3)) % (w - 4)), ry = p.y - hh + ((t * 9 + k * 5) % (hh - 6)); g.fillRect(rx, ry, 1, 2); } }
+    });
+    g.save(); g.globalCompositeOperation = 'lighter';
     // Blinkande varningsljus på trucken i Borås
     if (this.site === 'boras') {
       var tp = this.toScreen(105.95, -3.95, 1.6), on = Math.sin(t * 9) > 0;
@@ -273,6 +402,16 @@
     // Nödutgångsskylten lyser grönt
     if (this.site === 'gbg' && this.exitSign) { var es = this.toScreen(this.exitSign.x, this.exitSign.z, 1.35); A2.glow(g, es.x, es.y, 14, '60,255,140', 0.25); }
     g.restore();
+    // Morgondimma utomhus tidigt på dagen
+    var hr = 8 + (this.game.state ? this.game.state.time : 0) / 3600;
+    if (hr < 9.5 && /Utanför/.test(this.zone().name)) {
+      var mist = (9.5 - hr) / 1.5 * 0.16;
+      for (var mi = 0; mi < 4; mi++) { var my = vh * (0.35 + mi * 0.18), mx = ((t * (6 + mi * 3) + mi * 200) % (vw + 400)) - 200; var mg = g.createRadialGradient(mx, my, 0, mx, my, 220); mg.addColorStop(0, 'rgba(235,240,245,' + mist + ')'); mg.addColorStop(1, 'rgba(235,240,245,0)'); g.fillStyle = mg; g.fillRect(mx - 220, my - 120, 440, 240); }
+    }
+    // Blixten lyser upp himlen
+    if (this.boltFlash > 0 && NV.settings.get('reduceMotion') !== true) { var fa = this.boltFlash > 0.75 ? 0.35 : (this.boltFlash > 0.5 ? 0.05 : this.boltFlash * 0.25); g.fillStyle = 'rgba(230,235,255,' + fa + ')'; g.fillRect(0, 0, vw, vh); }
+    // Skrivarens gröna lampa blinkar långsamt
+    if (this.site === 'gbg' && this.builder && this.builder.anchors.printer) { var pa = this.builder.anchors.printer, pp = this.toScreen(pa.x + 0.2, pa.z - 0.25, 1.15); if (Math.sin(t * 2) > -0.3) { g.fillStyle = '#5dff8a'; g.fillRect(Math.round(pp.x), Math.round(pp.y), 1, 1); g.fillStyle = 'rgba(93,255,138,0.25)'; g.fillRect(Math.round(pp.x) - 1, Math.round(pp.y) - 1, 3, 3); } }
     // Ett lysrör i serverrummet flimrar
     if (this.site === 'gbg' && NV.gfx.profile().lights) {
       var fl = Math.sin(t * 37) * Math.sin(t * 13);
