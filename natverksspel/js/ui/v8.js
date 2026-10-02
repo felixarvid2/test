@@ -165,9 +165,42 @@
     };
   }
 
+  // Nya tips, repliker, ett teoriavsnitt om vägsökning och fler ord i ordlistan
+  if (NV.TIPS) NV.TIPS.push('Klicka var som helst i 2D – figuren hittar vägen runt väggar och möbler själv.', 'Dubbelklicka för att springa, och högerklicka för att stanna.', 'Shift-klick lägger till en mellanstation på vägen.',
+    'Håll inne V för att se allt du kan använda i närheten.', 'Smyg med C nära Krabban, så flyr den inte lika lätt.', 'Tolv gummiankor är gömda. Samlingar i handboken visar hur många du har.',
+    'Kollegorna blir gladare när du hämtar kaffe åt dem. Titta efter kaffekoppen i en bubbla.', 'Kasta pappersflygplan med Q. Hur långt kan du få dem att flyga?');
+  var origTeori = H.teori;
+  if (origTeori) H.teori = function () {
+    return origTeori.apply(this, arguments) + '<details class="teori"><summary>Vägsökning: hur figuren hittar fram (A*)</summary><p>När du klickar delas kartan in i ett rutnät med rutor på 12,5 cm. Rutor nära väggar och möbler är spärrade. <b>A*</b> (uttalas "A-stjärna") letar sedan fram den kortaste vägen: den undersöker hela tiden den ruta som verkar mest lovande, alltså den där sträckan hittills plus fågelvägen kvar till målet är kortast. Det är samma idé som routingprotokollen OSPF och IS-IS använder för att hitta kortaste vägen i ett nät (Dijkstras algoritm), fast A* tar en genväg genom att gissa avståndet kvar.</p><p>Sedan jämnas vägen ut: så länge det finns fri sikt mellan två punkter hoppar figuren över mellanstegen.</p></details>';
+  };
+  var origOrd = H.ord;
+  if (origOrd) H.ord = function () {
+    return origOrd.apply(this, arguments) + '<h3>Ord från version 8</h3>' + table(['Svenska', 'Engelska', 'Kort förklaring'], [
+      ['vägsökning', 'pathfinding', 'Att hitta en väg runt hinder'], ['kortaste vägen', 'shortest path', 'Det OSPF räknar fram med Dijkstras algoritm'], ['heuristik', 'heuristic', 'En kvalificerad gissning, som fågelvägen kvar i A*']]);
+  };
+  if (NV.CHAT) {
+    var MORE = {
+      Anna: '"Har du hittat gummiankan bakom mitt skrivbord? Jag har letat i veckor."', Karim: '"Jag tappade mitt passerkort förra veckan. Tack igen om det var du som hittade det!"',
+      Sara: '"Kan du lära mig kasta macka? Min sten sjunker direkt."', Lisa: '"Någon har satt upp ett fotbollsmål på gräsmattan. Ska vi spela på lunchen?"',
+      Bo: '"Varuautomaten tog min tjuga igen. Fast jag fick två chokladbitar förra gången."', Maja: '"Har du sett igelkotten på kvällarna? Jag ger den aldrig mat, jag lovar."',
+      Omar: '"Städ-Sture fastnar under stolarna i fikarummet. Lyft upp den om du ser den blinka rött."', Linnea: '"Hittegods lämnas i receptionen. Eller direkt till ägaren, det går fortare."',
+      Nils: '"Det finns öring i bäcken bakom lagret. Inte för att jag fiskar på arbetstid."',
+    };
+    Object.keys(MORE).forEach(function (n) { if (NV.CHAT[n]) NV.CHAT[n].push(MORE[n]); else NV.CHAT[n] = [MORE[n]]; });
+  }
+
   window.addEventListener('load', function () {
     var g = NV.game;
     if (!g) return;
+    // Dagens första spelpass ger en liten bonus som växer med antalet dagar i rad
+    try {
+      var dd = load(), today = new Date().toDateString();
+      if (dd.dailyBonus !== today) {
+        dd.dailyBonus = today; save(dd);
+        var streak = Math.min(7, NV.streak || 1), bonus = 5 + streak * 5;
+        setTimeout(function () { g.xp(bonus, 'Dagens första spelpass' + (streak > 1 ? ' · ' + streak + ' dagar i rad' : ''), true); }, 3000);
+      }
+    } catch (e) { /* bonusen är inte viktig */ }
     setInterval(function () { try { hud(); checkChallenges(); } catch (e) { /* HUD är inte viktig */ } }, 1000);
     // Nya utmaningar när veckan startar
     var origStart = g.startWeek;

@@ -118,7 +118,7 @@
     // Katten strövar runt i kontoret och sätter sig ibland
     var c = this.cat;
     c.ph += dt;
-    if (c.wait > 0) { c.wait -= dt; if (c.wait <= 0) { var spots = [[2, 4], [-3, 6.5], [6, 1], [10, 5], [12.5, 8.5], [-1.5, 0.5], [8, 8.6]]; var s = spots[Math.floor(Math.random() * spots.length)]; c.tx = s[0]; c.tz = s[1]; c.sit = false; } }
+    if (c.wait > 0) { c.wait -= dt; if (c.wait <= 0) { var spots = [[2, 4], [-3, 6.5], [6, 1], [10, 5], [12.5, 8.5], [-1.5, 0.5], [8, 8.6], [12.6, -8.75], [-12.4, -0.2]]; /* de två sista är sofforna */ var s = spots[Math.floor(Math.random() * spots.length)]; c.tx = s[0]; c.tz = s[1]; c.sit = false; } }
     else {
       var dx = c.tx - c.x, dz = c.tz - c.z, d = Math.hypot(dx, dz);
       var fleeing = dist(me.x, me.z, c.x, c.z) < 0.9 && !this.sneak;  // smyger du flyr den inte

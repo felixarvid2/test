@@ -186,6 +186,7 @@
     'Kaffe gör att du går snabbare en stund.', 'Hittar du Krabban får du extra XP.',
   ];
   NV.TIPS = TIPS;
+  NV.TIPS = TIPS;
   function tipOfDay() { var d = new Date(); return TIPS[(d.getFullYear() * 400 + d.getMonth() * 31 + d.getDate()) % TIPS.length]; }
   var U = NV.UI && NV.UI.prototype;
   if (U && U.showMenu) {

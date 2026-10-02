@@ -20,6 +20,7 @@ NV.UI = (function () {
     Nils: ['"Truckens varningslampa blinkar hela dagen. Det är meningen."', '"Måsen vid lastkajen har bott här längre än jag."', '"Truckarna går på el, streckkodsläsarna på Wi-Fi."', '"Här ute är det kallt, men accesspunkterna ska vara varma."', '"Göteborg har fina kontor. Vi har pallar."'],
   };
   // Vecka 10: den hyrda linan är uppsagd och alla pratar om VPN
+  NV.CHAT = CHAT;
   var CHAT10 = {
     Bo: ['"Sex tusen kronor i månaden för en lina som användes till fyra procent. Bra att den är borta."', '"Jag har hört att Mölndal också vill ha VPN. Vad kostar det?"'],
     Maja: ['"Om tunneln är krypterad, kan operatören se våra fakturor?"'],
