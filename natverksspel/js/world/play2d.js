@@ -41,6 +41,10 @@
     ['Abborre', 12, 32, 40], ['Mört', 10, 25, 30], ['Sutare', 20, 45, 12], ['Gädda', 40, 90, 5], ['Ruda', 10, 28, 10],
     ['En gammal patchkabel', 0, 0, 2], ['En gammal sko', 0, 0, 1],
   ];
+  // Fiskeplatser: dammen i Göteborg och bäcken vid lagret i Borås, med egna fiskar
+  var STREAM_FISH = [['Öring', 20, 55, 20], ['Harr', 18, 40, 25], ['Elritsa', 5, 10, 40], ['Bäcköring', 15, 35, 15], ['En vante', 0, 0, 2]];
+  var SPOTS = { pond: { stand: { x: -16.2, z: 1.2 }, bob: { x: -17.6, z: 1.1 }, fish: null, name: 'dammen' }, stream: { stand: { x: 91.5, z: 13.3 }, bob: { x: 91.7, z: 14.6 }, fish: STREAM_FISH, name: 'bäcken' } };
+  NV.v8.FISH_SPOTS = SPOTS;
   var SNACKS = ['en chokladbit', 'en påse chips', 'en müslibar', 'en banan', 'ett paket salmiak', 'en kanelbulle', 'en rad vingummi', 'en burk läsk'];
   var BOARD = [
     'Fredagsfika kl. 15 – Bo bjuder (sägs det).', 'Den som lånade HDMI-kabeln från mötesrummet: lämna tillbaka den.', 'Krabba-observationer rapporteras till Omar.',
@@ -76,7 +80,8 @@
     function add(x, z, inter, r) { var o = { x: x, z: z, inter: inter, r: r || 0.8 }; list.push(o); return o; }
     this.duckInters = DUCKS.map(function (k) { return add(k.x, (d.ducks || {})[k.id] ? -100 : k.z, { type: 'rduck', id: k.id }, 0.5); });
     if (this.vending) add(this.vending.x, this.vending.z, { type: 'snack' }, 0.8);
-    add(-16.7, 1.2, { type: 'fish' }, 0.9);
+    add(-16.7, 1.2, { type: 'fish', id: 'pond' }, 0.9);
+    add(91.5, 13.75, { type: 'fish', id: 'stream' }, 0.9);
     // Bänkar och soffor att sitta på
     this.seats = [{ x: -8.5, z: -12.15, dir: 1 }, { x: 0.5, z: -12.15, dir: 1 }, { x: -19.2, z: 3.35, dir: 1 }, { x: 12.8, z: -8.75, dir: 1 },
       // Stolarna i fikarummet och mötesrummet och den grå soffan på kontoret
@@ -135,10 +140,11 @@
     var f = this.fishing;
     if (f) {
       f.t += dt;
-      if (dist(me.x, me.z, -16.2, 1.2) > 1.6) { this.fishing = null; }
-      else if (f.state === 'wait' && f.t > f.bite) { f.state = 'bite'; f.t = 0; NV.sfx.plop(); this.ripples.push({ x: -17.6, z: 1.1, age: 0, life: 0.8, size: 4 }); this.pops.push({ text: '!', col: '#ff5a4f', x: me.x, z: me.z, y: 2.0, age: 0, life: 0.9 }); }
+      var sp = SPOTS[f.spot] || SPOTS.pond;
+      if (dist(me.x, me.z, sp.stand.x, sp.stand.z) > 1.6) { this.fishing = null; }
+      else if (f.state === 'wait' && f.t > f.bite) { f.state = 'bite'; f.t = 0; NV.sfx.plop(); this.ripples.push({ x: sp.bob.x, z: sp.bob.z, age: 0, life: 0.8, size: 4 }); this.pops.push({ text: '!', col: '#ff5a4f', x: me.x, z: me.z, y: 2.0, age: 0, life: 0.9 }); }
       else if (f.state === 'bite' && f.t > 0.9) { this.fishing = null; g.ui.toast('🎣 Fisken slank undan. Tryck E direkt när flötet dyker.'); }
-      if (f.state === 'wait' && Math.random() < dt * 0.8) this.ripples.push({ x: -17.6, z: 1.1, age: 0, life: 1.2, size: 2 });
+      if (f.state === 'wait' && Math.random() < dt * 0.8) this.ripples.push({ x: sp.bob.x, z: sp.bob.z, age: 0, life: 1.2, size: 2 });
     }
     // Kollegor hälsar första gången du går förbi under veckan
     this.greeted = this.greeted || {};
@@ -314,8 +320,9 @@
       else { g.fillStyle = '#b07a3c'; g.fillRect(s2.x - 2, s2.y - 2, 4, 2); g.fillStyle = '#7a5226'; g.fillRect(s2.x - 2, s2.y - 1, 4, 1); }
     });
     // Flötet i dammen
-    if (this.fishing && !bora) {
-      var bob = at(-17.6, 1.1), dip = this.fishing.state === 'bite' ? 2 : Math.round(Math.sin(t * 3) * 0.6);
+    var fsp = this.fishing && (SPOTS[this.fishing.spot] || SPOTS.pond);
+    if (fsp && (fsp.bob.x > 50) === bora) {
+      var bob = at(fsp.bob.x, fsp.bob.z), dip = this.fishing.state === 'bite' ? 2 : Math.round(Math.sin(t * 3) * 0.6);
       var me = at(this.pos.x, this.pos.z);
       g.strokeStyle = 'rgba(240,240,240,0.5)'; g.lineWidth = 1; g.beginPath(); g.moveTo(me.x - 4, me.y - 22); g.quadraticCurveTo((me.x + bob.x) / 2, me.y - 26, bob.x, bob.y - 2 + dip); g.stroke();
       g.fillStyle = '#ffffff'; g.fillRect(bob.x - 1, bob.y - 3 + dip, 3, 2); g.fillStyle = '#e53935'; g.fillRect(bob.x - 1, bob.y - 4 + dip, 3, 1);
@@ -367,7 +374,7 @@
       switch (i.type) {
         case 'rduck': return 'Plocka upp gummiankan';
         case 'snack': return 'Köp något i varuautomaten';
-        case 'fish': return w.fishing ? (w.fishing.state === 'bite' ? 'Dra upp!' : 'Vänta på napp …') : 'Fiska i dammen';
+        case 'fish': return w.fishing ? (w.fishing.state === 'bite' ? 'Dra upp!' : 'Vänta på napp …') : 'Fiska i ' + (SPOTS[i.id] || SPOTS.pond).name;
         case 'sit': return w.seated ? 'Res dig' : 'Sätt dig';
         case 'read': return { board: 'Läs anslagstavlan', calendar: 'Titta i kalendern', clock: 'Titta på klockan' }[i.id];
         case 'plant': var p = w.plants && w.plants[i.id]; return p && p.thirst <= 0 ? 'Vattna växten' : 'Känn på jorden';
@@ -415,18 +422,21 @@
         }
         case 'fish': {
           var f = w.fishing;
-          if (!f) { w.fishing = { state: 'wait', t: 0, bite: R(2, 6) }; NV.sfx.whoosh(); setTimeout(function () { NV.sfx.plop(); }, 350); w.faceTo(-17.6, 1.1); NV.career.stat('casts'); return; }
+          var spot = SPOTS[i.id] || SPOTS.pond;
+          if (!f) { w.fishing = { state: 'wait', t: 0, bite: R(2, 6), spot: i.id || 'pond' }; NV.sfx.whoosh(); setTimeout(function () { NV.sfx.plop(); }, 350); w.faceTo(spot.bob.x, spot.bob.z); NV.career.stat('casts'); return; }
           if (f.state === 'wait') { w.fishing = null; this.ui.toast('🎣 För tidigt! Vänta tills flötet dyker.'); return; }
+          spot = SPOTS[f.spot] || SPOTS.pond;
           w.fishing = null;
-          var tot = FISH.reduce(function (a, x) { return a + x[3]; }, 0), r = Math.random() * tot, fish = FISH[0];
-          for (var k = 0; k < FISH.length; k++) { r -= FISH[k][3]; if (r <= 0) { fish = FISH[k]; break; } }
+          var LIST = spot.fish || FISH;
+          var tot = LIST.reduce(function (a, x) { return a + x[3]; }, 0), r = Math.random() * tot, fish = LIST[0];
+          for (var k = 0; k < LIST.length; k++) { r -= LIST[k][3]; if (r <= 0) { fish = LIST[k]; break; } }
           NV.sfx.reel(); NV.sfx.splash();
-          for (var q = 0; q < 10; q++) w.part({ x: -17.4, z: 1.1, y: 0.2, vx: R(-1, 1), vy: R(1, 2.5), g: 7, life: 0.8, size: 1, col: '#bfe6ff', force: true });
+          for (var q = 0; q < 10; q++) w.part({ x: spot.bob.x + 0.2, z: spot.bob.z, y: 0.2, vx: R(-1, 1), vy: R(1, 2.5), g: 7, life: 0.8, size: 1, col: '#bfe6ff', force: true });
           if (!fish[2]) { this.ui.toast('🎣 Du fick upp … ' + fish[0].toLowerCase() + '. Den slänger du i soporna.'); NV.career.stat('junkFish'); return; }
           var cm = Math.round(R(fish[1], fish[2]));
           NV.career.stat('fish'); NV.career.max('bigFish', cm);
           d = load(); d.fishLog = d.fishLog || {}; d.fishLog[fish[0]] = Math.max(d.fishLog[fish[0]] || 0, cm); save(d);
-          this.ui.toast('🐟 <b>' + fish[0] + ', ' + cm + ' cm!</b> Du släpper tillbaka den i dammen.', 'good');
+          this.ui.toast('🐟 <b>' + fish[0] + ', ' + cm + ' cm!</b> Du släpper tillbaka den i ' + spot.name + '.', 'good');
           this.xp(cm >= 50 ? 25 : 5, 'Fisk');
           return;
         }

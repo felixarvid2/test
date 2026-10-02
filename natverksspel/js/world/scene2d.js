@@ -417,6 +417,14 @@
       g.restore();
     });
   };
+  // Gatlyktorna tänds en i taget mot kvällen och fladdrar till när de slår på
+  W.lampOn = function (i) {
+    if (this.weather === 'rain') return true;
+    var eve = this.eve || 0, th = 0.3 + ((i * 0.037) % 0.12);
+    if (eve < th) return false;
+    if (eve < th + 0.015) return Math.sin((this.t || 0) * 40 + i) > 0;
+    return true;
+  };
   W.drawGroundFx = function (g) {
     var self = this, t = this.t, o = this.gOff, vw = this.view.vw, vh = this.view.vh;
     this.drawReflections(g);
@@ -717,10 +725,10 @@
         if (p.x < -30 || p.y < -30 || p.x > vw + 30 || p.y > vh + 30) return;
         A2.glow(L, p.x, p.y, 16, '40,70,110', 0.9);
       });
-      (this.lamps || []).forEach(function (l) {
+      (this.lamps || []).forEach(function (l, i) {
         var p = self.toScreen(l.x, l.z, 0);
         if (p.x < -80 || p.y < -80 || p.x > vw + 80 || p.y > vh + 80) return;
-        if (lit) A2.glow(L, p.x, p.y - 4, 44, '255,190,110', 0.55 + eve * 0.4);
+        if (self.lampOn(i)) A2.glow(L, p.x, p.y - 4, 44, '255,190,110', 0.55 + eve * 0.4);
       });
       // Kallt ljus i serverrummet och en varm lampa över fikabordet
       if (this.site === 'gbg') {
@@ -744,10 +752,11 @@
     }
     // Ljuskällor som glöder (additivt)
     g.globalCompositeOperation = 'lighter';
-    (this.lamps || []).forEach(function (l) {
+    (this.lamps || []).forEach(function (l, i) {
       var p = self.toScreen(l.x, l.z, 2.0);
       if (p.x < -30 || p.y < -30 || p.x > vw + 30 || p.y > vh + 30) return;
-      A2.glow(g, p.x, p.y + 4, lit ? 16 : 7, '255,220,150', lit ? 0.6 : 0.2);
+      var on = self.lampOn(i);
+      A2.glow(g, p.x, p.y + 4, on ? 16 : 7, '255,220,150', on ? 0.6 : 0.2);
     });
     if (this.site === 'gbg' || this.site === 'boras') {
       var A3 = this.builder.anchors;

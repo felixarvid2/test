@@ -214,7 +214,7 @@
     // Smyger du syns tre små prickar ovanför huvudet
     if (this.sneak) { var sn = at(me.x, me.z, 1.95); g.fillStyle = 'rgba(255,255,255,0.7)'; for (var i = 0; i < 3; i++) if (Math.floor(t * 3) % 3 >= i) g.fillRect(sn.x - 3 + i * 3, sn.y, 1, 1); }
     // Fiskespö i handen
-    if (this.fishing && gbg) { var rp = at(me.x - 0.1, me.z, 1.0); g.strokeStyle = '#7a5226'; g.lineWidth = 1; g.beginPath(); g.moveTo(rp.x, rp.y); g.lineTo(rp.x - 6, rp.y - 13); g.stroke(); }
+    if (this.fishing) { var rp = at(me.x - 0.1, me.z, 1.0); g.strokeStyle = '#7a5226'; g.lineWidth = 1; g.beginPath(); g.moveTo(rp.x, rp.y); g.lineTo(rp.x - 6, rp.y - 13); g.stroke(); }
     // Fångad fisk visas ovanför figuren en stund
     var cf = this.caughtFx;
     if (cf && (cf.t -= this.frameDt || 0.016) > 0) {
