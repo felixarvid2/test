@@ -1,5 +1,5 @@
 // 2D-världen, version 8: blommor att plocka och ge bort, duvor att mata, kasta macka i dammen,
-// joggingrunda runt kontoret, veckans trädgårdstomte, damm i solstrålarna, regndroppar på "linsen",
+// joggingrunda runt kontoret, veckans trädgårdstomte, regndroppar på "linsen",
 // motljus, dammiga fotspår i lagret och markeringar på minikartan.
 (function () {
   if (!NV.World2D) return;
@@ -65,11 +65,6 @@
     this.skips = (this.skips || []).filter(function (s) { s.t -= dt; if (s.t <= 0) { self.ripples.push({ x: s.x, z: s.z, age: 0, life: 1, size: s.last ? 5 : 3 }); if (s.last) { NV.sfx.plop(); } else if (NV.sfx.tap) NV.sfx.tap(); return false; } return true; });
     // Joggingrundan runt kontoret
     if (gbg) this.lapStep();
-    // Damm som svävar i solstrålarna på kontoret
-    if (gbg && !out && this.weather !== 'rain' && (this.eve || 0) < 0.7 && Math.random() < dt * 3 && this.sprites) {
-      var wins = this.sprites.filter(function (s) { return s.emit && s.emit.win && dist(s.emit.x, s.emit.z, me.x, me.z) < 8; });
-      if (wins.length) { var wn = wins[Math.floor(Math.random() * wins.length)]; this.part({ x: wn.emit.x - wn.emit.w * 0.4 + R(0, wn.emit.w * 0.8) + (this.beamLean || 0) / 40 * R(0, 1), z: wn.emit.z - R(0.2, 0.6), y: R(0.2, 1.2), vx: R(-0.03, 0.03), vy: R(-0.02, 0.03), life: R(2.5, 4), size: 1, col: 'rgba(255,245,215,0.75)', glow: true }); }
-    }
     // Dammiga fotspår på betonggolvet i lagret
     if (this.site === 'boras' && /Lagret/.test(this.zone().name) && this.frame && (!this.lastDust || dist(me.x, me.z, this.lastDust.x, this.lastDust.z) > 0.45)) {
       this.lastDust = { x: me.x, z: me.z }; this.dustSteps = (this.dustSteps || 0) + 1;

@@ -61,7 +61,6 @@
     if (!box) { box = document.createElement('div'); box.className = 'hud-v8'; el.appendChild(box); }
     var w = g.world, html = '', d = load();
     if (w && w.lost && w.lost.carried) html += '<span class="chip" title="Lämna tillbaka saken till ägaren">' + w.lost.icon + ' ' + esc(w.lost.owner) + 's ' + esc(w.lost.item) + ' → ' + esc(w.lost.owner) + '</span>';
-    if (g.boosted && g.boosted()) html += '<span class="chip good" title="Kaffet gör att du går fortare">☕ ' + Math.ceil((g.boostUntil - Date.now()) / 1000) + ' s</span>';
     var nd = Object.keys(d.ducks || {}).length;
     if (nd && V8.DUCKS && nd < V8.DUCKS.length) html += '<span class="chip" title="Gummiankor du har hittat">🦆 ' + nd + '/' + V8.DUCKS.length + '</span>';
     if (w && w.sneak && g.mode === '2d') html += '<span class="chip" title="Du smyger (C)">🤫 Smyger</span>';
@@ -147,7 +146,7 @@
 
   // ------------------------------------------------------------------ Inställningar
   var Dd = NV.settings.defaults;
-  Dd.pathDots = true; Dd.autoRun = true; Dd.npcWalks = true; Dd.hudChallenges = true; Dd.lookAhead = true; Dd.hoverRing = true; Dd.umbrella = true; Dd.roomTint = true; Dd.sunShadows = true; Dd.lensDrops = true; Dd.sunGlare = true;
+  Dd.pathDots = true; Dd.autoRun = true; Dd.npcWalks = true; Dd.hudChallenges = true; Dd.lookAhead = true; Dd.hoverRing = true; Dd.umbrella = true; Dd.roomTint = true; Dd.sunShadows = true; Dd.lensDrops = true; Dd.sunGlare = true; Dd.farLabels = true;
   var U = NV.UI && NV.UI.prototype;
   if (U && U.settingsDialog) {
     var origSet = U.settingsDialog;
@@ -159,7 +158,7 @@
       var opts = [['v8-dots', 'pathDots', 'Visa vägen som prickar när du klickar (2D)'], ['v8-run', 'autoRun', 'Spring automatiskt på långa vägar (2D)'],
         ['v8-walk', 'npcWalks', 'Kollegorna går och hämtar kaffe (2D)'], ['v8-ch', 'hudChallenges', 'Visa veckans utmaningar i HUD:en'], ['v8-look', 'lookAhead', 'Kameran tittar framåt där du går (2D)'],
         ['v8-ring', 'hoverRing', 'Ring och E-tangent över det du kan använda (2D)'], ['v8-umb', 'umbrella', 'Paraply när du går ute i regnet (2D)'], ['v8-tint', 'roomTint', 'Rummen har egen färgton (2D)'],
-        ['v8-sun', 'sunShadows', 'Skuggorna följer solen under dagen (2D)'], ['v8-lens', 'lensDrops', 'Regndroppar på "kameran" ute i regnet (2D)'], ['v8-glare', 'sunGlare', 'Motljus från morgonsolen (2D)']];
+        ['v8-sun', 'sunShadows', 'Skuggorna följer solen under dagen (2D)'], ['v8-lens', 'lensDrops', 'Regndroppar på "kameran" ute i regnet (2D)'], ['v8-glare', 'sunGlare', 'Motljus från morgonsolen (2D)'], ['v8-far', 'farLabels', 'Etikett när pekaren är över något långt bort (2D)']];
       box.innerHTML = '<h3>Version 8</h3><div class="set-grid">' + opts.map(function (o) { return '<label for="' + o[0] + '">' + o[2] + '</label><input type="checkbox" id="' + o[0] + '"' + (st.get(o[1]) !== false ? ' checked' : '') + '>'; }).join('') + '</div>';
       body.appendChild(box);
       opts.forEach(function (o) { var el = box.querySelector('#' + o[0]); el.addEventListener('input', function () { st.set(o[1], el.checked); }); });

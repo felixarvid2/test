@@ -78,7 +78,10 @@
     if (this.vending) add(this.vending.x, this.vending.z, { type: 'snack' }, 0.8);
     add(-16.7, 1.2, { type: 'fish' }, 0.9);
     // Bänkar och soffor att sitta på
-    this.seats = [{ x: -8.5, z: -12.15, dir: 1 }, { x: 0.5, z: -12.15, dir: 1 }, { x: -19.2, z: 3.35, dir: 1 }, { x: 12.8, z: -8.75, dir: 1 }];
+    this.seats = [{ x: -8.5, z: -12.15, dir: 1 }, { x: 0.5, z: -12.15, dir: 1 }, { x: -19.2, z: 3.35, dir: 1 }, { x: 12.8, z: -8.75, dir: 1 },
+      // Stolarna i fikarummet och mötesrummet och den grå soffan på kontoret
+      { x: -2.4, z: -5.8, dir: 3 }, { x: -0.6, z: -5.8, dir: 2 }, { x: -1.5, z: -4.9, dir: 0 },
+      { x: 10.2, z: 4.8, dir: 1 }, { x: 11.4, z: 4.8, dir: 1 }, { x: 10.2, z: 6.4, dir: 0 }, { x: 11.4, z: 6.4, dir: 0 }, { x: -12.4, z: -0.2, dir: 3 }];
     this.seats.forEach(function (s, i) { add(s.x, s.z, { type: 'sit', id: i }, 0.8); });
     add(0.6, -2.2, { type: 'read', id: 'board' }, 0.7);
     add(6.1, 9.6, { type: 'read', id: 'calendar' }, 0.7);
@@ -187,7 +190,7 @@
     var s = this.seats[i];
     if (!s) return;
     this.stopWalk && this.stopWalk();
-    this.seated = { x: s.x, z: s.z, from: { x: this.pos.x, z: this.pos.z } };
+    this.seated = { x: s.x, z: s.z, dir: s.dir, from: { x: this.pos.x, z: this.pos.z } };
     this.pos.x = s.x; this.pos.z = s.z; this.dir = s.dir; this.seatT = 0;
   };
   W.standUp = function () {
@@ -200,7 +203,7 @@
   var ORIG_CHAR = W.drawChar;
   W.drawChar = function (g, spr, x, z, sc, sitting, p) {
     if (this.seated && !p && x === this.pos.x && z === this.pos.z && this.playerSpr) {
-      spr = this.playerSpr(1, 0, true, (this.t || 0) % 3.7 < 0.13);
+      spr = this.playerSpr(this.seated.dir === undefined ? 1 : this.seated.dir, 0, true, (this.t || 0) % 3.7 < 0.13);
       sitting = true;
     }
     return ORIG_CHAR.call(this, g, spr, x, z, sc, sitting, p);

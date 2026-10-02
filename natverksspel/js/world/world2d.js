@@ -1546,10 +1546,12 @@ NV.World2D = (function () {
       g.fillStyle = 'rgba(30,40,70,0.18)'; g.fillRect(0, 0, cw, ch);
       g.strokeStyle = 'rgba(200,220,255,0.35)'; g.lineWidth = 1;
       g.beginPath();
-      var n = NV.gfx.profile().particles < 0.5 ? 60 : 160;
+      // Regnet kommer i skurar, och vindbyarna får det att luta
+      var burst = 0.65 + 0.35 * Math.sin(this.t * 0.13) + (this.gust || 0) * 0.3, slant = 1 + (this.gust || 0) * 3;
+      var n = Math.round((NV.gfx.profile().particles < 0.5 ? 60 : 160) * burst);
       for (var i = 0; i < n; i++) {
-        var x = ((i * 97.3 + this.t * 15) % (cw + 60)) - 30, y = ((i * 61.7 + this.t * (105 + (i % 5) * 10)) % (ch + 40)) - 20;
-        g.moveTo(x, y); g.lineTo(x - 1, y + 4);
+        var x = ((i * 97.3 + this.t * (15 + (this.gust || 0) * 40)) % (cw + 60)) - 30, y = ((i * 61.7 + this.t * (105 + (i % 5) * 10)) % (ch + 40)) - 20;
+        g.moveTo(x, y); g.lineTo(x - slant, y + 4);
       }
       g.stroke();
     }
