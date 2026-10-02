@@ -844,7 +844,7 @@ NV.World2D = (function () {
       if (Math.abs(dx) > Math.abs(dz)) this.dir = dx < 0 ? 2 : 3; else this.dir = dz < 0 ? 0 : 1;
     }
     // Kameran tittar lite framåt åt det håll du går
-    var lk = 1 - Math.exp(-dt * 2.5), lx = moving ? dx * 1.1 : 0, lz = moving ? dz * 0.8 : 0;
+    var lk = 1 - Math.exp(-dt * 2.5), look = moving && NV.settings.get('lookAhead') !== false, lx = look ? dx * 1.1 : 0, lz = look ? dz * 0.8 : 0;
     this.lookX = (this.lookX || 0) + (lx - (this.lookX || 0)) * lk; this.lookZ = (this.lookZ || 0) + (lz - (this.lookZ || 0)) * lk;
     if (!moving) this.accel = 0;
     if (moving) {
