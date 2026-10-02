@@ -1358,7 +1358,9 @@ NV.World2D = (function () {
     // Krabban
     var c = this.game.crab;
     if (c && c.active && c.site === this.site) {
-      var moving = NV.shared.crabStep(c, dt, this.pos, this.collides.bind(this));
+      // Smyger du märker krabban dig först när du är mycket närmare
+      var seen = this.sneak ? { x: c.x + (this.pos.x - c.x) * 2.2, z: c.z + (this.pos.z - c.z) * 2.2 } : this.pos;
+      var moving = NV.shared.crabStep(c, dt, seen, this.collides.bind(this));
       c.anim = (c.anim || 0) + dt * (moving ? (c.fleeing ? 3 : 1.5) : 0);
       if (moving && c.fleeing && Math.random() < dt * 8) this.dust(c.x, c.z);
       if (this.crabInter) { this.crabInter.x = c.x; this.crabInter.z = c.z; }

@@ -1,5 +1,7 @@
 // Vägsökning för musklick i 2D: A* på ett rutnät över hindren, så att figuren går runt väggar och möbler.
 (function () {
+  // Kör fn när spelet (NV.game) finns. Spelet skapas i sin egen load-händelse, efter de här skripten.
+  NV.afterGame = NV.afterGame || function (fn) { window.addEventListener('load', function () { setTimeout(fn, 0); }); };
   var W = NV.World2D.prototype;
   var CELL = 0.125;      // rutnätets upplösning i meter
   var CLEAR = 0.26;      // marginal runt hinder (figurens radie är 0.22)
@@ -263,7 +265,7 @@
   };
 
   // Minikartan: klicka där i 2D så går du dit
-  window.addEventListener('load', function () {
+  NV.afterGame(function () {
     var g = NV.game;
     if (!g) return;
     var orig = g.setWaypoint;
