@@ -529,7 +529,7 @@ NV.World2D = (function () {
     // Skyltar
     this.signs = [
       ['SERVERRUM', -10.4, -2], ['FIKARUM', -1.6, -2], ['EKONOMI', -9.4, 2], ['RECEPTION', 7.2, -5.7],
-      ['ENTRÉ – bilen till Borås', 10.5, -10.6], ['PACKBORD', 102, 10.6], ['LAGRETS RACK', 88.6, -11.2], ['Bilen till Göteborg', 87.4, 1.6],
+      ['ENTRÉ', 10.5, -10.6], ['Bilen till Borås', 16.4, -13.2], ['PACKBORD', 102, 10.6], ['LAGRETS RACK', 88.6, -11.2], ['Bilen till Göteborg', 84.4, -0.8],
       ['RACK A', -12.4, -8.7], ['RACK B', -11.7, -8.7],
     ];
   };
@@ -700,8 +700,9 @@ NV.World2D = (function () {
     if (A.water) add(A.water.x, A.water.z + 0.4, { type: 'water' }, 0.9);
     this.vacInter = { x: 0, z: -100, inter: { type: 'vacuum' }, r: 0.8 };
     list.push(this.vacInter);
-    add(10.5, -10.2, { type: 'travel', to: 'boras', label: 'Åk till lagret i Borås' }, 1.4);
-    add(88.3, 0, { type: 'travel', to: 'gbg', label: 'Åk tillbaka till Göteborg' }, 1.4);
+    // Bilarna på parkeringarna tar dig mellan kontoret och lagret
+    add(16.4, -13.7, { type: 'travel', to: 'boras', label: 'Kör till lagret i Borås' }, 1.3);
+    add(84.4, -1.3, { type: 'travel', to: 'gbg', label: 'Kör tillbaka till Göteborg' }, 1.3);
     var self = this;
     Object.keys(this.people).forEach(function (n) { var p = self.people[n]; list.push({ x: p.x, z: p.z, inter: { type: 'npc', id: n }, r: 1.1, npc: n }); });
     add(-2.8, -9.2, { type: 'coffee' }, 0.9);
@@ -735,10 +736,10 @@ NV.World2D = (function () {
       if (hit) {
         var dist = Math.hypot(hit.x - self.pos.x, hit.z - self.pos.z);
         if (dist < hit.r + 1.6) { self.faceTo(hit.x, hit.z); self.game.onInteract(hit.inter); return; }
-        self.target = { x: hit.x, z: hit.z - 0.6, then: hit };
+        if (self.walkTo) self.walkTo(hit.x, hit.z - 0.6, hit); else self.target = { x: hit.x, z: hit.z - 0.6, then: hit };
         return;
       }
-      self.target = { x: w.x, z: w.z };
+      if (self.clickWalk) self.clickWalk(w.x, w.z, e.shiftKey); else self.target = { x: w.x, z: w.z };
     });
     this.canvas.addEventListener('wheel', function (e) { if (self.active) { self.changeZoom(e.deltaY < 0 ? 1 : -1); e.preventDefault(); } }, { passive: false });
   };
@@ -787,31 +788,65 @@ NV.World2D = (function () {
     var dx = (k.KeyD || k.ArrowRight ? 1 : 0) - (k.KeyA || k.ArrowLeft ? 1 : 0) + joy.x;
     var dz = (k.KeyW || k.ArrowUp ? 1 : 0) - (k.KeyS || k.ArrowDown ? 1 : 0) - joy.y;
     if (Math.abs(dx) < 0.15) dx = 0; if (Math.abs(dz) < 0.15) dz = 0;
-    if (dx || dz) this.target = null;
+    if (dx || dz) { this.target = null; this.path = null; }
+    var stepCap = Infinity;
     if (!dx && !dz && this.target) {
-      var tx = this.target.x - this.pos.x, tz = this.target.z - this.pos.z;
+      // Följ vägen punkt för punkt; sista punkten är målet
+      while (this.path && this.path.length > 1 && Math.hypot(this.path[0].x - this.pos.x, this.path[0].z - this.pos.z) < 0.02) this.path.shift();
+      var wp = this.path && this.path.length ? this.path[0] : this.target;
+      var tx = wp.x - this.pos.x, tz = wp.z - this.pos.z;
       var d = Math.hypot(tx, tz);
-      if (d < 0.15) {
+      var last = !this.path || this.path.length <= 1;
+      if (last && d < 0.15) {
         var then = this.target.then;
-        this.target = null;
+        this.target = null; this.path = null;
         if (then && Math.hypot(then.x - this.pos.x, then.z - this.pos.z) < then.r + 1.6) { this.faceTo(then.x, then.z); this.game.onInteract(then.inter); }
-      } else { dx = tx / d; dz = tz / d; }
+      } else if (d > 0.001) { dx = tx / d; dz = tz / d; stepCap = d; }
     }
-    var speed = (k.ShiftLeft || k.ShiftRight || this.game.touchRun) ? 5 : 3.2;
+    var speed = (k.ShiftLeft || k.ShiftRight || this.game.touchRun || (this.target && this.runPath)) ? 5 : 3.2;
+    // Smyg med C: långsamt och tyst, så att krabban och katten inte märker dig
+    this.sneak = !!k.KeyC;
+    if (this.sneak) speed = 1.5;
     if (this.game.boosted && this.game.boosted()) speed *= 1.3;
     var len = Math.hypot(dx, dz);
     var moving = false;
     if (len > 0) {
       dx /= len; dz /= len;
-      var nx = this.pos.x + dx * speed * dt, nz = this.pos.z + dz * speed * dt;
+      var ox = this.pos.x, oz = this.pos.z;
+      // Mjuk start: farten byggs upp under en dryg tiondels sekund
+      this.accel = Math.min(1, (this.accel || 0) + dt * 8);
+      speed *= 0.35 + 0.65 * this.accel;
+      // Landa exakt på vägens hörn i stället för att skära dem (annars fastnar man i dörröppningar)
+      var step = Math.min(speed * dt, stepCap);
+      var nx = this.pos.x + dx * step, nz = this.pos.z + dz * step;
       var r = 0.22;
       var movedX = false, movedZ = false;
-      if (!this.collides(nx, this.pos.z, r)) { this.pos.x = nx; movedX = true; }
-      if (!this.collides(this.pos.x, nz, r)) { this.pos.z = nz; movedZ = true; }
+      // Står du redan inne i ett hinder (t.ex. om Omar gick in i dig) får du gå ut ur det
+      var trapped = this.collides(this.pos.x, this.pos.z, r);
+      if (trapped || !this.collides(nx, this.pos.z, r)) { this.pos.x = nx; movedX = true; }
+      if (trapped || !this.collides(this.pos.x, nz, r)) { this.pos.z = nz; movedZ = true; }
+      // Hörnhjälp: går du rakt mot ett hörn glider du runt det i stället för att stanna
+      if (!this.target && !movedX && !movedZ) {
+        var sideStep = step * 0.8;
+        if (Math.abs(dx) > Math.abs(dz)) { [0.18, -0.18].some(function (o) { if (!this.collides(nx, this.pos.z + o, r)) { this.pos.z += Math.sign(o) * sideStep; movedZ = true; return true; } return false; }, this); }
+        else { [0.18, -0.18].some(function (o) { if (!this.collides(this.pos.x + o, nz, r)) { this.pos.x += Math.sign(o) * sideStep; movedX = true; return true; } return false; }, this); }
+      }
       moving = movedX || movedZ;
-      if (!moving && this.target) this.target = null;
+      // Fastnar du (t.ex. bakom Omar) planeras vägen om, högst tre gånger
+      var got = Math.hypot(this.pos.x - ox, this.pos.z - oz), want = step;
+      if (this.target && got < want * 0.3) this.pathStuck = (this.pathStuck || 0) + dt; else this.pathStuck = 0;
+      if (this.target && this.pathStuck > 0.3) {
+        this.pathStuck = 0;
+        var tg = this.target;
+        if ((this.pathReplans || 0) >= 3 || !this.walkTo || !this.walkTo(tg.x, tg.z, tg.then, true)) { this.target = null; this.path = null; }
+      }
+      if (!moving && this.target && !this.walkTo) this.target = null;
       if (Math.abs(dx) > Math.abs(dz)) this.dir = dx < 0 ? 2 : 3; else this.dir = dz < 0 ? 0 : 1;
     }
+    // Kameran tittar lite framåt åt det håll du går
+    var lk = 1 - Math.exp(-dt * 2.5), lx = moving ? dx * 1.1 : 0, lz = moving ? dz * 0.8 : 0;
+    this.lookX = (this.lookX || 0) + (lx - (this.lookX || 0)) * lk; this.lookZ = (this.lookZ || 0) + (lz - (this.lookZ || 0)) * lk;
+    if (!moving) this.accel = 0;
     if (moving) {
       this.animT += dt * speed * 2.2;
       this.frame = Math.floor(this.animT) % 4;
@@ -927,7 +962,7 @@ NV.World2D = (function () {
     if (!this.low || this.low.width !== vw || this.low.height !== vh) { this.low = cv(vw, vh); this.lowG = this.low.getContext('2d'); }
     var g = this.lowG;
     // Kameran följer mjukt och håller sig inom kartan
-    var want = { x: this.pos.x, z: this.pos.z };
+    var want = { x: this.pos.x + (this.lookX || 0), z: this.pos.z + (this.lookZ || 0) };
     var halfW = (cw / S) / 2 / PPM, halfH = (ch / S) / 2 / (PPM * ZS);
     want.x = Math.max(site.x0 + halfW, Math.min(site.x1 - halfW, want.x));
     want.z = Math.max(site.z0 + halfH, Math.min(site.z1 - halfH, want.z));

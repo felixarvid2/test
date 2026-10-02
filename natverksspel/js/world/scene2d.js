@@ -951,7 +951,7 @@
       var ts = this.toScreen(this.target.x, this.target.z, 0);
       for (var k = 0; k < 2; k++) {
         var f = ((t * 1.6 + k * 0.5) % 1), r = 10 * (1 - f) + 2;
-        g.strokeStyle = 'rgba(255,240,180,' + (0.8 * f) + ')'; g.lineWidth = 1;
+        g.strokeStyle = (this.target.partial ? 'rgba(255,150,120,' : 'rgba(255,240,180,') + (0.8 * f) + ')'; g.lineWidth = 1;
         g.beginPath(); g.ellipse(ts.x + 0.5, ts.y + 0.5, r, r * 0.45, 0, 0, Math.PI * 2); g.stroke();
       }
       g.fillStyle = '#fff0b4'; g.fillRect(ts.x, ts.y - 1, 1, 3); g.fillRect(ts.x - 1, ts.y, 3, 1);
