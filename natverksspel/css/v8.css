@@ -16,3 +16,5 @@ body.photo::after { bottom: 0; }
 .hud-v8:empty { display: none; }
 .hud-v8 .chip { font-size: 12px; padding: 2px 8px; border-radius: 99px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); }
 .hud-v8 .chip.good { background: rgba(63,191,111,0.18); border-color: rgba(63,191,111,0.6); color: #bff5cf; }
+.hearts { color: #ff6b9a; letter-spacing: 2px; }
+.hearts .off { color: rgba(255,255,255,0.3); }

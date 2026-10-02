@@ -89,8 +89,11 @@
     out += '<h3>🐟 Fiskeloggen</h3>' + (fk.length ? table(['Art', 'Största'], fk.map(function (k) { return [esc(k), fl[k] + ' cm']; })) : '<p class="muted">Inga fiskar ännu. Fiska vid dammen väster om kontoret.</p>');
     var lost = d.lostDone || {}, lk = Object.keys(lost);
     out += '<h3>🎒 Hittegods</h3>' + (lk.length ? '<ul>' + lk.map(function (w) { return '<li>Vecka ' + esc(w) + ': ' + esc(lost[w]) + '</li>'; }).join('') + '</ul>' : '<p class="muted">Varje vecka har någon tappat något på kontoret. Håll utkik.</p>');
+    var fr = d.friend || {}, ppl = ['Anna', 'Karim', 'Sara', 'Lisa', 'Bo', 'Maja', 'Omar', 'Linnea', 'Nils'];
+    out += '<h3>❤️ Kollegor</h3>' + table(['Kollega', 'Vänskap'], ppl.map(function (n) { var h = Math.floor((fr[n] || 0) / 4); return [esc(n), '<span class="hearts">' + '♥'.repeat(h) + '<span class="off">' + '♡'.repeat(5 - h) + '</span></span>']; })) +
+      '<p class="muted small">Kollegorna blir gladare när du pratar med dem, hämtar kaffe åt dem, lämnar tillbaka det de tappat och vinkar (1).</p>';
     var s = NV.career.stats();
-    out += '<h3>📊 Småsaker</h3>' + table(['', 'Antal'], [['Vattnade växter', s.waterings || 0], ['Plockat skräp', s.trash || 0], ['Kast med spöet', s.casts || 0], ['Mellanmål', s.snacks || 0], ['Emotes', s.emotes || 0], ['Gånger du satt ner', s.sits || 0], ['Klarade utmaningar', s.challenges || 0], ['Meter gångna', Math.round(s.dist || 0)]]);
+    out += '<h3>📊 Småsaker</h3>' + table(['', 'Antal'], [['Vattnade växter', s.waterings || 0], ['Plockat skräp', s.trash || 0], ['Kast med spöet', s.casts || 0], ['Mellanmål', s.snacks || 0], ['Emotes', s.emotes || 0], ['Gånger du satt ner', s.sits || 0], ['Klarade utmaningar', s.challenges || 0], ['Sparkar på bollen', s.kicks || 0], ['Mål', s.goals || 0], ['Pappersflygplan', s.planes || 0], ['Längsta flygturen', (s.planeDist || 0) + ' m'], ['Kaffe till kollegor', s.coffeeDeliveries || 0], ['Meter gångna', Math.round(s.dist || 0)]]);
     return out;
   };
   // Styrningen i handboken får de nya tangenterna
@@ -100,6 +103,7 @@
       ['Klick', 'Gå dit (figuren hittar vägen runt väggar och möbler)'], ['Dubbelklick', 'Spring dit'], ['Håll inne musknappen', 'Gå mot pekaren'],
       ['Shift + klick', 'Lägg till en mellanstation'], ['Högerklick / Esc', 'Stanna'], ['Klick på minikartan', 'Gå dit'],
       ['C', 'Smyg (krabban, katten och duvorna märker dig senare)'], ['1–6', 'Emotes: vinka, tumme upp, hjärta, fråga, skratt, fika'],
+      ['Q', 'Kasta ett pappersflygplan'], ['Håll V', 'Visa allt du kan använda i närheten'], ['Gå in i bollen', 'Sparka (spring för ett hårdare skott)'],
       ['E vid bänk eller soffa', 'Sätt dig'], ['E vid dammen', 'Fiska (E igen när flötet dyker)'], ['P', 'Fotoläge: Enter tar en bild, Tab byter filter'],
     ]);
   };
