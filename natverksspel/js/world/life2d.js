@@ -78,14 +78,14 @@
   W.petCat = function () {
     var c = this.cat; if (!c) return;
     c.wait = 6; c.sit = true; c.purr = 3;
-    this.pops.push({ text: 'Purr…', col: '#ffd0a0', x: c.x, z: c.z, y: 0.7, age: 0, life: 2 });
+    if (NV.sfx.meow) NV.sfx.meow(); this.pops.push({ text: 'Purr…', col: '#ffd0a0', x: c.x, z: c.z, y: 0.7, age: 0, life: 2 });
     for (var i = 0; i < 4; i++) this.part({ x: c.x + R(-0.2, 0.2), z: c.z, y: 0.5, vy: R(0.4, 0.7), life: 1.4, size: 2, col: '#ff9ccf', force: true });
   };
   W.feedDucks = function () {
     this.feedT = 10;
     for (var i = 0; i < 10; i++) this.part({ x: -16.6, z: -1.5 + R(-0.6, 0.6), y: 0.8, vx: -R(0.6, 1.4), vy: R(0.5, 1.2), g: 5, life: 0.9, size: 1, col: '#e6c081', force: true });
     var self = this; setTimeout(function () { for (var k = 0; k < 4; k++) self.ripples.push({ x: -17.2 - Math.random() * 0.6, z: -1.5 + R(-0.6, 0.6), age: 0, life: 1, size: 3 }); }, 600);
-    this.pops.push({ text: 'Kvack kvack!', col: '#fff1a8', x: -17.4, z: -1.5, y: 0.6, age: 0, life: 2 });
+    if (NV.sfx.quack) NV.sfx.quack(); this.pops.push({ text: 'Kvack kvack!', col: '#fff1a8', x: -17.4, z: -1.5, y: 0.6, age: 0, life: 2 });
   };
 
   // Väggklockan: analog, visar speltiden
@@ -118,19 +118,19 @@
     // Katten strövar runt i kontoret och sätter sig ibland
     var c = this.cat;
     c.ph += dt;
-    if (c.wait > 0) { c.wait -= dt; if (c.wait <= 0) { var spots = [[2, 4], [-3, 6.5], [6, 1], [10, 5], [12.5, 8.5], [-1.5, 0.5], [8, 8.6]]; var s = spots[Math.floor(Math.random() * spots.length)]; c.tx = s[0]; c.tz = s[1]; c.sit = false; } }
+    if (c.wait > 0) { c.wait -= dt; if (c.wait <= 0) { var spots = [[2, 4], [-3, 6.5], [6, 1], [10, 5], [12.5, 8.5], [-1.5, 0.5], [8, 8.6], [12.6, -8.75], [-12.4, -0.2]]; /* de två sista är sofforna */ var s = spots[Math.floor(Math.random() * spots.length)]; c.tx = s[0]; c.tz = s[1]; c.sit = false; } }
     else {
       var dx = c.tx - c.x, dz = c.tz - c.z, d = Math.hypot(dx, dz);
-      var fleeing = dist(me.x, me.z, c.x, c.z) < 0.9;
+      var fleeing = dist(me.x, me.z, c.x, c.z) < 0.9 && !this.sneak;  // smyger du flyr den inte
       if (d < 0.08) { c.wait = R(4, 10); c.sit = Math.random() < 0.7; }
       else { var sp = (fleeing ? 2.2 : 0.9) * dt; c.x += dx / d * Math.min(sp, d); c.z += dz / d * Math.min(sp, d); if (Math.abs(dx) > 0.02) c.dir = dx > 0 ? 1 : -1; }
     }
-    if (dist(me.x, me.z, c.x, c.z) < 0.7 && c.wait > 0) { c.wait = 0.01; c.sit = false; }
+    if (dist(me.x, me.z, c.x, c.z) < 0.7 && c.wait > 0 && !this.sneak) { c.wait = 0.01; c.sit = false; }
     // Duvorna pickar vid entrén och flyger iväg när du kommer nära
     this.pigeons.forEach(function (p) {
       p.peck += dt;
       if (p.away > 0) { p.away -= dt; p.y = (p.y || 0) + dt * 2.5; p.x += dt * 3 * (p.hx > 10.5 ? 1 : -1); if (p.away <= 0) { p.x = p.hx; p.z = p.hz; p.y = 0; } return; }
-      if (self.site === 'gbg' && dist(me.x, me.z, p.x, p.z) < 1.8) { p.away = R(15, 30); p.y = 0.1; if (NV.sfx && NV.sfx.flap) NV.sfx.flap(); }
+      if (self.site === 'gbg' && dist(me.x, me.z, p.x, p.z) < (self.pigeonFeed > 0 || p.backT ? 0 : (self.sneak ? 0.7 : 1.8))) { p.away = R(15, 30); p.y = 0.1; if (NV.sfx && NV.sfx.flap) NV.sfx.flap(); }
     });
     // Ekorren springer längs staketet
     var q = this.squirrel;
@@ -199,9 +199,9 @@
       if (!d.dive && Math.random() < dt * 0.05) { d.dive = 1.4; var dx2 = -18.3 + Math.cos(d.a) * d.rx, dz2 = -1.5 + Math.sin(d.a) * d.rz; self.ripples.push({ x: dx2, z: dz2, age: 0, life: 1.2, size: 5 }); }
     });
     this.quackT = (this.quackT || 0) - dt;
-    if (this.site === 'gbg' && NV.settings.get('animals2d') !== false && this.quackT <= 0 && dist(me.x, me.z, -18.3, -1.5) < 4.5) { this.quackT = R(6, 14); var dk = this.ducks[0], qx = -18.3 + Math.cos(dk.a) * dk.rx, qz = -1.5 + Math.sin(dk.a) * dk.rz; this.pops.push({ text: 'Kvack!', col: '#fff1a8', x: qx, z: qz, y: 0.6, age: 0, life: 1.4 }); }
+    if (this.site === 'gbg' && NV.settings.get('animals2d') !== false && this.quackT <= 0 && dist(me.x, me.z, -18.3, -1.5) < 4.5) { this.quackT = R(6, 14); var dk = this.ducks[0], qx = -18.3 + Math.cos(dk.a) * dk.rx, qz = -1.5 + Math.sin(dk.a) * dk.rz; this.pops.push({ text: 'Kvack!', col: '#fff1a8', x: qx, z: qz, y: 0.6, age: 0, life: 1.4 }); if (NV.sfx.quack) NV.sfx.quack(); }
     this.meowT = (this.meowT || 0) - dt;
-    if (this.site === 'gbg' && NV.settings.get('animals2d') !== false && this.meowT <= 0 && dist(me.x, me.z, c.x, c.z) < 1.6) { this.meowT = R(8, 16); this.pops.push({ text: 'Mjau', col: '#ffd0a0', x: c.x, z: c.z, y: 0.6, age: 0, life: 1.3 }); }
+    if (this.site === 'gbg' && NV.settings.get('animals2d') !== false && this.meowT <= 0 && dist(me.x, me.z, c.x, c.z) < 1.6) { this.meowT = R(8, 16); this.pops.push({ text: 'Mjau', col: '#ffd0a0', x: c.x, z: c.z, y: 0.6, age: 0, life: 1.3 }); if (NV.sfx.meow) NV.sfx.meow(); }
     // Ett löv flyter med bäcken i Borås
     this.streamLeaf = this.streamLeaf || { x: 82, ph: 0 };
     this.streamLeaf.x += dt * 0.45; this.streamLeaf.ph += dt;
@@ -422,7 +422,10 @@
   var ORIG_SH = W.drawShadows;
   W.drawShadows = function (g, list) {
     var eve = this.eve || 0;
-    if (eve > 0.05) list.forEach(function (s) { if (s.shadow) { s.shadow._dx = s.shadow._dx === undefined ? s.shadow.dx || 0 : s.shadow._dx; s.shadow.dx = s.shadow._dx * (1 + eve * 2.2); } });
+    // Solen vandrar: på morgonen faller skuggorna åt väster, på eftermiddagen åt öster, och de blir längre mot kvällen
+    var hr = 8 + (this.game.state ? this.game.state.time : 0) / 3600, sun = NV.settings.get('sunShadows') === false ? 1 : clamp((hr - 12) / 2.5, -1, 1);
+    if (Math.abs(sun) < 0.25) sun = sun < 0 ? -0.25 : 0.25;
+    list.forEach(function (s) { if (s.shadow) { s.shadow._dx = s.shadow._dx === undefined ? s.shadow.dx || 0 : s.shadow._dx; s.shadow.dx = s.shadow._dx * sun * (1 + eve * 2.2); } });
     return ORIG_SH.call(this, g, list);
   };
   // Hjärtan stiger när någon tackar dig

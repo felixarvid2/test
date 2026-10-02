@@ -7,7 +7,7 @@ const { chromium } = require('playwright');
   p.on('pageerror', e => errs.push('pageerror: ' + e.message + ' ' + (e.stack || '').split('\n').slice(0, 3).join(' | ')));
   p.on('console', m => { if (m.type() === 'error') errs.push('console: ' + m.text()); });
   const out = (process.env.OUT || require('os').tmpdir()) + '/';
-  await p.addInitScript(() => { try { const s = JSON.parse(localStorage.getItem('krabba-passet.settings') || '{}'); s.lastVersion = '7.0'; localStorage.setItem('krabba-passet.settings', JSON.stringify(s)); } catch (e) {} });
+  await p.addInitScript(() => { try { const s = JSON.parse(localStorage.getItem('krabba-passet.settings') || '{}'); s.lastVersion = '8.0'; localStorage.setItem('krabba-passet.settings', JSON.stringify(s)); } catch (e) {} });
   await p.goto('http://localhost:8765/index.html', { waitUntil: 'domcontentloaded' });
   await p.waitForTimeout(4000);
   await p.waitForTimeout(2500);

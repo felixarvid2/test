@@ -417,6 +417,14 @@
       g.restore();
     });
   };
+  // Gatlyktorna tänds en i taget mot kvällen och fladdrar till när de slår på
+  W.lampOn = function (i) {
+    if (this.weather === 'rain') return true;
+    var eve = this.eve || 0, th = 0.3 + ((i * 0.037) % 0.12);
+    if (eve < th) return false;
+    if (eve < th + 0.015) return Math.sin((this.t || 0) * 40 + i) > 0;
+    return true;
+  };
   W.drawGroundFx = function (g) {
     var self = this, t = this.t, o = this.gOff, vw = this.view.vw, vh = this.view.vh;
     this.drawReflections(g);
@@ -717,10 +725,10 @@
         if (p.x < -30 || p.y < -30 || p.x > vw + 30 || p.y > vh + 30) return;
         A2.glow(L, p.x, p.y, 16, '40,70,110', 0.9);
       });
-      (this.lamps || []).forEach(function (l) {
+      (this.lamps || []).forEach(function (l, i) {
         var p = self.toScreen(l.x, l.z, 0);
         if (p.x < -80 || p.y < -80 || p.x > vw + 80 || p.y > vh + 80) return;
-        if (lit) A2.glow(L, p.x, p.y - 4, 44, '255,190,110', 0.55 + eve * 0.4);
+        if (self.lampOn(i)) A2.glow(L, p.x, p.y - 4, 44, '255,190,110', 0.55 + eve * 0.4);
       });
       // Kallt ljus i serverrummet och en varm lampa över fikabordet
       if (this.site === 'gbg') {
@@ -744,10 +752,11 @@
     }
     // Ljuskällor som glöder (additivt)
     g.globalCompositeOperation = 'lighter';
-    (this.lamps || []).forEach(function (l) {
+    (this.lamps || []).forEach(function (l, i) {
       var p = self.toScreen(l.x, l.z, 2.0);
       if (p.x < -30 || p.y < -30 || p.x > vw + 30 || p.y > vh + 30) return;
-      A2.glow(g, p.x, p.y + 4, lit ? 16 : 7, '255,220,150', lit ? 0.6 : 0.2);
+      var on = self.lampOn(i);
+      A2.glow(g, p.x, p.y + 4, on ? 16 : 7, '255,220,150', on ? 0.6 : 0.2);
     });
     if (this.site === 'gbg' || this.site === 'boras') {
       var A3 = this.builder.anchors;
@@ -779,6 +788,9 @@
     });
     // Ljusstrålar genom fönstren
     if (Pf.beams && !rain) {
+      // Strålarna lutar efter solen: åt väster på morgonen, åt öster på eftermiddagen
+      var hrB = 8 + (this.game.state ? this.game.state.time : 0) / 3600, lean = Math.round(-17 + clamp((hrB - 8) / 9, 0, 1) * 34);
+      this.beamLean = lean;
       this.sprites.forEach(function (s) {
         if (!s.emit || !s.emit.win) return;
         var top = self.toScreen(s.emit.x - s.emit.w * 0.4, s.emit.z - 0.1, 1.3), bot = self.toScreen(s.emit.x - s.emit.w * 0.4, s.emit.z - 0.4, 0);
@@ -787,7 +799,7 @@
         var gr = g.createLinearGradient(0, top.y, 0, bot.y + 24);
         gr.addColorStop(0, 'rgba(255,240,200,' + a + ')'); gr.addColorStop(1, 'rgba(255,240,200,0)');
         g.fillStyle = gr;
-        g.beginPath(); g.moveTo(top.x, top.y); g.lineTo(top.x + w, top.y); g.lineTo(bot.x + w + 17, bot.y + 24); g.lineTo(bot.x + 17, bot.y + 24); g.closePath(); g.fill();
+        g.beginPath(); g.moveTo(top.x, top.y); g.lineTo(top.x + w, top.y); g.lineTo(bot.x + w + lean, bot.y + 24); g.lineTo(bot.x + lean, bot.y + 24); g.closePath(); g.fill();
       });
       // Ljusschakt från takfönstren i lagret
       if (this.site === 'boras' && /Lagret/.test(this.zone().name)) {
@@ -951,7 +963,7 @@
       var ts = this.toScreen(this.target.x, this.target.z, 0);
       for (var k = 0; k < 2; k++) {
         var f = ((t * 1.6 + k * 0.5) % 1), r = 10 * (1 - f) + 2;
-        g.strokeStyle = 'rgba(255,240,180,' + (0.8 * f) + ')'; g.lineWidth = 1;
+        g.strokeStyle = (this.target.partial ? 'rgba(255,150,120,' : 'rgba(255,240,180,') + (0.8 * f) + ')'; g.lineWidth = 1;
         g.beginPath(); g.ellipse(ts.x + 0.5, ts.y + 0.5, r, r * 0.45, 0, 0, Math.PI * 2); g.stroke();
       }
       g.fillStyle = '#fff0b4'; g.fillRect(ts.x, ts.y - 1, 1, 3); g.fillRect(ts.x - 1, ts.y, 3, 1);

@@ -1,0 +1,262 @@
+// Version 8: HUD för det du bär och samlar, veckans utmaningar, samlingar i handboken, fotoläge och inställningar.
+(function () {
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function table(head, rows) {
+    return '<table class="tbl"><tr>' + head.map(function (h) { return '<th>' + h + '</th>'; }).join('') + '</tr>' +
+      rows.map(function (r) { return '<tr>' + r.map(function (x) { return '<td>' + x + '</td>'; }).join('') + '</tr>'; }).join('') + '</table>';
+  }
+  var V8 = NV.v8 || (NV.v8 = {});
+  function load() { return V8.load ? V8.load() : {}; }
+  function save(d) { if (V8.save) V8.save(d); }
+
+  // ------------------------------------------------------------------ Veckans utmaningar
+  // Tre små mål per vecka. De räknas från statistiken, så de bockas av vad du än gör för att klara dem.
+  var CHALLENGES = [
+    ['waterings', 2, 'Vattna två växter', '🪴'], ['trash', 3, 'Plocka upp tre skräp', '🧹'], ['rubberDucks', 1, 'Hitta en gummianka', '🦆'],
+    ['fish', 1, 'Få en fisk', '🎣'], ['emotes', 3, 'Använd tre emotes', '👋'], ['boardReads', 1, 'Läs anslagstavlan', '📌'],
+    ['coffees', 1, 'Drick en kopp kaffe', '☕'], ['pings', 10, 'Kör ping tio gånger', '📡'], ['returns', 1, 'Lämna tillbaka något borttappat', '🎒'],
+    ['sits', 1, 'Sätt dig och vila', '🪑'], ['snacks', 1, 'Köp något i varuautomaten', '🍫'], ['cats', 1, 'Klappa katten', '🐈'],
+    ['duckFeeds', 1, 'Mata ankorna', '🦆'], ['goggles', 1, 'Använd nätverksglasögonen', '🥽'], ['crabs', 1, 'Fånga Krabban', '🦀'],
+  ];
+  V8.CHALLENGES = CHALLENGES;
+  function weekChallenges(week) {
+    var out = [], i = (week * 7) % CHALLENGES.length;
+    while (out.length < 3) { var c = CHALLENGES[i % CHALLENGES.length]; if (out.indexOf(c) < 0) out.push(c); i += 4; }
+    return out;
+  }
+  V8.weekChallenges = weekChallenges;
+  function chState(week) {
+    var d = load(); d.ch = d.ch || {};
+    var k = 'w' + week, s = NV.career.stats();
+    if (!d.ch[k]) { d.ch[k] = { base: {}, done: {} }; weekChallenges(week).forEach(function (c) { d.ch[k].base[c[0]] = s[c[0]] || 0; }); save(d); }
+    return { d: d, st: d.ch[k], s: s };
+  }
+  V8.challengeProgress = function (week) {
+    var x = chState(week);
+    return weekChallenges(week).map(function (c) { var n = Math.max(0, (x.s[c[0]] || 0) - (x.st.base[c[0]] || 0)); return { id: c[0], need: c[1], text: c[2], icon: c[3], n: Math.min(n, c[1]), done: !!x.st.done[c[0]] || n >= c[1] }; });
+  };
+  function checkChallenges() {
+    var g = NV.game;
+    if (!g || !g.running || !g.week) return;
+    var x = chState(g.week), changed = false;
+    weekChallenges(g.week).forEach(function (c) {
+      if (x.st.done[c[0]]) return;
+      var n = (x.s[c[0]] || 0) - (x.st.base[c[0]] || 0);
+      if (n >= c[1]) {
+        x.st.done[c[0]] = Date.now(); changed = true;
+        g.ui.toast(c[3] + ' <b>Veckans utmaning klar:</b> ' + esc(c[2]), 'good');
+        g.xp(15, 'Veckans utmaning', true);
+        NV.career.stat('challenges');
+        if (g.world && g.world.confetti && g.mode === '2d') g.world.confetti(g.world.pos.x, g.world.pos.z, 30);
+      }
+    });
+    if (changed) save(x.d);
+  }
+
+  // ------------------------------------------------------------------ HUD
+  function hud() {
+    var g = NV.game, el = document.getElementById('hud');
+    if (!g || !g.running || !el || el.classList.contains('hidden')) return;
+    var box = el.querySelector('.hud-v8');
+    if (!box) { box = document.createElement('div'); box.className = 'hud-v8'; el.appendChild(box); }
+    var w = g.world, html = '', d = load();
+    if (w && w.lost && w.lost.carried) html += '<span class="chip" title="Lämna tillbaka saken till ägaren">' + w.lost.icon + ' ' + esc(w.lost.owner) + 's ' + esc(w.lost.item) + ' → ' + esc(w.lost.owner) + '</span>';
+    var nd = Object.keys(d.ducks || {}).length;
+    if (nd && V8.DUCKS && nd < V8.DUCKS.length) html += '<span class="chip" title="Gummiankor du har hittat">🦆 ' + nd + '/' + V8.DUCKS.length + '</span>';
+    if (w && w.sneak && g.mode === '2d') html += '<span class="chip" title="Du smyger (C)">🤫 Smyger</span>';
+    if (w && w.seated) html += '<span class="chip" title="Gå för att resa dig">🪑 Sitter</span>';
+    if (g.week && NV.settings.get('hudChallenges') !== false) {
+      var pr = V8.challengeProgress(g.week), left = pr.filter(function (p) { return !p.done; });
+      html += '<span class="chip ch" title="' + esc(pr.map(function (p) { return (p.done ? '✅ ' : '⬜ ') + p.text + ' (' + p.n + '/' + p.need + ')'; }).join('\n')) + '">🎯 ' + (pr.length - left.length) + '/' + pr.length + ' utmaningar</span>';
+    }
+    if (box.innerHTML !== html) box.innerHTML = html;
+  }
+
+  // ------------------------------------------------------------------ Handboken: Samlingar
+  var H = NV.handbook;
+  H.saml = function () {
+    var d = load(), g = NV.game, out = '';
+    var ducks = V8.DUCKS || [], got = d.ducks || {};
+    out += '<h3>🎯 Veckans utmaningar</h3>';
+    if (g && g.week) out += table(['', 'Utmaning', 'Hur långt'], V8.challengeProgress(g.week).map(function (p) { return [p.done ? '✅' : '⬜', p.icon + ' ' + esc(p.text), p.n + ' / ' + p.need]; })) + '<p class="muted small">15 XP för varje. Nya utmaningar varje vecka.</p>';
+    else out += '<p class="muted">Starta en vecka för att se veckans utmaningar.</p>';
+    out += '<h3>🦆 Gummiankor: ' + Object.keys(got).length + ' av ' + ducks.length + '</h3>';
+    out += '<div class="duck-grid">' + ducks.map(function (k) { return '<span class="duck' + (got[k.id] ? ' got' : '') + '" title="' + (got[k.id] ? 'Hittad ' + esc(k.hint) : (k.x > 50 ? 'Någonstans i Borås' : 'Någonstans i Göteborg')) + '">' + (got[k.id] ? '🦆' : '❔') + '</span>'; }).join('') + '</div>';
+    var left = ducks.filter(function (k) { return !got[k.id]; });
+    if (left.length && Object.keys(got).length >= 6) out += '<p class="muted small">Ledtråd: en anka finns ' + esc(left[0].hint) + '.</p>';
+    var fl = d.fishLog || {}, fk = Object.keys(fl);
+    out += '<h3>🐟 Fiskeloggen</h3>' + (fk.length ? table(['Art', 'Största'], fk.map(function (k) { return [esc(k), fl[k] + ' cm']; })) : '<p class="muted">Inga fiskar ännu. Fiska vid dammen väster om kontoret.</p>');
+    var lost = d.lostDone || {}, lk = Object.keys(lost);
+    out += '<h3>🎒 Hittegods</h3>' + (lk.length ? '<ul>' + lk.map(function (w) { return '<li>Vecka ' + esc(w) + ': ' + esc(lost[w]) + '</li>'; }).join('') + '</ul>' : '<p class="muted">Varje vecka har någon tappat något på kontoret. Håll utkik.</p>');
+    var fr = d.friend || {}, ppl = ['Anna', 'Karim', 'Sara', 'Lisa', 'Bo', 'Maja', 'Omar', 'Linnea', 'Nils'];
+    out += '<h3>❤️ Kollegor</h3>' + table(['Kollega', 'Vänskap'], ppl.map(function (n) { var h = Math.floor((fr[n] || 0) / 4); return [esc(n), '<span class="hearts">' + '♥'.repeat(h) + '<span class="off">' + '♡'.repeat(5 - h) + '</span></span>']; })) +
+      '<p class="muted small">Kollegorna blir gladare när du pratar med dem, hämtar kaffe åt dem, lämnar tillbaka det de tappat och vinkar (1).</p>';
+    var s = NV.career.stats();
+    out += '<h3>📊 Småsaker</h3>' + table(['', 'Antal'], [['Vattnade växter', s.waterings || 0], ['Plockat skräp', s.trash || 0], ['Kast med spöet', s.casts || 0], ['Mellanmål', s.snacks || 0], ['Emotes', s.emotes || 0], ['Gånger du satt ner', s.sits || 0], ['Klarade utmaningar', s.challenges || 0], ['Sparkar på bollen', s.kicks || 0], ['Mål', s.goals || 0], ['Pappersflygplan', s.planes || 0], ['Längsta flygturen', (s.planeDist || 0) + ' m'], ['Kaffe till kollegor', s.coffeeDeliveries || 0], ['Buketter', s.bouquets || 0], ['Bästa macka', (d.skipBest || 0) + ' studs'], ['Bästa joggingrunda', d.lapBest ? d.lapBest.toFixed(1) + ' s' : '–'], ['Trädgårdstomtar', s.gnomes || 0], ['Meter gångna', Math.round(s.dist || 0)]]);
+    return out;
+  };
+  // Styrningen i handboken får de nya tangenterna
+  var origKeys = H.keys;
+  if (origKeys) H.keys = function () {
+    return origKeys.apply(this, arguments) + '<h3>Nytt i version 8 (2D)</h3>' + table(['Tangent / mus', 'Gör'], [
+      ['Klick', 'Gå dit (figuren hittar vägen runt väggar och möbler)'], ['Dubbelklick', 'Spring dit'], ['Håll inne musknappen', 'Gå mot pekaren'],
+      ['Shift + klick', 'Lägg till en mellanstation'], ['Högerklick / Esc', 'Stanna'], ['Klick på minikartan', 'Gå dit'],
+      ['C', 'Smyg (krabban, katten och duvorna märker dig senare)'], ['1–6', 'Emotes: vinka, tumme upp, hjärta, fråga, skratt, fika'],
+      ['Q', 'Kasta ett pappersflygplan'], ['Håll V', 'Visa allt du kan använda i närheten'], ['Gå in i bollen', 'Sparka (spring för ett hårdare skott)'],
+      ['E vid bänk eller soffa', 'Sätt dig'], ['E vid dammen', 'Fiska (E igen när flötet dyker)'], ['P', 'Fotoläge: Enter tar en bild, Tab byter filter'],
+    ]);
+  };
+
+  // ------------------------------------------------------------------ Fotoläge
+  var FILTERS = [['Inget filter', ''], ['Sepia', 'sepia(0.75) contrast(1.05)'], ['Svartvitt', 'grayscale(1) contrast(1.1)'], ['Kvällsljus', 'saturate(1.25) hue-rotate(-12deg) brightness(0.95)'], ['Kallt', 'saturate(0.9) hue-rotate(12deg) brightness(1.05)']];
+  var fIdx = 0;
+  function photoOn() { return document.body.classList.contains('photo'); }
+  function applyFilter() {
+    var f = photoOn() ? FILTERS[fIdx][1] : '';
+    ['view', 'view2d'].forEach(function (id) { var el = document.getElementById(id); if (el) el.style.filter = f; });
+    var tip = document.getElementById('photo-tip');
+    if (tip) tip.textContent = 'Fotoläge · ' + FILTERS[fIdx][0] + ' · Enter tar en bild · Tab byter filter · P avslutar';
+  }
+  function snap() {
+    var g = NV.game, cv = g.mode === '2d' ? document.getElementById('view2d') : (g.world && g.world.renderer ? g.world.renderer.domElement : null);
+    if (!cv) return;
+    if (g.mode === '3d' && g.world.render) try { g.world.render(); } catch (e) { /* ritas nästa bildruta */ }
+    var out = document.createElement('canvas'); out.width = cv.width; out.height = cv.height;
+    var x = out.getContext('2d');
+    x.filter = FILTERS[fIdx][1] || 'none';
+    try { x.drawImage(cv, 0, 0); } catch (e) { return; }
+    x.filter = 'none';
+    // Liten stämpel i hörnet
+    var sz = Math.max(12, Math.round(out.height / 50));
+    x.font = sz + 'px "Press Start 2P", monospace'; x.fillStyle = 'rgba(0,0,0,0.5)'; x.fillText('Krabba-passet', 14, out.height - 12); x.fillStyle = 'rgba(255,255,255,0.85)'; x.fillText('Krabba-passet', 12, out.height - 14);
+    NV.sfx.shutter();
+    var fl = document.createElement('div'); fl.className = 'photo-flash'; document.body.appendChild(fl); setTimeout(function () { fl.remove(); }, 450);
+    NV.career.stat('photos');
+    try {
+      var a = document.createElement('a'); a.download = 'krabba-passet-' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.png'; a.href = out.toDataURL('image/png');
+      document.body.appendChild(a); a.click(); a.remove();
+    } catch (e) { g.ui.toast('Bilden kunde inte sparas i den här webbläsaren.'); }
+  }
+  document.addEventListener('keydown', function (e) {
+    if (!photoOn()) { if (e.code === 'KeyP') setTimeout(applyFilter, 0); return; }
+    if (e.code === 'Enter') { e.preventDefault(); e.stopPropagation(); snap(); }
+    else if (e.code === 'Tab') { e.preventDefault(); e.stopPropagation(); fIdx = (fIdx + 1) % FILTERS.length; applyFilter(); }
+    else if (e.code === 'KeyP') setTimeout(applyFilter, 0);
+  }, true);
+
+  // ------------------------------------------------------------------ Veckosammanfattningen
+  // Visar veckans utmaningar, om du hittade tomten och hur många gummiankor du har
+  var Uw = NV.UI && NV.UI.prototype;
+  if (Uw && Uw.weekDone) {
+    var origDone = Uw.weekDone;
+    Uw.weekDone = function () {
+      var r = origDone.apply(this, arguments);
+      try {
+        var g = NV.game, body = document.querySelector('#dialog .dlg-body'), d = load();
+        if (body && g.week) {
+          var pr = V8.challengeProgress(g.week), done = pr.filter(function (p) { return p.done; }).length;
+          var el = document.createElement('div'); el.className = 'week-v8';
+          el.innerHTML = '<p>🎯 Veckans utmaningar: <b>' + done + ' av ' + pr.length + '</b>' + (done < pr.length ? ' (' + pr.filter(function (p) { return !p.done; }).map(function (p) { return esc(p.text.toLowerCase()); }).join(', ') + ' återstår)' : '') + '</p>' +
+            '<p>🦆 Gummiankor: <b>' + Object.keys(d.ducks || {}).length + ' av ' + (V8.DUCKS || []).length + '</b>' + ((d.gnomes || {})[g.week] ? ' · 🧙 Du hittade veckans tomte' : ' · 🧙 Tomten gömmer sig fortfarande') + '</p>';
+          body.appendChild(el);
+        }
+      } catch (e) { /* sammanfattningen visas ändå */ }
+      return r;
+    };
+  }
+
+  // ------------------------------------------------------------------ Inställningar
+  var Dd = NV.settings.defaults;
+  Dd.pathDots = true; Dd.autoRun = true; Dd.npcWalks = true; Dd.hudChallenges = true; Dd.lookAhead = true; Dd.hoverRing = true; Dd.umbrella = true; Dd.roomTint = true; Dd.sunShadows = true; Dd.lensDrops = true; Dd.sunGlare = true; Dd.farLabels = true;
+  var U = NV.UI && NV.UI.prototype;
+  if (U && U.settingsDialog) {
+    var origSet = U.settingsDialog;
+    U.settingsDialog = function () {
+      origSet.apply(this, arguments);
+      var body = document.querySelector('#dialog .dlg-body'), st = NV.settings;
+      if (!body) return;
+      var box = document.createElement('div');
+      var opts = [['v8-dots', 'pathDots', 'Visa vägen som prickar när du klickar (2D)'], ['v8-run', 'autoRun', 'Spring automatiskt på långa vägar (2D)'],
+        ['v8-walk', 'npcWalks', 'Kollegorna går och hämtar kaffe (2D)'], ['v8-ch', 'hudChallenges', 'Visa veckans utmaningar i HUD:en'], ['v8-look', 'lookAhead', 'Kameran tittar framåt där du går (2D)'],
+        ['v8-ring', 'hoverRing', 'Ring och E-tangent över det du kan använda (2D)'], ['v8-umb', 'umbrella', 'Paraply när du går ute i regnet (2D)'], ['v8-tint', 'roomTint', 'Rummen har egen färgton (2D)'],
+        ['v8-sun', 'sunShadows', 'Skuggorna följer solen under dagen (2D)'], ['v8-lens', 'lensDrops', 'Regndroppar på "kameran" ute i regnet (2D)'], ['v8-glare', 'sunGlare', 'Motljus från morgonsolen (2D)'], ['v8-far', 'farLabels', 'Etikett när pekaren är över något långt bort (2D)']];
+      box.innerHTML = '<h3>Version 8</h3><div class="set-grid">' + opts.map(function (o) { return '<label for="' + o[0] + '">' + o[2] + '</label><input type="checkbox" id="' + o[0] + '"' + (st.get(o[1]) !== false ? ' checked' : '') + '>'; }).join('') + '</div>';
+      body.appendChild(box);
+      opts.forEach(function (o) { var el = box.querySelector('#' + o[0]); el.addEventListener('input', function () { st.set(o[1], el.checked); }); });
+    };
+  }
+
+  // Nya tips, repliker, ett teoriavsnitt om vägsökning och fler ord i ordlistan
+  if (NV.TIPS) NV.TIPS.push('Klicka var som helst i 2D – figuren hittar vägen runt väggar och möbler själv.', 'Dubbelklicka för att springa, och högerklicka för att stanna.', 'Shift-klick lägger till en mellanstation på vägen.',
+    'Håll inne V för att se allt du kan använda i närheten.', 'Smyg med C nära Krabban, så flyr den inte lika lätt.', 'Tolv gummiankor är gömda. Samlingar i handboken visar hur många du har.',
+    'Kollegorna blir gladare när du hämtar kaffe åt dem. Titta efter kaffekoppen i en bubbla.', 'Kasta pappersflygplan med Q. Hur långt kan du få dem att flyga?');
+  var origTeori = H.teori;
+  if (origTeori) H.teori = function () {
+    return origTeori.apply(this, arguments) + '<details class="teori"><summary>Vägsökning: hur figuren hittar fram (A*)</summary><p>När du klickar delas kartan in i ett rutnät med rutor på 12,5 cm. Rutor nära väggar och möbler är spärrade. <b>A*</b> (uttalas "A-stjärna") letar sedan fram den kortaste vägen: den undersöker hela tiden den ruta som verkar mest lovande, alltså den där sträckan hittills plus fågelvägen kvar till målet är kortast. Det är samma idé som routingprotokollen OSPF och IS-IS använder för att hitta kortaste vägen i ett nät (Dijkstras algoritm), fast A* tar en genväg genom att gissa avståndet kvar.</p><p>Sedan jämnas vägen ut: så länge det finns fri sikt mellan två punkter hoppar figuren över mellanstegen.</p></details>';
+  };
+  var origOrd = H.ord;
+  if (origOrd) H.ord = function () {
+    return origOrd.apply(this, arguments) + '<h3>Ord från version 8</h3>' + table(['Svenska', 'Engelska', 'Kort förklaring'], [
+      ['vägsökning', 'pathfinding', 'Att hitta en väg runt hinder'], ['kortaste vägen', 'shortest path', 'Det OSPF räknar fram med Dijkstras algoritm'], ['heuristik', 'heuristic', 'En kvalificerad gissning, som fågelvägen kvar i A*']]);
+  };
+  if (NV.CHAT) {
+    var MORE = {
+      Anna: '"Har du hittat gummiankan bakom mitt skrivbord? Jag har letat i veckor."', Karim: '"Jag tappade mitt passerkort förra veckan. Tack igen om det var du som hittade det!"',
+      Sara: '"Kan du lära mig kasta macka? Min sten sjunker direkt."', Lisa: '"Någon har satt upp ett fotbollsmål på gräsmattan. Ska vi spela på lunchen?"',
+      Bo: '"Varuautomaten tog min tjuga igen. Fast jag fick två chokladbitar förra gången."', Maja: '"Har du sett igelkotten på kvällarna? Jag ger den aldrig mat, jag lovar."',
+      Omar: '"Städ-Sture fastnar under stolarna i fikarummet. Lyft upp den om du ser den blinka rött."', Linnea: '"Hittegods lämnas i receptionen. Eller direkt till ägaren, det går fortare."',
+      Nils: '"Det finns öring i bäcken bakom lagret. Inte för att jag fiskar på arbetstid."',
+    };
+    Object.keys(MORE).forEach(function (n) { if (NV.CHAT[n]) NV.CHAT[n].push(MORE[n]); else NV.CHAT[n] = [MORE[n]]; });
+  }
+
+  window.addEventListener('load', function () {
+    var g = NV.game;
+    if (!g) return;
+    // Dagens första spelpass ger en liten bonus som växer med antalet dagar i rad
+    try {
+      var dd = load(), today = new Date().toDateString();
+      if (dd.dailyBonus !== today) {
+        dd.dailyBonus = today; save(dd);
+        var streak = Math.min(7, NV.streak || 1), bonus = 5 + streak * 5;
+        setTimeout(function () { g.xp(bonus, 'Dagens första spelpass' + (streak > 1 ? ' · ' + streak + ' dagar i rad' : ''), true); }, 3000);
+      }
+    } catch (e) { /* bonusen är inte viktig */ }
+    setInterval(function () { try { hud(); checkChallenges(); } catch (e) { /* HUD är inte viktig */ } }, 1000);
+    // Nya utmaningar när veckan startar
+    var origStart = g.startWeek;
+    g.startWeek = function (wk) {
+      var r = origStart.apply(this, arguments);
+      try { var pr = V8.challengeProgress(this.week); setTimeout(function () { if (NV.game.running) NV.game.ui.toast('🎯 <b>Veckans utmaningar:</b> ' + pr.map(function (p) { return p.icon + ' ' + esc(p.text); }).join(' · ')); }, 2500); } catch (e) { /* ingen vecka */ }
+      return r;
+    };
+    // Menyn visar samlingarna under rangen
+    var U2 = g.ui, origMenu = U2.showMenu;
+    U2.showMenu = function () {
+      var r = origMenu.apply(this, arguments);
+      try {
+        var el = document.querySelector('.menu-rank'), d = load();
+        if (el && !el.querySelector('.menu-v8')) {
+          var nd = Object.keys(d.ducks || {}).length, fr = d.friend || {}, hearts = Object.keys(fr).reduce(function (a, k) { return a + Math.floor(fr[k] / 4); }, 0);
+          var sp = document.createElement('span'); sp.className = 'menu-v8'; sp.textContent = ' · 🦆 ' + nd + '/' + (V8.DUCKS || []).length + ' · ❤️ ' + hearts + ' hjärtan';
+          el.querySelector('span').appendChild(sp);
+        }
+      } catch (e) { /* menyn fungerar ändå */ }
+      return r;
+    };
+    // Konfetti runt figuren när du låser upp en prestation i 2D
+    var origUnlock = NV.career.onUnlock;
+    NV.career.onUnlock = function (a) {
+      if (origUnlock) origUnlock.apply(this, arguments);
+      var w = g.world;
+      if (g.mode === '2d' && w && w.confetti && NV.settings.get('reduceMotion') !== true) w.confetti(w.pos.x, w.pos.z, 40);
+    };
+  });
+
+  // Prestationer
+  [
+    ['ch1', 'Utmanare', 'Klara en av veckans utmaningar.', '🎯', function (s) { return s.challenges >= 1; }],
+    ['ch10', 'Tio av tio', 'Klara tio veckoutmaningar.', '🥇', function (s) { return s.challenges >= 10; }],
+    ['photo', 'Fotograf', 'Ta en bild i fotoläget (P, sedan Enter).', '📸', function (s) { return s.photos >= 1; }],
+  ].forEach(function (a) { var A = NV.career.ACH; if (!A.some(function (x) { return x[0] === a[0]; })) A.push(a); });
+})();

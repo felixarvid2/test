@@ -20,6 +20,7 @@ NV.UI = (function () {
     Nils: ['"Truckens varningslampa blinkar hela dagen. Det är meningen."', '"Måsen vid lastkajen har bott här längre än jag."', '"Truckarna går på el, streckkodsläsarna på Wi-Fi."', '"Här ute är det kallt, men accesspunkterna ska vara varma."', '"Göteborg har fina kontor. Vi har pallar."'],
   };
   // Vecka 10: den hyrda linan är uppsagd och alla pratar om VPN
+  NV.CHAT = CHAT;
   var CHAT10 = {
     Bo: ['"Sex tusen kronor i månaden för en lina som användes till fyra procent. Bra att den är borta."', '"Jag har hört att Mölndal också vill ha VPN. Vad kostar det?"'],
     Maja: ['"Om tunneln är krypterad, kan operatören se våra fakturor?"'],
@@ -592,7 +593,7 @@ NV.UI = (function () {
   // ------------------------------------------------------------------ Handbok
   P.handbook = function (tab) {
     var self = this;
-    var tabs = [['cmd', 'Kommandon'], ['mine', 'Mina kommandon'], ['fel', 'Felbibliotek'], ['plan', 'Adressplan'], ['calc', 'Subnätsräknare'], ['bygg', 'Bygg från grunden'], ['vpn', 'VPN och LB'], ['osi', 'OSI-modellen'], ['ord', 'Ordlista'], ['topo', 'Topologi'], ['teori', 'Teori'], ['ovn', 'Övningar'], ['flow', 'Felsökningsordning'], ['ports', 'Portnummer'], ['bin', 'Binärt'], ['logg', 'Kommandologg'], ['keys', 'Styrning']].filter(function (t) { return !!NV.handbook[t[0]]; });
+    var tabs = [['cmd', 'Kommandon'], ['mine', 'Mina kommandon'], ['fel', 'Felbibliotek'], ['plan', 'Adressplan'], ['calc', 'Subnätsräknare'], ['bygg', 'Bygg från grunden'], ['vpn', 'VPN och LB'], ['osi', 'OSI-modellen'], ['ord', 'Ordlista'], ['topo', 'Topologi'], ['teori', 'Teori'], ['ovn', 'Övningar'], ['flow', 'Felsökningsordning'], ['ports', 'Portnummer'], ['bin', 'Binärt'], ['logg', 'Kommandologg'], ['saml', 'Samlingar'], ['keys', 'Styrning']].filter(function (t) { return !!NV.handbook[t[0]]; });
     tab = tab || this.lastTab || 'cmd';
     this.lastTab = tab;
     var html = '<div class="tabs">' + tabs.map(function (t) { return '<button data-tab="' + t[0] + '" class="' + (t[0] === tab ? 'on' : '') + '">' + t[1] + '</button>'; }).join('') + '</div>' +

@@ -1,0 +1,20 @@
+/* ===================== Version 8 ===================== */
+.hud-v8 { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.hud-v8 .chip { cursor: default; }
+.hud-v8 .chip.ch { cursor: help; }
+.duck-grid { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
+.duck-grid .duck { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; background: rgba(255,255,255,0.06); border: 1px dashed rgba(255,255,255,0.25); font-size: 18px; }
+.duck-grid .duck.got { background: rgba(255,210,31,0.18); border: 1px solid rgba(255,210,31,0.7); }
+ul.cal, ul.board { margin: 6px 0; padding-left: 18px; line-height: 1.7; }
+ul.cal li.now { color: #ffd54a; }
+ul.board li { background: rgba(255,240,180,0.08); border-left: 3px solid #f0b429; padding: 4px 8px; margin: 4px 0; list-style: none; border-radius: 4px; }
+.photo-flash { position: fixed; inset: 0; background: #fff; z-index: 99; pointer-events: none; animation: photoFlash 0.45s ease-out forwards; }
+@keyframes photoFlash { from { opacity: 0.9; } to { opacity: 0; } }
+body.photo::before, body.photo::after { content: ''; position: fixed; left: 0; right: 0; height: 6vh; background: #000; z-index: 3; pointer-events: none; }
+body.photo::before { top: 0; }
+body.photo::after { bottom: 0; }
+.hud-v8:empty { display: none; }
+.hud-v8 .chip { font-size: 12px; padding: 2px 8px; border-radius: 99px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); }
+.hud-v8 .chip.good { background: rgba(63,191,111,0.18); border-color: rgba(63,191,111,0.6); color: #bff5cf; }
+.hearts { color: #ff6b9a; letter-spacing: 2px; }
+.hearts .off { color: rgba(255,255,255,0.3); }
