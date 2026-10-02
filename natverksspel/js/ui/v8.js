@@ -144,6 +144,21 @@
     else if (e.code === 'KeyP') setTimeout(applyFilter, 0);
   }, true);
 
+  // ------------------------------------------------------------------ HUD:en hoppar inte i storlek
+  // renderHud skriver om hela HUD:en varje sekund. Raderna med chips (version 7 och 8) följer nu med direkt,
+  // i stället för att försvinna och läggas tillbaka av egna timers en stund senare, vilket fick rutan att växa och krympa.
+  var Uh = NV.UI && NV.UI.prototype;
+  if (Uh && Uh.renderHud) {
+    var origRender = Uh.renderHud;
+    Uh.renderHud = function () {
+      var keep = this.hud ? Array.prototype.slice.call(this.hud.querySelectorAll('.hud-v7, .hud-v8')) : [];
+      var r = origRender.apply(this, arguments);
+      var hudEl = this.hud;
+      if (hudEl) keep.forEach(function (el) { hudEl.appendChild(el); });
+      return r;
+    };
+  }
+
   // ------------------------------------------------------------------ Veckosammanfattningen
   // Visar veckans utmaningar, om du hittade tomten och hur många gummiankor du har
   var Uw = NV.UI && NV.UI.prototype;

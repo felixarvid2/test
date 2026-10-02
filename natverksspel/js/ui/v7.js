@@ -200,8 +200,9 @@
         var i = TIPS.indexOf(tipOfDay());
         p.innerHTML = '<b>💡 Dagens tips</b> <span class="tip-txt">' + esc(TIPS[i]) + '</span> <button class="tip-next" title="Nästa tips">›</button>';
         p.querySelector('.tip-next').addEventListener('click', function (e) { e.stopPropagation(); i = (i + 1) % TIPS.length; p.querySelector('.tip-txt').textContent = TIPS[i]; });
-        var sum = inner.querySelector('.menu-sum');
-        if (sum) sum.parentNode.insertBefore(p, sum); else inner.appendChild(p);
+        // Tipsen ligger ovanför den första rubriken (Krabba-veckorna), inte mellan rubriken och veckorna
+        var head = inner.querySelector('h2.menu-h') || inner.querySelector('.menu-sum');
+        if (head) head.parentNode.insertBefore(p, head); else inner.appendChild(p);
         var de = NV.dailyExercise && NV.dailyExercise();
         if (de) p.insertAdjacentHTML('afterend', '<div class="tip-day ex-day"><b>🎯 Dagens övning</b> <span class="tip-txt">' + esc(de[1]) + ': ' + esc(de[2]) + '</span></div>');
         if (NV.streak > 1) { var sumEl = inner.querySelector('.menu-sum'); if (sumEl) sumEl.insertAdjacentHTML('beforeend', ' · 🔥 ' + NV.streak + ' dagar i rad'); }

@@ -766,7 +766,7 @@ NV.UI = (function () {
     var g = this.game, self = this;
     var s = NV.settings;
     var html = '<div class="set-grid">' +
-      '<span>Visning</span><div class="seg"><button data-mode="3d" class="' + (g.mode === '3d' ? 'on' : '') + '"' + (g.webgl ? '' : ' disabled') + '>3D</button><button data-mode="2d" class="' + (g.mode === '2d' ? 'on' : '') + '">2D (16-bit)</button></div>' +
+      '<span>Visning</span><div class="seg"><button data-mode="2d" class="' + (g.mode === '2d' ? 'on' : '') + '">2D (16-bit)</button><button data-mode="3d" class="' + (g.mode === '3d' ? 'on' : '') + '"' + (g.webgl ? '' : ' disabled') + '>3D</button></div>' +
       '<label for="s-sens">Muskänslighet</label><input type="range" id="s-sens" min="0.2" max="3" step="0.1" value="' + s.get('sens') + '">' +
       '<label for="s-inv">Invertera Y-axeln</label><input type="checkbox" id="s-inv"' + (s.get('invertY') ? ' checked' : '') + '>' +
       '<label for="s-fov">Synvinkel (FOV)</label><input type="range" id="s-fov" min="55" max="95" step="1" value="' + s.get('fov') + '">' +
@@ -815,7 +815,7 @@ NV.UI = (function () {
         bind('s-mvol', 'musicVol', function (e) { return +e.value; });
         bind('s-theme', 'termTheme', function (e) { return e.value; });
         d.querySelectorAll('[data-diff]').forEach(function (b) { b.addEventListener('click', function () { s.set('difficulty', b.getAttribute('data-diff')); g.refreshMarkers(); self.settingsDialog(); }); });
-        d.querySelectorAll('[data-mode]').forEach(function (b) { b.addEventListener('click', function () { g.setMode(b.getAttribute('data-mode')); self.settingsDialog(); }); });
+        d.querySelectorAll('[data-mode]').forEach(function (b) { b.addEventListener('click', function () { NV.settings.set('modeChosen', true); g.setMode(b.getAttribute('data-mode')); self.settingsDialog(); }); });
       },
     });
   };
@@ -845,23 +845,24 @@ NV.UI = (function () {
     var prog = g.progress();
     var saved = g.savedRun();
     var html = '<div class="menu-inner"><div class="logo">🦀</div><h1>Krabba-passet</h1><p class="tag">Du är nätverkstekniker på Nordvik. Bygg upp Nordviks nät från fabriksinställda lådor via CLI – eller felsök det som Krabban har gjort sönder och skriv felrapporter.</p>' +
-      '<div class="mode-pick"><span>Välj visning:</span><div class="seg big"><button data-mode="3d" class="' + (g.mode === '3d' ? 'on' : '') + '"' + (g.webgl ? '' : ' disabled title="WebGL saknas"') + '><b>3D</b><small>förstaperson</small></button><button data-mode="2d" class="' + (g.mode === '2d' ? 'on' : '') + '"><b>2D</b><small>16-bitars pixelvärld</small></button></div></div>';
+      '<div class="mode-pick"><span>Välj visning:</span><div class="seg big"><button data-mode="2d" class="' + (g.mode === '2d' ? 'on' : '') + '"><b>2D</b><small>16-bitars pixelvärld</small></button><button data-mode="3d" class="' + (g.mode === '3d' ? 'on' : '') + '"' + (g.webgl ? '' : ' disabled title="WebGL saknas"') + '><b>3D</b><small>förstaperson</small></button></div></div>';
     var rk = NV.career.rank();
     html += '<div class="menu-rank"><span>🏅 <b>' + esc(rk.name) + '</b> · ' + rk.xp + ' XP · ' + NV.career.unlockedCount() + '/' + NV.career.ACH.length + ' prestationer</span><button data-ach>Karriär (J)</button></div>';
     if (saved && !(g.running && g.week === saved.week)) html += '<div class="menu-row"><button class="primary" data-continue>Fortsätt ' + esc(NV.levels.name(saved.week).toLowerCase()) + ' (' + fmtTime(saved.elapsed || 0) + ')</button></div>';
-    // Bygg från grunden: hela nätet via CLI, från fabriksinställda enheter
-    html += '<h2 class="menu-h">🧱 Bygg från grunden <small>– sätt upp Nordviks nät via CLI, steg för steg efter boken</small></h2><div class="weeks builds">';
-    NV.levels.BUILDS.forEach(function (w) {
-      var p = prog.weeks[w.week];
-      var stars = p ? '★★★'.slice(0, p.stars) + '☆☆☆'.slice(p.stars) : '';
-      html += '<button class="week build' + (p ? ' done' : '') + '" data-week="' + w.week + '"><span class="wn">Bygge ' + w.build + ' · kap. ' + esc(w.chapter) + '</span><span class="wt">' + esc(w.title) + '</span><span class="wl">' + w.tasks.length + ' steg · ' + esc(w.learn.slice(0, 2).join(' · ')) + '</span><span class="ws">' + stars + (p && p.minutes ? ' <span class="muted">bästa ' + p.minutes + ' min</span>' : '') + '</span></button>';
-    });
-    html += '</div><h2 class="menu-h">🦀 Felsök veckans fel <small>– Krabban har varit framme</small></h2>';
+    // Krabba-passen: veckans fel att felsöka (överst i menyn)
+    html += '<h2 class="menu-h">🦀 Felsök veckans fel <small>– Krabban har varit framme</small></h2>';
     html += '<div class="weeks">';
     NV.levels.WEEKS.forEach(function (w) {
       var p = prog.weeks[w.week];
       var stars = p ? '★★★'.slice(0, p.stars) + '☆☆☆'.slice(p.stars) : '';
       html += '<button class="week' + (p ? ' done' : '') + '" data-week="' + w.week + '"><span class="wn">Vecka ' + w.week + '</span><span class="wt">' + esc(w.title) + '</span><span class="wl">' + esc(w.learn.slice(0, 2).join(' · ')) + '</span><span class="ws">' + stars + (p && p.minutes ? ' <span class="muted">bästa ' + p.minutes + ' min</span>' : '') + (p && p.badges && p.badges.length ? ' <span class="muted">· ' + p.badges.length + ' utm.</span>' : '') + '</span></button>';
+    });
+    // Bygg från grunden: hela nätet via CLI, från fabriksinställda enheter
+    html += '</div><h2 class="menu-h">🧱 Bygg från grunden <small>– sätt upp Nordviks nät via CLI, steg för steg efter boken</small></h2><div class="weeks builds">';
+    NV.levels.BUILDS.forEach(function (w) {
+      var p = prog.weeks[w.week];
+      var stars = p ? '★★★'.slice(0, p.stars) + '☆☆☆'.slice(p.stars) : '';
+      html += '<button class="week build' + (p ? ' done' : '') + '" data-week="' + w.week + '"><span class="wn">Bygge ' + w.build + ' · kap. ' + esc(w.chapter) + '</span><span class="wt">' + esc(w.title) + '</span><span class="wl">' + w.tasks.length + ' steg · ' + esc(w.learn.slice(0, 2).join(' · ')) + '</span><span class="ws">' + stars + (p && p.minutes ? ' <span class="muted">bästa ' + p.minutes + ' min</span>' : '') + '</span></button>';
     });
     html += '</div><div class="menu-row"><button data-week="0">Fri träning (inga fel)</button><button data-exam>Examen (slumpad vecka, inga ledtrådar)</button><button data-settings>Inställningar</button>' + (g.running ? '<button class="primary" data-resume>Tillbaka till spelet</button>' : '') + '</div>' +
       '<p class="tip">💡 ' + esc(TIPS[Math.floor(Math.random() * TIPS.length)]) + '</p>' +
@@ -877,7 +878,7 @@ NV.UI = (function () {
       go();
     }
     this.menu.querySelectorAll('[data-week]').forEach(function (b) { b.addEventListener('click', function () { NV.sfx.unlock(); start(parseInt(b.getAttribute('data-week'), 10)); }); });
-    this.menu.querySelectorAll('[data-mode]').forEach(function (b) { b.addEventListener('click', function () { g.setMode(b.getAttribute('data-mode')); self.showMenu(); }); });
+    this.menu.querySelectorAll('[data-mode]').forEach(function (b) { b.addEventListener('click', function () { NV.settings.set('modeChosen', true); g.setMode(b.getAttribute('data-mode')); self.showMenu(); }); });
     var ex = $('[data-exam]', this.menu);
     if (ex) ex.addEventListener('click', function () { start(NV.levels.WEEKS[Math.floor(Math.random() * NV.levels.WEEKS.length)].week, { exam: true }); });
     var c = $('[data-continue]', this.menu);
