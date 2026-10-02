@@ -38,7 +38,8 @@
     NV.applyA11y();
     if (NV.touch.active()) NV.career.stat('touch');
     // Mobiler startar i 2D (lättast att styra och snabbast), men 3D finns i menyn
-    var mode = NV.settings.get('mode') || (this.webgl && !NV.gfx.isMobile() ? '3d' : '2d');
+    // 2D är standard. Ett läge som spelet sparade av sig självt räknas inte, bara det du själv har valt i menyn.
+    var mode = NV.settings.get('modeChosen') && NV.settings.get('mode') || '2d';
     if (mode === '3d' && !this.webgl) mode = '2d';
     this.setMode(mode, true);
     NV.onCommand = function (devId, line) { self.onCommand(devId, line); };

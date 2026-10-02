@@ -103,6 +103,12 @@ När ett fel är löst skickar du in en felrapport med **F**. En gul ruta uppe t
 
 Varje fel är simulerat på riktigt. Symptomen räknas fram ur konfigurationen: länkar, duplex, VLAN och trunkar, STP, routing, ARP, ACL, NAT, DHCP, DNS, PoE, port security, IPsec, MTU och lastbalansering. Ett fel försvinner därför bara när orsaken är rättad.
 
+## Version 8.1: stadig HUD, 2D som standard och Krabba-passen först
+
+- **HUD:en hoppar inte längre i storlek.** Rutan uppe till vänster ritas om varje sekund, och raderna med chips (osparad konfiguration, länkar som är nere, veckans utmaningar med mera) försvann då och lades tillbaka en stund senare. Nu följer de med direkt, så rutan ligger still.
+- **2D är standard.** Spelet startar i 2D, och 2D står först i menyn och i inställningarna. Väljer du 3D själv kommer spelet ihåg det. Ett läge som spelet tidigare sparade av sig självt räknas inte.
+- **Krabba-passen ligger överst i menyn.** "Felsök veckans fel" kommer först, och "Bygg från grunden" kommer efter. Dagens tips och dagens övning ligger ovanför rubriken.
+
 ## Version 8: smartare klick och 300 förbättringar
 
 Version 8 handlar om två saker. Musklicken i 2D använder nu riktig vägsökning, så att figuren går runt väggar och möbler i stället för rakt in i dem. Och mellan felsökningen finns mycket mer att göra i världen: samla, fiska, hjälpa kollegorna och utforska. Här är alla 300 förbättringar.
