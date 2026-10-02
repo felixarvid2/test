@@ -72,6 +72,8 @@ NV.minimap = (function () {
     // Krabban syns bara när du är nära
     var c = game.crab;
     if (c && c.active && c.site === site && Math.hypot(c.x - px, c.z - pz) < 7) { g.font = '12px sans-serif'; g.textAlign = 'center'; g.save(); g.translate(X(c.x), Y(c.z)); g.rotate(-rot); g.fillText('🦀', 0, 4); g.restore(); }
+    // Extra markeringar (hittegods, kaffe, bollen med mera) från andra delar av spelet
+    if (NV.minimap.extra) try { NV.minimap.extra(g, X, Y, game, rot); } catch (e) { /* markeringarna är inte viktiga */ }
     // Målet
     var o = game.objective ? game.objective() : null;
     if (o && NV.settings.get('difficulty') !== 'hard') {

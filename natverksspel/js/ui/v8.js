@@ -93,7 +93,7 @@
     out += '<h3>❤️ Kollegor</h3>' + table(['Kollega', 'Vänskap'], ppl.map(function (n) { var h = Math.floor((fr[n] || 0) / 4); return [esc(n), '<span class="hearts">' + '♥'.repeat(h) + '<span class="off">' + '♡'.repeat(5 - h) + '</span></span>']; })) +
       '<p class="muted small">Kollegorna blir gladare när du pratar med dem, hämtar kaffe åt dem, lämnar tillbaka det de tappat och vinkar (1).</p>';
     var s = NV.career.stats();
-    out += '<h3>📊 Småsaker</h3>' + table(['', 'Antal'], [['Vattnade växter', s.waterings || 0], ['Plockat skräp', s.trash || 0], ['Kast med spöet', s.casts || 0], ['Mellanmål', s.snacks || 0], ['Emotes', s.emotes || 0], ['Gånger du satt ner', s.sits || 0], ['Klarade utmaningar', s.challenges || 0], ['Sparkar på bollen', s.kicks || 0], ['Mål', s.goals || 0], ['Pappersflygplan', s.planes || 0], ['Längsta flygturen', (s.planeDist || 0) + ' m'], ['Kaffe till kollegor', s.coffeeDeliveries || 0], ['Meter gångna', Math.round(s.dist || 0)]]);
+    out += '<h3>📊 Småsaker</h3>' + table(['', 'Antal'], [['Vattnade växter', s.waterings || 0], ['Plockat skräp', s.trash || 0], ['Kast med spöet', s.casts || 0], ['Mellanmål', s.snacks || 0], ['Emotes', s.emotes || 0], ['Gånger du satt ner', s.sits || 0], ['Klarade utmaningar', s.challenges || 0], ['Sparkar på bollen', s.kicks || 0], ['Mål', s.goals || 0], ['Pappersflygplan', s.planes || 0], ['Längsta flygturen', (s.planeDist || 0) + ' m'], ['Kaffe till kollegor', s.coffeeDeliveries || 0], ['Buketter', s.bouquets || 0], ['Bästa macka', (d.skipBest || 0) + ' studs'], ['Bästa joggingrunda', d.lapBest ? d.lapBest.toFixed(1) + ' s' : '–'], ['Trädgårdstomtar', s.gnomes || 0], ['Meter gångna', Math.round(s.dist || 0)]]);
     return out;
   };
   // Styrningen i handboken får de nya tangenterna
@@ -147,7 +147,7 @@
 
   // ------------------------------------------------------------------ Inställningar
   var Dd = NV.settings.defaults;
-  Dd.pathDots = true; Dd.autoRun = true; Dd.npcWalks = true; Dd.hudChallenges = true; Dd.lookAhead = true;
+  Dd.pathDots = true; Dd.autoRun = true; Dd.npcWalks = true; Dd.hudChallenges = true; Dd.lookAhead = true; Dd.hoverRing = true; Dd.umbrella = true; Dd.roomTint = true; Dd.sunShadows = true; Dd.lensDrops = true; Dd.sunGlare = true;
   var U = NV.UI && NV.UI.prototype;
   if (U && U.settingsDialog) {
     var origSet = U.settingsDialog;
@@ -157,7 +157,9 @@
       if (!body) return;
       var box = document.createElement('div');
       var opts = [['v8-dots', 'pathDots', 'Visa vägen som prickar när du klickar (2D)'], ['v8-run', 'autoRun', 'Spring automatiskt på långa vägar (2D)'],
-        ['v8-walk', 'npcWalks', 'Kollegorna går och hämtar kaffe (2D)'], ['v8-ch', 'hudChallenges', 'Visa veckans utmaningar i HUD:en'], ['v8-look', 'lookAhead', 'Kameran tittar framåt där du går (2D)']];
+        ['v8-walk', 'npcWalks', 'Kollegorna går och hämtar kaffe (2D)'], ['v8-ch', 'hudChallenges', 'Visa veckans utmaningar i HUD:en'], ['v8-look', 'lookAhead', 'Kameran tittar framåt där du går (2D)'],
+        ['v8-ring', 'hoverRing', 'Ring och E-tangent över det du kan använda (2D)'], ['v8-umb', 'umbrella', 'Paraply när du går ute i regnet (2D)'], ['v8-tint', 'roomTint', 'Rummen har egen färgton (2D)'],
+        ['v8-sun', 'sunShadows', 'Skuggorna följer solen under dagen (2D)'], ['v8-lens', 'lensDrops', 'Regndroppar på "kameran" ute i regnet (2D)'], ['v8-glare', 'sunGlare', 'Motljus från morgonsolen (2D)']];
       box.innerHTML = '<h3>Version 8</h3><div class="set-grid">' + opts.map(function (o) { return '<label for="' + o[0] + '">' + o[2] + '</label><input type="checkbox" id="' + o[0] + '"' + (st.get(o[1]) !== false ? ' checked' : '') + '>'; }).join('') + '</div>';
       body.appendChild(box);
       opts.forEach(function (o) { var el = box.querySelector('#' + o[0]); el.addEventListener('input', function () { st.set(o[1], el.checked); }); });
@@ -173,6 +175,20 @@
     g.startWeek = function (wk) {
       var r = origStart.apply(this, arguments);
       try { var pr = V8.challengeProgress(this.week); setTimeout(function () { if (NV.game.running) NV.game.ui.toast('🎯 <b>Veckans utmaningar:</b> ' + pr.map(function (p) { return p.icon + ' ' + esc(p.text); }).join(' · ')); }, 2500); } catch (e) { /* ingen vecka */ }
+      return r;
+    };
+    // Menyn visar samlingarna under rangen
+    var U2 = g.ui, origMenu = U2.showMenu;
+    U2.showMenu = function () {
+      var r = origMenu.apply(this, arguments);
+      try {
+        var el = document.querySelector('.menu-rank'), d = load();
+        if (el && !el.querySelector('.menu-v8')) {
+          var nd = Object.keys(d.ducks || {}).length, fr = d.friend || {}, hearts = Object.keys(fr).reduce(function (a, k) { return a + Math.floor(fr[k] / 4); }, 0);
+          var sp = document.createElement('span'); sp.className = 'menu-v8'; sp.textContent = ' · 🦆 ' + nd + '/' + (V8.DUCKS || []).length + ' · ❤️ ' + hearts + ' hjärtan';
+          el.querySelector('span').appendChild(sp);
+        }
+      } catch (e) { /* menyn fungerar ändå */ }
       return r;
     };
     // Konfetti runt figuren när du låser upp en prestation i 2D

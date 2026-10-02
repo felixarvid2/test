@@ -334,7 +334,9 @@
       var px = e.who ? self.people[e.who] : self.pos;
       if (!px) return;
       var s = self.toScreen(px.x, px.z, 2.15), a = Math.min(1, e.t * 2);
-      var h = self.hi(s), S = self.view.S, rr = Math.max(12, Math.round(4 * S));
+      // Bubblan poppar upp: den växer snabbt de första tiondelarna
+      var pop = e.t > 1.75 ? Math.max(0.2, (2 - e.t) / 0.25) : 1;
+      var h = self.hi(s), S = self.view.S, rr = Math.max(12, Math.round(4 * S * (pop > 1 ? 1 : pop + (1 - pop) * 0.2)));
       self.hiQueue.push(function (m) {
         m.save(); m.globalAlpha = a;
         m.fillStyle = 'rgba(255,255,255,0.92)'; m.strokeStyle = 'rgba(30,30,40,0.6)'; m.lineWidth = 1.5;

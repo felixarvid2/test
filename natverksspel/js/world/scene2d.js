@@ -779,6 +779,9 @@
     });
     // Ljusstrålar genom fönstren
     if (Pf.beams && !rain) {
+      // Strålarna lutar efter solen: åt väster på morgonen, åt öster på eftermiddagen
+      var hrB = 8 + (this.game.state ? this.game.state.time : 0) / 3600, lean = Math.round(-17 + clamp((hrB - 8) / 9, 0, 1) * 34);
+      this.beamLean = lean;
       this.sprites.forEach(function (s) {
         if (!s.emit || !s.emit.win) return;
         var top = self.toScreen(s.emit.x - s.emit.w * 0.4, s.emit.z - 0.1, 1.3), bot = self.toScreen(s.emit.x - s.emit.w * 0.4, s.emit.z - 0.4, 0);
@@ -787,7 +790,7 @@
         var gr = g.createLinearGradient(0, top.y, 0, bot.y + 24);
         gr.addColorStop(0, 'rgba(255,240,200,' + a + ')'); gr.addColorStop(1, 'rgba(255,240,200,0)');
         g.fillStyle = gr;
-        g.beginPath(); g.moveTo(top.x, top.y); g.lineTo(top.x + w, top.y); g.lineTo(bot.x + w + 17, bot.y + 24); g.lineTo(bot.x + 17, bot.y + 24); g.closePath(); g.fill();
+        g.beginPath(); g.moveTo(top.x, top.y); g.lineTo(top.x + w, top.y); g.lineTo(bot.x + w + lean, bot.y + 24); g.lineTo(bot.x + lean, bot.y + 24); g.closePath(); g.fill();
       });
       // Ljusschakt från takfönstren i lagret
       if (this.site === 'boras' && /Lagret/.test(this.zone().name)) {

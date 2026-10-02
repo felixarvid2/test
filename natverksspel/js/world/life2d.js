@@ -130,7 +130,7 @@
     this.pigeons.forEach(function (p) {
       p.peck += dt;
       if (p.away > 0) { p.away -= dt; p.y = (p.y || 0) + dt * 2.5; p.x += dt * 3 * (p.hx > 10.5 ? 1 : -1); if (p.away <= 0) { p.x = p.hx; p.z = p.hz; p.y = 0; } return; }
-      if (self.site === 'gbg' && dist(me.x, me.z, p.x, p.z) < (self.sneak ? 0.7 : 1.8)) { p.away = R(15, 30); p.y = 0.1; if (NV.sfx && NV.sfx.flap) NV.sfx.flap(); }
+      if (self.site === 'gbg' && dist(me.x, me.z, p.x, p.z) < (self.pigeonFeed > 0 || p.backT ? 0 : (self.sneak ? 0.7 : 1.8))) { p.away = R(15, 30); p.y = 0.1; if (NV.sfx && NV.sfx.flap) NV.sfx.flap(); }
     });
     // Ekorren springer längs staketet
     var q = this.squirrel;
@@ -422,7 +422,10 @@
   var ORIG_SH = W.drawShadows;
   W.drawShadows = function (g, list) {
     var eve = this.eve || 0;
-    if (eve > 0.05) list.forEach(function (s) { if (s.shadow) { s.shadow._dx = s.shadow._dx === undefined ? s.shadow.dx || 0 : s.shadow._dx; s.shadow.dx = s.shadow._dx * (1 + eve * 2.2); } });
+    // Solen vandrar: på morgonen faller skuggorna åt väster, på eftermiddagen åt öster, och de blir längre mot kvällen
+    var hr = 8 + (this.game.state ? this.game.state.time : 0) / 3600, sun = NV.settings.get('sunShadows') === false ? 1 : clamp((hr - 12) / 2.5, -1, 1);
+    if (Math.abs(sun) < 0.25) sun = sun < 0 ? -0.25 : 0.25;
+    list.forEach(function (s) { if (s.shadow) { s.shadow._dx = s.shadow._dx === undefined ? s.shadow.dx || 0 : s.shadow._dx; s.shadow.dx = s.shadow._dx * sun * (1 + eve * 2.2); } });
     return ORIG_SH.call(this, g, list);
   };
   // Hjärtan stiger när någon tackar dig

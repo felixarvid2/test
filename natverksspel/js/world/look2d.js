@@ -124,7 +124,7 @@
     (this.wetPrints || []).forEach(function (p) {
       if (p.site !== self.site) return;
       var s2 = at(p.x, p.z), a2 = (1 - p.age / 12) * 0.35;
-      g.fillStyle = 'rgba(40,60,90,' + a2.toFixed(2) + ')'; g.fillRect(s2.x - 1, s2.y - 1, 2, 3);
+      g.fillStyle = (p.dusty ? 'rgba(95,88,74,' : 'rgba(40,60,90,') + a2.toFixed(2) + ')'; g.fillRect(s2.x - 1, s2.y - 1, 2, 3);
     });
     // Skuggor från fåglarna och flygplanet
     (this.birds || []).forEach(function (b) { var s3 = at(b.x + b.y * 0.4, b.z); g.fillStyle = 'rgba(0,0,0,0.12)'; g.fillRect(s3.x - 2, s3.y, 4, 1); });
