@@ -103,6 +103,343 @@ När ett fel är löst skickar du in en felrapport med **F**. En gul ruta uppe t
 
 Varje fel är simulerat på riktigt. Symptomen räknas fram ur konfigurationen: länkar, duplex, VLAN och trunkar, STP, routing, ARP, ACL, NAT, DHCP, DNS, PoE, port security, IPsec, MTU och lastbalansering. Ett fel försvinner därför bara när orsaken är rättad.
 
+## Version 8: smartare klick och 300 förbättringar
+
+Version 8 handlar om två saker. Musklicken i 2D använder nu riktig vägsökning, så att figuren går runt väggar och möbler i stället för rakt in i dem. Och mellan felsökningen finns mycket mer att göra i världen: samla, fiska, hjälpa kollegorna och utforska. Här är alla 300 förbättringar.
+
+### Musklick och vägsökning i 2D
+
+1. Klickar du någonstans letar figuren upp en väg med A* på ett rutnät med 12,5 cm rutor, i stället för att gå rakt in i väggen.
+2. Vägen går i åtta riktningar men skär aldrig hörn på väggar och möbler.
+3. Vägen jämnas ut: figuren går raka sträckor så långt den kan se fritt, i stället för att följa rutnätet i trappsteg.
+4. Vägen håller 26 cm avstånd till hinder, så att figuren inte skrapar mot väggar och skrivbord.
+5. Klickar du på ett hinder (ett skrivbord, en hylla) går figuren till närmaste fria plats.
+6. Går målet inte att nå alls går figuren så nära det går och säger "Så nära det går".
+7. Står du helt instängd säger figuren "Dit kommer du inte" i stället för att stå och trampa.
+8. Klickar du på ett föremål eller en kollega går figuren till rätt sida, där den faktiskt når fram, och inte till baksidan av en vägg.
+9. Kollegorna räknas in på sina aktuella platser vid varje sökning, eftersom de flyttar sig mellan veckorna.
+10. Fastnar du på vägen (till exempel bakom Omar som går förbi) söks en ny väg, högst tre gånger.
+11. Figuren landar exakt på vägens hörn, så att den inte fastnar i smala dörröppningar.
+12. Rutnätet byggs bara om när hindren ändras och sparas annars mellan klicken.
+13. Vägen visas som pulserande prickar på marken (kan stängas av).
+14. Målmarkeringen blir röd när du bara kan komma nära målet.
+15. Håll inne musknappen för att gå mot pekaren hela tiden.
+16. Dubbelklicka för att springa dit.
+17. Långa vägar (över 14 meter) springer du automatiskt (kan stängas av).
+18. Högerklick avbryter gången.
+19. Esc avbryter gången.
+20. Shift-klick lägger till en mellanstation, så att du kan välja vägen själv.
+21. Klicka på minikartan i 2D så går du dit.
+22. Markeringen från minikartan syns som en röd flagga i världen och försvinner när du kommer fram.
+23. Muspekaren blir en hand över saker du kan använda och en förbudsskylt över väggar och möbler.
+24. Vägsökningen testas automatiskt: 60 slumpade mål och alla föremål och kollegor nås.
+25. Går du mot en kollega som rör sig söks vägen om medan du går, så att du hamnar bredvid personen.
+26. Håll inne V för att se ringar under allt du kan använda inom nio meter.
+27. Pekar du på något som är för långt bort för att använda visas en etikett med vad ett klick gör ("Klicka: Prata med Anna").
+28. Vid målet står hur många meter det är kvar att gå.
+29. Klickar du på figuren medan den går stannar den.
+30. Rutnätet byggs genom att hindren ritas in, i stället för att varje ruta testas mot alla hinder, så det går snabbt även för hela kartan.
+31. Nytt automatiskt test, test/v8.js: 50 slumpade mål, alla föremål och kollegor och de nya aktiviteterna.
+
+### Rörelse och kamera
+
+32. Glasdörrarna vid entrén går att gå igenom i 2D, så att gården, dammen och parkeringen går att besöka.
+33. Resan till Borås startar vid den röda Nordvik-bilen på parkeringen.
+34. I Borås kör du tillbaka med bilen utanför lagret.
+35. Skyltar visar var bilarna står.
+36. Står figuren inne i ett hinder (om till exempel Omar gått in i dig) kan den ta sig loss i stället för att fastna.
+37. Mjuk start: farten byggs upp under en dryg tiondels sekund.
+38. Hörnhjälp: går du med tangenterna rakt mot ett hörn glider du runt det.
+39. Kameran tittar lite framåt åt det håll du går.
+40. Smyg med C: långsam gång.
+41. Smyger du märker krabban dig först när du är mycket närmare.
+42. Smyger du flyr inte katten.
+43. Smyger du kan du gå närmare duvorna innan de flyger.
+
+### Saker att göra i världen
+
+44. Tolv gummiankor är gömda: sex i Göteborg (på kontoret och gården) och sex i Borås.
+45. Gummiankorna glittrar svagt när du är i närheten.
+46. Plockar du upp en gummianka piper den, och du ser hur många du har hittat ("Gummianka 5 av 12").
+47. Gummiankorna du hittat sparas mellan omgångarna.
+48. 5 XP per gummianka och 60 XP för den sista.
+49. Varje vecka har en kollega tappat något: ett passerkort, hörlurar, ett USB-minne, läsglasögon, en laddare, en kaffekopp, en nyckelknippa eller en penna.
+50. Den borttappade saken ligger någonstans på kontoret och glittrar när du kommer nära.
+51. Det du bär på syns ovanför figurens huvud.
+52. Lämnar du tillbaka saken tackar ägaren med en egen replik och du får 20 XP.
+53. Anslagstavlan berättar vems sak som saknas.
+54. Varje veckas borttappade sak kommer ihåg om du har lämnat tillbaka den.
+55. Krukväxterna blir törstiga med tiden, och då syns en vattendroppe ovanför dem.
+56. Vattnar du en växt stänker det, växten gungar till och du får 3 XP.
+57. En växt som inte är törstig svarar att jorden fortfarande är fuktig.
+58. Skräp (pappmuggar, papper, buntband och kartongbitar) dyker upp på golvet ibland.
+59. Plockar du upp skräpet försvinner det i ett moln och du får 1 XP.
+60. Det finns högst tre skräp åt gången, och bara inomhus.
+61. Fiske i dammen: kasta, vänta tills flötet dyker och tryck E direkt.
+62. Fem fiskarter med egna storlekar: abborre, mört, sutare, ruda och den sällsynta gäddan.
+63. Ibland nappar en gammal patchkabel eller en gammal sko.
+64. Den största fisken av varje art sparas.
+65. Trycker du för tidigt eller för sent slinker fisken undan, och spelet säger vad som gick fel.
+66. Fiskelinan och flötet ritas, och det blir ringar på vattnet när det nappar.
+67. Går du från dammen slutar du fiska.
+68. Fyra bänkar och en soffa går att sitta på.
+69. Figuren sitter på riktigt och reser sig när du går.
+70. Sitter du länge somnar figuren och "z" stiger upp.
+71. En varuautomat i fikarummet, ritad pixel för pixel och med en svag blå glöd.
+72. Varuautomaten släpper ett av åtta mellanmål, med myntljud och tuggljud.
+73. Kalendern på väggen visar alla tio veckorna och markerar den du är på.
+74. Anslagstavlan har lappar som byts varje vecka.
+75. Väggklockan säger vad klockan är och om det är dags att gå hem.
+76. En fotboll på gräsmattan söder om kontoret. Gå in i den för att sparka, spring för ett hårdare skott.
+77. Bollen rullar, bromsas av gräset och studsar mot hinder.
+78. Ett mål med stolpar, ribba och nät. Gör du mål blir det "MÅL!", konfetti och ett jubel.
+79. Nätet fångar bollen, och efter ett mål läggs bollen tillbaka på mittpunkten.
+80. Kasta pappersflygplan med Q. De glider, vickar och dalar tills de landar eller flyger in i något.
+81. Flygplanen syns med skugga på marken och ligger kvar en stund där de landat.
+82. Flyger ett plan längre än 8 meter visas hur långt det flög.
+83. Sex blomställen på gården där du kan plocka blommor, och blommorna växer upp igen efter en stund.
+84. Blommorna vajar i vinden, mer när det blåser.
+85. Upp till tre blommor blir en bukett som syns i handen.
+86. Ge buketten till en kollega: en hel bukett ger mer XP och vänskap än en enda blomma.
+87. Mata duvorna vid entrén: de kommer fram till dig och pickar smulor, och går sedan tillbaka.
+88. Medan du matar dem flyger duvorna inte iväg.
+89. Kasta macka i dammen: stenen studsar mellan en och sju gånger, med ringar på vattnet.
+90. Mackrekordet sparas.
+91. Joggingrunda: spring från entrén förbi kontorets fyra sidor och tillbaka.
+92. Kontrollpunkterna syns som gröna ringar under rundan, och rundan bryts om du går in.
+93. Tiden visas när du är tillbaka, och rekordet sparas.
+94. En trädgårdstomte gömmer sig på ett nytt ställe på gården varje vecka.
+95. Hittar du tomten får du 15 XP, och veckans fynd sparas.
+96. Tre stolar i fikarummet att sitta på.
+97. Fyra stolar i mötesrummet att sitta på.
+98. Den grå soffan på kontoret går att sitta i.
+99. Figuren sitter vänd åt rätt håll på varje plats, till exempel mot bordet.
+100. Städ-Sture (dammsugarroboten) fastnar ibland under en stol: den står still, piper och blinkar rött.
+101. Hjälp Städ-Sture loss med E, så tackar den och fortsätter städa.
+102. Skrivaren får pappersstopp ibland: en röd lampa blinkar och ett papper sticker ut.
+103. Ta bort papperet som fastnat med E, så fungerar skrivaren igen.
+104. Kaffemaskinen räcker till sex koppar, sedan blinkar den orange och säger att bönorna är slut.
+105. Fyll på bönor med E, så går det att ta kaffe igen.
+106. Kaffe du hämtar till kollegor räknas också mot bönorna.
+107. Träffar ett pappersflygplan en kollega reagerar personen ("Hallå!", "Vem var det?").
+108. Fiske i bäcken bakom lagret i Borås, med egna fiskar: öring, bäcköring, harr och elritsa (och ibland en vante).
+109. Fiskespöet syns i handen även i Borås.
+110. Landade pappersflygplan går att plocka upp igen.
+111. Varuautomaten ger ibland två saker på en gång.
+112. En bit födelsedagstårta ger 30 sekunder snabbare steg.
+113. Veckans borttappade sak tillhör alltid någon som är på kontoret den veckan.
+114. En kaffebeställning som ingen tar hand om går över efter fyra minuter.
+115. Joggingrundan avbryts efter fyra minuter, så att en halvfärdig runda inte står kvar.
+116. Fotbollen rullar synligt: mönstret snurrar med farten.
+
+### Kollegorna
+
+117. Emotes med tangenterna 1–6: vinka, tumme upp, hjärta, fråga, skratt och fika.
+118. Emotes syns som pratbubblor ovanför figuren.
+119. Kollegor i närheten svarar på dina emotes med en egen bubbla.
+120. Kollegorna hälsar ("Hej!", "Tjena!" …) första gången du går förbi under veckan.
+121. Kollegorna reser sig ibland och hämtar kaffe. De hittar dit med samma vägsökning som du.
+122. Vid kaffemaskinen ångar koppen en stund innan kollegan går tillbaka och sätter sig.
+123. Pratar du med en kollega som är på väg till kaffet stannar den och pratar.
+124. Börjar en ny vecka sätter sig kollegan som var på väg till kaffet direkt.
+125. Ibland ber en kollega om kaffe ("Någon som går förbi kaffet?"), och en kaffekopp syns i en bubbla ovanför personen.
+126. Använder du kaffemaskinen då häller du upp en kopp till kollegan i stället, och koppen syns i handen.
+127. Lämnar du koppen tackar kollegan och du får 10 XP.
+128. Vänskap med varje kollega: upp till fem hjärtan.
+129. Vänskapen växer när du pratar med kollegan (en gång per vecka), vinkar (en gång per dag), hämtar kaffe och lämnar tillbaka det de tappat.
+130. Ett hjärta stiger ovanför kollegan när vänskapen växer, och ett meddelande visar hur många hjärtan ni har.
+131. Samlingar i handboken visar hjärtan för alla kollegor.
+132. Samlingar visar också sparkar, mål, pappersflygplan, längsta flygturen och kaffe till kollegor.
+133. Varje vecka fyller en kollega år.
+134. Gratulera födelsedagsbarnet för konfetti, ett tack, XP och vänskap.
+135. Tar du kaffe medan en kollega står vid maskinen säger kollegan "Trevligt med sällskap!" och blir lite gladare.
+136. Nio nya repliker där kollegorna pratar om ankorna, fotbollen, fisket, Städ-Sture och hittegodset.
+
+### Djur
+
+137. Tre ankungar simmar efter den första ankan, och följer med när du matar dem.
+138. En igelkott kommer fram på gräsmattan på kvällen och går att hälsa på.
+139. Efter regn kryper en snigel över gången, och du kan lyfta den till gräset.
+140. Grodan kväker då och då.
+141. Katten följer efter dig en stund efter att du klappat den.
+142. Katten lägger sig ibland i någon av sofforna och sover.
+
+### Veckans utmaningar
+
+143. Varje vecka får du tre små utmaningar, valda ur femton sorter (vattna växter, plocka skräp, fiska, pinga, fånga Krabban med flera).
+144. Utmaningarna räknas från statistiken, så de bockas av automatiskt hur du än klarar dem.
+145. En klarad utmaning ger 15 XP, ett meddelande och konfetti runt figuren.
+146. När veckan startar visas veckans utmaningar.
+147. HUD:en visar hur många av veckans utmaningar du har klarat, och muspekaren över visar vilka.
+148. Utmaningarna sparas per vecka, så en påbörjad vecka minns var du var.
+
+### Prestationer
+
+149. **Gul och glad**: Hitta din första gummianka.
+150. **Ankjägare**: Hitta alla tolv gummiankor.
+151. **Hittegods**: Lämna tillbaka något borttappat.
+152. **Receptionens bästa vän**: Lämna tillbaka fem saker.
+153. **Grön tumme**: Vattna tio gånger.
+154. **Städpatrull**: Plocka 20 skräp.
+155. **Napp!**: Få din första fisk.
+156. **Storfångst**: En fisk på minst 50 cm.
+157. **Sportfiskare**: Tio fiskar.
+158. **Skräpfiske**: Fiska upp något som inte är en fisk.
+159. **Bänkvärmare**: Sätt dig fem gånger.
+160. **Mellanmål**: Fem saker ur varuautomaten.
+161. **Social**: Tio emotes.
+162. **Läser allt**: Läs anslagstavlan.
+163. **Utmanare**: Klara en veckoutmaning.
+164. **Tio av tio**: Klara tio veckoutmaningar.
+165. **Fotograf**: Ta en bild i fotoläget.
+166. **Kvällsbesök**: Hälsa på igelkotten.
+167. **Snigelräddare**: Lyft snigeln från gången.
+168. **Kaffebud**: Hämta kaffe till en kollega.
+169. **Barista**: Hämta kaffe fem gånger.
+170. **Vänskap**: Ett helt hjärta hos en kollega.
+171. **Bästa kollega**: Fem hjärtan hos en kollega.
+172. **Bollkänsla**: Sparka bollen tio gånger.
+173. **Mål!**: Gör mål.
+174. **Pilot**: Kasta fem pappersflygplan.
+175. **Långflygare**: Ett plan som flyger minst 8 meter.
+176. **Blomsterbud**: Ge bort en hel bukett.
+177. **Duvvän**: Mata duvorna.
+178. **Mackmästare**: Fem studs med en sten.
+179. **Joggingrunda**: Spring ett varv runt kontoret.
+180. **Snabba fötter**: Ett varv på under 45 sekunder.
+181. **Tomtespanare**: Hitta trädgårdstomten.
+182. **Tomtedetektiv**: Hitta tomten fem veckor.
+183. **Robotkompis**: Hjälp Städ-Sture loss.
+184. **Pappersstopp**: Ta bort ett papper som fastnat.
+185. **Påfyllning**: Fyll på kaffebönor.
+186. **Busfrö**: Träffa en kollega med ett pappersflygplan.
+187. **Stolprovare**: Sätt dig på åtta olika platser.
+188. **Kroppsspråk**: Använd alla sex emotes.
+189. **Paraplyväder**: Gå 50 meter i regnet.
+190. **Morgonpigg**: Gå ut före halv nio.
+191. **Bäckfiskare**: Få en fisk i bäcken i Borås.
+192. **Grattis!**: Gratulera födelsedagsbarnet.
+193. **Tårtbit**: Ta en bit tårta.
+194. **Turdag**: Två saker ur automaten på en gång.
+195. **Fikasällskap**: Ta kaffe tillsammans med en kollega.
+
+### HUD och gränssnitt
+
+196. HUD:en visar vad du bär på och vem det ska till.
+197. HUD:en visar hur många gummiankor du har hittat.
+198. HUD:en visar när du smyger och när du sitter.
+199. Ny flik i handboken: **Samlingar**.
+200. Samlingar: veckans utmaningar med hur långt du har kommit.
+201. Samlingar: alla tolv gummiankor, där de du hittat visar var de låg.
+202. Samlingar: har du hittat minst sex ankor får du en ledtråd om var nästa finns.
+203. Samlingar: fiskeloggen med största fisken av varje art.
+204. Samlingar: hittegodset du har lämnat tillbaka, vecka för vecka.
+205. Samlingar: statistik över vattnade växter, skräp, kast, mellanmål, emotes och hur långt du har gått.
+206. Fliken Styrning i handboken har en tabell över allt nytt (klick, dubbelklick, Shift-klick, C, 1–6, fotoläget).
+207. Fotoläget (P) har svarta filmkanter upptill och nedtill.
+208. Fotoläget: Enter tar en bild och sparar den som PNG.
+209. Fotoläget: bilden får en liten stämpel i hörnet.
+210. Fotoläget: blixt och kameraslutarljud när du tar bilden.
+211. Fotoläget: Tab byter mellan fem filter (inget, sepia, svartvitt, kvällsljus och kallt).
+212. Fotoläget: raden längst ner visar vilket filter som är valt och vilka tangenter som gäller.
+213. Inställning: visa vägen som prickar.
+214. Inställning: spring automatiskt på långa vägar.
+215. Inställning: kollegorna går och hämtar kaffe.
+216. Inställning: veckans utmaningar i HUD:en.
+217. Inställning: kameran tittar framåt där du går.
+218. Konfetti runt figuren i 2D när du låser upp en prestation (inte med "Minska rörelse").
+219. Nyhetsrutan beskriver version 8, och versionsnumret är 8.0.
+220. Minikartan visar fotbollen.
+221. Minikartan visar vem som vill ha kaffe.
+222. Minikartan ringar in den som ska ha tillbaka det du bär på.
+223. Minikartan visar joggingrundans kontrollpunkter.
+224. Minikartan har en öppning där andra delar av spelet kan rita egna markeringar.
+225. Inställning: ring och E-tangent över det du kan använda.
+226. Inställning: paraply i regnet.
+227. Inställning: rummens färgton.
+228. Inställning: skuggor som följer solen.
+229. Inställning: regndroppar på kameran.
+230. Inställning: motljus.
+231. Menyn visar hur många gummiankor och hjärtan du har.
+232. Samlingar visar buketter, bästa macka, bästa joggingrunda och tomtar.
+233. Inställning: etiketter när pekaren är över något långt bort.
+234. Dagens första spelpass ger 10–40 XP, mer ju fler dagar i rad du har spelat.
+235. Åtta nya tips i menyns "Dagens tips".
+236. Nytt teoriavsnitt i handboken: hur vägsökningen med A* fungerar och hur den liknar OSPF:s kortaste väg.
+237. Tre nya ord i ordlistan: vägsökning, kortaste vägen och heuristik.
+238. Statistik som räknas varje bildruta skickas bara en gång per sekund, eftersom varje uppdatering går igenom alla prestationer.
+239. Veckosammanfattningen visar hur många av veckans utmaningar du klarade och vilka som återstår.
+240. Veckosammanfattningen visar hur många gummiankor du har och om du hittade veckans trädgårdstomte.
+241. Tipsraden vid dammen ändras medan du fiskar: "Vänta på napp …" och sedan "Dra upp!".
+
+### Grafik: figuren och det du gör
+
+242. En våg sprider sig på marken där du klickar (röd om du klickade på ett hinder).
+243. En pulserande ring på marken under det du kan använda.
+244. Tangenten E och en liten pil svävar ovanför det du kan använda, skarpt i full upplösning.
+245. Står du still en stund tittar figuren sig omkring innan den tar upp mobilen.
+246. Ett rött paraply över figuren när du går ute i regnet, med regndroppar som rinner av.
+247. Andedräkt syns i den kalla morgonluften när du är ute före kl. 9.
+248. Kommer du in från regnet lämnar du blöta fotspår inomhus som torkar efter en stund.
+249. Springer du syns små strimmor bakom figuren.
+250. Med kaffe i kroppen glittrar det gult kring figuren när du går.
+251. Tre små prickar ovanför huvudet när du smyger.
+252. Ett fiskespö i handen när du fiskar.
+253. Fisken du fångar sprattlar ovanför figuren en stund.
+254. En vattenkanna i handen när du vattnar.
+255. Guldgnistor från figuren när du får XP.
+256. Kaffet rinner ur maskinen när du tar en kopp.
+257. Bilen tutar när du kör iväg.
+
+### Grafik: miljön
+
+258. Höstlöven i Borås virvlar undan när du går igenom dem.
+259. Skuggor från fåglarna som flyger över.
+260. Ibland passerar ett flygplan högt upp, och dess skugga glider över marken.
+261. En cyklist passerar på gatan nedanför kontoret och plingar när du står nära.
+262. Värmedaller över parkeringen mitt på dagen när solen skiner.
+263. Värmedaller stiger från racken i serverrummet.
+264. Varje rum har sin egen färgton som tonar in mjukt: kallt blått i serverrummet, varmt i fikarummet och receptionen.
+265. Dagsljus faller in genom glasdörrarna när de är öppna.
+266. Skräp som legat länge får flugor som surrar runt.
+267. Törstiga växter får bruna blad.
+268. Skuggorna följer solen: på morgonen faller de åt väster och på eftermiddagen åt öster.
+269. Solstrålarna genom fönstren lutar efter solen under dagen.
+270. Dammiga fotspår på betonggolvet i lagret i Borås.
+271. Regndroppar på "kameran" när du är ute i regnet, ritade skarpt med ljusbrytning.
+272. Motljus från morgonsolen när du är ute, med små linsreflexer.
+273. Emote-bubblorna poppar upp i stället för att bara dyka upp.
+274. Regnet kommer i skurar: ibland tätare, ibland glesare.
+275. Regnet lutar mer och driver i sidled i vindbyarna.
+276. Gatlyktorna tänds en i taget mot kvällen i stället för alla samtidigt.
+277. En gatlykta som tänds fladdrar till först.
+278. Morgondagg glittrar i gräset tidigt på morgonen.
+279. Dimma ligger över dammen tidigt på morgonen.
+280. En liten kortläsare vid dörren till serverrummet lyser rött, och grönt när du går in.
+281. Ballonger svävar över födelsedagsbarnets skrivbord.
+282. En tårta med ljus på fikabordet blir mindre för varje bit som tas.
+
+### Ljud
+
+283. Ljud när du plockar upp något.
+284. Ankorna kvackar på riktigt.
+285. Katten jamar och spinner.
+286. Plask när du drar upp en fisk.
+287. Plopp när flötet landar och när det nappar.
+288. Rullen surrar när du vevar in.
+289. Mynt och tuggljud vid varuautomaten.
+290. Ett poppande ljud när du gör en emote.
+291. Vattenljud när du vattnar.
+292. Grodan låter "kväck".
+293. Fåglar kvittrar på morgonen när du är ute.
+294. Vindbyarna hörs.
+295. Ny ljudmodul för kameraslutaren i fotoläget.
+296. Regnet hörs i 2D, svagare inomhus.
+297. Kontorets och lagrets bakgrundsljud hörs i 2D.
+298. Glasdörrarna vid entrén låter när de glider upp.
+299. Kortläsaren vid serverrummet piper när du går in.
+300. En gummianka piper svagt när du kommer nära en som du inte har hittat.
+
 ## Version 7: 300 förbättringar
 
 Version 7 handlar om att det ska finnas mer att göra i terminalerna, mer att lära sig i handboken och mer liv i 2D-världen. Här är alla 300 förbättringar.
@@ -1301,10 +1638,13 @@ natverksspel/
   js/levels.js               veckorna, felen, kontrollerna och ledtrådarna
   js/world/                  3D-världen (world.js, efterbehandling i post.js, partiklar i fx.js,
                              detaljer i extras.js), 2D-världen (world2d.js, pixelkonst i art2d.js,
-                             miljö, ljus och effekter i scene2d.js, djur och liv i life2d.js),
+                             miljö, ljus och effekter i scene2d.js, djur och liv i life2d.js,
+                             vägsökning för musklick i path2d.js, saker att göra i play2d.js,
+                             fun2d.js, more2d.js, events2d.js, extra2d.js och final2d.js,
+                             grafik i look2d.js),
                              delad kod (shared.js)
   js/ui/                     terminal, dialoger, handbok, inställningar, ljud, karriär (career.js)
-                             och minikarta (minimap.js); det nya i version 7 i v7.js och css/v7.css
+                             och minikarta (minimap.js); det nya i version 7 och 8 i v7.js, v8.js, css/v7.css och css/v8.css
   js/game.js                 spelloopen
   test/                      tester
 ```
@@ -1318,4 +1658,4 @@ node natverksspel/test/smoke.js    # DHCP, ping, NAT, DNS och STP i det felfria 
 node natverksspel/test/cli.js SW1 "show vlan brief" "show interfaces trunk"
 ```
 
-Webbläsartesterna `test/ui.js`, `test/flow.js`, `test/view.js`, `test/boot.js`, `test/features.js`, `test/v3.js`, `test/v4.js` och `test/v5.js` använder Playwright. Starta en webbserver på port 8765 i `natverksspel/` först.
+Webbläsartesterna `test/ui.js`, `test/flow.js`, `test/view.js`, `test/boot.js`, `test/features.js`, `test/v3.js`, `test/v4.js`, `test/v5.js` och `test/v8.js` (vägsökningen och aktiviteterna i 2D) använder Playwright. Starta en webbserver på port 8765 i `natverksspel/` först.

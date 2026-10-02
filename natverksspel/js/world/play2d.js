@@ -171,6 +171,7 @@
   };
 
   W.spawnTrash = function () {
+    this.trash = this.trash || [];
     var n = this.navGrid ? this.navGrid() : null;
     if (!n) return;
     for (var tries = 0; tries < 40; tries++) {
@@ -186,6 +187,7 @@
     return null;
   };
   W.removeTrash = function (t) {
+    this.trash = this.trash || [];
     this.trash = this.trash.filter(function (x) { return x !== t; });
     this.inters = this.inters.filter(function (x) { return x !== t.inter; });
     if (this.hover && this.hover.t === t) this.hover = null;

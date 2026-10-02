@@ -144,6 +144,27 @@
     else if (e.code === 'KeyP') setTimeout(applyFilter, 0);
   }, true);
 
+  // ------------------------------------------------------------------ Veckosammanfattningen
+  // Visar veckans utmaningar, om du hittade tomten och hur många gummiankor du har
+  var Uw = NV.UI && NV.UI.prototype;
+  if (Uw && Uw.weekDone) {
+    var origDone = Uw.weekDone;
+    Uw.weekDone = function () {
+      var r = origDone.apply(this, arguments);
+      try {
+        var g = NV.game, body = document.querySelector('#dialog .dlg-body'), d = load();
+        if (body && g.week) {
+          var pr = V8.challengeProgress(g.week), done = pr.filter(function (p) { return p.done; }).length;
+          var el = document.createElement('div'); el.className = 'week-v8';
+          el.innerHTML = '<p>🎯 Veckans utmaningar: <b>' + done + ' av ' + pr.length + '</b>' + (done < pr.length ? ' (' + pr.filter(function (p) { return !p.done; }).map(function (p) { return esc(p.text.toLowerCase()); }).join(', ') + ' återstår)' : '') + '</p>' +
+            '<p>🦆 Gummiankor: <b>' + Object.keys(d.ducks || {}).length + ' av ' + (V8.DUCKS || []).length + '</b>' + ((d.gnomes || {})[g.week] ? ' · 🧙 Du hittade veckans tomte' : ' · 🧙 Tomten gömmer sig fortfarande') + '</p>';
+          body.appendChild(el);
+        }
+      } catch (e) { /* sammanfattningen visas ändå */ }
+      return r;
+    };
+  }
+
   // ------------------------------------------------------------------ Inställningar
   var Dd = NV.settings.defaults;
   Dd.pathDots = true; Dd.autoRun = true; Dd.npcWalks = true; Dd.hudChallenges = true; Dd.lookAhead = true; Dd.hoverRing = true; Dd.umbrella = true; Dd.roomTint = true; Dd.sunShadows = true; Dd.lensDrops = true; Dd.sunGlare = true; Dd.farLabels = true;
