@@ -1,0 +1,2278 @@
+{
+  "game": {
+    "title": "Ashfall",
+    "subtitle": "Kharos IV — one year after the fall",
+    "loading": "Loading assets… {done}/{total}"
+  },
+  "hud": {
+    "controlsHint": "{move} move · {lmb}/{rmb} attack · 1–4 skills · {dodge} dodge · {potion} potion · {inv} inventory · {skills} skills · {map} map · {quests} quests · {pickup} interact · {debug} debug",
+    "life": "Life",
+    "heat": "Heat",
+    "overheating": "OVERHEATING",
+    "wave": "Wave {wave}",
+    "hostiles": "{count} hostiles remaining",
+    "waveCleared": "Wave {wave} cleared",
+    "nextWave": "Next wave in {seconds}",
+    "youDied": "You have fallen",
+    "respawnHint": "Press {key} or click to rise again",
+    "dodge": "Dodge",
+    "potion": "Stim pack",
+    "cooldown": "Cooldown {seconds}s",
+    "cost": "Costs {amount} {resource}",
+    "generates": "Generates {amount} {resource}",
+    "slotEmpty": "Empty slot"
+  },
+  "moveMode": {
+    "wasd": "WASD",
+    "click": "Click to move",
+    "clickHint": "Left-click"
+  },
+  "save": {
+    "saved": "Game saved",
+    "loaded": "Game loaded",
+    "noSave": "No saved game found",
+    "exported": "Save exported",
+    "imported": "Save imported",
+    "importFailed": "Could not import save: {reason}",
+    "loadFailed": "Could not load save: {reason}",
+    "storageUnavailable": "Browser storage is unavailable"
+  },
+  "debug": {
+    "title": "Debug",
+    "fps": "FPS",
+    "frameTime": "Frame",
+    "entities": "Entities",
+    "drawCalls": "Draw calls",
+    "triangles": "Triangles",
+    "position": "Position",
+    "seed": "Seed",
+    "tick": "Tick",
+    "moveMode": "Movement",
+    "save": "Save",
+    "load": "Load",
+    "export": "Export",
+    "import": "Import",
+    "deleteSave": "Delete save",
+    "saveDeleted": "Save deleted",
+    "enemies": "Enemies",
+    "wave": "Wave",
+    "kills": "Kills",
+    "nextWave": "Next wave",
+    "killAll": "Kill all",
+    "spawnHorde": "Spawn 100",
+    "godMode": "God mode",
+    "screenShake": "Screen shake",
+    "graphics": "Graphics",
+    "quality": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High"
+    },
+    "addLevel": "+1 level",
+    "spawnLoot": "Drop loot (+legendary/unique)",
+    "switchCharacter": "Character select",
+    "region": {
+      "teleporters": "Unlock teleporters",
+      "rare": "Spawn rare elite",
+      "storm": "Start ash storm",
+      "dungeon": "Enter/leave dungeon",
+      "skipStep": "Skip quest step"
+    }
+  },
+  "combat": {
+    "notEnoughResource": "Not enough Heat",
+    "overheat": "Overheating! Spend Heat to cool down",
+    "noCorpses": "No corpses nearby"
+  },
+  "skills": {
+    "bastion": {
+      "hydraulic_strike": {
+        "name": "Hydraulic Strike",
+        "desc": "Swing your hydraulic fist in a wide arc. Above 70 Heat, sets enemies on fire."
+      },
+      "seismic_shock": {
+        "name": "Seismic Shock",
+        "desc": "Slam the ground, knocking enemies back and making them Vulnerable."
+      },
+      "rocket_leap": {
+        "name": "Rocket Leap",
+        "desc": "Boost into the air and crash down, stunning enemies where you land."
+      },
+      "energy_shield": {
+        "name": "Energy Shield",
+        "desc": "Project a barrier worth 35% of your life and shake off stuns and slows."
+      },
+      "piston_jab": {
+        "name": "Piston Jab",
+        "desc": "A fast, narrow jab that briefly makes enemies Vulnerable. Generates Heat."
+      },
+      "furnace_cleave": {
+        "name": "Furnace Cleave",
+        "desc": "A wide superheated cleave that sets enemies on fire."
+      },
+      "coolant_flush": {
+        "name": "Coolant Flush",
+        "desc": "Vent 40 Heat into coolant: heal 18% of your life and gain a small barrier."
+      },
+      "magnetic_pull": {
+        "name": "Magnetic Pull",
+        "desc": "A magnetic burst that drags nearby enemies to you and stuns them briefly."
+      },
+      "heat_vent": {
+        "name": "Heat Vent",
+        "desc": "Release all stored Heat as a wave of fire. The more Heat, the more damage (requires 20 Heat)."
+      },
+      "orbital_strike": {
+        "name": "Orbital Strike",
+        "desc": "Call down an orbital strike at the cursor. After a short warning it deals massive damage, stuns and makes enemies Vulnerable."
+      }
+    },
+    "spectre": {
+      "quick_shot": {
+        "name": "Quick Shot",
+        "desc": "A fast shot at the cursor. Generates Focus."
+      },
+      "vibro_slash": {
+        "name": "Vibro Slash",
+        "desc": "A wide vibroblade slash that makes enemies Vulnerable. Generates Focus."
+      },
+      "piercing_shot": {
+        "name": "Piercing Shot",
+        "desc": "A heavy round that passes through every enemy in a line."
+      },
+      "pistol_barrage": {
+        "name": "Pistol Barrage",
+        "desc": "Fire a fan of five pistol rounds. Devastating up close."
+      },
+      "holo_decoy": {
+        "name": "Holo Decoy",
+        "desc": "Project a hologram that enemies nearby attack instead of you."
+      },
+      "smoke_cloak": {
+        "name": "Smoke Cloak",
+        "desc": "Vanish in smoke for 4 seconds: enemies lose track of you and your next hit is a guaranteed critical strike. Heals 10% of your life and removes stuns and slows."
+      },
+      "phase_shift": {
+        "name": "Phase Shift",
+        "desc": "Blink to the cursor, briefly untouchable."
+      },
+      "minefield": {
+        "name": "Minefield",
+        "desc": "Throw three mines that arm after a moment and explode when enemies step close, stunning them."
+      },
+      "cluster_grenade": {
+        "name": "Cluster Grenade",
+        "desc": "Throw a grenade that explodes, sets enemies on fire and scatters bomblets."
+      },
+      "death_mark": {
+        "name": "Death Mark",
+        "desc": "Mark every enemy in a wide area for 10 seconds. Marked enemies take 25% more damage and refund 15 Focus when they die."
+      }
+    },
+    "xenomant": {
+      "spore_dart": {
+        "name": "Spore Dart",
+        "desc": "Fire a poisoned spore dart. Generates Biomass."
+      },
+      "scalpel_slash": {
+        "name": "Scalpel Slash",
+        "desc": "A quick scalpel slash that heals you for 8% of the damage dealt. Generates Biomass."
+      },
+      "spore_burst": {
+        "name": "Spore Burst",
+        "desc": "Release a cloud of spores at the cursor that poisons enemies inside it for 5 seconds."
+      },
+      "parasite_link": {
+        "name": "Parasite Link",
+        "desc": "Latch onto the enemy nearest the cursor for 3 seconds, draining its life and healing you for 25% of the damage."
+      },
+      "chitin_armor": {
+        "name": "Chitin Armor",
+        "desc": "Harden your skin for 6 seconds: take 30% less damage, and melee attackers are hurt."
+      },
+      "spore_cocoon": {
+        "name": "Spore Cocoon",
+        "desc": "Wrap yourself in a fungal cocoon: a barrier of 25% of your life, heal 10% and remove stuns and slows."
+      },
+      "raise_corpse": {
+        "name": "Raise Corpse",
+        "desc": "Raise up to 2 corpses near the cursor as minions that fight for you (up to 6). Needs corpses."
+      },
+      "grasping_tendrils": {
+        "name": "Grasping Tendrils",
+        "desc": "Tendrils burst from the ground at the cursor, holding enemies in place for 2 seconds and poisoning them."
+      },
+      "corpse_explosion": {
+        "name": "Corpse Explosion",
+        "desc": "Detonate up to 3 corpses near the cursor in toxic blasts. Needs corpses."
+      },
+      "wrath_of_lumen": {
+        "name": "Wrath of Lumen",
+        "desc": "A colossal Lumen creature erupts at the cursor for 12 seconds. It draws enemies to itself and slams everything around it."
+      }
+    }
+  },
+  "enemies": {
+    "infected_colonist": "Ash Walker",
+    "security_drone": "Sentry Drone",
+    "spore_carrier": "Spore Carrier",
+    "bloater": "Bloater",
+    "spore_hound": "Spore Hound",
+    "sergeant": "Contaminated Sergeant",
+    "named": {
+      "lena": "Lena Reyes",
+      "rook": "Rook",
+      "hold_warden": "The Hold Warden",
+      "vos": "Sergeant Vos",
+      "brood_mother": "The Brood Mother",
+      "hale": "Commandant Hale",
+      "the_first": "The First",
+      "krell": "Foreman Krell",
+      "slag_heart": "The Slag Heart",
+      "pyre_warden": "The Pyre Warden",
+      "frozen_welder": "The Frozen Welder",
+      "brother_ash": "Brother Ash",
+      "vire": "High Priestess Vire",
+      "hask": "Deacon Hask",
+      "red": "Red"
+    },
+    "brood_mother": "Brood Mother",
+    "commandant_hale": "Commandant Hale",
+    "the_first": "The First",
+    "scorched_walker": "Scorched Walker",
+    "slag_hound": "Slag Hound",
+    "flame_drone": "Flame Drone",
+    "fire_bloater": "Fire Bloater",
+    "smelter": "Smelter",
+    "welder": "Welder",
+    "slagborn": "Slagborn",
+    "cargo_loader": "Cargo Loader",
+    "smelter_priest": "Smelter Priest",
+    "brother_ash": "Brother Ash",
+    "pyre_warden": "Pyre Warden",
+    "frozen_welder": "The Frozen Welder",
+    "vire": "High Priestess Vire",
+    "lumen_tentacle": "Lumen Tentacle"
+  },
+  "resources": {
+    "heat": "Heat",
+    "focus": "Focus",
+    "biomass": "Biomass"
+  },
+  "statuses": {
+    "burning": "Burning",
+    "poisoned": "Poisoned",
+    "chilled": "Chilled",
+    "frozen": "Frozen",
+    "stunned": "Stunned",
+    "vulnerable": "Vulnerable",
+    "barrier": "Barrier",
+    "marked": "Marked",
+    "stealth": "Stealthed",
+    "evasive": "Evasive",
+    "chitin": "Chitin",
+    "rooted": "Rooted",
+    "overcharge": "Overcharge",
+    "kinetic": "Kinetic",
+    "aegis": "Barrier Pylon",
+    "chainReaction": "Chain Reaction",
+    "magnet": "Magnet",
+    "overclock": "Overclock"
+  },
+  "items": {
+    "bases": {
+      "hydraulic_hammer": "Hydraulic Hammer",
+      "power_sword": "Power Sword",
+      "hydraulic_knuckles": "Hydraulic Knuckles",
+      "riot_shield": "Riot Shield",
+      "marksman_rifle": "Marksman Rifle",
+      "vibroblade": "Vibroblade",
+      "bio_focus": "Bio-Focus",
+      "injector_rig": "Injector Rig",
+      "combat_helm": "Combat Helm",
+      "plated_vest": "Plated Vest",
+      "servo_gauntlets": "Servo Gauntlets",
+      "armored_greaves": "Armored Greaves",
+      "mag_boots": "Mag Boots",
+      "signal_pendant": "Signal Pendant",
+      "conduit_ring": "Conduit Ring",
+      "crystal": "Crystal",
+      "twin_pistols": "Twin Pistols",
+      "scalpel_blade": "Scalpel Blade"
+    },
+    "types": {
+      "helm": "Helm",
+      "chest": "Chest Armor",
+      "gloves": "Gloves",
+      "pants": "Pants",
+      "boots": "Boots",
+      "amulet": "Amulet",
+      "ring": "Ring",
+      "weapon": "Weapon",
+      "offHand": "Off-Hand",
+      "crystal": "Crystal"
+    },
+    "slots": {
+      "helm": "Helm",
+      "chest": "Chest",
+      "gloves": "Gloves",
+      "pants": "Pants",
+      "boots": "Boots",
+      "amulet": "Amulet",
+      "ring1": "Ring",
+      "ring2": "Ring",
+      "mainHand": "Weapon",
+      "offHand": "Off-Hand"
+    },
+    "rarity": {
+      "common": "Common",
+      "magic": "Magic",
+      "rare": "Rare",
+      "legendary": "Legendary",
+      "unique": "Unique",
+      "mythic": "Mythic"
+    },
+    "crystals": {
+      "ember": "Ember Crystal",
+      "lumen": "Lumen Crystal",
+      "void": "Void Crystal"
+    },
+    "crystalTier": [
+      "Chipped",
+      "",
+      "Flawless"
+    ],
+    "crystalWhere": {
+      "weapon": "Weapon / Off-Hand",
+      "armor": "Armor",
+      "jewelry": "Jewelry"
+    },
+    "itemPower": "{power} Item Power",
+    "greater": "Greater affix",
+    "emptySocket": "Empty socket",
+    "requiresClass": "Requires {cls}",
+    "classes": {
+      "bastion": "Bastion",
+      "spectre": "Spectre",
+      "xenomant": "Xenomant"
+    },
+    "salvageFor": "Salvage: {gold} gold",
+    "equipped": "Equipped",
+    "compare": "Compared to equipped",
+    "hint": "Right-click: equip · Shift+click: salvage · Click a crystal, then an item: socket",
+    "damageEstimate": "Damage"
+  },
+  "stats": {
+    "strength": "Strength",
+    "dexterity": "Dexterity",
+    "intelligence": "Intelligence",
+    "willpower": "Willpower",
+    "allAttributes": "All Attributes",
+    "maxLife": "Maximum Life",
+    "armor": "Armor",
+    "resistAll": "All Resistances",
+    "resistHeat": "Heat Resistance",
+    "resistCold": "Cold Resistance",
+    "resistToxic": "Toxic Resistance",
+    "resistEnergy": "Energy Resistance",
+    "resistVoid": "Void Resistance",
+    "lifeOnKill": "Life on Kill",
+    "weaponDamage": "Weapon Damage",
+    "critChance": "Critical Strike Chance",
+    "critDamage": "Critical Strike Damage",
+    "attackSpeed": "Attack Speed",
+    "damage": "Damage",
+    "damageVsVulnerable": "Damage to Vulnerable",
+    "damageVsElite": "Damage to Elites",
+    "damageVsStunned": "Damage to Stunned",
+    "damageVsBurning": "Damage to Burning",
+    "meleeDamage": "Melee Damage",
+    "cooldownReduction": "Cooldown Reduction",
+    "resourceGen": "Resource Generation",
+    "moveSpeed": "Movement Speed",
+    "barrierBonus": "Barrier Strength",
+    "potionHealing": "Stim Pack Healing",
+    "damageReduction": "Damage Reduction"
+  },
+  "loot": {
+    "inventoryFull": "Inventory full",
+    "salvaged": "Salvaged for {gold} gold",
+    "cannot": {
+      "full": "Inventory full",
+      "class": "Your class cannot use this",
+      "notEquippable": "Cannot be equipped",
+      "noSocket": "No free socket",
+      "notCrystal": "Select a crystal first",
+      "empty": "Nothing there"
+    }
+  },
+  "ui": {
+    "inventory": "Inventory",
+    "character": "Character",
+    "gold": "{gold} gold",
+    "level": "Level {level}",
+    "levelUp": "Level {level}",
+    "skillPoint": "+1 skill point",
+    "xp": "{xp} / {next} XP",
+    "sections": {
+      "attributes": "Attributes",
+      "offense": "Offense",
+      "defense": "Defense",
+      "utility": "Utility"
+    },
+    "armorReduction": "Physical damage reduction",
+    "close": "Close"
+  },
+  "tree": {
+    "title": "Skills",
+    "points": "{points} skill points available",
+    "reset": "Reset ({gold} gold)",
+    "resetConfirm": "Refund all skill points for {gold} gold?",
+    "barHint": "Click an action bar slot, then a learned skill to assign it. Right-click a slot to clear it.",
+    "unlockAt": "unlocks at {points} points",
+    "damage": "Damage: {pct}% of weapon damage",
+    "perRank": "Each rank: +10% damage",
+    "chooseOne": "Choose one of the two modifiers.",
+    "onlyOneKey": "You can only have one Key Passive.",
+    "assignHint": "Select an action bar slot first to assign this skill.",
+    "branches": {
+      "basic": "Basic",
+      "core": "Core",
+      "defensive": "Defensive",
+      "tactical": "Tactical",
+      "mastery": "Mastery",
+      "ultimate": "Ultimate",
+      "key": "Key Passive"
+    },
+    "types": {
+      "skill": "Active skill",
+      "enhancement": "Enhancement",
+      "modifier": "Modifier",
+      "passive": "Passive",
+      "keyPassive": "Key Passive"
+    },
+    "cannot": {
+      "noPoints": "No skill points left",
+      "locked": "Branch locked: spend more points",
+      "maxed": "Already at max rank",
+      "requires": "Learn the previous node first",
+      "exclusive": "You already chose another option",
+      "gold": "Not enough gold"
+    },
+    "e": {
+      "hydraulic_strike": {
+        "name": "Enhanced Strike",
+        "desc": "Hydraulic Strike generates 4 more Heat."
+      },
+      "piston_jab": {
+        "name": "Enhanced Jab",
+        "desc": "Piston Jab reaches 20% further."
+      },
+      "seismic_shock": {
+        "name": "Enhanced Shock",
+        "desc": "Seismic Shock radius +15%."
+      },
+      "furnace_cleave": {
+        "name": "Enhanced Cleave",
+        "desc": "Furnace Cleave costs 6 less Heat."
+      },
+      "energy_shield": {
+        "name": "Enhanced Shield",
+        "desc": "Energy Shield barrier +20%."
+      },
+      "coolant_flush": {
+        "name": "Enhanced Flush",
+        "desc": "Coolant Flush cooldown −20%."
+      },
+      "rocket_leap": {
+        "name": "Enhanced Leap",
+        "desc": "Rocket Leap landing radius +20%."
+      },
+      "magnetic_pull": {
+        "name": "Enhanced Pull",
+        "desc": "Magnetic Pull radius +20%."
+      },
+      "heat_vent": {
+        "name": "Enhanced Vent",
+        "desc": "Heat Vent damage +20%."
+      },
+      "orbital_strike": {
+        "name": "Enhanced Uplink",
+        "desc": "Orbital Strike cooldown −20%."
+      },
+      "quick_shot": {
+        "name": "Enhanced Shot",
+        "desc": "Quick Shot generates 3 more Focus."
+      },
+      "vibro_slash": {
+        "name": "Enhanced Slash",
+        "desc": "Vibro Slash arc +30%."
+      },
+      "piercing_shot": {
+        "name": "Enhanced Piercing",
+        "desc": "Piercing Shot costs 5 less Focus."
+      },
+      "pistol_barrage": {
+        "name": "Enhanced Barrage",
+        "desc": "Pistol Barrage fires 2 more rounds."
+      },
+      "holo_decoy": {
+        "name": "Enhanced Decoy",
+        "desc": "Holo Decoy lasts 2 seconds longer."
+      },
+      "smoke_cloak": {
+        "name": "Enhanced Cloak",
+        "desc": "Smoke Cloak cooldown −20%."
+      },
+      "phase_shift": {
+        "name": "Enhanced Phase",
+        "desc": "Phase Shift range +30%."
+      },
+      "minefield": {
+        "name": "Enhanced Minefield",
+        "desc": "Minefield places one more mine."
+      },
+      "cluster_grenade": {
+        "name": "Enhanced Grenade",
+        "desc": "Cluster Grenade radius +20%."
+      },
+      "death_mark": {
+        "name": "Enhanced Mark",
+        "desc": "Death Mark cooldown −20%."
+      },
+      "spore_dart": {
+        "name": "Enhanced Dart",
+        "desc": "Spore Dart generates 2 more Biomass."
+      },
+      "scalpel_slash": {
+        "name": "Enhanced Scalpel",
+        "desc": "Scalpel Slash heals for 4% more of its damage."
+      },
+      "spore_burst": {
+        "name": "Enhanced Burst",
+        "desc": "Spore Burst radius +20%."
+      },
+      "parasite_link": {
+        "name": "Enhanced Link",
+        "desc": "Parasite Link costs 5 less Biomass."
+      },
+      "chitin_armor": {
+        "name": "Enhanced Chitin",
+        "desc": "Chitin Armor cooldown −20%."
+      },
+      "spore_cocoon": {
+        "name": "Enhanced Cocoon",
+        "desc": "Spore Cocoon barrier +20%."
+      },
+      "raise_corpse": {
+        "name": "Enhanced Raising",
+        "desc": "You can have one more minion."
+      },
+      "grasping_tendrils": {
+        "name": "Enhanced Tendrils",
+        "desc": "Grasping Tendrils radius +20%."
+      },
+      "corpse_explosion": {
+        "name": "Enhanced Explosion",
+        "desc": "Corpse Explosion radius +20%."
+      },
+      "wrath_of_lumen": {
+        "name": "Enhanced Wrath",
+        "desc": "Wrath of Lumen cooldown −20%."
+      }
+    },
+    "m": {
+      "hydraulic_strike": {
+        "searing": {
+          "name": "Searing Strike",
+          "desc": "Hydraulic Strike always sets enemies on fire."
+        },
+        "crushing": {
+          "name": "Crushing Strike",
+          "desc": "Hydraulic Strike deals +40% damage to Stunned and to Vulnerable enemies."
+        }
+      },
+      "piston_jab": {
+        "rapid": {
+          "name": "Rapid Jab",
+          "desc": "Piston Jab winds up 40% faster and generates 3 more Heat."
+        },
+        "breaching": {
+          "name": "Breaching Jab",
+          "desc": "Piston Jab deals x50% damage to Vulnerable enemies."
+        }
+      },
+      "seismic_shock": {
+        "pull": {
+          "name": "Seismic Pull",
+          "desc": "Seismic Shock pulls enemies in instead of pushing them away."
+        },
+        "rupture": {
+          "name": "Rupture",
+          "desc": "Seismic Shock leaves a burning fissure for 3 seconds."
+        }
+      },
+      "furnace_cleave": {
+        "wildfire": {
+          "name": "Wildfire",
+          "desc": "Furnace Cleave deals +50% damage to Burning enemies."
+        },
+        "molten": {
+          "name": "Molten Whirl",
+          "desc": "Furnace Cleave hits all around you, but deals 15% less damage."
+        }
+      },
+      "energy_shield": {
+        "reactive": {
+          "name": "Reactive Plating",
+          "desc": "While you have a barrier, deal +15% damage."
+        },
+        "restoring": {
+          "name": "Restoring Field",
+          "desc": "Energy Shield also heals 12% of your life."
+        }
+      },
+      "coolant_flush": {
+        "cryo": {
+          "name": "Cryo Flush",
+          "desc": "Coolant Flush barrier is doubled."
+        },
+        "overpressure": {
+          "name": "Overpressure",
+          "desc": "Coolant Flush heals 50% more."
+        }
+      },
+      "rocket_leap": {
+        "afterburner": {
+          "name": "Afterburner",
+          "desc": "Rocket Leap cooldown −30%."
+        },
+        "crater": {
+          "name": "Impact Crater",
+          "desc": "Rocket Leap leaves a burning crater for 4 seconds."
+        }
+      },
+      "magnetic_pull": {
+        "polarity": {
+          "name": "Polarity",
+          "desc": "Magnetic Pull makes enemies Vulnerable for 3 seconds."
+        },
+        "lock": {
+          "name": "Magnetic Lock",
+          "desc": "Magnetic Pull stuns for 1.4 seconds."
+        }
+      },
+      "heat_vent": {
+        "supernova": {
+          "name": "Supernova",
+          "desc": "Heat Vent radius +40%."
+        },
+        "controlled": {
+          "name": "Controlled Burn",
+          "desc": "Heat Vent cooldown −35%."
+        }
+      },
+      "orbital_strike": {
+        "precision": {
+          "name": "Precision Uplink",
+          "desc": "Orbital Strike deals 35% more damage."
+        },
+        "barrage": {
+          "name": "Saturation Barrage",
+          "desc": "Orbital Strike radius +50%."
+        }
+      },
+      "quick_shot": {
+        "rapid": {
+          "name": "Rapid Fire",
+          "desc": "Quick Shot aims 50% faster."
+        },
+        "ricochet": {
+          "name": "Ricochet",
+          "desc": "Quick Shot passes through 2 enemies."
+        }
+      },
+      "vibro_slash": {
+        "venom": {
+          "name": "Venom Edge",
+          "desc": "Vibro Slash poisons enemies."
+        },
+        "flurry": {
+          "name": "Flurry",
+          "desc": "Vibro Slash winds up 30% faster and deals +20% damage to Vulnerable enemies."
+        }
+      },
+      "piercing_shot": {
+        "deadshot": {
+          "name": "Deadshot",
+          "desc": "Piercing Shot deals +50% damage to Elites and +25% to Marked enemies."
+        },
+        "explosive": {
+          "name": "Explosive Round",
+          "desc": "Piercing Shot explodes on the first enemy it hits instead of piercing, dealing 10% more damage in an area."
+        }
+      },
+      "pistol_barrage": {
+        "focused": {
+          "name": "Focused Fire",
+          "desc": "Pistol Barrage spread −60% and range +40%."
+        },
+        "incendiary": {
+          "name": "Incendiary Rounds",
+          "desc": "Pistol Barrage sets enemies on fire."
+        }
+      },
+      "holo_decoy": {
+        "volatile": {
+          "name": "Volatile Hologram",
+          "desc": "Holo Decoy explodes when it ends or is destroyed."
+        },
+        "hardlight": {
+          "name": "Hardlight",
+          "desc": "Holo Decoy has twice the life and taunts from 50% farther away."
+        }
+      },
+      "smoke_cloak": {
+        "ambush": {
+          "name": "Ambush",
+          "desc": "Your attacks from stealth deal x60% damage."
+        },
+        "regroup": {
+          "name": "Regroup",
+          "desc": "Smoke Cloak heals 15% more of your life."
+        }
+      },
+      "phase_shift": {
+        "slipstream": {
+          "name": "Slipstream",
+          "desc": "Phase Shift cooldown −35%."
+        },
+        "vanish": {
+          "name": "Vanish",
+          "desc": "Phase Shift makes you stealthed for 1.5 seconds."
+        }
+      },
+      "minefield": {
+        "cluster": {
+          "name": "Cluster Charges",
+          "desc": "Mine explosion radius +40%."
+        },
+        "shrapnel": {
+          "name": "Shrapnel",
+          "desc": "Mines make enemies Vulnerable for 4 seconds."
+        }
+      },
+      "cluster_grenade": {
+        "napalm": {
+          "name": "Napalm",
+          "desc": "Cluster Grenade leaves burning ground for 4 seconds."
+        },
+        "concussion": {
+          "name": "Concussion",
+          "desc": "Cluster Grenade stuns for 1.2 seconds."
+        }
+      },
+      "death_mark": {
+        "wide_net": {
+          "name": "Wide Net",
+          "desc": "Death Mark radius +50%."
+        },
+        "kill_order": {
+          "name": "Kill Order",
+          "desc": "Death Mark deals triple damage, and you deal x10% damage to Marked enemies."
+        }
+      },
+      "spore_dart": {
+        "virulent": {
+          "name": "Virulent Dart",
+          "desc": "Spore Dart applies a second poison stack."
+        },
+        "splitting": {
+          "name": "Splitting Dart",
+          "desc": "Spore Dart fires three darts in a spread, each dealing 35% less damage."
+        }
+      },
+      "scalpel_slash": {
+        "butcher": {
+          "name": "Butcher",
+          "desc": "Scalpel Slash deals +40% damage to Poisoned enemies."
+        },
+        "harvester": {
+          "name": "Harvester",
+          "desc": "Scalpel Slash generates 4 more Biomass."
+        }
+      },
+      "spore_burst": {
+        "lingering": {
+          "name": "Lingering Spores",
+          "desc": "Spore Burst lasts 60% longer."
+        },
+        "caustic": {
+          "name": "Caustic Spores",
+          "desc": "Spore Burst poisons 30% harder and makes enemies Vulnerable on impact."
+        }
+      },
+      "parasite_link": {
+        "hydra": {
+          "name": "Hydra",
+          "desc": "Parasite Link latches onto 2 more enemies."
+        },
+        "leech": {
+          "name": "Leech",
+          "desc": "Parasite Link heals for twice as much."
+        }
+      },
+      "chitin_armor": {
+        "carapace": {
+          "name": "Carapace",
+          "desc": "Chitin Armor also grants a barrier of 15% of your life."
+        },
+        "regenerative": {
+          "name": "Regenerative Chitin",
+          "desc": "Chitin Armor heals 15% of your life."
+        }
+      },
+      "spore_cocoon": {
+        "nourishing": {
+          "name": "Nourishing Cocoon",
+          "desc": "Spore Cocoon heals 10% more."
+        },
+        "spore_shell": {
+          "name": "Spore Shell",
+          "desc": "Spore Cocoon releases a poison cloud around you."
+        }
+      },
+      "raise_corpse": {
+        "horde": {
+          "name": "Horde",
+          "desc": "Two more minions, and each cast raises one more corpse."
+        },
+        "ravenous": {
+          "name": "Ravenous Dead",
+          "desc": "Minions deal 40% more damage and have 40% more life."
+        }
+      },
+      "grasping_tendrils": {
+        "strangling": {
+          "name": "Strangling Grip",
+          "desc": "Grasping Tendrils deals 150% more damage."
+        },
+        "withering": {
+          "name": "Withering Grip",
+          "desc": "Grasping Tendrils makes enemies Vulnerable for 4 seconds."
+        }
+      },
+      "corpse_explosion": {
+        "chain": {
+          "name": "Chain Reaction",
+          "desc": "Corpse Explosion detonates 2 more corpses."
+        },
+        "plague_bomb": {
+          "name": "Plague Bomb",
+          "desc": "Each detonated corpse leaves a poison cloud."
+        }
+      },
+      "wrath_of_lumen": {
+        "colossus": {
+          "name": "Colossus",
+          "desc": "Wrath of Lumen has twice the life and taunts from 50% farther away."
+        },
+        "frenzy": {
+          "name": "Frenzy",
+          "desc": "Wrath of Lumen slams 35% more often."
+        }
+      }
+    },
+    "p": {
+      "hydraulic_power": {
+        "name": "Hydraulic Power",
+        "desc": "+4% damage per rank."
+      },
+      "forged_frame": {
+        "name": "Forged Frame",
+        "desc": "+2% damage reduction per rank."
+      },
+      "thermal_capacitor": {
+        "name": "Thermal Capacitor",
+        "desc": "+4% resource generation per rank."
+      },
+      "crushing_force": {
+        "name": "Crushing Force",
+        "desc": "+6% damage to Vulnerable enemies per rank."
+      },
+      "reinforced_plating": {
+        "name": "Reinforced Plating",
+        "desc": "+20 armor per rank."
+      },
+      "vital_systems": {
+        "name": "Vital Systems",
+        "desc": "+15 maximum life per rank."
+      },
+      "servo_actuators": {
+        "name": "Servo Actuators",
+        "desc": "+3% movement speed per rank."
+      },
+      "combat_stims": {
+        "name": "Combat Stims",
+        "desc": "+10% stim pack healing per rank."
+      },
+      "overclock": {
+        "name": "Overclock",
+        "desc": "+3% attack speed per rank."
+      },
+      "heat_tolerance": {
+        "name": "Heat Tolerance",
+        "desc": "You can stay at max Heat 0.5 seconds longer before overheating, per rank."
+      },
+      "killing_blow": {
+        "name": "Killing Blow",
+        "desc": "+8% damage to Elites per rank."
+      },
+      "steady_aim": {
+        "name": "Steady Aim",
+        "desc": "+2% critical strike chance per rank."
+      },
+      "marksmanship": {
+        "name": "Marksmanship",
+        "desc": "+4% damage per rank."
+      },
+      "precision": {
+        "name": "Precision",
+        "desc": "+10% critical strike damage per rank."
+      },
+      "exploit_weakness": {
+        "name": "Exploit Weakness",
+        "desc": "+6% damage to Vulnerable enemies per rank."
+      },
+      "kevlar_weave": {
+        "name": "Kevlar Weave",
+        "desc": "+15 armor per rank."
+      },
+      "survival_instinct": {
+        "name": "Survival Instinct",
+        "desc": "+12 maximum life per rank."
+      },
+      "quick_hands": {
+        "name": "Quick Hands",
+        "desc": "+3% cooldown reduction per rank."
+      },
+      "light_step": {
+        "name": "Light Step",
+        "desc": "+3% movement speed per rank."
+      },
+      "overwatch": {
+        "name": "Overwatch",
+        "desc": "+8% damage to Elites per rank."
+      },
+      "adrenaline": {
+        "name": "Adrenaline",
+        "desc": "+5% resource generation per rank."
+      },
+      "hunters_focus": {
+        "name": "Hunter's Focus",
+        "desc": "+2% critical strike chance per rank."
+      },
+      "lumen_affinity": {
+        "name": "Lumen Affinity",
+        "desc": "+4% damage per rank."
+      },
+      "cell_division": {
+        "name": "Cell Division",
+        "desc": "+12 maximum life per rank."
+      },
+      "toxicology": {
+        "name": "Toxicology",
+        "desc": "+6% damage to Poisoned enemies per rank."
+      },
+      "symbiosis": {
+        "name": "Symbiosis",
+        "desc": "+5% resource generation per rank."
+      },
+      "thick_hide": {
+        "name": "Thick Hide",
+        "desc": "+15 armor per rank."
+      },
+      "vital_spores": {
+        "name": "Vital Spores",
+        "desc": "+10% stim pack healing per rank."
+      },
+      "hive_link": {
+        "name": "Hive Link",
+        "desc": "Your minions deal +5% damage per rank."
+      },
+      "rapid_mutation": {
+        "name": "Rapid Mutation",
+        "desc": "+3% cooldown reduction per rank."
+      },
+      "necrotic_mastery": {
+        "name": "Necrotic Mastery",
+        "desc": "+8% damage to Elites per rank."
+      },
+      "adaptive_tissue": {
+        "name": "Adaptive Tissue",
+        "desc": "+2% damage reduction per rank."
+      },
+      "overgrowth": {
+        "name": "Overgrowth",
+        "desc": "+4% damage per rank."
+      }
+    },
+    "k": {
+      "reactor_core": {
+        "name": "Reactor Core",
+        "desc": "While Heat is at least 70%, deal x25% damage. You overheat 0.5 seconds sooner."
+      },
+      "bulwark_protocol": {
+        "name": "Bulwark Protocol",
+        "desc": "While you have a barrier, deal x20% damage. Barriers are 30% stronger."
+      },
+      "shockwave_engine": {
+        "name": "Shockwave Engine",
+        "desc": "Vulnerable enemies take x30% damage from you."
+      },
+      "deadeye": {
+        "name": "Deadeye",
+        "desc": "+10% critical strike chance, and your ranged attacks deal x20% damage."
+      },
+      "saboteur": {
+        "name": "Saboteur",
+        "desc": "Minefield and Cluster Grenade deal x40% damage. +10% cooldown reduction."
+      },
+      "ghost": {
+        "name": "Ghost",
+        "desc": "For 2.5 seconds after a dodge or Phase Shift you deal x35% damage. +8% movement speed."
+      },
+      "hive_mind": {
+        "name": "Hive Mind",
+        "desc": "Your minions deal x40% damage, and you can have 2 more."
+      },
+      "pandemic": {
+        "name": "Pandemic",
+        "desc": "Deal x30% damage to Poisoned enemies. Spore Burst lasts 50% longer."
+      },
+      "symbiote": {
+        "name": "Symbiote",
+        "desc": "Your melee attacks deal x25% damage, Scalpel Slash heals for 6% more, and you take 10% less damage."
+      }
+    }
+  },
+  "aspects": {
+    "fissure": {
+      "name": "Fissuring",
+      "desc": "Seismic Shock leaves a burning fissure that deals {value} of weapon damage per second for 3 seconds."
+    },
+    "furnace": {
+      "name": "Furnace",
+      "desc": "Hydraulic Strike and Piston Jab generate {value} more Heat."
+    },
+    "momentum": {
+      "name": "Momentum",
+      "desc": "Rocket Leap cooldown is {value} shorter."
+    },
+    "aegis": {
+      "name": "Aegis",
+      "desc": "Energy Shield barrier is {value} stronger."
+    },
+    "echo": {
+      "name": "Echoing",
+      "desc": "Seismic Shock has {value} larger radius and deals {value} more damage."
+    },
+    "molten_fists": {
+      "name": "Molten",
+      "desc": "Hydraulic Strike always sets enemies on fire, dealing {value} of weapon damage over 3 seconds."
+    },
+    "brutality": {
+      "name": "Brutal",
+      "desc": "Deal x{value} damage to Stunned enemies."
+    },
+    "bulwark": {
+      "name": "Bulwark",
+      "desc": "While you have a barrier, deal x{value} damage."
+    },
+    "wrecking_ball": {
+      "name": "Wrecking",
+      "desc": "Rocket Leap has {value} larger landing radius and deals {value} more landing damage."
+    },
+    "vulnerability_matrix": {
+      "name": "Exposing",
+      "desc": "Deal x{value} damage to Vulnerable enemies."
+    },
+    "heat_sink": {
+      "name": "Heat Sink",
+      "desc": "Heat Vent cooldown is {value} shorter."
+    },
+    "gravity_well": {
+      "name": "Gravitic",
+      "desc": "Magnetic Pull has {value} larger radius."
+    },
+    "orbital_uplink": {
+      "name": "Uplinked",
+      "desc": "Orbital Strike cooldown is {value} shorter."
+    },
+    "cinder_core": {
+      "name": "Cinder",
+      "desc": "Furnace Cleave costs {value} less Heat."
+    },
+    "lifeblood": {
+      "name": "Lifeblood",
+      "desc": "Restore {value} life whenever an enemy dies."
+    },
+    "unbroken": {
+      "name": "Unbroken",
+      "desc": "+{value} damage reduction."
+    },
+    "ricochet": {
+      "name": "Ricocheting",
+      "desc": "Quick Shot passes through {value} more enemies."
+    },
+    "marksman": {
+      "name": "Marksman's",
+      "desc": "Piercing Shot deals {value} more damage."
+    },
+    "bullet_storm": {
+      "name": "Storming",
+      "desc": "Pistol Barrage fires {value} more rounds."
+    },
+    "trapper": {
+      "name": "Trapper's",
+      "desc": "Minefield places {value} more mines."
+    },
+    "demolition": {
+      "name": "Demolishing",
+      "desc": "Cluster Grenade has {value} larger radius and deals {value} more damage."
+    },
+    "phantom": {
+      "name": "Phantom",
+      "desc": "Phase Shift cooldown is {value} shorter."
+    },
+    "ambusher": {
+      "name": "Ambusher's",
+      "desc": "Your attacks from stealth deal x{value} damage."
+    },
+    "predator": {
+      "name": "Predator's",
+      "desc": "Deal x{value} damage to Marked enemies."
+    },
+    "blade_dancer": {
+      "name": "Dancing",
+      "desc": "Vibro Slash deals {value} more damage and has a {value} wider arc."
+    },
+    "plague": {
+      "name": "Plaguebearer's",
+      "desc": "Spore Burst poisons {value} harder."
+    },
+    "swarm": {
+      "name": "Swarming",
+      "desc": "You can have {value} more minions."
+    },
+    "leech": {
+      "name": "Leeching",
+      "desc": "Scalpel Slash heals for {value} more of its damage."
+    },
+    "parasitic": {
+      "name": "Parasitic",
+      "desc": "Parasite Link latches onto {value} more enemies."
+    },
+    "detonation": {
+      "name": "Detonating",
+      "desc": "Corpse Explosion has {value} larger radius and deals {value} more damage."
+    },
+    "carapace": {
+      "name": "Carapaced",
+      "desc": "Chitin Armor cooldown is {value} shorter."
+    },
+    "hive": {
+      "name": "Hivemother's",
+      "desc": "Your minions deal x{value} damage."
+    },
+    "virulent": {
+      "name": "Virulent",
+      "desc": "Deal x{value} damage to Poisoned enemies."
+    },
+    "ancient_wrath": {
+      "name": "Ancient",
+      "desc": "Wrath of Lumen lasts {value} seconds longer."
+    }
+  },
+  "uniques": {
+    "governors_crucible": {
+      "name": "Governor's Crucible",
+      "effect": "Seismic Shock costs no Heat, but has a 3.5 second cooldown.",
+      "flavor": "The governor wore it to the very end. It held. He didn't."
+    },
+    "ashwalker_treads": {
+      "name": "Ashwalker Treads",
+      "effect": "Rocket Leap cooldown −60% and landing damage +60%, but it costs 25 Heat and generates none.",
+      "flavor": "Every step a small eruption."
+    },
+    "fist_of_kharos": {
+      "name": "Fist of Kharos",
+      "effect": "Hydraulic Strike becomes a full spin that hits all around you, with 20% less damage.",
+      "flavor": "Forged from the first drill bit that touched the Lumen."
+    },
+    "heart_of_lumen": {
+      "name": "Heart of Lumen",
+      "effect": "Deal x35% damage. Overheating no longer damages you.",
+      "flavor": "It beats. It is not yours."
+    },
+    "widowmaker": {
+      "name": "Widowmaker",
+      "effect": "Piercing Shot explodes on every enemy it passes through, but deals 30% less damage.",
+      "flavor": "Every bullet has a name. This one has a list."
+    },
+    "echo_holsters": {
+      "name": "Echo Holsters",
+      "effect": "Quick Shot fires three rounds in a spread, each dealing 40% less damage.",
+      "flavor": "Draw once. Hit thrice."
+    },
+    "mother_of_spores": {
+      "name": "Mother of Spores",
+      "effect": "Spore Dart bursts on impact, poisoning everything nearby and leaving a small spore cloud, but deals 20% less damage.",
+      "flavor": "She whispers. The spores listen."
+    },
+    "crown_of_the_hive": {
+      "name": "Crown of the Hive",
+      "effect": "You can have 3 more minions and Raise Corpse raises one more, but minions have 30% less life.",
+      "flavor": "Every crown needs subjects."
+    }
+  },
+  "select": {
+    "title": "Choose your character",
+    "new": "New character",
+    "corrupt": "Damaged save – create a new character",
+    "delete": "Delete character",
+    "deleteConfirm": "Delete {name} for good?",
+    "chooseClass": "Choose a class",
+    "namePlaceholder": "Name",
+    "create": "Begin",
+    "back": "Back",
+    "comingSoon": "Coming soon",
+    "resource": "Resource: {resource}",
+    "classes": {
+      "bastion": {
+        "tagline": "Heavy melee in a battered exoskeleton",
+        "desc": "A former security marine who stands in the middle of the fight. Bastion builds Heat by hitting and being hit, and spends it on crushing blows — but stay at max Heat too long and the suit overheats."
+      },
+      "spectre": {
+        "tagline": "Agile marksman and saboteur",
+        "desc": "A sniper and saboteur who fights with mobility, precision and traps. Focus refills on its own, and faster on critical hits and dodged attacks. Rifles, twin pistols and vibroblades."
+      },
+      "xenomant": {
+        "tagline": "Scientist who tamed the Lumen",
+        "desc": "A former biologist infected with Lumen who can command it. Biomass gathered from the dead raises servants and spreads spores. Forbidden power, with a price."
+      }
+    }
+  },
+  "zones": {
+    "cinderFlats": {
+      "name": "Cinder Flats",
+      "impactFields": "The Impact Fields",
+      "route7": "Route 7",
+      "ashValley": "Ash Valley",
+      "checkpointSierra": "Checkpoint Sierra",
+      "hub": {
+        "ember": "Outpost Ember",
+        "sierra": "Checkpoint Sierra (reclaimed)"
+      }
+    },
+    "teleporters": {
+      "tp": {
+        "ember": "Outpost Ember",
+        "impact": "Impact Fields",
+        "route7": "Route 7",
+        "valley": "Ash Valley",
+        "sierra": "Sierra Approach",
+        "maw": "The Maw",
+        "coolant": "The Coolant Works",
+        "rdGate": "Border Crossing",
+        "conveyor": "Conveyor Lines",
+        "foundry": "Foundry Road",
+        "stacks": "Smokestack Forest",
+        "cathedral": "Cathedral Steps",
+        "delta": "Pump Station Delta"
+      }
+    },
+    "refineryDistrict": {
+      "name": "The Refinery District",
+      "conveyorLines": "The Conveyor Lines",
+      "slagFields": "The Slag Fields",
+      "cathedral": "The Smelters' Cathedral",
+      "smokestackForest": "The Smokestack Forest",
+      "hub": {
+        "coolant": "The Coolant Works",
+        "delta": "Pump Station Delta (reclaimed)"
+      },
+      "foundryRoad": "Foundry Road"
+    }
+  },
+  "map": {
+    "title": "Map",
+    "discovered": "Teleporter discovered: {name}",
+    "travel": "Click a discovered teleporter to travel.",
+    "explored": "{pct}% explored",
+    "safe": "Safe zone",
+    "enterHub": "Entering {name}",
+    "leaveHub": "Leaving {name}",
+    "noCombat": "You can't fight here",
+    "teleporting": "Teleporting to {name}…",
+    "hint": "{map} map"
+  },
+  "interact": {
+    "prompt": "{key} {action}",
+    "actions": {
+      "chest": "Open Supply Crate",
+      "lockedChest": "Open Locked Chest",
+      "keycard": "Take Keycard",
+      "pylon": "Activate Stim Pylon",
+      "relic": "Claim Echo Relic",
+      "lore": "Read Log",
+      "signalTower": "Activate Signal Tower",
+      "teleporter": "Open Map",
+      "npc": "Talk",
+      "questObject": "Examine",
+      "stash": "Open Stash",
+      "dungeon": "Enter",
+      "bunker": "Enter Bunker",
+      "portal": "Leave",
+      "generator": "Start Generator",
+      "instanceKey": "Take Keycard",
+      "cache": "Open Cache"
+    },
+    "needKeycard": "Locked. A keycard should be lying somewhere nearby.",
+    "keycard": "Keycard taken. A locked chest is close by.",
+    "lockedChest": "The keycard fits. The chest opens.",
+    "signalTower": "Signal tower online: the surrounding area is revealed on the map.",
+    "relic": "Echo Relic: {bonus} for all your characters",
+    "pylonBanner": "{name}",
+    "pylonToast": "{name}: {desc}",
+    "close": "Close",
+    "loreXp": "+{xp} XP"
+  },
+  "pylons": {
+    "overcharge": {
+      "name": "Overcharge",
+      "desc": "+50% damage for 60 seconds"
+    },
+    "kinetic": {
+      "name": "Kinetic",
+      "desc": "+40% attack and movement speed for 60 seconds"
+    },
+    "barrier": {
+      "name": "Barrier",
+      "desc": "absorbs all damage for 10 seconds"
+    },
+    "chainReaction": {
+      "name": "Chain Reaction",
+      "desc": "enemies explode when they die, for 60 seconds"
+    },
+    "magnet": {
+      "name": "Magnet",
+      "desc": "double experience from kills for 60 seconds"
+    },
+    "overclock": {
+      "name": "Overclock",
+      "desc": "skills have no cooldown for 8 seconds"
+    }
+  },
+  "relics": {
+    "maxLife": "+8 maximum life",
+    "damage": "+2% damage",
+    "armor": "+12 armor",
+    "moveSpeed": "+2% movement speed",
+    "resourceGen": "+3% resource generation"
+  },
+  "lore": {
+    "cf": {
+      "0": {
+        "title": "Escape pod flight recorder",
+        "body": "Pod 3 of the Halcyon relay. Distress call received from Kharos IV, Governor's seal attached. Atmospheric entry nominal. Correction: entry not nominal. Debris field over the landing zone. Brace. Brace. Brace."
+      },
+      "1": {
+        "title": "Scrawled on a lander hatch",
+        "body": "WE WAITED THREE DAYS FOR THE EVAC SHUTTLE. IT NEVER CAME. GONE EAST TO THE FUEL STATION. IF YOU CAN READ THIS, DON'T DRINK THE WATER FROM THE CRATERS. – T."
+      },
+      "2": {
+        "title": "Dr. Ines Okafor – personal log 1",
+        "body": "The crystals in the deep core samples aren't inert. Under the scope they move, slowly, toward heat. I filed a report with the Governor's office. They thanked me for my diligence and asked me to keep the samples sealed."
+      },
+      "3": {
+        "title": "Convoy driver's data pad",
+        "body": "Route 7 is closed at the checkpoint. Soldiers say there's a quarantine. Nobody says what for. We've been idling for nine hours and the ash is getting into the filters. Marta keeps coughing. She says it's just the ash."
+      },
+      "4": {
+        "title": "Outpost Ember notice board",
+        "body": "RULES OF EMBER: 1. Nobody sleeps outside the ring. 2. Anyone with green in their eyes leaves. No arguments. 3. The cook decides the rations. 4. Keep the generator running. The light keeps them away. Mostly."
+      },
+      "5": {
+        "title": "Dr. Ines Okafor – personal log 2",
+        "body": "Second report ignored. Three drill crew from Shaft 9 are in the infirmary with a fever and green veins under their fingernails. The Governor says the drills keep running. Quotas from the Consortium. I said people will die. He said people already are."
+      },
+      "6": {
+        "title": "Mining foreman's audio log",
+        "body": "Shift change. The dogs won't go into the lower tunnels anymore. Brix bit a handler today, that dog has never bitten anyone. Its gums were glowing. I put it down myself. Had to use the whole clip."
+      },
+      "7": {
+        "title": "Dr. Ines Okafor – personal log 3",
+        "body": "I've named it Lumen, for the light. It isn't a disease. It is a network. Every infected host is a node, and the nodes talk to each other. Whatever is at the bottom of the mine is listening to all of them."
+      },
+      "8": {
+        "title": "Freighter Meridian – bridge log",
+        "body": "Meridian to Kharos traffic: we're taking on refugees, three hundred, no room for more. Spore contamination detected in cargo bay two. Sealing bulkheads. Engines unresponsive. Going down near the elevator foundation. Tell my daughter—"
+      },
+      "9": {
+        "title": "Dr. Ines Okafor – personal log 4",
+        "body": "Patient zero was Elias Brandt, the first colonist to touch an exposed vein in Shaft 1. He didn't die. They moved him to a sealed pit north of the checkpoint and stopped feeding him. Something down there is still growing."
+      },
+      "10": {
+        "title": "Checkpoint Sierra standing orders",
+        "body": "By order of Governor Kade: no civilian traffic past Sierra. Anyone showing signs of infection is to be detained, not treated. Weapons free on non-compliant persons. Drill operations are to continue uninterrupted. – Commandant R. Hale"
+      },
+      "11": {
+        "title": "Dr. Ines Okafor – personal log 5",
+        "body": "They're coming for my notes. If someone finds this: the Governor knew. He had my reports a full month before the first evacuation order, and he kept the drills running. The mine isn't a mine anymore. It's a door. Don't let them open it wider."
+      }
+    },
+    "rd": {
+      "0": {
+        "title": "Border checkpoint log",
+        "body": "Day 41. The tankers stopped coming from the Flats a week ago. The refinery still burns, but nobody answers on the yard channel. If you are reading this, the barrier is up for a reason. Turn back."
+      },
+      "1": {
+        "title": "Shipping order, Governor's seal",
+        "body": "PRIORITY ONE. Rail yard 3 to load sealed containers K-7 through K-19 for transfer below. No manifest. No inspection. Crew to be rotated off-site on completion. — by order of Governor Kade."
+      },
+      "2": {
+        "title": "Coolant Works duty roster",
+        "body": "Pumps two and four running hot again. Brenner says the intake is clogged with that green growth. Logged it three times. Nobody upstairs reads these. I'll fix it myself after shift."
+      },
+      "3": {
+        "title": "Note pinned to a pump",
+        "body": "DO NOT open valve 6. Whatever comes out of the slag line is not coolant anymore. — M."
+      },
+      "4": {
+        "title": "Delta station intercom recording",
+        "body": "...holding the pump room. They came in white robes, singing. They burned Hollis because he coughed. They say the fire makes us clean. We are not opening the door."
+      },
+      "5": {
+        "title": "Belt foreman's tally board",
+        "body": "Line 3 jammed again — 4 hrs lost. Line 5 running backwards since Tuesday, nobody knows why. Line 1 carried something off into the dark last night. Not ore. It was still moving."
+      },
+      "6": {
+        "title": "Smelter sermon, scratched into steel",
+        "body": "The Lumen is rot. The rot spreads through the flesh. Only the furnace makes the flesh pure. Walk into the light, brothers, and leave the green behind."
+      },
+      "7": {
+        "title": "Child's drawing in a stack",
+        "body": "A crayon picture of tall chimneys and a woman in a long red robe with a halo of fire. Underneath, in careful letters: MOTHER VIRE KEEPS US WARM."
+      },
+      "8": {
+        "title": "Refinery shift log",
+        "body": "Final shift entry. Output nominal. Management requested we keep the furnaces lit no matter what happens outside. I asked what that meant. They told me to log my hours and go home. Home is gone."
+      },
+      "9": {
+        "title": "Crane operator's diary",
+        "body": "From up here you can see the whole district. Today I watched the white robes push a man into the slag river. They cheered. I am staying in the cab. I have water for six days."
+      },
+      "10": {
+        "title": "Rail yard dispatch",
+        "body": "Containers K-7 to K-19 dispatched south to the Vaults via the old service line. Escort: Governor's personal guard. Radio silence ordered for the whole run."
+      },
+      "11": {
+        "title": "Vire's private journal",
+        "body": "It speaks to me in the heat. It does not want to be burned — it wants to be carried. My flock thinks I purify them. I only choose who goes in first. The green and the flame are the same light."
+      }
+    }
+  },
+  "npcs": {
+    "benny": {
+      "name": "Benny Rusk",
+      "title": "Cook · Trader",
+      "greeting": "Sit down before you fall down. There's soup. Don't ask what's in it.",
+      "service": "Trade"
+    },
+    "hekla": {
+      "name": "Hekla Strand",
+      "title": "Former miner · Blacksmith",
+      "greeting": "If it's broken, I can fix it. If it's rotten, I can't. Which is it?",
+      "service": "Blacksmith"
+    },
+    "pell": {
+      "name": "Pell Varga",
+      "title": "Data engineer · Technician",
+      "greeting": "Careful with the cables. Half the outpost runs through this desk.",
+      "service": "Aspects"
+    },
+    "tomas": {
+      "name": "Tomas Reyes",
+      "title": "Survivor",
+      "greeting": "Have you seen a girl out there? Sixteen. Red jacket. Her name is Lena."
+    },
+    "danner": {
+      "name": "Pvt. Danner",
+      "title": "Deserter",
+      "greeting": "Don't shoot. Please. I'm not one of them. Not yet."
+    },
+    "mara": {
+      "name": "Mara Kowal",
+      "title": "Pump engineer · Technician",
+      "greeting": "Mind the pipes. If one of them bursts we all learn what minus forty feels like.",
+      "service": "Aspects"
+    },
+    "gus": {
+      "name": "Gus Abara",
+      "title": "Quartermaster · Trader",
+      "greeting": "Everything here was salvaged, bartered or stolen. Prices reflect all three.",
+      "service": "Trade"
+    },
+    "ines": {
+      "name": "Ines Varro",
+      "title": "Machinist · Blacksmith",
+      "greeting": "Put it on the bench. If it was made in a refinery, I can make it better.",
+      "service": "Blacksmith"
+    },
+    "tobin": {
+      "name": "Tobin",
+      "title": "Smelter defector",
+      "greeting": "I wore the robe for two years. I can tell you what they believe. I can't tell you why I believed it."
+    },
+    "osei": {
+      "name": "Kofi Osei",
+      "title": "Delta station engineer",
+      "greeting": "Three weeks locked in the pump room. The cooling's ours again. I owe you more than a thank-you."
+    },
+    "rhee": {
+      "name": "Rhee",
+      "title": "Crane operator",
+      "greeting": "Are they gone? Tell me they're gone. I've been up in that cab for nine days."
+    },
+    "lenn": {
+      "name": "Brother Lenn",
+      "title": "Smelter preacher",
+      "greeting": "You've come to judge me. Good. Somebody should."
+    }
+  },
+  "quests": {
+    "mq": {
+      "wake_up": {
+        "title": "Wake Up",
+        "summary": "The pod came down hard in the Impact Fields. Get out of the crater and find a way forward.",
+        "steps": {
+          "0": "Climb out of the crater and reach the road",
+          "1": "Kill Ash Walkers ({n}/{count})",
+          "2": "Activate the teleporter at the edge of the Impact Fields"
+        },
+        "done": "The teleporter hums awake. Somewhere east, a light is burning."
+      },
+      "signal": {
+        "title": "Signal in the Ash",
+        "summary": "A light burns to the east along Route 7. Someone kept a fire going.",
+        "steps": {
+          "0": "Follow Route 7 to the light",
+          "1": "Talk to Benny Rusk"
+        },
+        "talk1": "You came down in that pod? Then you're the answer to the Governor's distress call. Funny. Nobody here sent it.\nThis is Outpost Ember. A fuel station, nine survivors, and a generator that keeps the dark at arm's length.\nRest. Then make yourself useful. Everyone here does.",
+        "done": "Outpost Ember. Small, cold, alive."
+      },
+      "fuel": {
+        "title": "Fuel for the Living",
+        "summary": "The generator is running dry. Without light, Ember falls in a night.",
+        "steps": {
+          "0": "Talk to Hekla Strand",
+          "1": "Find the stranded convoy on Route 7",
+          "2": "Clear the infected around the convoy ({n}/{count})",
+          "3": "Recover fuel canisters ({n}/{count})",
+          "4": "Bring the fuel to Hekla"
+        },
+        "offer": "The generator's got two days of fuel. Maybe three if we sit in the dark.\nA convoy got stuck on Route 7 when the quarantine started. Tankers full of it.\nTalk to Hekla. She knows what we need and how to carry it.",
+        "talk0": "Benny sent you? Good. My hands are better at fixing than fighting these days.\nThe convoy's east on Route 7, past the overpass. It'll be crawling. Bring me three canisters, sealed.",
+        "talk4": "Sealed and full. That's three more weeks of light.\nYou fight like someone who's done it before. Don't tell me where. Pell wants a word, by the way. Something on the radio.",
+        "done": "The generator roars back to life. For now, Ember stays lit."
+      },
+      "orders": {
+        "title": "The Governor's Orders",
+        "summary": "Pell has decrypted traffic from Checkpoint Sierra. The soldiers there were following orders long after they stopped being human.",
+        "steps": {
+          "0": "Reach the approach to Checkpoint Sierra",
+          "1": "Retake Checkpoint Sierra",
+          "2": "Return to Pell"
+        },
+        "offer": "I've been listening to the military band. Checkpoint Sierra is still broadcasting. Same orders, every hour, signed by Governor Kade.\nNo civilian traffic. Detain the infected. Keep the drills running.\nWhoever's still there isn't taking orders from anyone alive. Take the checkpoint back and we get the archive. Then we know what he knew.",
+        "talk2": "Hale. Commandant Hale. I went to school with his son.\nThe archive's intact. The orders are real. Kade knew about the infection a month before the first evacuation call, and he kept the drills going.\nThere's more in the Meridian's flight data. If the black box survived, it'll show us what he was shipping.",
+        "done": "The checkpoint is quiet. The archive is not."
+      },
+      "black_box": {
+        "title": "Black Box",
+        "summary": "The freighter Meridian went down near the elevator foundation. Its black box may show what the Governor was shipping out.",
+        "steps": {
+          "0": "Reach the wreck of the Meridian",
+          "1": "Recover the black box from Meridian's Hold",
+          "2": "Bring the black box to Pell"
+        },
+        "offer": "The Meridian was the last ship off the surface. It never made orbit.\nIts black box logs cargo manifests. If Kade was moving something out of the mine, it's in there.\nThe hold has no power. Get the generators running and bring me that box.",
+        "talk2": "Cargo bay two: one sealed container, Consortium priority, origin Shaft 1. No contents listed.\nShaft 1 is where it started. Where they put the first one. Elias Brandt.\nThey didn't kill him. They sealed him in a pit north of the checkpoint. Locals call it the Maw. Whatever's growing there... it's what they were trying to ship.",
+        "done": "The box goes quiet. Its last word was a destination: the Maw."
+      },
+      "the_first": {
+        "title": "The First",
+        "summary": "Patient zero still lives in the Maw. Everything the infection knows, it learned from him.",
+        "steps": {
+          "0": "Reach the Maw",
+          "1": "Defeat The First",
+          "2": "Tell Benny it is done"
+        },
+        "offer": "Every infected thing out there moves like it's listening to something. Okafor called it a network.\nIf the first node goes dark, maybe the rest go deaf. Maybe not.\nIt's the only idea we've got. Go to the Maw.",
+        "talk2": "You're back. That means it's dead. Or you are, and this is the soup talking.\nPell read me the rest of the logs. Kade knew. He kept the drills running because the Consortium paid by the ton, and the dead don't file complaints.\nThe refinery's still burning out east. If he's anywhere, he's there. Eat first.",
+        "done": "The Maw is silent. The refinery fire still lights the horizon."
+      },
+      "burning_road": {
+        "title": "The Burning Road",
+        "summary": "The First is dead, but Kade's trail leads on. Route 7 continues past the Maw toward the refinery glow on the horizon.",
+        "steps": {
+          "0": "Follow Route 7 past the Maw to the border crossing",
+          "1": "Activate the teleporter at the Border Crossing",
+          "2": "Find the survivors at the Coolant Works",
+          "3": "Talk to Mara Kowal"
+        },
+        "talk3": "You walked here from the Flats? Through the Smelters' country? Either you're lucky or they didn't notice you.\nI'm Mara. This is the Coolant Works. We keep the pumps running so the district doesn't cook itself. Mostly.\nPull up a crate. The tea's lukewarm, which is the warmest thing we have.",
+        "done": "The Coolant Works. Cold steel, warm people."
+      },
+      "cold_comfort": {
+        "title": "Cold Comfort",
+        "summary": "The Coolant Works' outer pumps have stalled. Without them, the vents around the yard blow fire instead of steam.",
+        "steps": {
+          "0": "Reopen the coolant valves around the yard ({n}/{count})",
+          "1": "Drive off the scavengers drawn by the noise ({n}/{count})",
+          "2": "Report to Mara"
+        },
+        "offer": "Three valves on the outer ring stalled when the last pressure spike hit. Until they're open, the vents out there blow fire.\nWatch the ground. When a grate starts glowing, step off it. Count to two. Then go.\nTurning them will make noise. Noise brings company.",
+        "talk2": "Steam's back on the outer ring. Hear that hiss? That's the sound of us not dying this week.\nYou move like you've been doing this all your life. Tobin wants to talk to you. He used to be one of them.",
+        "done": "The vents breathe steam again."
+      },
+      "faithful": {
+        "title": "The Faithful",
+        "summary": "Tobin wore the Smelters' robe. He says they burn the infected — and sometimes the healthy — at a shrine in the Smokestack Forest.",
+        "steps": {
+          "0": "Talk to Tobin",
+          "1": "Find the Smelters' shrine in the Smokestack Forest",
+          "2": "Kill Deacon Hask",
+          "3": "Read the sermon at the shrine",
+          "4": "Return to Tobin"
+        },
+        "offer": "Tobin came to us six weeks ago. Half-starved, robe still smoking. He knows things about the Smelters nobody else does.\nTalk to him. Then decide for yourself whether he's worth trusting.",
+        "talk0": "They call it purification. You walk the sick into the furnace and the Lumen burns with them. Clean.\nExcept the deacons choose who is sick. And lately they choose anyone who argues.\nThere's a shrine in the stacks where Deacon Hask holds the choosing. Stop him. Read what he preaches. Then you'll understand why I ran.",
+        "talk4": "\"The green and the flame are the same light.\" That's not what they taught us. That's... that's what Vire says in private.\nShe's not burning the Lumen out. She's feeding it.\nIf she holds Pump Station Delta, she controls the cooling for the whole district. We have to take it back.",
+        "done": "The shrine's fire is out. The question it raised is not."
+      },
+      "delta": {
+        "title": "Delta",
+        "summary": "Pump Station Delta controls the district's cooling. The Smelters hold it — and three technicians are still locked inside.",
+        "steps": {
+          "0": "Reach the approach to Pump Station Delta",
+          "1": "Reclaim Pump Station Delta",
+          "2": "Talk to Kofi Osei at the station"
+        },
+        "offer": "Delta's the heart of the cooling network. The Smelters took it a month ago, but there are technicians sealed in the pump room. They're still sending heartbeats on the maintenance band.\nGet in. Keep them alive while they unlock the systems. Brother Ash runs the garrison. He won't let it go quietly.",
+        "talk2": "Ash is dead? Then the pumps answer to us.\nKofi Osei. I ran this station before the robes came. Delta's open to anyone who needs it now — there's a teleporter in the yard.\nAsh kept a ledger. Names of the chosen, and where they were taken. The Cathedral Crypt. There may still be people alive down there.",
+        "done": "Pump Station Delta runs cold and clean."
+      },
+      "ashes": {
+        "title": "Ashes of the Faithful",
+        "summary": "Brother Ash's ledger names the Cathedral Crypt, where the Smelters keep the chosen until the pyres are lit.",
+        "steps": {
+          "0": "Reach the Cathedral Crypt",
+          "1": "Clear the Cathedral Crypt",
+          "2": "Tell Tobin what you found"
+        },
+        "offer": "The ledger lists forty names this month. Taken to the crypt under the cathedral. The pyres are lit at dawn and at dusk.\nI can't promise anyone's left. But if they are, they won't be for long.",
+        "talk2": "You got some of them out. Some is more than anyone got before.\nThe Warden said Vire would 'carry them to the deep'. Not burn — carry. She's been sending the chosen somewhere.\nIt ends at the cathedral. It has to.",
+        "done": "The crypt's pyres are cold."
+      },
+      "vire": {
+        "title": "Vire",
+        "summary": "High Priestess Vire waits in the Smelters' Cathedral. Whatever she is now, the district will burn until she is stopped.",
+        "steps": {
+          "0": "Reach the Cathedral Steps",
+          "1": "Defeat High Priestess Vire",
+          "2": "Return to Mara"
+        },
+        "offer": "Everyone she touched is either ash or gone. Vire is the reason.\nThe cathedral was the refinery's control hall before she put windows of fire in it. Get in, end it.\nAnd if you see the rail records — Kade shipped something out of here before the end. I want to know what.",
+        "talk2": "It's over? Then for the first time in a year, the district can cool down.\nHer journal... she wasn't the first. Kade's last shipment went south on the old service line. Down to the Hydroponic Vaults.\nWhatever he was carrying, it's still down there. And so is he, maybe.",
+        "done": "The cathedral's windows go dark. The trail leads down."
+      }
+    },
+    "sq": {
+      "daughter": {
+        "title": "A Daughter Lost",
+        "summary": "Tomas Reyes lost his daughter Lena in Ash Valley when the storms began.",
+        "steps": {
+          "0": "Search Ash Valley where Lena was last seen",
+          "1": "Find Lena",
+          "2": "Take what she carried",
+          "3": "Return to Tomas"
+        },
+        "offer": "She went out for water. Ash Valley. The storm came in and she didn't come back.\nThat was eleven days ago. I know what that means. I'm asking anyway.\nPlease. Just... find out.",
+        "talk3": "That's her locket. Her mother's picture.\nWas she... was it quick? No. Don't answer. Thank you for not lying to me.\nI'll put it with her mother's things. Leave me a while.",
+        "done": "Some answers are only kindness because the questions were worse."
+      },
+      "logs": {
+        "title": "The Scientist's Logs",
+        "summary": "Dr. Ines Okafor warned the Governor months before the fall. Her logs are scattered across Cinder Flats.",
+        "steps": {
+          "0": "Find Dr. Okafor's logs ({n}/{count})",
+          "1": "Bring the logs to Pell"
+        },
+        "talk1": "Okafor. She used to come in for coffee and leave her samples on my desk. I complained.\nShe saw all of it coming, and they buried her reports. I'll copy these to every channel we still have.\nShe left something with me before she disappeared. Said to give it to whoever finished reading. Here.",
+        "done": "Dr. Okafor's warnings are finally heard. Too late, but heard."
+      },
+      "water": {
+        "title": "Water for Ember",
+        "summary": "A water tanker sits abandoned on Route 7, half full. Ember is rationing every cup.",
+        "steps": {
+          "0": "Find the water tanker on Route 7",
+          "1": "Escort the tanker to Outpost Ember",
+          "2": "Talk to Benny"
+        },
+        "offer": "There's a tanker on Route 7, west of the overpass. Half full, last I saw it.\nIt still drives. Barely. Walk it back here and keep the infected off it.\nIt only moves if somebody's with it. The autopilot's scared of the dark too.",
+        "talk2": "Clean water. Well. Cleaner water.\nThat's soup for a month. And tea, if Hekla stops hoarding the leaves.",
+        "done": "Ember drinks tonight.",
+        "escortName": "Water Tanker"
+      },
+      "spices": {
+        "title": "Cook's Spices",
+        "summary": "Benny swears the glands of Spore Carriers taste like pepper, if you boil them long enough.",
+        "steps": {
+          "0": "Harvest glands from Spore Carriers ({n}/{count})",
+          "1": "Bring the glands to Benny"
+        },
+        "offer": "Everything tastes like ash. Everything.\nThe Spore Carriers... the glands on their backs. Boiled for six hours, they taste like black pepper. Don't look at me like that.\nBring me three. People need a reason to come to dinner.",
+        "talk1": "Perfect. Disgusting. Perfect.\nTonight nobody's eating ash. Tonight it's pepper and ash.",
+        "done": "For one evening, Ember eats something that tastes like home."
+      },
+      "old_dog": {
+        "title": "Old Dog",
+        "summary": "Hekla had a mining dog named Rook. It ran when the tunnels went dark.",
+        "steps": {
+          "0": "Search the old kennels in the Impact Fields",
+          "1": "Find Rook",
+          "2": "Take Rook's collar",
+          "3": "Return to Hekla"
+        },
+        "offer": "I had a dog. Rook. Best tunnel dog in Shaft 4, he could smell gas before the sensors.\nHe ran when it started. Somebody saw a hound like him by the old kennels in the Impact Fields. Glowing.\nIf it's him... don't let him stay like that. Bring me his collar.",
+        "talk3": "That's his. I stamped the tag myself.\nHe'd have hated being one of them. Thank you. I mean it.\nGo on. I'm fine. I've got work.",
+        "done": "Rook's collar hangs on a nail above Hekla's anvil."
+      },
+      "radio": {
+        "title": "Radio Silence",
+        "summary": "Pell needs three relay masts repaired to hear the rest of the planet.",
+        "steps": {
+          "0": "Reset the relay terminals ({n}/{count})",
+          "1": "Return to Pell"
+        },
+        "offer": "Three relay masts around Route 7 went dark in the first week.\nGet them running and I can hear the whole basin. Survivors. Soldiers. Whatever's left.\nThe terminals just need a reset. Power cycle. Hit them if you have to.",
+        "talk1": "I've got signal. Static mostly. And... a woman counting numbers in the refinery band. Over and over.\nI'll keep listening. Thank you. It's less quiet now.",
+        "done": "The radio crackles with voices again, few and far between."
+      },
+      "rations": {
+        "title": "Rations Run",
+        "summary": "The convoys left supply crates all along Route 7.",
+        "steps": {
+          "0": "Open supply crates in the wild ({n}/{count})",
+          "1": "Talk to Benny"
+        },
+        "offer": "The convoys left crates up and down Route 7. Ration packs, med gel, whatever.\nCrack open three of them and bring me back word of what's out there. Keep whatever you find.",
+        "talk1": "Good. The road still feeds us, then. For now.",
+        "done": "The road still has something left to give."
+      },
+      "deserter": {
+        "title": "The Deserter",
+        "summary": "A soldier fled Checkpoint Sierra before it fell. Hekla heard he hides near the southern bunker.",
+        "steps": {
+          "0": "Find the deserter near the southern bunker",
+          "1": "Decide what to do with Pvt. Danner"
+        },
+        "offer": "There's a soldier hiding near the bunker south of the road. Deserted from Sierra before it went bad.\nSome here want him hanged for what the soldiers did. Some want his rifle.\nFind him. What happens after is your call.",
+        "done": "Pvt. Danner made his choice. So did you.",
+        "choice1": {
+          "prompt": "I ran when they started shooting civilians. I'm not proud of it. I'm not sorry either.\nSend me to Ember and I'll pull my weight. Or take the rifle and leave me. Your call.",
+          "spare": "Go to Ember. Earn your place.",
+          "rifle": "Leave the rifle. Then go."
+        },
+        "result": {
+          "spare": "Danner heads toward the light of Ember, rifle slung, head down.",
+          "rifle": "Danner leaves the rifle in the ash and walks into the dark without looking back."
+        }
+      },
+      "lights": {
+        "title": "Lights Out",
+        "summary": "The beacons on the Sierra road went out. Without them, nobody finds their way back at night.",
+        "steps": {
+          "0": "Light the road beacons ({n}/{count})",
+          "1": "Return to Hekla"
+        },
+        "offer": "The road beacons toward Sierra are dark. Four of them.\nThey're on a separate circuit, so they just need the switch thrown. Light them and people can find Ember after dark again.",
+        "talk1": "I can see them from the roof. Four little stars on the road.\nSomebody's going to make it home tonight because of that.",
+        "done": "Four beacons burn on the Sierra road."
+      },
+      "letter": {
+        "title": "Last Letter",
+        "summary": "A body in Ash Valley clutches a letter addressed to Outpost Ember.",
+        "steps": {
+          "0": "Deliver the letter to Benny"
+        },
+        "talk0": "This is my brother's hand. Martin.\nHe says he's sorry about the restaurant. That he's going to walk to Ember. That I should keep a bowl warm.\nI kept a bowl warm. Eleven days. Thank you for bringing him the rest of the way.",
+        "done": "Benny keeps the letter in his apron pocket."
+      },
+      "defector": {
+        "title": "The Defector",
+        "summary": "A Smelter named Sela wants out. She'll come only if someone walks her through the stacks to the Coolant Works.",
+        "steps": {
+          "0": "Meet Sela on the stack road",
+          "1": "Escort Sela to the Coolant Works",
+          "2": "Talk to Tobin"
+        },
+        "offer": "There's another one who wants out. Sela. Nineteen, scared, good with machines.\nShe can't walk out alone — the deacons watch the stack road. Walk with her. She'll stop if you're not close.",
+        "talk2": "She made it. You made it. That's two of us now.\nShe says more want to leave. They just need to know it's possible.",
+        "done": "Sela sleeps behind the pump house, robe folded under her head.",
+        "escortName": "Sela"
+      },
+      "spare_parts": {
+        "title": "Spare Parts",
+        "summary": "Ines has a motorbike frame and no parts. The district is full of wrecks.",
+        "steps": {
+          "0": "Salvage motorbike parts ({n}/{count})",
+          "1": "Bring the parts to Ines"
+        },
+        "offer": "I've got a bike frame. Good one, pre-quarantine. It's missing everything that makes it go.\nThere's an engine in a crate by the border, a wheel near the slag road, a fuel cell west by the belts.\nBring them and I'll give you something faster than your feet.",
+        "talk1": "Engine's sound, the wheel's true, the cell holds charge. Give me an hour.\n...There. She's yours. Call it with the bike key (B) out in the open. Not in here — I just swept.",
+        "done": "You have a motorbike. Press B in the open world to ride."
+      },
+      "sabotage": {
+        "title": "Sabotage",
+        "summary": "The Smelters stockpile fuel for their flamethrowers near the cathedral. Without it, the next raid is a lot less fiery.",
+        "steps": {
+          "0": "Find the Smelters' fuel cache",
+          "1": "Destroy the fuel tanks ({n}/{count})",
+          "2": "Report to Mara"
+        },
+        "offer": "Our scouts found where the Smelters store their fuel. Near the cathedral's eastern wall.\nEvery flamethrower in the district fills up there. Open the valves, let it drain into the slag. Then get clear.",
+        "talk2": "Their raids will be cold for a while. Cold, I like.",
+        "done": "The Smelters' fuel cache is ash."
+      },
+      "shift_change": {
+        "title": "Shift Change",
+        "summary": "Osei wants to know what happened to the last refinery crew. Their shift logs are scattered across the district.",
+        "steps": {
+          "0": "Find the last shift's logs ({n}/{count})",
+          "1": "Bring them to Osei"
+        },
+        "offer": "The last crew stayed on when the rest evacuated. Management said to keep the furnaces lit no matter what.\nTheir logs are out there. I'd like to know how it ended for them. I trained half of them.",
+        "talk1": "\"Log my hours and go home.\" They kept working because nobody told them to stop.\nThank you. I'll read these to the others. They deserve to be remembered for something besides the fire.",
+        "done": "The last shift's names are read aloud at Delta."
+      },
+      "belt_rider": {
+        "title": "Belt Rider",
+        "summary": "Gus swears a smuggler hid a cache at the far end of Conveyor Line 1. You get there by riding the belt.",
+        "steps": {
+          "0": "Ride the belts to the end of Line 1",
+          "1": "Open the smuggler's cache",
+          "2": "Tell Gus what you found"
+        },
+        "offer": "Smugglers used the belts to move goods past the inspectors. One of them left a stash at the end of Line 1. Never came back for it.\nThe belts still run. Step on, let it carry you. Mind what's riding with you.",
+        "talk2": "Ha! I knew it. Keep the good stuff, I'll take the story. And maybe that bottle.",
+        "done": "Line 1's last delivery reached you."
+      },
+      "heat_sick": {
+        "title": "Heat Sick",
+        "summary": "One of Delta's technicians has a fever that won't break. A sealed coolant canister in the slag fields could save him.",
+        "steps": {
+          "0": "Recover the coolant canister in the Slag Fields",
+          "1": "Bring it to Osei"
+        },
+        "offer": "Hollis' brother is burning up. Not Lumen — heat sickness, from three weeks next to the pumps.\nThere's a sealed canister of medical coolant at the old slag lab. If it's intact, it'll bring the fever down.",
+        "talk1": "Sealed and cold. You might have just saved a life. Around here that's not a figure of speech.",
+        "done": "The fever breaks before morning."
+      },
+      "crane_operator": {
+        "title": "The Crane Operator",
+        "summary": "Someone has been living in the giant crane's cab for days. If the crane runs again, it could drop its load on the Smelters.",
+        "steps": {
+          "0": "Reach the giant crane",
+          "1": "Talk to the operator",
+          "2": "Restore the crane's fuses ({n}/{count})",
+          "3": "Talk to Rhee"
+        },
+        "offer": "There's a light in the crane cab at night. Somebody's up there.\nIf they know how to run that crane, it's worth more than a squad of rifles. Go see.",
+        "talk1": "I'm Rhee. I ran this crane for eleven years. I watched them push people into the slag from up here.\nThe fuses blew when the power died. Two of them, east and west of the tracks. Fix them and I'll show you what this old girl can do.",
+        "talk3": "Hear that? She's awake.\nUse the control box below the cab. She'll drop her load wherever the robes bunch up. Give her a minute to winch back between drops.",
+        "done": "The Crane answers to you now."
+      },
+      "red_hound": {
+        "title": "Red",
+        "summary": "A slag hound the colour of fresh iron has been killing anyone who crosses the eastern slag. Ines lost her apprentice to it.",
+        "steps": {
+          "0": "Find Red's den in the Slag Fields",
+          "1": "Kill Red",
+          "2": "Take its collar",
+          "3": "Return to Ines"
+        },
+        "offer": "It wears a collar. Somebody's pet, once. Red-hot, faster than the rest, smarter than it should be.\nIt took Pavel last week. Bring me the collar. I want to know whose dog it was.",
+        "talk3": "\"Property of the Foundry Kennels — Brutus.\" A guard dog. Somebody's good boy.\nI'll hang it over the bench. Pavel would've laughed at that.",
+        "done": "Red hunts no more."
+      },
+      "choir": {
+        "title": "Choir",
+        "summary": "A Smelter preacher has been seen singing alone near Foundry Road. Tobin says he once spoke against the burnings.",
+        "steps": {
+          "0": "Find the preacher near Foundry Road",
+          "1": "Decide Brother Lenn's fate"
+        },
+        "offer": "Brother Lenn. He sang at the burnings for a year. Then he started singing against them.\nThe deacons cast him out. He's alone near Foundry Road. The hub wants him tried. I'm not sure what I want.",
+        "done": "Brother Lenn's choir is silent. You decided why.",
+        "choice1": {
+          "prompt": "I lit the pyres with my own hands. Then I sang so I wouldn't hear the screaming.\nTake me to your people and let them judge me. Or let me go, and I'll spend what's left of my life pulling the chosen out of the crypt. Your choice. I won't run.",
+          "expose": "Come with me. The hub will judge you.",
+          "release": "Go. Save who you can."
+        },
+        "result": {
+          "expose": "Brother Lenn walks to the Coolant Works with his hands bound, singing quietly.",
+          "release": "Brother Lenn bows his head and walks toward the cathedral, alone."
+        }
+      },
+      "last_shipment": {
+        "title": "Last Shipment",
+        "summary": "Kade's dispatch records mention containers K-7 to K-19, shipped from the rail yard just before the fall.",
+        "steps": {
+          "0": "Find the Governor's shipping order",
+          "1": "Search the rail yard",
+          "2": "Recover the yard's manifest",
+          "3": "Bring the records to Mara"
+        },
+        "talk3": "K-7 to K-19, sealed, no inspection, escorted by his personal guard. South, on the old service line.\nThe only thing south of here is the Hydroponic Vaults. That's where he went. That's where it went.",
+        "done": "The governor's last shipment went south, to the Vaults."
+      }
+    },
+    "my": {
+      "whistle": {
+        "title": "The Whistle in the Ash",
+        "summary": "A tin whistle lies in the ash. When the wind passes through it, something whistles back.",
+        "steps": {
+          "0": "Follow the whistle north",
+          "1": "Follow the whistle further",
+          "2": "Follow the whistle to its end",
+          "3": "Open what the whistle was guarding"
+        },
+        "done": "Whoever left the whistle wanted someone to follow it."
+      },
+      "fireproof": {
+        "title": "The Fireproof Man",
+        "summary": "Fresh footprints lead straight into the molten slag. And out the other side.",
+        "steps": {
+          "0": "Follow the footprints across the slag",
+          "1": "Follow them further",
+          "2": "Follow them to where they stop",
+          "3": "Open what he left behind"
+        },
+        "done": "Whoever walks through fire here left you a gift — and a mystery."
+      }
+    }
+  },
+  "questUi": {
+    "accept": "Accept",
+    "decline": "Not now",
+    "goodbye": "Goodbye",
+    "continue": "Continue",
+    "offerTag": "New quest",
+    "talkTag": "Quest",
+    "started": "Quest started: {title}",
+    "completed": "Quest complete: {title}",
+    "failed": "{title}: the tanker was destroyed. Starting over.",
+    "progress": "{title}: {step}",
+    "log": "Quests",
+    "tracked": "Tracked",
+    "track": "Track",
+    "noQuests": "No active quests.",
+    "kinds": {
+      "main": "Main quest",
+      "side": "Side quest",
+      "mystery": "Mystery"
+    },
+    "rewards": "Rewards: {xp} XP · {gold} gold",
+    "level": "Level {level}",
+    "completedList": "Completed",
+    "completedBanner": "Quest complete"
+  },
+  "services": {
+    "vendor": {
+      "title": "Benny's Trade",
+      "hint": "Click an item to buy it. Click an item in your backpack to sell it.",
+      "price": "Price: {gold} gold",
+      "sellFor": "Sells for {gold} gold"
+    },
+    "blacksmith": {
+      "title": "Hekla's Forge",
+      "hint": "Select an item in your backpack to reroll one of its affixes.",
+      "reroll": "reroll ({gold} gold)",
+      "cannot": "This item has no affixes that can be reworked.",
+      "salvageJunk": "Salvage all common and magic items in the backpack"
+    },
+    "technician": {
+      "title": "Pell's Workbench",
+      "hint": "Select a legendary to extract its aspect, or a rare or legendary to imprint one.",
+      "extract": "Extract aspect ({gold} gold)",
+      "extractWarn": "The item is destroyed; its aspect goes into your cache.",
+      "imprint": "Imprint ({gold} gold)",
+      "cache": "Aspect cache ({n})",
+      "empty": "No aspects stored yet."
+    },
+    "stash": {
+      "title": "Stash",
+      "hint": "Shared by all your characters. Click a stash item to take it; click a backpack item to store it."
+    },
+    "cannot": {
+      "gold": "Not enough gold.",
+      "full": "No room.",
+      "empty": "Nothing there.",
+      "invalid": "That can't be done to this item.",
+      "noAspect": "Only legendary items have an aspect to extract.",
+      "cacheFull": "Your aspect cache is full.",
+      "type": "That aspect doesn't fit this item."
+    }
+  },
+  "elites": {
+    "affixes": {
+      "shielded": "Shielded",
+      "burning": "Burning",
+      "teleporting": "Teleporting",
+      "snaring": "Snaring",
+      "sporeSpreader": "Spore Spreader",
+      "explodesOnDeath": "Explodes on Death",
+      "vampiric": "Vampiric",
+      "fast": "Fast",
+      "freezing": "Freezing",
+      "mirroring": "Mirroring"
+    },
+    "names": {
+      "first": "Kaal|Vesh|Morrow|Grell|Oskar|Ruta|Dain|Hessa|Brakk|Ilya|Tamsin|Corvo|Neve|Saul|Petra|Joss",
+      "epithet": "the Rotting|the Hollow|the Burned|the Glowing|the Patient|the Unburied|the Hungry|the Broken|the Silent|the Blistered|the Forgotten|the Last",
+      "title": "Warden of Ash|Keeper of the Flats|Voice of the Spores|Shepherd of the Dead|Herald of the Maw|Heir of Shaft 1|Breaker of Convoys|Lord of the Crater|Mother of Hounds|Watcher of Route 7"
+    },
+    "named": "{first} {epithet}, {title}",
+    "champion": "Champion"
+  },
+  "bosses": {
+    "brood_mother": {
+      "phase2": "The Brood Mother splits open"
+    },
+    "hale": {
+      "phase2": "Hale drops the shield. Lumen floods his veins."
+    },
+    "the_first": {
+      "intro": "The First",
+      "introSub": "Elias Brandt. Patient zero.",
+      "phase2": "The First tears the ground apart",
+      "phase3": "The First collapses into something faster"
+    },
+    "defeated": "{name} defeated",
+    "reset": "The fight resets.",
+    "floorCollapse": "The floor collapses into molten metal!",
+    "krell": {
+      "phase2": "Krell overrides the loader's safety limits"
+    },
+    "slag_heart": {
+      "phase2": "The Slag Heart boils over"
+    },
+    "pyre_warden": {
+      "phase2": "The Pyre Warden calls down fire"
+    },
+    "frozen_welder": {
+      "phase2": "The ice cracks. The Welder moves faster."
+    },
+    "brother_ash": {
+      "phase2": "Brother Ash calls his faithful"
+    },
+    "vire": {
+      "intro": "High Priestess Vire",
+      "phase2": "Vire sets the cathedral alight",
+      "phase3": "Vire lets the Lumen take her"
+    }
+  },
+  "instances": {
+    "names": {
+      "meridians_hold": "Meridian's Hold",
+      "bunker_sierra4": "Bunker Sierra-4",
+      "drainage_tunnels": "The Drainage Tunnels",
+      "bunker_0": "Maintenance Bunker K-2",
+      "bunker_1": "Survey Bunker 11",
+      "bunker_2": "Pump Station Bunker",
+      "bunker_3": "Storm Shelter Ash-3",
+      "bunker_4": "Relay Bunker East",
+      "bunker_5": "Quarry Bunker",
+      "smelter_3": "Smelter 3",
+      "pipe_alleys": "The Pipe Alleys",
+      "cathedral_crypt": "The Cathedral Crypt",
+      "cold_hall": "The Cold Hall",
+      "rd_bunker_0": "Border Control Room",
+      "rd_bunker_1": "Belt Maintenance Tunnel",
+      "rd_bunker_2": "Slag Pump Room",
+      "rd_bunker_3": "Stack Access Shaft",
+      "rd_bunker_4": "Foundry Signal Room",
+      "rd_bunker_5": "Choir Cellar"
+    },
+    "objective": {
+      "activate": "Restore power: generators {n}/{count}",
+      "collect": "Find keycards: {n}/{count}",
+      "destroy": "Destroy spore nests: {n}/{count}",
+      "clear": "Clear the bunker",
+      "boss": "Defeat {name}",
+      "done": "Cleared. Take what you earned and leave.",
+      "valves": "Shut the pumps in order: {n}/{count} · next: {next}",
+      "follow": "Follow the maintenance robot: room {n}/{count}",
+      "followDown": "The robot is down. Hold on, it is rebooting…",
+      "rescue": "Free the prisoners: {n}/{count}",
+      "defend": "Restart the compressor",
+      "defendRunning": "Keep the compressor running: {s}s"
+    },
+    "progress": {
+      "activate": "Generator online ({n}/{count})",
+      "collect": "Keycard found ({n}/{count})",
+      "destroy": "Spore nest destroyed ({n}/{count})",
+      "valves": "Pump shut ({n}/{count})"
+    },
+    "charging": "Generator charging. Hold the line!",
+    "gateOpen": "The way to the boss is open",
+    "cleared": "Bunker cleared",
+    "complete": "Instance complete",
+    "heat": "Heat {pct}%",
+    "valveColors": {
+      "red": "red",
+      "yellow": "yellow",
+      "blue": "blue",
+      "green": "green"
+    },
+    "wrongValve": "Wrong pump! The furnace flares and the pumps reopen.",
+    "robot": "Maintenance Robot",
+    "robotDown": "The robot is down. It will reboot in a moment.",
+    "prisoner": "Prisoner",
+    "pyreLit": "The pyre is lit: {s}s to free the prisoner",
+    "pyreIn": "next pyre in {s}s",
+    "prisonerFreed": "Prisoner freed ({n}/{count})",
+    "prisonerLost": "Too late. The pyre took them.",
+    "compressor": "Compressor",
+    "defendStart": "The compressor spins up. Hold for {s}s!",
+    "compressorDown": "The compressor is wrecked. Restart it."
+  },
+  "setPieces": {
+    "sierra": {
+      "start": "Checkpoint Sierra: destroy the Spore Feeders",
+      "reclaimed": "Checkpoint Sierra reclaimed"
+    },
+    "maw": {
+      "defeated": "The First is dead. The Maw falls silent."
+    },
+    "delta": {
+      "start": "Pump Station Delta: protect the technicians while they unlock the cooling",
+      "wave": "Wave {n}/{count}",
+      "failed": "The technicians fell. The Smelters hold Delta.",
+      "reclaimed": "Pump Station Delta reclaimed",
+      "technician": "Technician"
+    },
+    "vire": {
+      "defeated": "High Priestess Vire is dead. The cathedral's fire gutters out."
+    }
+  },
+  "worldEvents": {
+    "convoy": {
+      "title": "Defend the Convoy",
+      "objective": "Keep the truck moving and alive: waypoint {n}/{count}"
+    },
+    "sporeNest": {
+      "title": "Purge the Spore Nest",
+      "objective": "Destroy the nest before it hatches: {s}s"
+    },
+    "rescue": {
+      "title": "Rescue Operation",
+      "objective": "Free the survivors: {n}/{count} · {s}s",
+      "freed": "Survivor freed ({n}/{count})"
+    },
+    "signalJam": {
+      "title": "Signal Jam",
+      "objective": "Defend the transmitter while it charges: {s}s"
+    },
+    "eliteHunt": {
+      "title": "Elite Hunt",
+      "objective": "Kill the elite before it escapes: {s}s"
+    },
+    "supplyDrop": {
+      "title": "Supply Drop",
+      "falling": "A supply crate is falling…",
+      "objective": "Reach the crate before the scavengers loot it: {s}s",
+      "contested": "Drive the scavengers off the crate first."
+    },
+    "tier": {
+      "gold": "Event complete: Gold",
+      "silver": "Event complete: Silver",
+      "bronze": "Event complete: Bronze"
+    },
+    "failed": "Event failed",
+    "runawayBelt": {
+      "title": "Runaway Belt",
+      "objective": "Destroy the explosive cargo before it reaches the end of the belt: {n}/{count} sent"
+    },
+    "slagTide": {
+      "title": "Slag Tide",
+      "objective": "Kill what crawls out of the slag: {n}/{count} · {s}s"
+    },
+    "purgeFurnace": {
+      "title": "Purge the Furnace",
+      "objective": "Destroy the igniters before the pyre is lit: {s}s"
+    },
+    "smelterRaid": {
+      "title": "Smelter Raid",
+      "objective": "Keep the pump running against the raid: {s}s"
+    }
+  },
+  "storm": {
+    "warning": "Ash storm approaching {where}",
+    "over": "The ash storm passes",
+    "label": "Ash Storm"
+  },
+  "restoration": {
+    "tier": "Restoration tier {tier} reached",
+    "meter": "Restoration tier {tier} · {points}/{next} points",
+    "max": "Restoration tier {tier} (complete)",
+    "rewards": {
+      "skillPoint": "Restoration: +1 skill point for all your characters",
+      "potion": "Restoration: +1 stim pack charge for all your characters",
+      "goldFind": "Restoration: +10% gold found for all your characters",
+      "stash": "Restoration: +20 stash slots"
+    }
+  },
+  "features": {
+    "autocannon": {
+      "name": "Autocannon",
+      "used": "The autocannon opens up",
+      "locked": "The autocannon has no power"
+    },
+    "fuelDepot": {
+      "name": "Fuel Depot",
+      "used": "The depot goes up!",
+      "locked": "The depot valves are rusted shut"
+    },
+    "crane": {
+      "name": "The Crane",
+      "used": "The crane drops its load",
+      "locked": "The crane has no power. Someone who knows it might get it running."
+    },
+    "coolantValve": {
+      "name": "Coolant Valve",
+      "used": "Steam floods the slag. Cross while it lasts!",
+      "locked": "The valve won't turn"
+    },
+    "noTargets": "Nothing to aim at."
+  },
+  "bike": {
+    "locked": "You don't have a motorbike yet.",
+    "notHere": "You can't ride here.",
+    "thrown": "You're thrown off the bike!"
+  }
+}
