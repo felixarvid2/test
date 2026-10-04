@@ -660,6 +660,30 @@ button.gold:disabled,button.primary:disabled{filter:grayscale(0.6);opacity:.35}
 @media (max-width:400px){
   .hbtns{width:100%;justify-content:center;margin-top:4px}
 }
+
+/* =========================================================
+   KENNEY FANTASY UI BORDERS (CC0) + TÄRNINGSFIX
+   ========================================================= */
+:root{--frame-gold:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwAgMAAAAqbBEUAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAJUExURfXFQvXFQvXFQnY3jy0AAAACdFJOUwB/timhlQAAAAFiS0dEAIgFHUgAAAAHdElNRQfqCgQTMikPe8yGAAAARklEQVQoz2MIDQ1gAAPW0FAGFE4AA4wDhKicUDhA5wTAlLGicUKRACqHAaGMAYOzCgxGOaRycIQo7ljAHXN4YhtnCsGZqgAS6Z4NKAG/jgAAAABJRU5ErkJggg==);--frame-violet:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwAgMAAAAqbBEUAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAJUExURZp60Jp60Jp60MDHpSEAAAACdFJOUwB/timhlQAAAAFiS0dEAIgFHUgAAAAHdElNRQfqCgQTMikPe8yGAAAARklEQVQoz2MIDQ1gAAPW0FAGFE4AA4wDhKicUDhA5wTAlLGicUKRACqHAaGMAYOzCgxGOaRycIQo7ljAHXN4YhtnCsGZqgAS6Z4NKAG/jgAAAABJRU5ErkJggg==);--div-gold:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAAAWCAMAAAAIPWnWAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAACWUExURfXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQvXFQo8rmI4AAAAxdFJOUwAfP1+AoMDgBQoPFRolKi81OkVKT1VaZWpvdXp/hYqPlZqlqrC1usXK0NXa5erw9fqFw29mAAAAAWJLR0QAiAUdSAAAAAd0SU1FB+oKBBMyKQ97zIYAAAB/SURBVEjHY2AY2oCRkcYWMDHR2AJmZhpbwMJCYwtYWWlsARsbjS1gZ2dg4ODk4uZh5OXjFxBkEhIWERVjFpeQlJKWkZWTV1BkVVJWUVVjU9fQ1NJm19HV0zcwJBHQwYKhD0bjAC+guQWgfEBTQPOcTPOyiOalKc3rA5rXaIyMABVRN+P2ZuJbAAAAAElFTkSuQmCC)}
+header,.modal,.shop-item,#dice-area{position:relative}
+header::after,.modal::after,.shop-item::after,#dice-area::after{
+  content:'';position:absolute;top:-2px;right:-2px;bottom:-2px;left:-2px;width:auto;height:auto;box-sizing:border-box;background:none;pointer-events:none;z-index:3;
+  border:12px solid transparent;border-image:var(--frame-violet) 16 / 12px stretch;
+  image-rendering:pixelated;opacity:.85}
+.modal::after{border-image:var(--frame-gold) 16 / 14px stretch;border-width:14px;opacity:1;
+  filter:drop-shadow(0 0 6px rgba(245,197,66,.45))}
+.shop-item::after{border-width:8px;border-image-width:8px}
+.shop-item:hover::after{border-image-source:var(--frame-gold);filter:drop-shadow(0 0 5px rgba(245,197,66,.5))}
+#dice-area{background:linear-gradient(180deg,rgba(20,14,31,.55),rgba(36,26,53,.35));
+  box-shadow:inset 0 0 40px rgba(0,0,0,.55)}
+#dice-area::after{border-width:14px;border-image-width:14px;border-image-source:var(--frame-gold);opacity:.55}
+.modal h2::after{content:'';display:block;height:22px;margin:6px auto 0;width:min(220px,70%);
+  background:var(--div-gold) center/contain no-repeat;image-rendering:pixelated}
+/* Tärningar: ingen idle-rörelse, och ingen ny landningsanimation när man bara väljer att spara */
+.die{animation:dieLand .45s cubic-bezier(.34,1.56,.64,1)}
+#dice-area.no-land .die{animation:none}
+#dice-area.no-land .die.rolling{animation:dieRoll .12s linear infinite}
+#dice-area.has-held .die:not(.held){filter:brightness(.82) saturate(.85)}
 </style>
 </head>
 <body>
@@ -1463,7 +1487,7 @@ function render(){
 
   // Dice
   const da=document.getElementById('dice-area');
-  da.innerHTML='';
+  da.innerHTML='';da.classList.remove('no-land');da.classList.toggle('has-held',state.held.size>0);
   state.dice.forEach((d,i)=>da.appendChild(renderDie(d,i,state.held.has(i))));
 
   updateComboPreview();
@@ -1666,7 +1690,15 @@ function toggleHold(idx){
   Sound.hold();
   if(state.held.has(idx)) state.held.delete(idx);
   else state.held.add(idx);
-  render();
+  // Uppdatera bara den valda tärningen så att de andra inte animeras om
+  const da=document.getElementById('dice-area');
+  const el=da.querySelector('.die[data-idx="'+idx+'"]');
+  if(!el){render();return}
+  da.classList.add('no-land');
+  el.classList.toggle('held',state.held.has(idx));
+  da.classList.toggle('has-held',state.held.size>0);
+  updateComboPreview();
+  document.getElementById('score-btn').disabled=state.phase!=='playing'||state.rollsUsed===0;
 }
 function sortDice(){
   state.dice.sort((a,b)=>a.value-b.value);
