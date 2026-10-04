@@ -8,6 +8,7 @@
  */
 import {
   Collider,
+  DisplayName,
   Dead,
   EnemyAI,
   Faction,
@@ -156,6 +157,15 @@ export function instanceDef(id: string): InstanceDef {
   return def;
 }
 
+/** What the collect objective's objects look like. */
+const COLLECT_LOOK: Record<'keycard' | 'seed' | 'data' | 'memory', { asset: string; scale: number; glow: string }> = {
+  keycard: { asset: 'prop.cargo_crate', scale: 0.3, glow: '#3ad2ff' },
+  // The Archive: memory crystals of the elder civilisation.
+  memory: { asset: 'prop.lumen_growth', scale: 0.9, glow: '#6ad8ff' },
+  seed: { asset: 'prop.echo_relic', scale: 0.7, glow: '#9fffd8' },
+  data: { asset: 'prop.control_terminal', scale: 0.9, glow: '#7dffd0' },
+};
+
 const WALL_SEGMENTS = 8;
 
 function wall(world: World, x: number, z: number, rot: number): void {
@@ -278,15 +288,19 @@ export function buildInstance(world: World, ctx: GameContext, defId: string, poi
         const g = interactable(world, `gen.${i}`, 'generator', x, z, 'prop.generator', 1, '#ff3a2a');
         world.add(g, Collider, { radius: 0.9, mass: Infinity, layer: 'ground', isStatic: true });
       } else if (obj.kind === 'collect') {
-        interactable(world, `card.${i}`, 'instanceKey', x, z, 'prop.cargo_crate', 0.3, '#3ad2ff');
+        const look = COLLECT_LOOK[obj.item ?? 'keycard'];
+        interactable(world, `card.${i}`, 'instanceKey', x, z, look.asset, look.scale, look.glow);
       } else {
+        // Spore nests, or the Cocoon Chamber's Mother Cocoon.
+        const t = obj.target;
         const nest = world.create();
         world.add(nest, Transform, makeTransform(x, 0, z, rng.range(0, 6)));
-        world.add(nest, Renderable, { assetId: 'prop.spore_nest', glow: '#7dff5a' });
+        world.add(nest, Renderable, { assetId: t?.asset ?? 'prop.spore_nest', scale: t?.scale ?? 1, glow: t?.glow ?? '#7dff5a' });
         world.add(nest, Faction, { team: 'enemy' });
         world.add(nest, Health, { current: obj.life * (1 + 0.12 * (level - 1)), max: obj.life * (1 + 0.12 * (level - 1)) });
-        world.add(nest, Collider, { radius: 1.2, mass: Infinity, layer: 'ground', isStatic: true });
-        world.add(nest, Targetable, { spawn: { enemy: 'infected_colonist', count: 2, every: obj.spawnEvery, timer: 2 } });
+        world.add(nest, Collider, { radius: 1.2 * (t?.scale ?? 1), mass: Infinity, layer: 'ground', isStatic: true });
+        world.add(nest, Targetable, { spawn: { enemy: t?.enemy ?? 'infected_colonist', count: 2, every: obj.spawnEvery, timer: 2 } });
+        if (t) world.add(nest, DisplayName, { key: t.name });
       }
     }
   }
@@ -374,7 +388,7 @@ export function instanceSystem(world: World, dt: number, ctx: GameContext): void
       const dead = world.query(Targetable).filter((e) => world.has(e, Dead) && inInstance(world.req(e, Transform).x)).length;
       if (dead !== rt.objective.progress) {
         rt.objective.progress = dead;
-        ctx.events.push({ type: 'banner', key: 'instances.progress.destroy', params: { n: dead, count: obj.count }, seconds: 1.6 });
+        ctx.events.push({ type: 'banner', key: obj.target?.progress ?? 'instances.progress.destroy', params: { n: dead, count: obj.count }, seconds: 1.6 });
       }
     } else if (obj.kind === 'activate' && rt.objective.charging) {
       const ch = rt.objective.charging;
@@ -463,7 +477,11 @@ export function instanceInteract(world: World, ctx: GameContext, target: Entity,
       it.used = true;
       world.destroyDeferred(target);
       rt.objective.progress++;
-      ctx.events.push({ type: 'banner', key: 'instances.progress.collect', params: { n: rt.objective.progress, count: obj.count }, seconds: 1.6 });
+      ctx.events.push({ type: 'banner', key: `instances.progress.${obj.item && obj.item !== 'keycard' ? obj.item : 'collect'}`, params: { n: rt.objective.progress, count: obj.count }, seconds: 1.6 });
+      // The Sleeping Lab: each terminal plays one of the dead team's logs.
+      if (obj.item === 'data') ctx.events.push({ type: 'interact', kind: 'lore', id: it.poi, detail: `hvlab.${rt.objective.progress - 1}` });
+      // The Archive: each memory crystal plays a fragment of the revelation.
+      if (obj.item === 'memory') ctx.events.push({ type: 'interact', kind: 'lore', id: it.poi, detail: `dmarc.${rt.objective.progress - 1}` });
       return true;
     case 'cache':
       it.used = true;
@@ -479,6 +497,8 @@ export function instanceInteract(world: World, ctx: GameContext, target: Entity,
     case 'valve':
     case 'cage':
     case 'compressor':
+    case 'lever':
+    case 'mirror':
       return objectiveInteract(world, ctx, rt, target, it);
     default:
       return false;
@@ -502,5 +522,8 @@ export function objectiveText(rt: InstanceRuntime, t: (key: string, params?: Rec
   const detail = objectiveDetail(rt, t);
   if (detail) return detail;
   if (obj.kind === 'clear') return t('instances.objective.clear');
-  return t(`instances.objective.${obj.kind}`, { n: rt.objective.progress, count: objectiveCount(obj) });
+  const params = { n: rt.objective.progress, count: objectiveCount(obj) };
+  if (obj.kind === 'collect' && obj.item && obj.item !== 'keycard') return t(`instances.objective.${obj.item}`, params);
+  if (obj.kind === 'destroy' && obj.target) return t(obj.target.objective ?? 'instances.objective.motherCocoon', params);
+  return t(`instances.objective.${obj.kind}`, params);
 }

@@ -79,7 +79,9 @@ export const QuestStepSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('choice'),
     npc: z.string(),
-    options: z.array(z.object({ id: z.string(), gold: z.number().int().default(0), xp: z.number().int().default(0), item: RaritySchema.optional() })).min(2),
+    options: z
+      .array(z.object({ id: z.string(), gold: z.number().int().default(0), xp: z.number().int().default(0), item: RaritySchema.optional(), unique: z.string().optional() }))
+      .min(2),
     ...StepBase,
   }),
 ]);
@@ -123,5 +125,7 @@ export const NpcDefSchema = z.object({
   questOnly: z.boolean().default(false),
   /** Only present once this point of interest is found (a reclaimed stronghold's people). */
   requires: z.string().optional(),
+  /** Only present if this choice was made in that quest (who followed you from the last region). */
+  choice: z.object({ quest: z.string(), option: z.string() }).optional(),
 });
 export type NpcDef = z.infer<typeof NpcDefSchema>;

@@ -259,6 +259,56 @@ export interface EnemyAI {
   reviveCooldown?: number;
   /** The corpse being revived during the wind-up. */
   reviveTarget?: Entity;
+  // ---- Region 3 behaviours ----
+  /** Melee hits that landed (root every Nth). */
+  landed?: number;
+  /** Vine lash: cooldown, and the wind-up left while a pull is being telegraphed. */
+  pullCooldown?: number;
+  pullTimer?: number;
+  /** Seconds to the next heal pulse (Mossborn). */
+  healTimer?: number;
+  /** Seconds spent fighting, and until the next call for help (Cocoon Warden). */
+  fightTime?: number;
+  reinforceTimer?: number;
+  /** Seconds to the next lobbed spore cloud, and the clouds still in the air. */
+  cloudTimer?: number;
+  clouds?: { x: number; z: number; t: number }[];
+  // ---- Deep Mines ----
+  /** Blind Hound: a noise it is running toward. */
+  investigate?: { x: number; z: number };
+  shieldAllyTimer?: number;
+  /** Burrower: underground until it surfaces at the warned spot. */
+  burrowed?: boolean;
+  burrowTimer?: number;
+  surfaceAt?: { x: number; z: number; t: number } | null;
+  /** Crystal Sentinel: shell left (absorbs damage until broken). */
+  shell?: number;
+  /** Infected Miner: seconds to the next stick of dynamite, and the ones lit. */
+  dynamiteTimer?: number;
+  bombs?: { x: number; z: number; t: number }[];
+  teleportTimer?: number;
+  /** Shield Officer: dome up until (ctx.time), and the next one. */
+  domeUntil?: number;
+  domeTimer?: number;
+  /** Lumen Giant: its fungi, and when it rises again after falling while they stand. */
+  fungi?: Entity[];
+  regrowAt?: number;
+  // ---- Wayfinding ----
+  /** Who it hunted last tick (the navigation system builds a flow field toward each). */
+  chasing?: Entity;
+  /** Where it last saw its target, and when (ctx.time). */
+  lastSeen?: { x: number; z: number; t: number };
+  /** Lost the target: spots still to check, and when it gives up. */
+  search?: { spots: { x: number; z: number }[]; until: number; look: number };
+  /** When it spotted a target (the "!" above its head). */
+  spottedAt?: number;
+  /** A* route to a spot that isn't its target, and the goal it was planned for. */
+  path?: { x: number; z: number }[];
+  pathGoal?: { x: number; z: number; t: number };
+  /** Stuck check: where a stretch of walking started, how far it meant to go, and a way out. */
+  stuck?: { x: number; z: number; want: number; last: number; escape?: { x: number; z: number; until: number } };
+  /** Where it is heading this tick and why (debug overlay, tests). */
+  intent?: { x: number; z: number; mode: import('../systems/navigation').NavMode };
 }
 export const EnemyAI = defineComponent<EnemyAI>('EnemyAI');
 
@@ -500,7 +550,7 @@ export const Turret = defineComponent<Turret>('Turret');
 export interface Interactable {
   /** Point-of-interest id (or teleporter id). */
   poi: string;
-  kind: import('../data/zones/zoneTypes').PoiKind | 'teleporter' | 'questObject' | 'stash' | 'portal' | 'generator' | 'instanceKey' | 'cache' | 'eventObject' | 'valve' | 'cage' | 'compressor';
+  kind: import('../data/zones/zoneTypes').PoiKind | 'teleporter' | 'questObject' | 'stash' | 'portal' | 'generator' | 'instanceKey' | 'cache' | 'eventObject' | 'valve' | 'cage' | 'compressor' | 'lever' | 'mirror';
   /** Use radius (m). */
   radius: number;
   /** Spent for good (opened, read, claimed). */
@@ -516,6 +566,8 @@ export interface Destructible {
   radius: number;
   /** Blast when destroyed (barrels); null = just breaks. */
   blast: { radius: number; flat: number } | null;
+  /** Glowing crystal (Hydroponic Vaults): blinds enemies in `radius` for `duration` s, grows back after `regrow` s. */
+  blind?: { radius: number; duration: number; regrow: number };
 }
 export const Destructible = defineComponent<Destructible>('Destructible');
 
@@ -603,20 +655,28 @@ export const Targetable = defineComponent<Targetable>('Targetable');
 export interface Boss {
   script: string | null;
   phase: number;
-  timers: { adds: number; plates: number; spores: number; fireballs?: number; shrink?: number; tentacles?: number };
+  timers: { adds: number; plates: number; spores: number; fireballs?: number; shrink?: number; tentacles?: number; beams?: number; sweep?: number; sweepTick?: number; teleport?: number };
   engaged: boolean;
   /** Arena centre and radius (spore fields, resets). */
   arena: { x: number; z: number; radius: number };
   adds: Entity[];
   /** Cover plates thrown in phase 2, and other arena changes (the collapsing floor); removed on reset. */
   plates: Entity[];
-  /** Warned impacts: plates (leave cover), fireballs (don't), or the next floor collapse. */
-  pending: { x: number; z: number; t: number; kind?: 'plate' | 'fireball' | 'shrink' }[];
+  /** Warned impacts: plates (leave cover), fireballs (don't), the next floor collapse, or a spore beam along `facing`. */
+  pending: { x: number; z: number; t: number; kind?: 'plate' | 'fireball' | 'shrink' | 'beam' | 'pulse'; facing?: number }[];
   baseSpeed: number;
   /** Collapse steps taken (shrinking arena). */
   shrinkStep?: number;
   /** Renderable look before a transformation. */
   baseLook?: { scale: number; glow?: string | undefined };
+  // ---- The Warden of the Mother Tree ----
+  /** Damage taken multiplier (armour plates still on: less; rooted: none). */
+  damageTaken?: number;
+  /** Armour plates (separate targets that ride on the boss). */
+  parts?: Entity[];
+  /** Root Nodes that hold a rooted boss, and the vines that cover the floor meanwhile. */
+  nodes?: Entity[];
+  vines?: Entity[];
 }
 export const Boss = defineComponent<Boss>('Boss');
 

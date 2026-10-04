@@ -3,6 +3,7 @@ import type { World } from '../core/ecs';
 import { Collider, Renderable, Transform, makeTransform } from '../core/components';
 import { Rng } from '../core/rng';
 import type { ArenaDef } from '../data/zones/testArena';
+import { caveGrid, walkableAt } from '../data/zones/caves';
 
 export interface ScatterInstance {
   x: number;
@@ -16,7 +17,7 @@ export function spawnArenaProps(world: World, arena: ArenaDef): void {
   for (const prop of arena.props) {
     const e = world.create();
     world.add(e, Transform, makeTransform(prop.x, 0, prop.z, prop.rot ?? 0));
-    world.add(e, Renderable, { assetId: prop.asset, scale: prop.scale ?? 1, ...(prop.landmark ? { landmark: true } : {}) });
+    world.add(e, Renderable, { assetId: prop.asset, scale: prop.scale ?? 1, ...(prop.landmark ? { landmark: true } : {}), ...(prop.glow ? { glow: prop.glow } : {}) });
     if (prop.collider) world.add(e, Collider, { radius: prop.collider, mass: Infinity, layer: 'ground', isStatic: true });
     // Long props get invisible collision circles rotated into place.
     const rot = prop.rot ?? 0;
@@ -38,10 +39,14 @@ export function scatterInstances(arena: ArenaDef, index: number): ScatterInstanc
   const rng = new Rng(def.seed);
   const out: ScatterInstance[] = [];
   const clear = 3;
-  while (out.length < def.count) {
+  // Underground: scatter only on open ground (rock is drawn solid).
+  const grid = caveGrid(arena as unknown as Parameters<typeof caveGrid>[0]);
+  let tries = 0;
+  while (out.length < def.count && tries++ < def.count * 20) {
     const x = rng.range(-arena.halfSize, arena.halfSize);
     const z = rng.range(-arena.halfSize, arena.halfSize);
     if (Math.hypot(x - arena.playerSpawn.x, z - arena.playerSpawn.z) < clear) continue;
+    if (grid && !walkableAt(grid, x, z)) continue;
     out.push({ x, z, rot: rng.range(0, Math.PI * 2), scale: rng.range(def.minScale, def.maxScale) });
   }
   return out;

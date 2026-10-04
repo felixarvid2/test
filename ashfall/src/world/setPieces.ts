@@ -16,6 +16,8 @@ import { monsterLevel } from '../systems/encounter';
 import { spawnEnemy } from './spawn';
 import type { ZoneRuntime } from './zone';
 import { DISTRICT_ID, districtHubs, districtOnDeath, districtSystem, syncDistrict, type DistrictSetPieces } from './districtSetPieces';
+import { VAULTS_ID, syncVaults, vaultHubs, vaultSystem, vaultsOnDeath, type VaultSetPieces } from './vaultSetPieces';
+import { MINES_ID, mineHubs, mineSystem, minesOnDeath, syncMines, type MineSetPieces } from './mineSetPieces';
 
 /** These set pieces live in Cinder Flats only. */
 const ZONE_ID = 'zone.cinder_flats';
@@ -35,6 +37,10 @@ export interface SetPieceState {
   maw: { state: 'idle' | 'fight' | 'defeated'; boss: Entity | null; gates: Entity[]; leftAt: number };
   /** Refinery District: Pump Station Delta and Vire. */
   district?: DistrictSetPieces;
+  /** Hydroponic Vaults: Dome Gamma and the Warden. */
+  vaults?: VaultSetPieces;
+  /** Deep Mines: Mining Station Aurum and Governor Kade. */
+  mines?: MineSetPieces;
 }
 
 export function createSetPieces(): SetPieceState {
@@ -46,7 +52,7 @@ export function createSetPieces(): SetPieceState {
 
 /** Reclaimed strongholds act as hubs. */
 export function extraHubs(zone: ZoneRuntime): HubDef[] {
-  return [...(zone.def.id === ZONE_ID && zone.found.has(SIERRA.id) ? [SIERRA_HUB] : []), ...districtHubs(zone)];
+  return [...(zone.def.id === ZONE_ID && zone.found.has(SIERRA.id) ? [SIERRA_HUB] : []), ...districtHubs(zone), ...vaultHubs(zone), ...mineHubs(zone)];
 }
 
 /** After loading: reclaimed or defeated set pieces stay that way. */
@@ -55,8 +61,12 @@ export function syncSetPieces(world: World, zone: ZoneRuntime): void {
   for (const e of [...sp.sierra.feeders, ...sp.maw.gates]) if (world.isAlive(e)) world.destroyDeferred(e);
   for (const e of [sp.sierra.boss, sp.maw.boss]) if (e !== null && world.isAlive(e)) world.destroyDeferred(e);
   const district = syncDistrict(world, zone);
+  const vaults = syncVaults(world, zone);
+  const mines = syncMines(world, zone);
   zone.setPieces = createSetPieces();
   if (zone.def.id === DISTRICT_ID) zone.setPieces.district = district;
+  if (zone.def.id === VAULTS_ID) zone.setPieces.vaults = vaults;
+  if (zone.def.id === MINES_ID) zone.setPieces.mines = mines;
   if (zone.found.has(SIERRA.id)) zone.setPieces.sierra.state = 'reclaimed';
   if (zone.found.has(MAW.id)) zone.setPieces.maw.state = 'defeated';
 }
@@ -75,6 +85,14 @@ export function setPieceSystem(world: World, dt: number, ctx: GameContext): void
   const ptr = world.req(player, Transform);
   if (zone.def.id === DISTRICT_ID) {
     districtSystem(world, dt, ctx, zone, ptr);
+    return;
+  }
+  if (zone.def.id === VAULTS_ID) {
+    vaultSystem(world, dt, ctx, zone, ptr);
+    return;
+  }
+  if (zone.def.id === MINES_ID) {
+    mineSystem(world, dt, ctx, zone, ptr);
     return;
   }
   if (zone.def.id !== ZONE_ID) return;
@@ -214,6 +232,8 @@ function maw(world: World, ctx: GameContext, zone: ZoneRuntime, ptr: Transform):
 export function setPiecesOnDeath(world: World, zone: ZoneRuntime | undefined): void {
   if (!zone) return;
   districtOnDeath(world, zone);
+  vaultsOnDeath(world, zone);
+  minesOnDeath(world, zone);
   const st = zone.setPieces.maw;
   if (st.state === 'fight') {
     for (const g of st.gates) world.destroyDeferred(g);

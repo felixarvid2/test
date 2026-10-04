@@ -138,7 +138,7 @@ export function choose(world: World, ctx: GameContext, id: string, option: strin
   if (!rt || !st || step?.kind !== 'choice') return false;
   const opt = step.options.find((o) => o.id === option);
   if (!opt) return false;
-  payReward(world, ctx, { xp: opt.xp, gold: opt.gold, item: opt.item });
+  payReward(world, ctx, { xp: opt.xp, gold: opt.gold, item: opt.item, unique: opt.unique });
   st.choice = option;
   advance(world, ctx, id);
   return true;
@@ -177,15 +177,14 @@ function advance(world: World, ctx: GameContext, id: string): void {
   enterStep(world, ctx, id);
 }
 
-function payReward(world: World, ctx: GameContext, r: { xp: number; gold: number; item?: string | undefined }): void {
+function payReward(world: World, ctx: GameContext, r: { xp: number; gold: number; item?: string | undefined; unique?: string | undefined }): void {
   const player = world.first(PlayerControlled, Inventory);
   if (player === undefined) return;
   if (r.xp > 0) grantXp(world, ctx, player, r.xp);
   if (r.gold > 0) world.req(player, Inventory).gold += r.gold;
-  if (r.item) {
-    const tr = world.req(player, Transform);
-    ctx.rewards.push({ table: 'dt.quest_reward', level: monsterLevel(world, ctx), x: tr.x, z: tr.z, xp: false, rarity: r.item as never });
-  }
+  const tr = world.req(player, Transform);
+  if (r.item) ctx.rewards.push({ table: 'dt.quest_reward', level: monsterLevel(world, ctx), x: tr.x, z: tr.z, xp: false, rarity: r.item as never });
+  if (r.unique) ctx.rewards.push({ table: 'dt.quest_reward', level: monsterLevel(world, ctx), x: tr.x, z: tr.z, xp: false, unique: r.unique });
 }
 
 // ---- Step setup ------------------------------------------------------------------------
@@ -285,8 +284,13 @@ export function spawnNpc(world: World, id: string): Entity {
 
 /** Hub NPCs that are always present, and trigger objects for quests not yet found. */
 export function spawnQuestWorld(world: World, ctx: GameContext): void {
-  for (const npc of NPCS.values()) if (!npc.questOnly && here(ctx, npc.zone) && unlocked(ctx, npc.requires)) spawnNpc(world, npc.id);
+  for (const npc of NPCS.values()) if (!npc.questOnly && here(ctx, npc.zone) && unlocked(ctx, npc.requires) && chosen(ctx, npc.choice)) spawnNpc(world, npc.id);
   refreshTriggers(world, ctx);
+}
+
+/** The follower from the last region: only the one your choice sent with you. */
+function chosen(ctx: GameContext, choice: { quest: string; option: string } | undefined): boolean {
+  return choice === undefined || ctx.quests?.done.get(choice.quest) === choice.option;
 }
 
 function unlocked(ctx: GameContext, requires: string | undefined): boolean {
@@ -295,7 +299,7 @@ function unlocked(ctx: GameContext, requires: string | undefined): boolean {
 
 /** A stronghold was reclaimed: the people who move in appear. */
 export function spawnUnlockedNpcs(world: World, ctx: GameContext, found: string): void {
-  for (const npc of NPCS.values()) if (npc.requires === found && !npc.questOnly && here(ctx, npc.zone)) spawnNpc(world, npc.id);
+  for (const npc of NPCS.values()) if (npc.requires === found && !npc.questOnly && here(ctx, npc.zone) && chosen(ctx, npc.choice)) spawnNpc(world, npc.id);
 }
 
 /**

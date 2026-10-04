@@ -4,6 +4,12 @@
  * - follow:  escort a damaged maintenance robot that stops while enemies are near (The Pipe Alleys)
  * - rescue:  free caged prisoners before their pyres light (The Cathedral Crypt)
  * - defend:  restart the compressor and keep it alive through the waves (The Cold Hall, frost vents)
+ * Region 3 (docs/regions/hydroponic-vaults.md):
+ * - drain:   pump levers that each drain the water from a stretch of tunnels (The Irrigation System)
+ * - cocoons: cocoons that hatch as the player passes (The Cocoon Chamber)
+ * Region 4 (docs/regions/deep-mines.md):
+ * - defend (elevator): ride the elevator down while waves climb on (Shaft 13)
+ * - mirrors: turn crystal mirrors until each catches the light (The Crystal Labyrinth)
  */
 import {
   Collider,
@@ -31,6 +37,10 @@ import type { InstanceRoom, InstanceRuntime } from './instance';
 import { spawnEnemy } from './spawn';
 
 export const VALVE_COLORS = ['red', 'yellow', 'blue', 'green'] as const;
+/** Cocoons hatch when the player comes this close. */
+const COCOON_HATCH = 5;
+const MIRROR_DARK = '#3a5a8a';
+const MIRROR_LIT = '#e8ffff';
 const VALVE_GLOW: Record<(typeof VALVE_COLORS)[number], string> = { red: '#ff3a2a', yellow: '#ffd23a', blue: '#3a8aff', green: '#5aff6a' };
 
 export interface ObjectiveExtra {
@@ -40,8 +50,16 @@ export interface ObjectiveExtra {
   robot?: { entity: Entity | null; path: { x: number; z: number }[]; next: number; respawnAt: number };
   cages?: { entity: Entity; room: InstanceRoom; remaining: number | null; state: 'locked' | 'freed' | 'lost' }[];
   defend?: { entity: Entity | null; state: 'idle' | 'running'; remaining: number; wave: number; respawnAt: number; x: number; z: number };
-  /** Frost vents, run by the environment system while inside. */
+  /** Frost vents and water, run by the environment system while inside. */
   env?: EnvFeature[];
+  /** Water drained by the Irrigation System's levers. */
+  drained?: Set<string>;
+  /** Irrigation System: the pump levers and the water each one drains. */
+  levers?: { entity: Entity; water: string[] }[];
+  /** Cocoon Chamber: cocoons that hatch when the player comes close. */
+  cocoons?: { entity: Entity; x: number; z: number }[];
+  /** Crystal Labyrinth: each mirror's position (0–3) and the one that catches the light. */
+  mirrors?: { entity: Entity; turn: number; aligned: number }[];
 }
 
 /** How many steps the objective counts to. */
@@ -101,12 +119,60 @@ export function setupObjective(world: World, rt: InstanceRuntime, spots: Instanc
       world.add(e, DisplayName, { key: 'instances.prisoner' });
       extra.cages.push({ entity: e, room, remaining: null, state: 'locked' });
     }
+  } else if (obj.kind === 'mirrors') {
+    extra.mirrors = [];
+    for (let i = 0; i < obj.count; i++) {
+      const c = centre(spots[i % spots.length]!, roomCenter);
+      const aligned = rng.int(0, 3);
+      const turn = (aligned + rng.int(1, 3)) % 4;
+      const e = interactable(world, `mirror.${i}`, 'mirror', c.x + rng.range(-3, 3), c.z + rng.range(-3, 3), 'env.wall_segment', 0.5, MIRROR_DARK);
+      world.req(e, Transform).facing = (turn * Math.PI) / 2;
+      world.add(e, DisplayName, { key: 'instances.mirror' });
+      extra.mirrors.push({ entity: e, turn, aligned });
+    }
   } else if (obj.kind === 'defend') {
     // The compressor stands in the last main room before the boss.
     const room = rt.layout.rooms.filter((r) => r.kind === 'main').sort((a, b) => b.depth - a.depth)[0] ?? rt.layout.rooms[0]!;
     const c = roomCenter(room);
     extra.defend = { entity: null, state: 'idle', remaining: obj.time, wave: 0, respawnAt: 0, x: c.x, z: c.z };
     spawnCompressor(world, rt);
+  }
+  if (obj.kind === 'drain') {
+    // Water in every room past the entrance, in depth order; each lever drains one stretch of it.
+    extra.env ??= [];
+    extra.drained = new Set();
+    const wet = rt.layout.rooms.filter((r) => r.kind !== 'start').sort((a, b) => a.depth - b.depth);
+    const groups: string[][] = Array.from({ length: obj.count }, () => []);
+    wet.forEach((room, i) => {
+      const group = groups[Math.min(obj.count - 1, Math.floor((i / wet.length) * obj.count))]!;
+      const c = roomCenter(room);
+      for (let k = 0; k < 3; k++) {
+        const id = `water.${room.gx}.${room.gz}.${k}`;
+        extra.env!.push({ kind: 'water', id, x: c.x + rng.range(-7, 7), z: c.z + rng.range(-7, 7), radius: rng.range(5, 7.5) });
+        group.push(id);
+      }
+    });
+    extra.levers = groups.map((water, i) => {
+      const c = roomCenter(spots[i % spots.length]!);
+      const e = interactable(world, `lever.${i}`, 'lever', c.x + rng.range(-3, 3), c.z + rng.range(-3, 3), 'prop.coolant_valve', 1.1, '#7ad8c8');
+      world.add(e, DisplayName, { key: 'instances.lever' });
+      return { entity: e, water };
+    });
+  }
+  if (rt.def.cocoons) {
+    extra.cocoons = [];
+    for (const room of rt.layout.rooms) {
+      if (room.kind === 'start' || room.kind === 'boss') continue;
+      const c = roomCenter(room);
+      for (let i = 0; i < rt.def.cocoons; i++) {
+        const x = c.x + rng.range(-ROOM_CELL / 3, ROOM_CELL / 3);
+        const z = c.z + rng.range(-ROOM_CELL / 3, ROOM_CELL / 3);
+        const e = world.create();
+        world.add(e, Transform, makeTransform(x, 0, z, rng.range(0, 6)));
+        world.add(e, Renderable, { assetId: 'prop.spore_feeder', scale: 0.8, glow: '#9aff5a' });
+        extra.cocoons.push({ entity: e, x, z });
+      }
+    }
   }
   if (rt.def.frostVents) {
     extra.env = [];
@@ -143,8 +209,11 @@ function spawnRobot(world: World, rt: InstanceRuntime): void {
 
 function spawnCompressor(world: World, rt: InstanceRuntime): void {
   const d = rt.extra.defend!;
-  const e = interactable(world, 'compressor', 'compressor', d.x, d.z, 'prop.compressor', 1, '#7ec8ff');
-  world.add(e, DisplayName, { key: 'instances.compressor' });
+  const elevator = rt.def.objective.kind === 'defend' && rt.def.objective.machine === 'elevator';
+  const e = elevator
+    ? interactable(world, 'compressor', 'compressor', d.x, d.z, 'prop.elevator_foundation', 0.45, '#ffc890')
+    : interactable(world, 'compressor', 'compressor', d.x, d.z, 'prop.compressor', 1, '#7ec8ff');
+  world.add(e, DisplayName, { key: elevator ? 'instances.elevator' : 'instances.compressor' });
   d.entity = e;
 }
 
@@ -175,6 +244,21 @@ export function tickObjective(world: World, dt: number, ctx: GameContext, rt: In
       const pct = 0.004 + over * 0.06;
       applyDamage(world, ctx, player, h.max * pct * dt, { crit: false, damageType: 'heat', dot: true, sourceTeam: 'enemy' });
     }
+  }
+
+  // Cocoons burst as the player walks past them.
+  if (extra.cocoons?.length) {
+    for (const c of extra.cocoons.filter((k) => Math.hypot(ptr.x - k.x, ptr.z - k.z) < COCOON_HATCH)) {
+      if (world.isAlive(c.entity)) world.destroyDeferred(c.entity);
+      for (const [enemy, n] of [['spore_swarm', 2], ['overgrown_walker', 1]] as const) {
+        for (let i = 0; i < n; i++) {
+          const m = spawnEnemy(world, enemy, c.x + rt.rng.range(-1, 1), c.z + rt.rng.range(-1, 1), { level: rt.level });
+          world.req(m, EnemyAI).aggro = true;
+        }
+      }
+      ctx.events.push({ type: 'vfx', kind: 'corpseBurst', x: c.x, z: c.z, radius: 2.5, facing: 0 });
+    }
+    extra.cocoons = extra.cocoons.filter((k) => Math.hypot(ptr.x - k.x, ptr.z - k.z) >= COCOON_HATCH);
   }
 
   if (rt.objective.done) return;
@@ -241,7 +325,7 @@ export function tickObjective(world: World, dt: number, ctx: GameContext, rt: In
       d.entity = null;
       d.remaining = obj.time;
       d.respawnAt = ctx.time + 5;
-      ctx.events.push({ type: 'banner', key: 'instances.compressorDown', seconds: 2 });
+      ctx.events.push({ type: 'banner', key: rt.def.objective.kind === 'defend' && rt.def.objective.machine === 'elevator' ? 'instances.elevatorDown' : 'instances.compressorDown', seconds: 2 });
       return;
     }
     d.remaining -= dt;
@@ -258,11 +342,25 @@ export function tickObjective(world: World, dt: number, ctx: GameContext, rt: In
   }
 }
 
-/** Use a valve, cage or compressor. Returns true if handled. */
+/** Use a valve, cage, compressor or lever. Returns true if handled. */
 export function objectiveInteract(world: World, ctx: GameContext, rt: InstanceRuntime, target: Entity, it: Interactable): boolean {
   const obj = rt.def.objective;
   const extra = rt.extra;
   const tr = world.req(target, Transform);
+  if (it.kind === 'lever' && obj.kind === 'drain' && extra.levers && extra.drained) {
+    const lever = extra.levers.find((l) => l.entity === target);
+    if (!lever || it.used) return false;
+    it.used = true;
+    for (const id of lever.water) extra.drained.add(id);
+    rt.objective.progress++;
+    const r = world.get(target, Renderable);
+    if (r) delete r.glow;
+    // The pumps' noise draws the creatures in the tunnels.
+    enemyWave(world, rt, tr.x, tr.z, 3, 9);
+    ctx.events.push({ type: 'vfx', kind: 'coolant', x: tr.x, z: tr.z, radius: 4, facing: 0 });
+    ctx.events.push({ type: 'banner', key: 'instances.progress.drain', params: { n: rt.objective.progress, count: obj.count }, seconds: 1.8 });
+    return true;
+  }
   if (it.kind === 'valve' && obj.kind === 'valves' && extra.valves && extra.order) {
     const i = extra.valves.findIndex((v) => v.entity === target);
     const expected = extra.order[rt.objective.progress];
@@ -304,6 +402,24 @@ export function objectiveInteract(world: World, ctx: GameContext, rt: InstanceRu
     ctx.events.push({ type: 'banner', key: 'instances.prisonerFreed', params: { n: extra.cages.filter((x) => x.state === 'freed').length, count: obj.count }, seconds: 1.8 });
     return true;
   }
+  if (it.kind === 'mirror' && obj.kind === 'mirrors' && extra.mirrors) {
+    const m = extra.mirrors.find((x) => x.entity === target);
+    if (!m || m.turn === m.aligned) return false;
+    m.turn = (m.turn + 1) % 4;
+    world.req(target, Transform).facing = (m.turn * Math.PI) / 2;
+    const r = world.get(target, Renderable);
+    if (m.turn === m.aligned) {
+      // It catches the light.
+      if (r) r.glow = MIRROR_LIT;
+      it.used = true;
+      ctx.events.push({ type: 'vfx', kind: 'flash', x: tr.x, z: tr.z, radius: 4, facing: 0 });
+    }
+    rt.objective.progress = extra.mirrors.filter((x) => x.turn === x.aligned).length;
+    ctx.events.push({ type: 'banner', key: 'instances.progress.mirrors', params: { n: rt.objective.progress, count: obj.count }, seconds: 1.4 });
+    // The grinding stone draws the labyrinth's guards.
+    enemyWave(world, rt, tr.x, tr.z, obj.wave, 9);
+    return true;
+  }
   if (it.kind === 'compressor' && obj.kind === 'defend' && extra.defend) {
     const d = extra.defend;
     if (d.state === 'running' || rt.objective.done) return false;
@@ -315,7 +431,7 @@ export function objectiveInteract(world: World, ctx: GameContext, rt: InstanceRu
     const life = obj.life * (1 + 0.12 * (rt.level - 1));
     world.add(target, Faction, { team: 'player' });
     world.add(target, Health, { current: life, max: life });
-    ctx.events.push({ type: 'banner', key: 'instances.defendStart', params: { s: obj.time }, seconds: 2 });
+    ctx.events.push({ type: 'banner', key: obj.machine === 'elevator' ? 'instances.elevatorStart' : 'instances.defendStart', params: { s: obj.time }, seconds: 2 });
     return true;
   }
   return false;
@@ -342,7 +458,8 @@ export function objectiveDetail(rt: InstanceRuntime, t: (key: string, params?: R
     return `${t('instances.objective.rescue', { n: freed, count: obj.count })}${soon}`;
   }
   if (obj.kind === 'defend' && extra.defend) {
-    return extra.defend.state === 'running' ? t('instances.objective.defendRunning', { s: Math.ceil(extra.defend.remaining) }) : t('instances.objective.defend');
+    const key = obj.machine === 'elevator' ? 'elevator' : 'defend';
+    return extra.defend.state === 'running' ? t(`instances.objective.${key}Running`, { s: Math.ceil(extra.defend.remaining) }) : t(`instances.objective.${key}`);
   }
   return heat ? `${heat.slice(3)}` : null;
 }

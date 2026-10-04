@@ -13,6 +13,8 @@ export interface PropPlacement {
   light?: { color: string; intensity: number; distance: number; height: number };
   /** Huge far-away landmark: ignores fog and distance culling so it can be seen across the region. */
   landmark?: boolean;
+  /** Constant emissive tint (a glowing landmark such as the Mother Tree). */
+  glow?: string;
 }
 
 export interface ArenaDef {
@@ -29,6 +31,10 @@ export interface ArenaDef {
   scatter: { asset: string; count: number; seed: string; minScale: number; maxScale: number }[];
   /** Painted ground textures (zones without one keep the procedural ash ground). */
   ground?: GroundDef;
+  /** Colour of the drifting particles (default grey ash). */
+  particles?: string;
+  /** Almost no light but the player's lamp, lamps and floodlights; enemies show glowing eyes (Deep Mines). */
+  dark?: boolean;
 }
 
 /** A ground texture in public/assets/textures/ground/ (file name without .webp). */
@@ -42,7 +48,19 @@ export type GroundTexture =
   | 'slag_ground'
   | 'cooling_slag'
   | 'steel_plating'
-  | 'scorched_flagstones';
+  | 'scorched_flagstones'
+  | 'vault_soil'
+  | 'fungal_moss'
+  | 'root_mat'
+  | 'frosted_concrete'
+  | 'dry_silt'
+  | 'overgrown_asphalt'
+  | 'lab_tiles'
+  | 'crystal_floor'
+  | 'rail_track'
+  | 'elder_stone'
+  | 'lake_shore'
+  | 'steel_grating';
 
 /**
  * Ground textures for an open-world zone: a base that covers everything, up to six overlay

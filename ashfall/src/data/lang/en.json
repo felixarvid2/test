@@ -22,7 +22,9 @@
     "generates": "Generates {amount} {resource}",
     "slotEmpty": "Empty slot",
     "controlsHintClick": "{lmb} move, attack and use · {rmb} skill · 1–4 skills · Shift+{lmb} attack in place · {dodge} dodge · {potion} potion · {inv} inventory · {skills} skills · {map} map · {quests} quests · {debug} debug",
-    "respawnTap": "Tap to rise again"
+    "respawnTap": "Tap to rise again",
+    "exposure": "Spores {pct}%",
+    "flares": "Flares {n}/{max} [{key}]"
   },
   "moveMode": {
     "wasd": "WASD",
@@ -64,6 +66,19 @@
     "spawnHorde": "Spawn 100",
     "godMode": "God mode",
     "screenShake": "Screen shake",
+    "navOverlay": "Show enemy wayfinding",
+    "nav": {
+      "head": "Wayfinding · {fields} field(s) · {ms} ms",
+      "idle": "Wayfinding · idle (nobody hunting)",
+      "direct": "straight at target",
+      "field": "flow field",
+      "slot": "place in the ring",
+      "snipe": "to a firing spot",
+      "flee": "retreat (safety map)",
+      "path": "A* route",
+      "search": "searching",
+      "escape": "unsticking"
+    },
     "graphics": "Graphics",
     "quality": {
       "low": "Low",
@@ -237,7 +252,23 @@
       "brother_ash": "Brother Ash",
       "vire": "High Priestess Vire",
       "hask": "Deacon Hask",
-      "red": "Red"
+      "red": "Red",
+      "keeper": "The Keeper",
+      "brood_warden": "The Brood Warden",
+      "vine_matriarch": "The Vine Matriarch",
+      "ilse_varga": "Dr. Ilse Varga",
+      "gamma_bloom": "The Gamma Bloom",
+      "warden": "The Warden of the Mother Tree",
+      "swarm_queen": "The Swarm Queen",
+      "thorn": "Thorn",
+      "dray": "Foreman Dray",
+      "prism": "The Prism",
+      "drowned_engine": "The Drowned Engine",
+      "archivist": "The Archivist",
+      "elder_guardian": "The Elder Guardian",
+      "holm": "Security Chief Marta Holm",
+      "kade": "Governor Kade",
+      "old_ears": "Old Ears"
     },
     "brood_mother": "Brood Mother",
     "commandant_hale": "Commandant Hale",
@@ -255,7 +286,47 @@
     "pyre_warden": "Pyre Warden",
     "frozen_welder": "The Frozen Welder",
     "vire": "High Priestess Vire",
-    "lumen_tentacle": "Lumen Tentacle"
+    "lumen_tentacle": "Lumen Tentacle",
+    "overgrown_walker": "Overgrown Walker",
+    "swarm_bloater": "Swarm Bloater",
+    "mossborn": "Mossborn",
+    "vine_weaver": "Vine Weaver",
+    "spore_swarm": "Spore Swarm",
+    "cocoon_warden": "Cocoon Warden",
+    "mutated_botanist": "Mutated Botanist",
+    "lumen_giant": "Lumen Giant",
+    "the_keeper": "The Keeper",
+    "brood_warden": "The Brood Warden",
+    "vine_matriarch": "The Vine Matriarch",
+    "ilse_varga": "Dr. Ilse Varga",
+    "gamma_bloom": "The Gamma Bloom",
+    "warden": "The Warden of the Mother Tree",
+    "mother_root": "Mother Tree Root",
+    "regrowing": "It is regrowing from its fungi — destroy them!",
+    "fungus": "Lumen Fungus",
+    "armorPlate": "Armour Plate",
+    "rootNode": "Root Node",
+    "crystal_walker": "Crystal-Bound Walker",
+    "blind_hound": "Blind Hound",
+    "governor_drone": "Governor's Drone",
+    "ore_crusher": "Ore Crusher",
+    "shard_bloater": "Shard Bloater",
+    "burrower": "Burrower",
+    "crystal_sentinel": "Crystal Sentinel",
+    "infected_miner": "Infected Miner",
+    "echo": "Echo",
+    "security_trooper": "Security Trooper",
+    "shield_officer": "Shield Officer",
+    "drill_colossus": "Drill Colossus",
+    "foreman_dray": "Foreman Dray",
+    "the_prism": "The Prism",
+    "drowned_engine": "The Drowned Engine",
+    "archivist": "The Archivist",
+    "elder_guardian": "The Elder Guardian",
+    "security_chief_holm": "Security Chief Holm",
+    "governor_kade": "Governor Kade",
+    "conduit": "Power Conduit",
+    "shieldGenerator": "Shield Generator"
   },
   "resources": {
     "heat": "Heat",
@@ -280,7 +351,8 @@
     "aegis": "Barrier Pylon",
     "chainReaction": "Chain Reaction",
     "magnet": "Magnet",
-    "overclock": "Overclock"
+    "overclock": "Overclock",
+    "wading": "Wading"
   },
   "items": {
     "bases": {
@@ -1239,6 +1311,16 @@
       "name": "Crown of the Hive",
       "effect": "You can have 3 more minions and Raise Corpse raises one more, but minions have 30% less life.",
       "flavor": "Every crown needs subjects."
+    },
+    "ashen_heartwood": {
+      "name": "Ashen Heartwood",
+      "effect": "+8% damage. The Mother Tree burned, and some of its fire stayed with you.",
+      "flavor": "Charred all the way through. It is still warm, and it still beats."
+    },
+    "seed_of_accord": {
+      "name": "Seed of Accord",
+      "effect": "6% less damage taken. The Vaults remember who spared them.",
+      "flavor": "It fell into your open hand. Not dropped. Given."
     }
   },
   "select": {
@@ -1294,7 +1376,21 @@
         "foundry": "Foundry Road",
         "stacks": "Smokestack Forest",
         "cathedral": "Cathedral Steps",
-        "delta": "Pump Station Delta"
+        "delta": "Pump Station Delta",
+        "lab9": "Lab 9",
+        "hvGate": "Quarantine Gate",
+        "outer": "Outer Domes",
+        "sea": "The Green Sea",
+        "seed": "Seed Bank",
+        "roots": "Root Network",
+        "gamma": "Dome Gamma",
+        "zero": "Elevator Station Zero",
+        "lift": "The Freight Lift",
+        "shafts": "The Upper Shafts",
+        "caves": "The Crystal Caves",
+        "lake": "Drill Lake",
+        "elder": "The Elder Halls",
+        "aurum": "Mining Station Aurum"
       }
     },
     "refineryDistrict": {
@@ -1308,6 +1404,30 @@
         "delta": "Pump Station Delta (reclaimed)"
       },
       "foundryRoad": "Foundry Road"
+    },
+    "hydroponicVaults": {
+      "name": "The Hydroponic Vaults",
+      "serviceRoad": "The Service Road",
+      "outerDomes": "The Outer Domes",
+      "greenSea": "The Green Sea",
+      "seedBank": "The Seed Bank",
+      "rootNetwork": "The Root Network",
+      "hub": {
+        "lab9": "Lab 9",
+        "gamma": "Dome Gamma (reclaimed)"
+      }
+    },
+    "deepMines": {
+      "name": "The Deep Mines",
+      "tunnels": "The Tunnels",
+      "upperShafts": "The Upper Shafts",
+      "crystalCaves": "The Crystal Caves",
+      "drillLake": "Drill Lake",
+      "elderHalls": "The Elder Halls",
+      "hub": {
+        "zero": "Elevator Station Zero",
+        "aurum": "Mining Station Aurum (reclaimed)"
+      }
     }
   },
   "map": {
@@ -1341,7 +1461,15 @@
       "portal": "Leave",
       "generator": "Start Generator",
       "instanceKey": "Take Keycard",
-      "cache": "Open Cache"
+      "cache": "Open Cache",
+      "crystal": "Break Crystal",
+      "valve": "Turn Valve",
+      "cage": "Open Cage",
+      "compressor": "Start",
+      "lever": "Pull Lever",
+      "mirror": "Turn Mirror",
+      "eventObject": "Use",
+      "feature": "Use"
     },
     "needKeycard": "Locked. A keycard should be lying somewhere nearby.",
     "keycard": "Keycard taken. A locked chest is close by.",
@@ -1486,6 +1614,142 @@
         "title": "Vire's private journal",
         "body": "It speaks to me in the heat. It does not want to be burned — it wants to be carried. My flock thinks I purify them. I only choose who goes in first. The green and the flame are the same light."
       }
+    },
+    "hv": {
+      "0": {
+        "title": "Quarantine order 9-C",
+        "body": "By order of Lab 9: the Vaults are sealed. No crops, seed or soil leaves this gate. Anyone showing green under the nails is to be turned back. Anyone arguing is to be turned back twice."
+      },
+      "1": {
+        "title": "Lab 9 airlock log",
+        "body": "Filters at 61 %. Dr. Okafor has asked us again not to burn the growth around the airlock. She says it is listening. Chen says she has been in the domes too long. I say the filters are at 61 % and that is the only thing I am sure of."
+      },
+      "2": {
+        "title": "Okafor's notes, day 12",
+        "body": "The mycelium in Dome 2 grew a lattice overnight that maps the old irrigation lines exactly. Not the pipes. The water that used to run in them. It remembers. I do not know yet whether that should frighten me."
+      },
+      "3": {
+        "title": "Crop report, Outer Dome 1",
+        "body": "Wheat yield: zero. Potato yield: zero. Unknown green yield: eleven tonnes, and it moved. Recommend we stop calling this a farm."
+      },
+      "4": {
+        "title": "Farmhand's diary",
+        "body": "Marta keeps one row clean. Every morning she pulls the green out by hand and every night it grows back everywhere except her row. She says it is being polite. I have started helping her."
+      },
+      "5": {
+        "title": "Field note: the Green Sea",
+        "body": "Tree 14 grew four metres between my shifts. When I put my hand on the bark it was warm, and something under it pulsed in time with my own heart. I took my hand away. The pulse did not stop."
+      },
+      "6": {
+        "title": "Survey team, last call",
+        "body": "…filters are clogging, we are turning back. Hollis says he hears singing in the spores. Nobody else does. Hollis is walking toward the trees. Hollis, come back. Hollis—"
+      },
+      "7": {
+        "title": "Okafor's notes, day 40",
+        "body": "I played the tone the cores emit back to the growth at the Dome 3 node. It went still. Then it answered with the same tone, a fifth higher. I have not told the others. They would want to know what it said, and I do not know."
+      },
+      "8": {
+        "title": "Seed Bank freezer log",
+        "body": "Vault 3 temperature: −18 °C. Vault 3 contents: 40,000 seed lines, Earth stock. Vault 3 door: open from the inside. We do not have anything that lives on the inside."
+      },
+      "9": {
+        "title": "Transport manifest 7734",
+        "body": "Authorised: Governor E. Kade. Cargo: 12 sealed cores from the Mother Tree sample site, routed to the Deep Mines lift. Handling note: do not open. Do not listen to them either."
+      },
+      "10": {
+        "title": "Recording, Dr. Varga",
+        "body": "I am not sick. I feel better than I have in years. The others are scared of the green in my veins but it only wants to understand us. It asked me what pain is. I showed it. I am sorry. I am so sorry."
+      },
+      "11": {
+        "title": "Harvester W-01 service log",
+        "body": "Unit W-01 failed to return from the Great Dome. Telemetry shows it still moving in a slow circle around the big tree, arms raised. Its tracks are full of roots. Its engine has not run for nine months."
+      }
+    },
+    "hvlab": {
+      "0": {
+        "title": "Sleeping Lab, log 1",
+        "body": "Day 40 of the sleep trial. Eight volunteers under Lumen sedation, vitals perfect. They dream in the same rhythm now. Varga calls it a choir. I call it a symptom."
+      },
+      "1": {
+        "title": "Sleeping Lab, log 2",
+        "body": "The roots found the cryo lines. Nobody planted them there. Varga refused to cut them: 'They are feeding the sleepers, Amara. Look at their colour.' Their colour was green."
+      },
+      "2": {
+        "title": "Sleeping Lab, log 3",
+        "body": "Kade came through with a sealed crate and a corporate seal. He took four sleepers and a cutting from the Mother Tree. He said the Deep Mines had room for them. He did not say for what."
+      },
+      "3": {
+        "title": "Sleeping Lab, last log",
+        "body": "Ilse has stopped sleeping. She walks between the pods and sings to them. If anyone finds this: do not wake them. Do not let her leave. And tell Amara I'm sorry about the seeds."
+      }
+    },
+    "dm": {
+      "0": {
+        "title": "Lift log, Station Zero",
+        "body": "Last cage up was eleven days ago. Cables hold. Brakes hold. We don't. Foreman says we wait for the governor's all-clear. Foreman says a lot of things."
+      },
+      "1": {
+        "title": "Shift board, Upper Shafts",
+        "body": "Shaft 13 closed until further notice. Do NOT send crews below level 4. Do NOT answer the radio if it calls you by name. — H. Brask"
+      },
+      "2": {
+        "title": "Drill operator's notebook",
+        "body": "Hit a cavity at 3,100 m. Not a void — a room. Smooth walls, right angles. The bit came up glowing and so did Pavel's hands."
+      },
+      "3": {
+        "title": "Ore assay, workings east",
+        "body": "Sample K-7: not ore. Crystalline lattice storing charge in patterns that repeat. Lab says it isn't natural. Governor's office says it's classified."
+      },
+      "4": {
+        "title": "Scratched into a crystal",
+        "body": "the light keeps them away the light keeps them away the light keeps them away do not let your lamp go out"
+      },
+      "5": {
+        "title": "Survey drone recording",
+        "body": "Crystal growth rate: four centimetres a day in the eastern caves. The crystals hum when someone walks past. They hum louder when someone is afraid."
+      },
+      "6": {
+        "title": "Governor's order 112",
+        "body": "By order of Governor Kade: the Main Drill continues at full depth. Medical cases are to be moved to Mining Station Aurum. Security has authority to enforce."
+      },
+      "7": {
+        "title": "Drill Control, shift handover",
+        "body": "Kade was down here again. He doesn't ask about yields any more. He asks how deep the drill can go before it stops being a drill and becomes a key."
+      },
+      "8": {
+        "title": "Elder glyph slab I",
+        "body": "(translated in fragments) WE WERE MANY / WE GREW TOO BRIGHT FOR OUR WORLD / SO WE BECAME THE WORLD"
+      },
+      "9": {
+        "title": "Elder glyph slab II",
+        "body": "(translated in fragments) WE SLEPT IN THE STONE AND THE ROOTS AND THE WATER / WE WAITED FOR HANDS / THE HANDS CAME WITH DRILLS"
+      },
+      "10": {
+        "title": "Elder glyph slab III",
+        "body": "(translated in fragments) WHAT WAKES US BECOMES US / WHAT FEARS US FEEDS US / THE HEART LIES WHERE THE LIGHT BEGAN"
+      },
+      "11": {
+        "title": "Security Chief Holm, private log",
+        "body": "The governor wired the sleepers from the Vaults into the drill's cooling loop. Says they're 'translators'. I've stopped sleeping. Aurum holds, for now. I don't know who for."
+      }
+    },
+    "dmarc": {
+      "0": {
+        "title": "Memory crystal I",
+        "body": "A city of light under a dying sun. Billions of minds, one by one, letting go of their bodies and pouring into the stone."
+      },
+      "1": {
+        "title": "Memory crystal II",
+        "body": "They did not die. They spread: into roots, into water, into every living cell. A whole people, asleep in a planet's skin."
+      },
+      "2": {
+        "title": "Memory crystal III",
+        "body": "Their last warning, carved for whoever came next: what touches us carelessly, we become. We cannot help it. It is all we are now."
+      },
+      "3": {
+        "title": "Memory crystal IV",
+        "body": "And then, a human voice laid over the old one: 'Fascinating. They want a body. I have one to offer — on my terms.' — Governor A. Kade"
+      }
     }
   },
   "npcs": {
@@ -1554,6 +1818,76 @@
       "name": "Brother Lenn",
       "title": "Smelter preacher",
       "greeting": "You've come to judge me. Good. Somebody should."
+    },
+    "okafor": {
+      "name": "Dr. Amara Okafor",
+      "title": "Botanist, Lab 9",
+      "greeting": "Mask on, gloves on, and don't touch anything that moves. Welcome to Lab 9."
+    },
+    "quill": {
+      "name": "Quill",
+      "title": "Quartermaster",
+      "greeting": "Filtered water, canned beans, rifle rounds. Everything sealed twice. What do you need?"
+    },
+    "brann": {
+      "name": "Brann",
+      "title": "Blacksmith",
+      "greeting": "Spores get into the joints of everything. Bring it here before it rusts green."
+    },
+    "dace": {
+      "name": "Dace",
+      "title": "Aspect technician",
+      "greeting": "The filters hum at the same pitch as the aspects. I like it in here."
+    },
+    "ruiz": {
+      "name": "Corporal Ruiz",
+      "title": "Dome Gamma garrison",
+      "greeting": "Gamma's ours again. Six of us left to hold it. Don't make me say five."
+    },
+    "halvorsen": {
+      "name": "Dr. Halvorsen",
+      "title": "Infected researcher",
+      "greeting": "Don't come closer. I can hear the roots under your feet."
+    },
+    "okafor_tree": {
+      "name": "Dr. Amara Okafor",
+      "title": "At the foot of the Mother Tree",
+      "greeting": "It's still alive. Of course it is. The question is what we do now."
+    },
+    "brask": {
+      "name": "Foreman Hana Brask",
+      "title": "Elevator Station Zero",
+      "greeting": "Keep your lamp lit and your voice down. Down here, both get noticed."
+    },
+    "oona": {
+      "name": "Oona",
+      "title": "Quartermaster",
+      "greeting": "Batteries, flares, ration bars. Pick two. The third costs extra."
+    },
+    "gerd": {
+      "name": "Gerd",
+      "title": "Blacksmith",
+      "greeting": "Crystal dust in your joints? Leave it with me. I'll make it sing."
+    },
+    "nils": {
+      "name": "Nils",
+      "title": "Aspect technician",
+      "greeting": "The aspects resonate down here. Like they recognise the stone."
+    },
+    "okafor_mines": {
+      "name": "Dr. Amara Okafor",
+      "title": "Followed you below",
+      "greeting": "It's all connected, isn't it? The roots up there reach all the way down here."
+    },
+    "ruiz_mines": {
+      "name": "Corporal Ruiz",
+      "title": "Followed you below",
+      "greeting": "Burned one monster. Happy to help you put down the man who made them."
+    },
+    "vasquez": {
+      "name": "Teo Vasquez",
+      "title": "Mining Station Aurum",
+      "greeting": "Aurum's ours again. Ninety-one miners alive. That number only goes one way unless we finish this."
     }
   },
   "quests": {
@@ -1703,6 +2037,158 @@
         "offer": "Everyone she touched is either ash or gone. Vire is the reason.\nThe cathedral was the refinery's control hall before she put windows of fire in it. Get in, end it.\nAnd if you see the rail records — Kade shipped something out of here before the end. I want to know what.",
         "talk2": "It's over? Then for the first time in a year, the district can cool down.\nHer journal... she wasn't the first. Kade's last shipment went south on the old service line. Down to the Hydroponic Vaults.\nWhatever he was carrying, it's still down there. And so is he, maybe.",
         "done": "The cathedral's windows go dark. The trail leads down."
+      },
+      "green_door": {
+        "title": "The Green Door",
+        "summary": "Kade's last shipment went down the old service line to the Hydroponic Vaults. Follow it.",
+        "steps": {
+          "0": "Reach the Vaults road gate",
+          "1": "Cross into the Vaults",
+          "2": "Find Lab 9",
+          "3": "Talk to Dr. Okafor"
+        },
+        "talk3": "You walked in through the spores without a filter? Either you're lucky or you're already half green.\nI'm Amara Okafor. I ran the seed programme here before the Vaults decided to run themselves.\nKade? He came through a year ago. He took cuttings from the Mother Tree and left us the jungle. Stay. I need someone who can walk outside.",
+        "done": "Lab 9's airlock hisses shut behind you."
+      },
+      "clean_air": {
+        "title": "Clean Air",
+        "summary": "The air filters around the Green Sea could clear the spores for good. Okafor needs the first one running.",
+        "steps": {
+          "0": "Switch on the air filter in the Green Sea",
+          "1": "Clear the creatures drawn by the filter",
+          "2": "Return to Dr. Okafor"
+        },
+        "offer": "The spores build up in your lungs. Stand in a field too long and you'll feel it.\nThere are six old air filters out there. Switch one on and the air around it stays clean. Forever, if the roots don't eat the cables.\nStart with the nearest one. The noise will bring everything that's listening.",
+        "talk2": "I can see it from the window. A clear patch in the green, like a hole in the clouds.\nFive more and we can walk to the dam without masks. One thing at a time.",
+        "done": "One patch of the Vaults can breathe again."
+      },
+      "okafors_seeds": {
+        "title": "Okafor's Seeds",
+        "summary": "The original, uninfected seed stock lies in the Seed Bank's deep freezers. If it's still clean, it's the most valuable thing on the planet.",
+        "steps": {
+          "0": "Reach the Seed Bank",
+          "1": "Clear the Seed Bank Depths",
+          "2": "Return to Dr. Okafor"
+        },
+        "offer": "Below the Seed Bank there are three freezer vaults. Clean seed. Wheat, rice, beans that never saw Lumen.\nSomething calls itself the Keeper down there now. It used to be our night guard.\nBring me the seed cases. All three. If even one is clean, this colony has a future that isn't green.",
+        "talk2": "Two cases are infected. The third... the third is clean.\nDo you know what you just carried? Not food. Time. We can start again.\nThere's a garrison in Dome Gamma that never answered our calls. If they're alive, they need to know.",
+        "done": "A clean seed case rests on Okafor's bench."
+      },
+      "gamma": {
+        "title": "Gamma",
+        "summary": "Dome Gamma's garrison went silent months ago. Its dome is choked with roots and spores.",
+        "steps": {
+          "0": "Approach Dome Gamma",
+          "1": "Reclaim Dome Gamma",
+          "2": "Talk to Corporal Ruiz"
+        },
+        "offer": "Dome Gamma was the military post. Twelve soldiers and a quartermaster.\nThe roots grew over it in a week. Five nodes, we think, holding the dome like fingers.\nBreak the nodes, and whatever grows in the middle will come out to meet you. Bring them home if you can.",
+        "talk2": "We hid in the ammunition store for three months. Ate the rations, then the packaging.\nI heard the nodes screaming when you broke them. Thought it was us, for a while.\nThe doctor's people in the Sleeping Lab — we saw lights there last week. Someone's awake.",
+        "done": "Gamma's floodlights come back on."
+      },
+      "sleepers": {
+        "title": "The Sleepers",
+        "summary": "Lights in the Sleeping Lab, where Okafor's team ran their sedation trial. Ruiz says someone is awake.",
+        "steps": {
+          "0": "Reach the Sleeping Lab",
+          "1": "Clear the Sleeping Lab",
+          "2": "Return to Dr. Okafor"
+        },
+        "offer": "The Sleeping Lab is where Okafor lost her team. Eight volunteers, two doctors.\nThe lights came on a week ago. Nothing should be powering that place.\nGo in. Read their terminals. She deserves to know, even if she says she doesn't.",
+        "talk2": "Ilse. She was my partner in the programme. She thought the Lumen could make us part of the tree instead of its food.\nAnd Kade took four of the sleepers. To the Deep Mines.\nThe Mother Tree is what's holding all of this together. We have to go to it. Both of us.",
+        "done": "Okafor erases the Sleeping Lab from the duty roster."
+      },
+      "mother_tree": {
+        "title": "The Mother Tree",
+        "summary": "At the heart of the Great Dome stands the Mother Tree, and its Warden. Okafor will follow you there.",
+        "steps": {
+          "0": "Reach the Root Network",
+          "1": "Defeat the Warden of the Mother Tree",
+          "2": "Decide the Mother Tree's fate"
+        },
+        "offer": "Everything in the Vaults is connected to it. The roots, the swarms, the sleepers.\nThe Warden grew out of a cargo loader we used to haul soil. It guards the trunk.\nDefeat it, and then we decide. I'll be waiting outside the dome. I'm not ready to see it up close.",
+        "done": "The Great Dome is silent. Somewhere far below, the Deep Mines are waiting.",
+        "choice2": {
+          "prompt": "Listen. It's still singing. Without the Warden it can't defend itself.\nWe can burn it, and the Vaults will be safe in a generation. Every spore dies with it — and every answer.\nOr we spare it. I can try to understand it. Maybe even talk to it. If I'm wrong, I'll be the first to pay.",
+          "burn": "Burn it. No more sleepers.",
+          "spare": "Spare it. Find out what it wants."
+        },
+        "result": {
+          "burn": "The Mother Tree burns for three days. Okafor watches every hour of it.",
+          "spare": "Okafor lays her hand on the bark. She packs a bag that night: she's coming with you to the Deep Mines."
+        }
+      },
+      "going_down": {
+        "title": "Going Down",
+        "summary": "Kade took the sleepers down to the Deep Mines. A freight lift past the Great Dome is the only way.",
+        "steps": {
+          "0": "Find the freight lift north of the Great Dome",
+          "1": "Ride the lift into the mines",
+          "2": "Find Elevator Station Zero",
+          "3": "Talk to Foreman Brask"
+        },
+        "talk3": "Someone came down the freight lift. On purpose. You're either brave or lost.\nHana Brask. I run what's left of the shifts. Forty of us behind those barricades, and the dark outside them.\nIf you're going after the governor, you'll need light first. Talk to me when you've caught your breath.",
+        "done": "Station Zero's barricade closes behind you."
+      },
+      "lights_in_the_dark": {
+        "title": "Lights in the Dark",
+        "summary": "The old floodlights could push the dark back for good, if someone switches them on.",
+        "steps": {
+          "0": "Switch on the floodlight in the lift drift",
+          "1": "Clear the things the light draws in",
+          "2": "Return to Foreman Brask"
+        },
+        "offer": "There are floodlights all through the tunnels. Old work lights on their own generators.\nSwitch one on and it stays on. The ghosts — Echoes, the miners call them — won't come near it.\nTake flares too. Throw one when you can't see. And mind the roof: if it creaks, run.",
+        "talk2": "I can see it from here. A patch of tunnel lit like it's a normal shift.\nTen more of those and we can walk to the lake without praying.",
+        "done": "One stretch of tunnel is safe in the light."
+      },
+      "missing_shift": {
+        "title": "The Missing Shift",
+        "summary": "Twelve miners went down Shaft 13 the night the drill broke through. The radio still calls from below.",
+        "steps": {
+          "0": "Reach Shaft 13",
+          "1": "Clear Shaft 13",
+          "2": "Return to Foreman Brask"
+        },
+        "offer": "Shaft 13 goes straight down. One elevator. Twelve of my people went down it and never came up.\nThe radio still calls. Sometimes it uses my name.\nRide it down. Whatever's at the bottom, I want to know.",
+        "talk2": "Dray. He was my foreman before I was anyone's. He stayed below so the others could get out.\nAnd they did — up the old ladders, into Aurum. Where the governor's men locked them in.\nWe're getting them back.",
+        "done": "Brask writes twelve names on the shift board."
+      },
+      "aurum": {
+        "title": "Aurum",
+        "summary": "The governor's private security holds Mining Station Aurum, and the miners inside it.",
+        "steps": {
+          "0": "Approach Mining Station Aurum",
+          "1": "Reclaim Mining Station Aurum",
+          "2": "Talk to Teo Vasquez"
+        },
+        "offer": "Aurum was our main station. Now it's Kade's. His security has shield generators that make them near unkillable.\nBreak the generators, then break them. Holm runs the place — Marta Holm. She was fair, once.\nThere are miners inside. Bring them home.",
+        "talk2": "You took the station. With a hammer and a lamp. I'd laugh if I had the breath.\nHolm let some of us go before you came. Said she'd stopped knowing who she worked for.\nThe governor goes past the Elder Gate every week. Whatever's back there, he wants it more than gold.",
+        "done": "Aurum's floodlights burn again."
+      },
+      "elder_gate": {
+        "title": "The Elder Gate",
+        "summary": "Past the Elder Gate lies an archive older than humanity. Kade has been reading it.",
+        "steps": {
+          "0": "Reach the Elder Gate",
+          "1": "Clear the Archive",
+          "2": "Return to Foreman Brask"
+        },
+        "offer": "The drill hit a room at three thousand metres. Then a hall. Then a gate.\nKade calls it the Archive. He goes in alone and comes out talking to himself.\nGo in. Read what he read. Then tell me what we're really fighting.",
+        "talk2": "A whole people, uploaded into the planet. And Lumen is them, waking up wrong.\nAnd Kade thinks he can bargain with it. Give it a body. His.\nHe's at the Main Drill. Drill Control, on the lake shore. It ends there.",
+        "done": "Brask stares at the drill's glow for a long time."
+      },
+      "governor": {
+        "title": "The Governor",
+        "summary": "Governor Kade is at the Main Drill, wired into Lumen-amplifying armour.",
+        "steps": {
+          "0": "Reach Drill Lake",
+          "1": "Defeat Governor Kade",
+          "2": "Return to Foreman Brask"
+        },
+        "offer": "He's wired himself into the drill. Lumen armour, his engineers called it.\nThe drill head turns when he wants it to. Don't stand where it's going.\nBring him down. Then we can all go home. Whatever home means now.",
+        "talk2": "It's over. The drill's quiet. First time in a year I can hear water dripping.\nHis last log... the heart of it, he called it. 'Where the light began.' The Core.\nWe're not done, are we. But tonight, Station Zero sleeps.",
+        "done": "The Main Drill is silent. Below it, the Core waits."
       }
     },
     "sq": {
@@ -1954,6 +2440,260 @@
         },
         "talk3": "K-7 to K-19, sealed, no inspection, escorted by his personal guard. South, on the old service line.\nThe only thing south of here is the Hydroponic Vaults. That's where he went. That's where it went.",
         "done": "The governor's last shipment went south, to the Vaults."
+      },
+      "samples": {
+        "title": "Samples",
+        "summary": "Okafor needs fresh Lumen growth from the outer domes to test her filters against.",
+        "steps": {
+          "0": "Collect Lumen samples in the outer domes",
+          "1": "Return to Dr. Okafor"
+        },
+        "offer": "Five samples. Young growth, the bright stuff. Cut it, don't pull it — it bleeds spores if you pull.\nThey grow along the crop rows. You'll see them glowing.",
+        "talk1": "Beautiful. Horrible, but beautiful. These will tell me how fast the filters clog.",
+        "done": "Five glowing jars line Okafor's shelf."
+      },
+      "infected_researcher": {
+        "title": "The Infected Researcher",
+        "summary": "Dr. Halvorsen was last seen in the outer domes. Okafor fears the worst.",
+        "steps": {
+          "0": "Find Dr. Halvorsen in the outer domes",
+          "1": "Decide Dr. Halvorsen's fate"
+        },
+        "offer": "Halvorsen went out to repair a pump and didn't come back. His tracker still moves. Slowly.\nIf he's turning, there's no cure. But there's a sedative in my kit that might slow it. Your decision, out there. Not mine.",
+        "done": "Halvorsen's tracker stops moving.",
+        "choice1": {
+          "prompt": "It's in my blood. I can feel it reaching for the roots.\nIf you give me the sedative I might have weeks. Months, if I'm lucky. I could still work.\nOr you can end it now, while I'm still me. Please decide quickly.",
+          "save": "Take the sedative. Come back to Lab 9.",
+          "mercy": "I'll make it quick."
+        },
+        "result": {
+          "save": "Halvorsen limps toward Lab 9, clutching the syringe.",
+          "mercy": "You stay with him until the end. He leaves you his research notes."
+        }
+      },
+      "melody": {
+        "title": "The Melody",
+        "summary": "Quill hears a tune on the night wind from the Green Sea. Nobody out there should be playing music.",
+        "steps": {
+          "0": "Follow the melody into the Green Sea",
+          "1": "Follow it deeper",
+          "2": "Find the source",
+          "3": "Return to Quill"
+        },
+        "offer": "Every night around the same time. A little tune, like a music box.\nI know it's stupid. But it's the song my daughter used to fall asleep to. Find out what it is. Please.",
+        "talk3": "A music box. Wound up by the roots growing through the key.\nNo, keep the rest. I just wanted to know it wasn't her.",
+        "done": "The Green Sea is quiet at night again."
+      },
+      "dam_repair": {
+        "title": "Dam Repair",
+        "summary": "The broken dam floods the basin. Three valves could lower the water.",
+        "steps": {
+          "0": "Turn the dam valves",
+          "1": "Clear the creatures at the dam",
+          "2": "Return to Dace"
+        },
+        "offer": "The dam's leaking into the basin and the water's full of things that like water.\nThree pressure valves along the dam. Turn them and the basin drains. Then deal with what doesn't like being dry.",
+        "talk2": "Water's down a full metre. The pumps can handle it from here.",
+        "done": "The dam basin is draining."
+      },
+      "swarm_queen": {
+        "title": "The Swarm Queen",
+        "summary": "A swarm larger than the rest roosts in the Green Sea. Brann wants its carapace.",
+        "steps": {
+          "0": "Find the swarm's roost",
+          "1": "Kill the Swarm Queen",
+          "2": "Return to Brann"
+        },
+        "offer": "There's one swarm that's bigger than the others. Glows brighter. The rest follow it.\nKill it and bring me the shell. Lightest armour plating I'll ever work.",
+        "talk2": "Light as paper, hard as steel. I'll make something worth wearing.",
+        "done": "The swarms in the Green Sea have lost their queen."
+      },
+      "lost_harvest": {
+        "title": "Lost Harvest",
+        "summary": "Harvest crates were abandoned along the crop rows when the spores came.",
+        "steps": {
+          "0": "Recover the harvest crates",
+          "1": "Return to Quill"
+        },
+        "offer": "When the alarm went, the harvest crews left the crates in the rows. Three of them were sealed.\nSealed means edible. Edible means we eat something that isn't beans.",
+        "talk1": "Potatoes! Real ones. I could cry. I might.",
+        "done": "Lab 9 eats well tonight."
+      },
+      "crystal_light": {
+        "title": "Crystal Light",
+        "summary": "Dace believes the glowing crystals are a weapon, if you shatter them at the right moment.",
+        "steps": {
+          "0": "Blind enemies by shattering crystals",
+          "1": "Return to Dace"
+        },
+        "offer": "Those crystals in the jungle store light. Break one and it all comes out at once.\nAnything nearby goes blind for a few seconds. Try it on a crowd. Ten of them, say. For science.",
+        "talk1": "Ten blind and one very pleased technician. I'll add it to the field guide.",
+        "done": "Dace's field guide has a new chapter."
+      },
+      "seed_courier": {
+        "title": "Seed Courier",
+        "summary": "A technician must carry the clean seed case back into the Seed Bank's working freezer.",
+        "steps": {
+          "0": "Meet the technician below the dam",
+          "1": "Escort the technician to the Seed Bank",
+          "2": "Return to Dr. Okafor"
+        },
+        "offer": "The only working freezer is in the Seed Bank. The case has to go back down there.\nMy technician will carry it. You keep everything away from her.",
+        "talk2": "She's back and the seeds are cold. That's all I need to hear today.",
+        "done": "The clean seeds are stored safely."
+      },
+      "overgrown_patrol": {
+        "title": "Overgrown Patrol",
+        "summary": "A patrol from Gamma went missing in the Green Sea before the siege. Ruiz wants their tags.",
+        "steps": {
+          "0": "Find the patrol's last position",
+          "1": "Kill Thorn",
+          "2": "Collect the patrol's tags",
+          "3": "Return to Corporal Ruiz"
+        },
+        "offer": "Four soldiers went out the week before the roots closed in. Sergeant Thorn led them.\nIf he's walking around green, put him down. Bring back the tags. Their families should get something.",
+        "talk3": "Thorn's tag. And Mendez, Kowal, Achebe.\nThank you. I'll send them south with the next convoy.",
+        "done": "Four tags hang by Gamma's gate."
+      },
+      "cold_storage": {
+        "title": "Cold Storage",
+        "summary": "The Seed Bank's freezers need power to keep the clean seeds alive.",
+        "steps": {
+          "0": "Restart the Seed Bank's generators",
+          "1": "Read the freezer log",
+          "2": "Return to Brann"
+        },
+        "offer": "The freezers in the Seed Bank run on two generators. Both are down.\nGet them running. And read the freezer log by the entrance; I want to know how long they were off.",
+        "talk2": "Eleven days off and the seeds still took. Okafor will want to frame that log.",
+        "done": "The Seed Bank hums with cold."
+      },
+      "lost_crew": {
+        "title": "Lost Crew",
+        "summary": "A survey crew went into the southern caves and stopped answering.",
+        "steps": {
+          "0": "Find the crew's last position",
+          "1": "Recover their helmet lamps",
+          "2": "Return to Foreman Brask"
+        },
+        "offer": "Four of them. Survey crew. Last call came from the southern caves.\nIf they're gone, bring back their lamps. We hang them by the lift.",
+        "talk2": "Four lamps. Four hooks. Thank you.",
+        "done": "Four lamps hang by the lift."
+      },
+      "shortcuts": {
+        "title": "Shortcuts",
+        "summary": "Three old service lifts could link the tunnels, if their panels were reset.",
+        "steps": {
+          "0": "Reset the service lift panels",
+          "1": "Return to Nils"
+        },
+        "offer": "The old service lifts still have power. Their panels just need resetting.\nShafts, caves, lake. Three panels. Then we can move people without walking the dark.",
+        "talk1": "Green, green, green. Beautiful. The miners will love you.",
+        "done": "The service lifts hum again."
+      },
+      "rosetta": {
+        "title": "Rosetta",
+        "summary": "Nils thinks the elder glyphs can be read, with enough samples.",
+        "steps": {
+          "0": "Read the elder glyph slabs",
+          "1": "Copy the hidden glyphs in the Elder Halls",
+          "2": "Return to Nils"
+        },
+        "offer": "The glyphs repeat. Patterns, grammar. Give me enough of them and I can read it.\nThree slabs we know of, two more somewhere in the halls.",
+        "talk2": "'What wakes us becomes us.' Oh. Oh, that's not good.\nKeep this. Something the slabs pointed to.",
+        "done": "Nils's notebook is full of glowing ink."
+      },
+      "blind_one": {
+        "title": "The Blind One",
+        "summary": "An old Blind Hound leads the packs on the lake shore. The miners call it Old Ears.",
+        "steps": {
+          "0": "Go to the lake shore",
+          "1": "Kill Old Ears",
+          "2": "Return to Gerd"
+        },
+        "offer": "There's a hound by the lake. Scarred, huge. Hears a dropped bolt at fifty metres.\nKill it and bring me a fang. I've got a use for something that sharp.",
+        "talk2": "That's a fang. I'll make you something that hears what it hits.",
+        "done": "The lake shore is quieter."
+      },
+      "dynamite": {
+        "title": "Dynamite",
+        "summary": "Infected miners carried off the station's explosives.",
+        "steps": {
+          "0": "Kill Infected Miners carrying dynamite",
+          "1": "Recover the explosives cache",
+          "2": "Return to Oona"
+        },
+        "offer": "Our explosives walked off. On the backs of infected miners who don't know what it is any more.\nKill a few. Find where they stashed it. Quietly.",
+        "talk2": "Most of it's here. Nobody blew themselves up. A good day.",
+        "done": "The explosives are back under lock."
+      },
+      "crystal_song": {
+        "title": "Crystal Song",
+        "summary": "Three great crystals in the caves hum out of tune. Nils wants them tuned.",
+        "steps": {
+          "0": "Tune the three crystals",
+          "1": "Return to Nils"
+        },
+        "offer": "Three crystals in the caves are out of tune with the rest. Touch each one and they settle.\nDon't ask me how I know. I just do.",
+        "talk1": "Hear that? Neither do I. That's the point.",
+        "done": "The caves hum in one key."
+      },
+      "the_drowned": {
+        "title": "The Drowned",
+        "summary": "The drill that sank in the lake took its crew with it. Something still runs inside.",
+        "steps": {
+          "0": "Clear the Sunken Drill",
+          "1": "Return to Teo Vasquez"
+        },
+        "offer": "The old drill sank with eight of us inside. Its engine still turns.\nGo in, shut it down. Let them rest.",
+        "talk1": "The lake's still. First time since it went down. Thank you.",
+        "done": "The Sunken Drill is silent."
+      },
+      "prism": {
+        "title": "Prism",
+        "summary": "Deep in the Crystal Labyrinth, light bends around something that thinks.",
+        "steps": {
+          "0": "Clear the Crystal Labyrinth",
+          "1": "Return to Gerd"
+        },
+        "offer": "The labyrinth's crystals throw light around corners. The miners go in blind.\nSomething in there grew big on that light. Break it.",
+        "talk1": "A shard of the Prism. I'll keep it in the dark, I think.",
+        "done": "The labyrinth's light falls still."
+      },
+      "canary": {
+        "title": "Canary",
+        "summary": "Oona's canary escaped into the Upper Shafts.",
+        "steps": {
+          "0": "Search the Upper Shafts",
+          "1": "Find the canary",
+          "2": "Return to Oona"
+        },
+        "offer": "My canary got out. Old habit, keeping one. It tells you when the air goes bad.\nShe went toward the upper shafts. Please.",
+        "talk2": "Pip! Oh, you stupid bird. Thank you. She's the only thing down here that sings.",
+        "done": "Pip sings in Station Zero."
+      },
+      "roots_below": {
+        "title": "Roots Below",
+        "summary": "Okafor believes the crystals in the caves are the Mother Tree's roots, gone to stone.",
+        "steps": {
+          "0": "Go to the Crystal Caves",
+          "1": "Break three glowing crystals",
+          "2": "Return to Dr. Okafor"
+        },
+        "offer": "The crystals in the caves — they pulse in the same rhythm as the Mother Tree did.\nBreak a few. Carefully. I want to see what's inside.",
+        "talk2": "Root tissue. Petrified, but alive. It's the same organism, all the way down.\nWe spared it. I hope that was right. Here — something I grew from a cutting.",
+        "done": "Okafor's samples glow softly in their jars."
+      },
+      "old_orders": {
+        "title": "Old Orders",
+        "summary": "Ruiz recognises the governor's security. Some of them served with him.",
+        "steps": {
+          "0": "Defeat the governor's Security Troopers",
+          "1": "Read Holm's private log",
+          "2": "Return to Corporal Ruiz"
+        },
+        "offer": "Those troopers. I trained with half of them. Before Kade bought them.\nPut them down. And find out who gave the orders. I want names.",
+        "talk2": "Holm wrote it all down. Every order, every name. Kade's.\nIt ends with him. Take this. It was my sergeant's.",
+        "done": "Ruiz burns the log page by page."
       }
     },
     "my": {
@@ -1978,6 +2718,28 @@
           "3": "Open what he left behind"
         },
         "done": "Whoever walks through fire here left you a gift — and a mystery."
+      },
+      "gardener": {
+        "title": "The Gardener",
+        "summary": "One crop row in the outer domes is perfectly tended. Weeded. Watered. Nobody in Lab 9 knows who does it.",
+        "steps": {
+          "0": "Follow the fresh footprints",
+          "1": "Follow them further",
+          "2": "Follow them to the end",
+          "3": "Open what the gardener left"
+        },
+        "done": "The gardener is never seen. The row is always tended."
+      },
+      "whisper": {
+        "title": "The Whisper",
+        "summary": "A voice in the Elder Halls says your name.",
+        "steps": {
+          "0": "Follow the whisper",
+          "1": "Follow it further",
+          "2": "Follow it to its source",
+          "3": "Open what it guards"
+        },
+        "done": "The whisper stops. Something was waiting for you."
       }
     }
   },
@@ -2099,6 +2861,53 @@
       "intro": "High Priestess Vire",
       "phase2": "Vire sets the cathedral alight",
       "phase3": "Vire lets the Lumen take her"
+    },
+    "armorBroken": "The armour is broken!",
+    "keeper": {
+      "phase2": "The Keeper tears the freezers open"
+    },
+    "brood_warden": {
+      "phase2": "The Brood Warden wakes the brood"
+    },
+    "vine_matriarch": {
+      "phase2": "The Vine Matriarch calls the roots"
+    },
+    "ilse_varga": {
+      "phase2": "Dr. Varga breathes in the spores"
+    },
+    "gamma_bloom": {
+      "phase2": "The Gamma Bloom opens"
+    },
+    "warden": {
+      "intro": "The Warden of the Mother Tree",
+      "phase2": "The Warden takes root. Destroy the Root Nodes!",
+      "freed": "The roots are cut. The Warden is free.",
+      "phase3": "The Mother Tree wakes"
+    },
+    "dray": {
+      "phase2": "Dray lights every stick he has"
+    },
+    "prism": {
+      "phase2": "The Prism bends the light into blades"
+    },
+    "drowned_engine": {
+      "phase2": "The drill starts to turn"
+    },
+    "archivist": {
+      "phase2": "The Archivist scatters into memories"
+    },
+    "elder_guardian": {
+      "phase2": "The Guardian steps between moments",
+      "phase3": "The Guardian burns with elder light"
+    },
+    "holm": {
+      "phase2": "Holm calls in the drones"
+    },
+    "kade": {
+      "intro": "Governor Kade",
+      "phase2": "Kade plugs into the Main Drill. Cut the conduits!",
+      "freed": "The conduits are cut. Kade is exposed.",
+      "phase3": "The Lumen takes the governor"
     }
   },
   "instances": {
@@ -2121,7 +2930,28 @@
       "rd_bunker_2": "Slag Pump Room",
       "rd_bunker_3": "Stack Access Shaft",
       "rd_bunker_4": "Foundry Signal Room",
-      "rd_bunker_5": "Choir Cellar"
+      "rd_bunker_5": "Choir Cellar",
+      "seed_bank_depths": "The Seed Bank Depths",
+      "cocoon_chamber": "The Cocoon Chamber",
+      "irrigation_system": "The Irrigation System",
+      "sleeping_lab": "The Sleeping Lab",
+      "hv_bunker_0": "Quarantine Lock 2",
+      "hv_bunker_1": "Nutrient Pump Room",
+      "hv_bunker_2": "Root Survey Cellar",
+      "hv_bunker_3": "Pollination Control",
+      "hv_bunker_4": "Seed Bank Annex",
+      "hv_bunker_5": "Dam Inspection Gallery",
+      "shaft_13": "Shaft 13",
+      "crystal_labyrinth": "The Crystal Labyrinth",
+      "sunken_drill": "The Sunken Drill",
+      "archive": "The Archive",
+      "burial_chamber": "The Burial Chamber",
+      "dm_bunker_0": "Safety Refuge 2",
+      "dm_bunker_1": "East Workings Pump Room",
+      "dm_bunker_2": "Crystal Survey Post",
+      "dm_bunker_3": "Lake Pump Station",
+      "dm_bunker_4": "Collapsed Refuge",
+      "dm_bunker_5": "Elder Threshold"
     },
     "objective": {
       "activate": "Restore power: generators {n}/{count}",
@@ -2135,13 +2965,28 @@
       "followDown": "The robot is down. Hold on, it is rebooting…",
       "rescue": "Free the prisoners: {n}/{count}",
       "defend": "Restart the compressor",
-      "defendRunning": "Keep the compressor running: {s}s"
+      "defendRunning": "Keep the compressor running: {s}s",
+      "seed": "Recover the seed cases: {n}/{count}",
+      "data": "Read the research terminals: {n}/{count}",
+      "drain": "Pull the drain levers: {n}/{count}",
+      "motherCocoon": "Destroy the Mother Cocoon",
+      "memory": "Wake the memory crystals: {n}/{count}",
+      "mirrors": "Turn the mirrors toward the light: {n}/{count}",
+      "powerCore": "Destroy the drill's power cores: {n}/{count}",
+      "elevator": "Start the elevator",
+      "elevatorRunning": "Hold the elevator on its way down: {s}s"
     },
     "progress": {
       "activate": "Generator online ({n}/{count})",
       "collect": "Keycard found ({n}/{count})",
       "destroy": "Spore nest destroyed ({n}/{count})",
-      "valves": "Pump shut ({n}/{count})"
+      "valves": "Pump shut ({n}/{count})",
+      "seed": "Seed case recovered ({n}/{count})",
+      "data": "Terminal read ({n}/{count})",
+      "drain": "The water drains away ({n}/{count})",
+      "memory": "Memory crystal woken ({n}/{count})",
+      "mirrors": "Mirror aligned ({n}/{count})",
+      "powerCore": "Power core destroyed ({n}/{count})"
     },
     "charging": "Generator charging. Hold the line!",
     "gateOpen": "The way to the boss is open",
@@ -2164,7 +3009,14 @@
     "prisonerLost": "Too late. The pyre took them.",
     "compressor": "Compressor",
     "defendStart": "The compressor spins up. Hold for {s}s!",
-    "compressorDown": "The compressor is wrecked. Restart it."
+    "compressorDown": "The compressor is wrecked. Restart it.",
+    "lever": "Drain lever",
+    "motherCocoon": "The Mother Cocoon",
+    "elevator": "Elevator",
+    "elevatorStart": "The elevator lurches down. Hold it for {s} seconds!",
+    "elevatorDown": "The elevator is wrecked. Restart it.",
+    "mirror": "Crystal Mirror",
+    "powerCore": "Power Core"
   },
   "setPieces": {
     "sierra": {
@@ -2183,6 +3035,21 @@
     },
     "vire": {
       "defeated": "High Priestess Vire is dead. The cathedral's fire gutters out."
+    },
+    "gamma": {
+      "start": "Dome Gamma: destroy the five Root Nodes that hold it",
+      "node": "Root Node destroyed ({n}/{count}). The dome answers.",
+      "reclaimed": "Dome Gamma reclaimed"
+    },
+    "warden": {
+      "defeated": "The Warden falls. The Mother Tree goes quiet."
+    },
+    "aurum": {
+      "start": "Mining Station Aurum: destroy the shield generators that protect the governor's security",
+      "reclaimed": "Mining Station Aurum reclaimed"
+    },
+    "kade": {
+      "defeated": "Governor Kade falls. The Main Drill winds down."
     }
   },
   "worldEvents": {
@@ -2234,6 +3101,35 @@
     "smelterRaid": {
       "title": "Smelter Raid",
       "objective": "Keep the pump running against the raid: {s}s"
+    },
+    "sporeBloom": {
+      "title": "Spore Bloom",
+      "objective": "Cut down the spore pods before they burst: {n}/{count} · {s}s"
+    },
+    "swarmMigration": {
+      "title": "Swarm Migration",
+      "objective": "Thin out the swarm: {n}/{count} · {s}s"
+    },
+    "rootEruption": {
+      "title": "Root Eruption",
+      "objective": "Tear out the roots: {n}/{count} · {s}s"
+    },
+    "caveRescue": {
+      "title": "Cave-in Rescue",
+      "objective": "Dig out the trapped miners: {n}/{count} · {s}s",
+      "freed": "Miner dug out ({n}/{count})"
+    },
+    "burrowerSwarm": {
+      "title": "Burrower Swarm",
+      "objective": "Kill what comes up: {n}/{count} · {s}s"
+    },
+    "lightsOut": {
+      "title": "Lights Out",
+      "objective": "Keep the generator running: {s}s"
+    },
+    "securityPatrol": {
+      "title": "Security Patrol",
+      "objective": "Stop the patrol before it gets away: {s}s"
     }
   },
   "storm": {
@@ -2273,7 +3169,17 @@
       "used": "Steam floods the slag. Cross while it lasts!",
       "locked": "The valve won't turn"
     },
-    "noTargets": "Nothing to aim at."
+    "noTargets": "Nothing to aim at.",
+    "airFilter": {
+      "name": "Air Filter",
+      "used": "The filter roars to life. The spores here are clearing.",
+      "locked": "The filter is already running."
+    },
+    "floodlight": {
+      "name": "Floodlight",
+      "used": "The floodlight hums and the dark draws back.",
+      "locked": "The floodlight is already on."
+    }
   },
   "bike": {
     "locked": "You don't have a motorbike yet.",
@@ -2290,7 +3196,8 @@
       "map": "Map",
       "quests": "Quests",
       "mount": "Bike",
-      "fullscreen": "Full screen"
+      "fullscreen": "Full screen",
+      "flare": "Flare"
     },
     "rotate": "Turn your phone sideways to play",
     "playAnyway": "Play anyway",
@@ -2299,5 +3206,9 @@
       "on": "On",
       "off": "Off"
     }
+  },
+  "underground": {
+    "noFlares": "No flares left. They come back with time.",
+    "creak": "The roof creaks…"
   }
 }

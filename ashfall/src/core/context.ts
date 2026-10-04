@@ -25,6 +25,8 @@ export interface InputState {
 }
 
 export interface GameContext {
+  /** Enemy wayfinding: the grid round the player and a flow field per hunted target (navigation system). */
+  nav?: import('../systems/navigation').NavService | undefined;
   input: InputState;
   settings: Settings;
   rng: Rng;
@@ -70,4 +72,6 @@ export interface RewardRequest {
   xp: boolean;
   /** Also drop one guaranteed item of this rarity (debug, boss chests). */
   rarity?: Rarity;
+  /** Also drop this specific unique (quest choices). */
+  unique?: string;
 }

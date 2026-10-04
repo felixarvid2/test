@@ -58,6 +58,8 @@ import type { ZoneDef } from './data/zones/zoneTypes';
 import { makeElite, createZoneRuntime, decodeRevealed, encodeRevealed, nearestTeleporter, revealedFraction, suspendZone, zoneSystem, type ZoneRuntime } from './world/zone';
 import { GameRenderer } from './render/gameRenderer';
 import { collisionSystem, spatialSystem } from './systems/collision';
+import { navigationSystem } from './systems/navigation';
+import { UNDERGROUND, litFloodlights, rockSystem, undergroundState, undergroundSystem } from './world/underground';
 import { isAlive, kill } from './systems/combat';
 import { deathSystem } from './systems/death';
 import { encounterSystem, startNextWave } from './systems/encounter';
@@ -90,7 +92,7 @@ import { MapUi } from './ui/minimap';
 import { Hud, type HudState } from './ui/hud';
 import { Toasts } from './ui/toast';
 import { spawnArenaProps } from './world/arena';
-import { blastSystem, interactSystem, nearestInteractable, spawnInteractables, syncInteractables } from './world/interactables';
+import { blastSystem, crystalSystem, interactSystem, nearestInteractable, spawnInteractables, syncInteractables } from './world/interactables';
 import { loadAccount, relicEffects, saveAccount } from './core/account';
 import { InteractPrompt, LoreReader } from './ui/interactUi';
 import { keyLabel } from './ui/hud';
@@ -133,7 +135,7 @@ import { buildInstance, clearInstance, instanceSystem, objectiveText, roomCenter
 import { ROOM_CELL } from './data/instances';
 import { setPieceSystem, setPiecesOnDeath, syncSetPieces } from './world/setPieces';
 import { activeEvent, suspendEvents, worldEventSystem } from './world/worldEvents';
-import { environmentSystem, resetEnvironment } from './world/environment';
+import { environmentSystem, resetEnvironment, sporeExposure, sporesActive } from './world/environment';
 import { vehicleSystem } from './systems/vehicle';
 import { STORM, stormSystem } from './world/storm';
 import { RESTORATION, grantRestorationPoints, restorationBonuses, restorationSystem, tierFor } from './systems/restoration';
@@ -150,6 +152,8 @@ const ZONE_FADE = 0.35;
 const AUTOSAVE_INTERVAL = 60;
 /** How long the target frame keeps showing the last enemy you hit. */
 const TARGET_MEMORY = 4;
+/** ?nav in the address bar starts with the wayfinding overlay on (it can also be ticked in the debug panel). */
+const NAV_OVERLAY = typeof location !== 'undefined' && new URLSearchParams(location.search).has('nav');
 
 export class Game {
   readonly world = new World();
@@ -189,6 +193,7 @@ export class Game {
   private hitstop = 0;
   private lastTarget: { entity: Entity; until: number } | null = null;
   private cursor = '';
+  private sporeKey = '';
   private readonly touchControls: TouchControls;
 
   private hasStoredSettings(): boolean {
@@ -250,6 +255,7 @@ export class Game {
       .add('playerControl', playerControlSystem)
       .add('vehicle', vehicleSystem)
       .add('skills', skillSystem)
+      .add('navigation', navigationSystem)
       .add('enemyAI', enemyAISystem)
       .add('elites', eliteSystem)
       .add('boss', bossSystem)
@@ -261,8 +267,10 @@ export class Game {
       .add('movement', movementSystem)
       .add('forcedMove', forcedMoveSystem)
       .add('environment', environmentSystem)
+      .add('underground', undergroundSystem)
       .add('delayedStrikes', delayedStrikeSystem)
       .add('collision', collisionSystem)
+      .add('rock', rockSystem)
       .add('projectiles', projectileSystem)
       .add('traps', trapSystem)
       .add('summons', summonSystem)
@@ -270,6 +278,7 @@ export class Game {
       .add('turrets', turretSystem)
       .add('hazards', hazardSystem)
       .add('blasts', blastSystem)
+      .add('crystals', crystalSystem)
       .add('resource', resourceSystem)
       .add('death', deathSystem)
       .add('encounter', encounterSystem)
@@ -455,6 +464,7 @@ export class Game {
         killAll: () => this.killAllEnemies(),
         spawnHorde: () => this.spawnHorde(100),
         setGodMode: (on) => (this.ctx.debug.godMode = on),
+        setNavOverlay: (on) => this.renderer.setNavOverlay(on),
         setGraphics: (q) => this.setGraphics(q),
         addLevel: () => {
           const prog = this.world.req(this.player, Progression);
@@ -515,7 +525,9 @@ export class Game {
       this.settings.showFps,
       this.settings.screenShake,
       this.settings.graphics,
+      NAV_OVERLAY,
     );
+    this.renderer.setNavOverlay(NAV_OVERLAY);
     this.devtools.setMoveMode(this.settings.moveMode);
     this.devtools.setTouchControls(this.settings.touchControls);
     this.refreshHint();
@@ -540,6 +552,7 @@ export class Game {
       this.renderer.preloadGround(ZONES.map((z) => z.ground)),
     ]);
     this.renderer.buildArena(this.zoneDef);
+    this.sporeKey = '';
     this.builtZone = this.zoneDef.id;
   }
 
@@ -656,6 +669,7 @@ export class Game {
     this.ctx.zoneLevels = def.levels;
     if (this.builtZone !== null && this.builtZone !== id) {
       this.renderer.buildArena(def);
+      this.sporeKey = '';
       this.builtZone = id;
     }
     this.lastStorm = -1;
@@ -790,7 +804,29 @@ export class Game {
     if (zoom !== 0) this.renderer.rig.zoom(zoom);
 
     this.updateStormLook();
-    if (this.zone) this.renderer.updateCooled(this.zone.cooled, this.ctx.time);
+    if (this.ctx.instance?.extra.drained) this.renderer.updateInstanceWater(this.ctx.instance.extra.drained);
+    if (this.zone) {
+      const zone = this.zone;
+      this.renderer.updateCooled(zone.cooled, this.ctx.time);
+      if (zone.def.dark) {
+        // Floodlights switched on and burning flares light the dark.
+        const st = undergroundState(zone);
+        this.renderer.setDynamicLights([
+          ...litFloodlights(zone).map((f) => ({ x: f.x, z: f.z, color: '#ffe2b0', intensity: 140, distance: f.radius * 1.5, height: 6 })),
+          ...st.flares.filter((f) => f.until > this.ctx.time).map((f) => ({ x: f.x, z: f.z, color: '#ff6a4a', intensity: 90, distance: UNDERGROUND.flare.radius * 1.6, height: 1.2 })),
+        ]);
+      }
+      // Spore fields only change when something new is found (a filter, a reclaimed dome).
+      const sporeKey = `${zone.def.id}:${zone.found.size}`;
+      if (sporeKey !== this.sporeKey) {
+        this.sporeKey = sporeKey;
+        this.renderer.updateSpores((id) => {
+          const f = zone.def.env?.find((e) => e.id === id);
+          return f?.kind === 'spores' ? sporesActive(zone, f) : false;
+        });
+      }
+    }
+    this.renderer.updateMinds(this.world, this.ctx.nav, this.ctx.time);
     this.renderer.sync(this.world, alpha, frameDt);
     const tr = this.playerTransform;
     const px = tr.prevX + (tr.x - tr.prevX) * alpha;
@@ -1316,6 +1352,8 @@ ${t('questUi.rewards', { xp: def.rewards.xp, gold: def.rewards.gold })}`;
       buffs: (w.get(p, StatusEffects)?.list ?? [])
         .filter((st) => PYLON_STATUSES.has(st.id))
         .map((st) => ({ id: st.id, remaining: st.remaining, color: STATUS_DEFS[st.id].color })),
+      exposure: this.ctx.instance ? 0 : sporeExposure(),
+      flares: !this.ctx.instance && this.zone?.def.dark ? { charges: undergroundState(this.zone).flareCharges, max: UNDERGROUND.flare.charges, key: keyLabel(resolveKeybindings(this.settings).flare[0] ?? 'F') } : undefined,
       dead: w.has(p, Dead),
       xp: (() => {
         const prog = w.req(p, Progression);
@@ -1392,6 +1430,7 @@ ${t('questUi.rewards', { xp: def.rewards.xp, gold: def.rewards.gold })}`;
       },
       rt.def.theme,
       rt.lights,
+      (rt.extra.env ?? []).flatMap((f) => (f.kind === 'water' ? [{ id: f.id, x: f.x, z: f.z, r: f.radius }] : [])),
     );
     this.placePlayer(rt.start.x, rt.start.z);
     this.closeDialogue();

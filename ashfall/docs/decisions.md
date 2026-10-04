@@ -233,6 +233,9 @@ never shown before this change. The Refinery District got its own set later: ref
 flagstones (Cathedral). Up to six overlays use two splat maps; each texture's scale, brightness and glow
 (green Lumen, orange slag cracks) live in `GROUND_LOOK`, and the generated shader gets a program cache key
 per layer set.
+The Hydroponic Vaults use vault soil as the base, with fungal moss (Green Sea, Gamma), a root mat (Root
+Network, around the Great Dome and the Mother Tree), frosted concrete (Seed Bank), dry silt (the dam basin)
+overgrown asphalt roads, and worn lab tiles with drain grates in Lab 9.
 
 ### 2026-10-03 — Click-to-move is the default; phones get touch controls
 The game plays like Diablo: left-click moves, attacks the enemy under the cursor, or walks to an item
@@ -241,3 +244,84 @@ or object and uses it (`InteractTarget`). Settings saved before this switch once
 "auto") get a floating joystick, the action bar restyled as thumb buttons (attack and skills auto-aim at
 the nearest enemy), a menu row, a tappable interact prompt, long-press as right-click in panels, and a
 turn-sideways hint. Taps on the canvas are left-clicks, so everything a click does works by touch too.
+
+### 2026-10-03 — Region 3 reuses every model
+Meshy credits ran out, so the Hydroponic Vaults are built entirely from existing models: enemies are
+earlier models with new tints, sizes and glows (the Warden is a Cargo Loader at ×2.1), fungal trees and
+the Mother Tree are Lumen growths at huge scale with a prop `glow`, Root Nodes are spore nests, and the
+glass domes are merged rib geometry drawn by the renderer. The plan lists which placeholders to replace
+first once credits return.
+
+### 2026-10-03 — The Mother Tree choice lives in the quest record
+The plan called for save version 8 to store the burn-or-spare decision and Okafor's follower flag. The
+finished-quest map already stores the chosen option (`quests.done['mq.mother_tree']` is `burn` or
+`spare`), so no new save field or migration was needed; region 4 reads the follower flag from there.
+
+### 2026-10-03 — Boss parts as separate targets
+Armour plates and Root Nodes are ordinary targetable entities with life, tracked on the `Boss`
+component. The boss's own `damageTaken` multiplier (applied in `applyDamage`) is 0.2 while any plate
+stands and 0 while rooted; destroying the last node restores its speed and removes the vines. Everything
+is destroyed on reset and on death.
+
+### 2026-10-04 — Underground zones: a walkable grid instead of hand-built corridors
+The Deep Mines are drawn on the same 1500 m square as the other regions, but only the tunnels (the zone's
+roads), caverns and hubs are walkable. They are rasterised into a 2 m grid (`src/data/zones/caves.ts`)
+shared by layout code, a collision step (`rockSystem`: slide back along the wall, spend bolts that hit rock)
+and the renderer (black caps over the rock, rough walls along every edge, built once per zone).
+
+### 2026-10-04 — Darkness is rendering plus a light test
+Dark zones set very low ambient light and black fog; the player's existing point light is the lamp.
+Enemies get two small glowing "eye" sprites, and their glow and rim fade with distance from the camera
+focus, so they read as eyes in the dark. Floodlights (saved as found POIs) and flares feed the pooled point
+lights. Gameplay asks `isLit(x, z)` (lamp radius, lit floodlights, burning flares) — Echoes take double
+damage in light.
+
+### 2026-10-04 — The governor is called Kade
+The design document names the region 4 boss Governor Castellan; every earlier region's text already named
+him Governor Kade, so the game keeps Kade.
+
+### 2026-10-04 — The region 3 follower is read from the finished-quest record
+NPCs can require a choice (`choice: { quest, option }`): Okafor follows you into the mines if you spared the
+Mother Tree, Ruiz if you burned it. Each has their own side quest; no save change was needed.
+
+### 2026-10-04 — Enemy pathfinding with a flow field around the player
+While anything is chasing the player, the navigation system builds a 108 m flow field around them
+(1.5 m cells, rebuilt every 0.3 s or when they cross a cell): rock from the underground grid and every
+static collider (dungeon walls, crates, barricades, rubble, gates) block cells, and one Dijkstra pass from
+the player's cell gives each reachable cell its walking distance. An enemy heading for the player walks
+straight while the line is clear and otherwise aims a few cells down the field, so it goes round walls,
+through doorways and along winding tunnels. One field serves every enemy (≈ 0.7 ms per build in the mines,
+≈ 2.7 ms in the busiest open zones); beyond the window, or for targets other than the player (decoys,
+minions), they still walk straight.
+
+
+### 2026-10-04 — Enemy wayfinding: shared grid, fields per target, senses and tactics
+The flow field grew into a wayfinding system (`src/systems/navigation.ts`, steering in `enemyAI.ts`):
+- **One grid, several fields.** The 1.5 m grid round the player (now 120 m) is built once per rebuild;
+  the player and up to two decoys or minions that enemies are chasing each get a Dijkstra field on it.
+  Taunted enemies now find their way round walls to a decoy too.
+- **Danger costs, walls block.** The player's burning ground and clouds, lit fuses, molten metal, vents
+  and a tunnel about to cave in cost 90 per cell (a plain step is 10), water 6. Walking lines refuse to
+  enter danger, so enemies go round a fire patch unless every way leads through it.
+- **Sight is not walking.** Rock and colliders of radius ≥ 1 m block sight; crates block walking only.
+- **Melee ring.** Melee attackers chasing the same target get evenly spaced places round it (in the
+  order they stand, rotated to move them least); those that don't fit wait on an outer ring, places in
+  rock are dropped (in a tunnel they come straight on), and an attacker takes its place before
+  swinging. A place on the far side is reached by going round, not through, the target.
+- **Gunners need a clear line.** No wind-up without line of sight; a gunner behind rock follows a lazy
+  "firing spot" layer (cells in sight 5–11 m from the target) and turns its strafe back before walls.
+- **Retreat by safety map.** Backing off (gunners, lungers, supports) follows the field ×−1.2 relaxed
+  again, which leads away toward open ground instead of into a corner.
+- **Senses.** Noticing needs a line of sight unless the target is within 3 m (Blind Hounds still hear);
+  a "!" pops over the enemy and, a beat later, its pack. Losing the target (stealth) sends it to the
+  last place it saw you, to look round and check two spots nearby, with a "?" over it, then it gives up.
+- **A\*** (octile, danger-aware, string-pulled) takes enemies anywhere else: search spots, a Blind
+  Hound's noise, a support's place behind its pack.
+- **Crowd and stuck handling.** A light separation keeps packs from walking in single file; an enemy
+  that meant to walk 2 m but moved under 0.45 m slides off sideways for 0.6 s.
+- **Debug overlay** (debug panel, or `?nav`): flow arrows coloured by distance, danger in orange, walls
+  in red, and a line from every hunting enemy to where it is heading, coloured by why.
+
+Cost (Node, median): grid and field ≈ 1.2 ms in open zones, 0.8 ms in the mines, every 0.3 s while
+something hunts; the sight, firing-spot and safety layers add 2–4 ms only when a gunner asks, once per
+rebuild. The safety map's all-sources Dijkstra is the biggest part and the first thing to speed up if needed.
