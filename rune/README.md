@@ -44,6 +44,18 @@ Mönster: Trio, Diagonal, Kvadrat, Kvartett, Regnbåge, Spegel, Kors, Full linje
 | `js/game.js` | Spelets tillstånd: prövningar, kast, butik, sparning |
 | `js/bot.js` | Bot för tester och tipsknappen |
 | `js/ui.js`, `js/audio.js` | Gränssnitt, animation och syntetiserade ljud |
+| `js/assets.js` | Lista över genererade bilder (skrivs av `tools/gen-assets.js`) |
+
+## Bilder
+
+Alla bilder i `assets/` (150 reliker, 7 runsymboler, 22 väktare, 13 altarförbättringar, 7 märken, 5 paket, 3 kortbaksidor och 2 bakgrunder) är genererade med FLUX.2 Turbo på fal.ai för totalt högst $1.68 (se `assets/cost.json`). Saknas en bild visar spelet emojin i stället.
+
+```
+FAL_KEY=... node rune/tools/gen-assets.js        # genererar bilder som saknas (budget $1.90, aldrig över $2 totalt)
+node rune/tools/gen-assets.js --dry              # visar vad som saknas och vad det skulle kosta
+```
+
+Motiven finns i `tools/asset-prompts.js`. Ta bort en bild och kör skriptet igen för att göra om den.
 
 ## Tester
 

@@ -25,7 +25,7 @@
   }
   function relicTip(inst, price) {
     var d = R.RELIC[inst.id], rr = R.RARITY[d.r];
-    var s = '<div class="tn">' + d.i + ' ' + d.n + '</div><div class="tr" style="color:' + rr.color + '">' + rr.name + ' · ' + d.cat + '</div><div class="td">' + d.d + '</div>';
+    var s = '<div class="tn">' + art('relic/' + inst.id, d.i, 'inl') + ' ' + d.n + '</div><div class="tr" style="color:' + rr.color + '">' + rr.name + ' · ' + d.cat + '</div><div class="td">' + d.d + '</div>';
     if (d.info) s += '<div class="tv">' + d.info(inst.st, G) + '</div>';
     if (d.copy && G) { var res = R.resolveRelic(G, inst); s += '<div class="tv">' + (res ? 'Kopierar: ' + res.def.n : 'Kopierar inget just nu') + '</div>'; }
     if (inst.ed) s += '<div class="tx"><b>' + R.EDITIONS[inst.ed].name + ':</b> ' + R.EDITIONS[inst.ed].desc + '</div>';
@@ -64,6 +64,13 @@
   }
   function flushToasts() { if (!G) return; while (G.toasts.length) { var t = G.toasts.shift(); toast(t.msg, t.kind); } }
 
+  // ---- Bilder (genererade med tools/gen-assets.js; emoji som reserv) ---------
+  function art(key, fallback, cls) {
+    if (R.ASSETS && R.ASSETS[key]) return '<img class="art ' + (cls || '') + '" src="assets/' + key + '.webp" alt="" draggable="false">';
+    return fallback;
+  }
+  UI.art = art;
+
   // ---- Element ---------------------------------------------------------------
   function runeEl(rn, o) {
     o = o || {};
@@ -72,7 +79,7 @@
     if (rn.ed) e.classList.add('ed-' + rn.ed);
     var sc = rn.sym != null && rn.enh !== 'sten' ? R.SYMS[rn.sym].color : '#aaa';
     e.style.setProperty('--sc', sc + 'aa'); e.style.setProperty('--sg', sc + '44');
-    e.appendChild(h('span', 'em', rn.enh === 'sten' ? '' : R.symE(rn.sym)));
+    e.appendChild(h('span', 'em', rn.enh === 'sten' ? '' : art('sym/' + R.SYMS[rn.sym].id, R.symE(rn.sym), 'symart')));
     if (rn.seal) e.appendChild(h('span', 'seal s-' + rn.seal));
     if (rn.perm) e.appendChild(h('span', 'perm', '+' + rn.perm));
     if (o.hidden) e.classList.add('hid');
@@ -87,7 +94,7 @@
     e.style.setProperty('--rc', R.RARITY[d.r].color);
     if (inst.ed) e.classList.add('ed-' + inst.ed);
     if (inst.off) e.classList.add('off');
-    e.appendChild(h('div', 'ic', d.i));
+    e.appendChild(h('div', 'ic', art('relic/' + inst.id, d.i)));
     e.appendChild(h('div', 'nm', R.esc(d.n)));
     if (d.info && !o.shop) { var v = h('div', 'val', R.esc(String(d.info(inst.st, G)))); e.appendChild(v); }
     e.dataset.uid = inst.uid;
@@ -98,6 +105,7 @@
     var d = R.consDef(c);
     var e = h('div', 'card cons ' + c.kind);
     if (c.ed) e.classList.add('ed-' + c.ed);
+    if (R.ASSETS && R.ASSETS['card/' + c.kind]) e.style.backgroundImage = 'linear-gradient(#0006, #0006), url(assets/card/' + c.kind + '.webp)';
     e.appendChild(h('div', 'ic', d.i));
     e.appendChild(h('div', 'nm', R.esc(d.n)));
     e.dataset.uid = c.uid;
@@ -123,7 +131,7 @@
     if (b) {
       var info = R.BLIND_INFO[b.kind];
       var boss = b.boss ? R.BOSS[b.boss] : null;
-      bb.innerHTML = '<div class="lbl">Cirkel ' + G.ante + ' · ' + (boss ? 'Väktare' : b.kind === 'small' ? 'Prövning 1/3' : 'Prövning 2/3') + '</div><div class="bname">' + (boss ? boss.i + ' ' + boss.n : info.i + ' ' + info.n) + '</div>' +
+      bb.innerHTML = '<div class="lbl">Cirkel ' + G.ante + ' · ' + (boss ? 'Väktare' : b.kind === 'small' ? 'Prövning 1/3' : 'Prövning 2/3') + '</div><div class="bname">' + (boss ? art('boss/' + boss.id, boss.i, 'inl') + ' ' + boss.n : info.i + ' ' + info.n) + '</div>' +
         '<div class="lbl" style="margin-top:4px">Mål</div><div class="btarget">' + R.fmt(G.target) + '</div>' +
         (boss ? '<div class="bdesc">' + bossDesc(boss) + (G.activeBoss() ? '' : ' <b class="green">(inaktiverad)</b>') + '</div>' : '<div class="bdesc">Belöning: $' + info.reward + '</div>');
     } else {
@@ -525,7 +533,7 @@
     G.blinds.forEach(function (b, k) {
       var info = R.BLIND_INFO[b.kind], boss = b.boss ? R.BOSS[b.boss] : null;
       var c = h('div', 'blindcard ' + b.state + (boss ? ' boss' : ''));
-      c.appendChild(h('div', 'bi', boss ? boss.i : info.i));
+      c.appendChild(h('div', 'bi', boss ? art('boss/' + boss.id, boss.i) : info.i));
       c.appendChild(h('div', 'bname', '<b>' + (boss ? boss.n : info.n) + '</b>'));
       c.appendChild(h('div', 'lbl', 'Mål'));
       c.appendChild(h('div', 'bt', R.fmt(R.blindTarget(G.ante, b.kind, b.boss))));
@@ -534,13 +542,13 @@
         c.appendChild(btn('Välj', 'gold', function () { G.selectBlind(); clearSel(); R.sfx.place(); save(); render(); }));
         if (b.kind !== 'boss') {
           var t = R.TAG[b.tag];
-          var tc = h('div', 'tagchip', 'Hoppa över → ' + t.i + ' <b>' + t.n + '</b><br>' + t.d);
+          var tc = h('div', 'tagchip', 'Hoppa över → ' + art('tag/' + t.id, t.i, 'inl') + ' <b>' + t.n + '</b><br>' + t.d);
           c.appendChild(tc);
           c.appendChild(btn('Hoppa över', 'ghost', function () { G.skipBlind(); save(); render(); }));
         }
       } else if (b.state === 'done') c.appendChild(h('div', 'lbl', 'Klarad'));
       else if (b.state === 'skipped') c.appendChild(h('div', 'lbl', 'Överhoppad'));
-      else if (b.kind !== 'boss') c.appendChild(h('div', 'tagchip', 'Märke: ' + R.TAG[b.tag].i + ' ' + R.TAG[b.tag].n));
+      else if (b.kind !== 'boss') c.appendChild(h('div', 'tagchip', 'Märke: ' + art('tag/' + b.tag, R.TAG[b.tag].i, 'inl') + ' ' + R.TAG[b.tag].n));
       void k;
       row.appendChild(c);
     });
@@ -571,7 +579,7 @@
       var box;
       if (it.type === 'relic') {
         var d = R.RELIC[it.inst.id], rr = R.RARITY[d.r];
-        box = itemBox(d.i, d.n, d.d, '<span style="color:' + rr.color + '">' + rr.name + '</span>' + (it.inst.ed ? ' · <span class="gold">' + R.EDITIONS[it.inst.ed].name + '</span>' : '') + ' · ' + d.cat);
+        box = itemBox(art('relic/' + it.inst.id, d.i), d.n, d.d, '<span style="color:' + rr.color + '">' + rr.name + '</span>' + (it.inst.ed ? ' · <span class="gold">' + R.EDITIONS[it.inst.ed].name + '</span>' : '') + ' · ' + d.cat);
         if (it.inst.ed) box.classList.add('ed-' + it.inst.ed);
         bindTip(box, function () { return relicTip(it.inst, it.cost); });
       } else {
@@ -590,14 +598,14 @@
     var row2 = h('div', 'shopgrid');
     G.shop.packs.forEach(function (pk, k) {
       var p = R.PACK[pk.id];
-      var box = itemBox(p.i, p.n, p.d, '<span class="gold">Paket</span>');
+      var box = itemBox(art('pack/' + p.kind, p.i), p.n, p.d, '<span class="gold">Paket</span>');
       box.appendChild(h('div', 'price', pk.cost ? '$' + pk.cost : 'Gratis'));
       box.appendChild(btn('Öppna', 'gold', function () { if (G.buyPack(k)) { R.sfx.buy(); clearSel(); save(); } render(); }, G.money < pk.cost));
       row2.appendChild(box);
     });
     if (G.shopVoucher) {
       var v = R.VOUCHER[G.shopVoucher], cost = G.price(10);
-      var vb = itemBox(v.i, v.n, v.d, '<span style="color:#ff9d00">Altarförbättring</span>');
+      var vb = itemBox(art('voucher/' + v.id, v.i), v.n, v.d, '<span style="color:#ff9d00">Altarförbättring</span>');
       vb.appendChild(h('div', 'price', '$' + cost));
       vb.appendChild(btn('Köp', 'gold', function () { if (G.buyVoucher()) { R.sfx.buy(); save(); } render(); }, G.money < cost));
       row2.appendChild(vb);
@@ -627,7 +635,7 @@
         box.appendChild(h('div', 'id', ds.join(' · ') || 'Vanlig runa'));
       } else if (it.type === 'relic') {
         var d = R.RELIC[it.inst.id], rr = R.RARITY[d.r];
-        box = itemBox(d.i, d.n, d.d, '<span style="color:' + rr.color + '">' + rr.name + '</span>' + (it.inst.ed ? ' · ' + R.EDITIONS[it.inst.ed].name : ''));
+        box = itemBox(art('relic/' + it.inst.id, d.i), d.n, d.d, '<span style="color:' + rr.color + '">' + rr.name + '</span>' + (it.inst.ed ? ' · ' + R.EDITIONS[it.inst.ed].name : ''));
       } else {
         var cd = R.consDef(it.c);
         box = itemBox(cd.i, cd.n, cd.d, R.CONS_KIND[it.c.kind] + (it.c.kind === 'star' ? ' · nivå ' + G.levels[it.c.id] : ''));
@@ -748,13 +756,13 @@
     var grid = h('div', 'codex');
     function cx(icon, name, desc, color, extra) { var c = h('div', 'cx', '<b>' + icon + ' ' + R.esc(name) + '</b>' + (extra ? ' <span class="lbl">' + extra + '</span>' : '') + '<div class="cxd">' + desc + '</div>'); c.style.setProperty('--rc', color || 'var(--line)'); return c; }
     if (R.RELIC_CATS.indexOf(tab) >= 0) {
-      R.RELICS.filter(function (d) { return d.cat === tab; }).forEach(function (d) { grid.appendChild(cx(d.i, d.n, d.d, R.RARITY[d.r].color, R.RARITY[d.r].name + ' · $' + d.c)); });
+      R.RELICS.filter(function (d) { return d.cat === tab; }).forEach(function (d) { grid.appendChild(cx(art('relic/' + d.id, d.i, 'inl'), d.n, d.d, R.RARITY[d.r].color, R.RARITY[d.r].name + ' · $' + d.c)); });
     } else if (tab === 'Ristningar') R.RISTS.forEach(function (c) { grid.appendChild(cx(c.i, c.n, c.d, '#8b6cff')); });
     else if (tab === 'Stjärnbilder') R.STARS.forEach(function (c) { grid.appendChild(cx(c.i, c.n, c.d, '#4fd8ff')); });
     else if (tab === 'Ekon') R.EKOS.forEach(function (c) { grid.appendChild(cx(c.i, c.n, c.d, '#c77dff')); });
-    else if (tab === 'Väktare') R.BOSSES.forEach(function (b) { grid.appendChild(cx(b.i, b.n, b.d, b.fin ? '#ff5470' : '#ff9d00', b.fin ? 'Slutväktare' : 'från cirkel ' + (b.min || 1))); });
-    else if (tab === 'Förbättringar') R.VOUCHERS.forEach(function (v) { grid.appendChild(cx(v.i, v.n, v.d, '#ff9d00', '$10')); });
-    else if (tab === 'Märken') R.TAGS.forEach(function (t) { grid.appendChild(cx(t.i, t.n, t.d, '#3ecf8e')); });
+    else if (tab === 'Väktare') R.BOSSES.forEach(function (b) { grid.appendChild(cx(art('boss/' + b.id, b.i, 'inl'), b.n, b.d, b.fin ? '#ff5470' : '#ff9d00', b.fin ? 'Slutväktare' : 'från cirkel ' + (b.min || 1))); });
+    else if (tab === 'Förbättringar') R.VOUCHERS.forEach(function (v) { grid.appendChild(cx(art('voucher/' + v.id, v.i, 'inl'), v.n, v.d, '#ff9d00', '$10')); });
+    else if (tab === 'Märken') R.TAGS.forEach(function (t) { grid.appendChild(cx(art('tag/' + t.id, t.i, 'inl'), t.n, t.d, '#3ecf8e')); });
     box.appendChild(grid);
     modal(box);
   }
@@ -808,6 +816,8 @@
   // För tester och felsökning i konsolen.
   UI.game = function () { return G; };
   UI.render = render;
+  if (R.ASSETS && R.ASSETS['bg/altar']) $('boardwrap').style.backgroundImage = 'linear-gradient(#1d1532cc, #1d1532cc), url(assets/bg/altar.webp)';
+  if (R.ASSETS && R.ASSETS['bg/menu']) document.body.style.backgroundImage = 'linear-gradient(#14101fd9, #14101fee), url(assets/bg/menu.webp)';
   bind();
   G = loadSave();
   if (!G) UI.menu = true;
