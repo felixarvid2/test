@@ -1,0 +1,1056 @@
+{
+  "spent": 1.6800000000000013,
+  "images": 210,
+  "log": [
+    {
+      "key": "relic/forbannade_kronan",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:37.782Z"
+    },
+    {
+      "key": "sym/eld",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:38.008Z"
+    },
+    {
+      "key": "relic/feltrycket",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:46.047Z"
+    },
+    {
+      "key": "relic/halvmane",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:46.272Z"
+    },
+    {
+      "key": "relic/runsten",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:46.643Z"
+    },
+    {
+      "key": "relic/bergstopp",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:47.116Z"
+    },
+    {
+      "key": "relic/samlarsten",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:47.298Z"
+    },
+    {
+      "key": "relic/fana",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:47.989Z"
+    },
+    {
+      "key": "relic/gryningen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:48.237Z"
+    },
+    {
+      "key": "relic/akrobaten",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:48.548Z"
+    },
+    {
+      "key": "relic/pirathatten",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:49.057Z"
+    },
+    {
+      "key": "relic/schablonen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:49.086Z"
+    },
+    {
+      "key": "relic/tjuren",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:49.495Z"
+    },
+    {
+      "key": "relic/stenmuren",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:50.393Z"
+    },
+    {
+      "key": "relic/solsten",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:50.492Z"
+    },
+    {
+      "key": "relic/stovelremmen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:50.506Z"
+    },
+    {
+      "key": "relic/benflojt",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:51.678Z"
+    },
+    {
+      "key": "relic/glodkol",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:51.705Z"
+    },
+    {
+      "key": "relic/askstav",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:52.889Z"
+    },
+    {
+      "key": "relic/rotknuta",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:52.970Z"
+    },
+    {
+      "key": "relic/manesilver",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:53.205Z"
+    },
+    {
+      "key": "relic/prisma",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:53.423Z"
+    },
+    {
+      "key": "relic/ljuslykta",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:53.912Z"
+    },
+    {
+      "key": "relic/glodsten",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:54.227Z"
+    },
+    {
+      "key": "relic/tidparla",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:54.710Z"
+    },
+    {
+      "key": "relic/gravstenen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:55.155Z"
+    },
+    {
+      "key": "relic/kristallkronan",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:56.046Z"
+    },
+    {
+      "key": "relic/nattens_oga",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:56.272Z"
+    },
+    {
+      "key": "relic/visitkortet",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:57.435Z"
+    },
+    {
+      "key": "relic/blomkrukan",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:57.675Z"
+    },
+    {
+      "key": "relic/urtidsrunan",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:58.631Z"
+    },
+    {
+      "key": "relic/glad_trefot",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:59.381Z"
+    },
+    {
+      "key": "relic/idolen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:11:59.444Z"
+    },
+    {
+      "key": "relic/snedsteget",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:00.407Z"
+    },
+    {
+      "key": "relic/fyrkanten",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:02.045Z"
+    },
+    {
+      "key": "relic/fyrklovern",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:03.322Z"
+    },
+    {
+      "key": "relic/regnbagsfjadern",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:03.980Z"
+    },
+    {
+      "key": "relic/spegelskarvan",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:04.343Z"
+    },
+    {
+      "key": "relic/korsriddaren",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:05.079Z"
+    },
+    {
+      "key": "relic/linjalen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:05.691Z"
+    },
+    {
+      "key": "relic/glorian",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:06.378Z"
+    },
+    {
+      "key": "relic/stenhuggaren",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:06.857Z"
+    },
+    {
+      "key": "relic/travstaven",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:07.583Z"
+    },
+    {
+      "key": "relic/tegelstenen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:08.759Z"
+    },
+    {
+      "key": "relic/fyrfoten",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:09.771Z"
+    },
+    {
+      "key": "relic/trefaldigheten",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:10.540Z"
+    },
+    {
+      "key": "relic/snedkronet",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:10.986Z"
+    },
+    {
+      "key": "relic/kubtornet",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:12.202Z"
+    },
+    {
+      "key": "relic/fyrtornet",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:12.285Z"
+    },
+    {
+      "key": "relic/prismakronan",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:12.837Z"
+    },
+    {
+      "key": "relic/tvillingarna",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:13.630Z"
+    },
+    {
+      "key": "relic/kedjelanken",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:14.005Z"
+    },
+    {
+      "key": "relic/dominobrickan",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:14.736Z"
+    },
+    {
+      "key": "relic/lavinen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:14.941Z"
+    },
+    {
+      "key": "relic/ekot",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:15.132Z"
+    },
+    {
+      "key": "relic/ensamvargen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:15.869Z"
+    },
+    {
+      "key": "relic/kaskaden",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:16.084Z"
+    },
+    {
+      "key": "relic/brokiga",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:16.448Z"
+    },
+    {
+      "key": "relic/smedjan",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:17.005Z"
+    },
+    {
+      "key": "relic/overspanning",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:17.153Z"
+    },
+    {
+      "key": "relic/gronskan",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:17.997Z"
+    },
+    {
+      "key": "relic/slipstenen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:18.048Z"
+    },
+    {
+      "key": "relic/tidvattnet",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:18.538Z"
+    },
+    {
+      "key": "relic/solglasogonen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:18.544Z"
+    },
+    {
+      "key": "relic/offerkniven",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:19.213Z"
+    },
+    {
+      "key": "relic/alkemisten",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:19.544Z"
+    },
+    {
+      "key": "relic/reaktorn",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:19.667Z"
+    },
+    {
+      "key": "relic/ledaren",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:20.172Z"
+    },
+    {
+      "key": "relic/hornstenen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:20.611Z"
+    },
+    {
+      "key": "relic/katalysatorn",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:20.856Z"
+    },
+    {
+      "key": "relic/hjartstenen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:21.057Z"
+    },
+    {
+      "key": "relic/kantvakten",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:21.853Z"
+    },
+    {
+      "key": "relic/karnan",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:22.100Z"
+    },
+    {
+      "key": "relic/horisonten",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:22.321Z"
+    },
+    {
+      "key": "relic/lodet",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:22.862Z"
+    },
+    {
+      "key": "relic/kompassen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:23.224Z"
+    },
+    {
+      "key": "relic/himlavalvet",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:23.621Z"
+    },
+    {
+      "key": "relic/eremiten",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:23.789Z"
+    },
+    {
+      "key": "relic/tomrummet",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:24.119Z"
+    },
+    {
+      "key": "relic/stenhjartat",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:24.684Z"
+    },
+    {
+      "key": "relic/murbruket",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:24.959Z"
+    },
+    {
+      "key": "relic/skuggspelaren",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:25.113Z"
+    },
+    {
+      "key": "relic/baronen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:25.950Z"
+    },
+    {
+      "key": "relic/vandraren",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:26.167Z"
+    },
+    {
+      "key": "relic/grodan",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:26.276Z"
+    },
+    {
+      "key": "relic/rostad_mandel",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:27.173Z"
+    },
+    {
+      "key": "relic/glassen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:27.209Z"
+    },
+    {
+      "key": "relic/loparen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:27.274Z"
+    },
+    {
+      "key": "relic/vampyren",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:28.293Z"
+    },
+    {
+      "key": "relic/astrologen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:28.445Z"
+    },
+    {
+      "key": "relic/hologrammet",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:28.569Z"
+    },
+    {
+      "key": "relic/glasogat",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:29.664Z"
+    },
+    {
+      "key": "relic/lyckokatten",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:29.685Z"
+    },
+    {
+      "key": "relic/lagerelden",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:29.838Z"
+    },
+    {
+      "key": "relic/offerdolken",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:30.557Z"
+    },
+    {
+      "key": "relic/tillbakablicken",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:30.975Z"
+    },
+    {
+      "key": "relic/blixtkortet",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:31.787Z"
+    },
+    {
+      "key": "relic/reservfickan",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:32.292Z"
+    },
+    {
+      "key": "relic/falskspelaren",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:32.901Z"
+    },
+    {
+      "key": "relic/spakvinnan",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:33.128Z"
+    },
+    {
+      "key": "relic/bubbelvattnet",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:33.388Z"
+    },
+    {
+      "key": "relic/bananen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:33.589Z"
+    },
+    {
+      "key": "relic/tomhetsstenen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:33.895Z"
+    },
+    {
+      "key": "relic/vandringsstaven",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:34.606Z"
+    },
+    {
+      "key": "relic/marmorbrottet",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:34.611Z"
+    },
+    {
+      "key": "relic/guldbaggen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:35.126Z"
+    },
+    {
+      "key": "relic/raketen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:35.556Z"
+    },
+    {
+      "key": "relic/agget",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:35.891Z"
+    },
+    {
+      "key": "relic/till_manen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:36.199Z"
+    },
+    {
+      "key": "relic/moln_nio",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:37.072Z"
+    },
+    {
+      "key": "relic/fordrojd",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:37.258Z"
+    },
+    {
+      "key": "relic/presentkortet",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:38.113Z"
+    },
+    {
+      "key": "relic/ansiktslos",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:38.247Z"
+    },
+    {
+      "key": "relic/gyllene_biljetten",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:39.117Z"
+    },
+    {
+      "key": "relic/midasmasken",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:39.511Z"
+    },
+    {
+      "key": "relic/att_gora",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:40.409Z"
+    },
+    {
+      "key": "relic/hacket",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:40.691Z"
+    },
+    {
+      "key": "relic/skymningen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:41.274Z"
+    },
+    {
+      "key": "relic/maskerna",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:41.902Z"
+    },
+    {
+      "key": "relic/hangande_lappen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:42.365Z"
+    },
+    {
+      "key": "relic/ekokammaren",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:43.130Z"
+    },
+    {
+      "key": "relic/sollinsen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:43.291Z"
+    },
+    {
+      "key": "relic/bryggan",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:44.398Z"
+    },
+    {
+      "key": "relic/smetade_paletten",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:45.688Z"
+    },
+    {
+      "key": "relic/plasket",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:46.858Z"
+    },
+    {
+      "key": "relic/langa_armen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:47.987Z"
+    },
+    {
+      "key": "relic/jonglaren",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:48.494Z"
+    },
+    {
+      "key": "relic/fyllbulten",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:48.785Z"
+    },
+    {
+      "key": "relic/trubaduren",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:49.160Z"
+    },
+    {
+      "key": "relic/inbrottstjuven",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:49.789Z"
+    },
+    {
+      "key": "relic/lyckosolen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:50.330Z"
+    },
+    {
+      "key": "relic/gycklaren",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:52.223Z"
+    },
+    {
+      "key": "relic/dubbelhelixen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:53.632Z"
+    },
+    {
+      "key": "relic/sigillbrevet",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:55.619Z"
+    },
+    {
+      "key": "relic/kaosclownen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:57.591Z"
+    },
+    {
+      "key": "relic/astronomen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:58.669Z"
+    },
+    {
+      "key": "relic/avtrycket",
+      "cost": 0.008,
+      "at": "2026-10-05T07:12:59.826Z"
+    },
+    {
+      "key": "relic/tankestormen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:03.036Z"
+    },
+    {
+      "key": "relic/spadomskulan",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:03.378Z"
+    },
+    {
+      "key": "relic/superposition",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:04.022Z"
+    },
+    {
+      "key": "relic/rymdfararen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:04.354Z"
+    },
+    {
+      "key": "relic/spakortet",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:05.155Z"
+    },
+    {
+      "key": "relic/seansen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:05.645Z"
+    },
+    {
+      "key": "relic/bronda_runan",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:06.312Z"
+    },
+    {
+      "key": "relic/packet",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:06.895Z"
+    },
+    {
+      "key": "relic/askkungen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:07.892Z"
+    },
+    {
+      "key": "relic/solkonungen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:08.143Z"
+    },
+    {
+      "key": "relic/gravvaktaren",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:08.753Z"
+    },
+    {
+      "key": "relic/vaktarbanan",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:09.060Z"
+    },
+    {
+      "key": "relic/spegelvannen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:09.452Z"
+    },
+    {
+      "key": "relic/ouroboros",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:09.569Z"
+    },
+    {
+      "key": "sym/sol",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:10.291Z"
+    },
+    {
+      "key": "sym/dod",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:10.580Z"
+    },
+    {
+      "key": "sym/mane",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:10.703Z"
+    },
+    {
+      "key": "sym/natur",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:11.272Z"
+    },
+    {
+      "key": "sym/blixt",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:11.866Z"
+    },
+    {
+      "key": "boss/muren",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:12.251Z"
+    },
+    {
+      "key": "sym/kristall",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:12.567Z"
+    },
+    {
+      "key": "boss/stenfaltet",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:13.143Z"
+    },
+    {
+      "key": "boss/spegeln",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:13.388Z"
+    },
+    {
+      "key": "boss/forseglaren",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:13.533Z"
+    },
+    {
+      "key": "boss/kedjan",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:14.341Z"
+    },
+    {
+      "key": "boss/psyket",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:14.443Z"
+    },
+    {
+      "key": "boss/vattnet",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:14.643Z"
+    },
+    {
+      "key": "boss/armen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:15.385Z"
+    },
+    {
+      "key": "boss/virveln",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:15.696Z"
+    },
+    {
+      "key": "boss/nalen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:16.124Z"
+    },
+    {
+      "key": "boss/tornet",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:16.709Z"
+    },
+    {
+      "key": "boss/tanden",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:16.970Z"
+    },
+    {
+      "key": "boss/kroken",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:17.019Z"
+    },
+    {
+      "key": "boss/munnen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:17.759Z"
+    },
+    {
+      "key": "boss/bergvaggen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:17.803Z"
+    },
+    {
+      "key": "boss/ogat",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:17.838Z"
+    },
+    {
+      "key": "boss/purpurkarlet",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:18.807Z"
+    },
+    {
+      "key": "boss/dimman",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:18.892Z"
+    },
+    {
+      "key": "boss/gloden",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:19.211Z"
+    },
+    {
+      "key": "boss/karmosinhjartat",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:19.686Z"
+    },
+    {
+      "key": "boss/grona_bladet",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:20.058Z"
+    },
+    {
+      "key": "boss/askstormen",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:20.295Z"
+    },
+    {
+      "key": "voucher/overflod",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:20.611Z"
+    },
+    {
+      "key": "voucher/rensning",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:20.807Z"
+    },
+    {
+      "key": "voucher/krigsrop",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:21.588Z"
+    },
+    {
+      "key": "voucher/hamstraren",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:21.934Z"
+    },
+    {
+      "key": "voucher/rea",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:22.698Z"
+    },
+    {
+      "key": "voucher/lager",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:22.929Z"
+    },
+    {
+      "key": "voucher/teleskop",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:23.825Z"
+    },
+    {
+      "key": "voucher/omrullning",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:24.024Z"
+    },
+    {
+      "key": "voucher/stjarnbod",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:24.932Z"
+    },
+    {
+      "key": "voucher/ristarbod",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:25.162Z"
+    },
+    {
+      "key": "voucher/slipning",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:25.948Z"
+    },
+    {
+      "key": "voucher/penseln",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:26.347Z"
+    },
+    {
+      "key": "voucher/antimateria",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:26.924Z"
+    },
+    {
+      "key": "tag/pengar",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:27.903Z"
+    },
+    {
+      "key": "tag/relik",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:28.896Z"
+    },
+    {
+      "key": "tag/stjarna",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:30.205Z"
+    },
+    {
+      "key": "tag/ristning",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:30.556Z"
+    },
+    {
+      "key": "tag/eko",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:31.110Z"
+    },
+    {
+      "key": "tag/rabatt",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:31.399Z"
+    },
+    {
+      "key": "tag/runor",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:31.767Z"
+    },
+    {
+      "key": "pack/rune",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:32.304Z"
+    },
+    {
+      "key": "pack/rist",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:32.450Z"
+    },
+    {
+      "key": "pack/star",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:33.253Z"
+    },
+    {
+      "key": "pack/relic",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:33.761Z"
+    },
+    {
+      "key": "card/rist",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:34.293Z"
+    },
+    {
+      "key": "pack/eko",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:34.618Z"
+    },
+    {
+      "key": "card/star",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:34.896Z"
+    },
+    {
+      "key": "card/eko",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:35.263Z"
+    },
+    {
+      "key": "bg/altar",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:36.851Z"
+    },
+    {
+      "key": "bg/menu",
+      "cost": 0.008,
+      "at": "2026-10-05T07:13:36.934Z"
+    },
+    {
+      "key": "relic/skuggspelaren",
+      "cost": 0.008,
+      "at": "2026-10-05T07:14:34.896Z"
+    }
+  ]
+}
