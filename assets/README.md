@@ -1,6 +1,7 @@
 # Assets
 
-Free game assets by [Kenney](https://kenney.nl) (CC0 – see `License.txt` in each pack).
+Free game assets by [Kenney](https://kenney.nl) (CC0 – see `License.txt` in each pack), plus the
+AI-generated assets made for Ashfall in `ashfall-ai/`.
 
 | Folder | Content |
 |---|---|
@@ -12,3 +13,4 @@ Free game assets by [Kenney](https://kenney.nl) (CC0 – see `License.txt` in ea
 | `effects/` | Particles, smoke, splats |
 | `isometric-hex/` | Isometric and hexagon tiles |
 | `boardgames-puzzle/` | Cards, dominos, sokoban, sports, puzzle |
+| `ashfall-ai/` | Ashfall's generated assets: Meshy 3D models and icons, FLUX 2D art (items, bosses, decals, VFX, maps) |
