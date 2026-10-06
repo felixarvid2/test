@@ -1,6 +1,6 @@
 # Assets
 
-Free game assets by [Kenney](https://kenney.nl) (CC0 – see `License.txt` in each pack).
+Free game assets by [Kenney](https://kenney.nl) (CC0 – see `License.txt` in each pack), plus AI-generated images in `ai-generated/`.
 
 | Folder | Content |
 |---|---|
@@ -12,3 +12,4 @@ Free game assets by [Kenney](https://kenney.nl) (CC0 – see `License.txt` in ea
 | `effects/` | Particles, smoke, splats |
 | `isometric-hex/` | Isometric and hexagon tiles |
 | `boardgames-puzzle/` | Cards, dominos, sokoban, sports, puzzle |
+| `ai-generated/` | Images generated via API (not Kenney); each folder has a README with model, cost and prompts |

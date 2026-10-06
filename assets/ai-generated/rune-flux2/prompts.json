@@ -1,0 +1,1256 @@
+[
+ {
+  "file": "relics/runsten.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a carved standing runestone with one glowing rune."
+ },
+ {
+  "file": "relics/samlarsten.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a gold ring set with several small glowing gemstones."
+ },
+ {
+  "file": "relics/feltrycket.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a misprinted playing die with smudged glowing pips."
+ },
+ {
+  "file": "relics/fana.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a tattered red war banner on a wooden pole."
+ },
+ {
+  "file": "relics/bergstopp.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a lonely snowy mountain peak under stars."
+ },
+ {
+  "file": "relics/halvmane.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a half moon split exactly in two, one side glowing."
+ },
+ {
+  "file": "relics/akrobaten.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a jester acrobat mid-flip silhouette."
+ },
+ {
+  "file": "relics/gryningen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a sunrise over a misty horizon."
+ },
+ {
+  "file": "relics/schablonen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: an empty ornate stencil card with cut-out shapes."
+ },
+ {
+  "file": "relics/pirathatten.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a pirate tricorn hat with a skull emblem."
+ },
+ {
+  "file": "relics/tjuren.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a bronze bull head statue."
+ },
+ {
+  "file": "relics/stovelremmen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a leather boot with a golden buckled strap."
+ },
+ {
+  "file": "relics/stenmuren.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a sturdy wall of grey stone bricks."
+ },
+ {
+  "file": "relics/solsten.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a radiant sunstone gem glowing yellow."
+ },
+ {
+  "file": "relics/glodkol.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a glowing ember coal with flames."
+ },
+ {
+  "file": "relics/manesilver.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a silver crescent moon amulet."
+ },
+ {
+  "file": "relics/benflojt.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a flute carved from bone."
+ },
+ {
+  "file": "relics/rotknuta.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a gnarled knot of tree roots with green leaves."
+ },
+ {
+  "file": "relics/askstav.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a wizard staff crackling with lightning."
+ },
+ {
+  "file": "relics/prisma.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a cyan crystal prism refracting light."
+ },
+ {
+  "file": "relics/ljuslykta.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a paper lantern glowing warm sunlight."
+ },
+ {
+  "file": "relics/glodsten.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a blood red bloodstone gem with ember glow."
+ },
+ {
+  "file": "relics/tidparla.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a moonlit pearl inside an oyster shell."
+ },
+ {
+  "file": "relics/gravstenen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: an ancient funeral urn with skull motif."
+ },
+ {
+  "file": "relics/kristallkronan.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a crown made of cyan crystal shards."
+ },
+ {
+  "file": "relics/nattens_oga.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a mystical eye in a night sky with a moon pupil."
+ },
+ {
+  "file": "relics/visitkortet.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a black business card with a silver skull."
+ },
+ {
+  "file": "relics/blomkrukan.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a clay flower pot with four different magical flowers."
+ },
+ {
+  "file": "relics/urtidsrunan.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: an ancient cracked clay vase with glowing runes."
+ },
+ {
+  "file": "relics/idolen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a small golden idol statuette on a pedestal."
+ },
+ {
+  "file": "relics/glad_trefot.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a cheerful three-legged golden tripod."
+ },
+ {
+  "file": "relics/snedsteget.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a diagonal staircase of floating stone steps."
+ },
+ {
+  "file": "relics/fyrkanten.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a glowing purple square stone tile."
+ },
+ {
+  "file": "relics/fyrklovern.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a glowing four-leaf clover."
+ },
+ {
+  "file": "relics/regnbagsfjadern.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a rainbow colored feather."
+ },
+ {
+  "file": "relics/spegelskarvan.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a shard of a magic mirror reflecting light."
+ },
+ {
+  "file": "relics/korsriddaren.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: two crossed knight swords."
+ },
+ {
+  "file": "relics/linjalen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: an ornate brass measuring ruler."
+ },
+ {
+  "file": "relics/glorian.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a golden halo ring floating."
+ },
+ {
+  "file": "relics/stenhuggaren.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a stonemason hammer and chisel."
+ },
+ {
+  "file": "relics/travstaven.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a simple wooden walking staff."
+ },
+ {
+  "file": "relics/tegelstenen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a single clay brick."
+ },
+ {
+  "file": "relics/fyrfoten.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a glowing animal paw print with four toes."
+ },
+ {
+  "file": "relics/trefaldigheten.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a golden trident."
+ },
+ {
+  "file": "relics/snedkronet.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a tilted royal crown."
+ },
+ {
+  "file": "relics/kubtornet.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a pagoda tower made of stacked cubes."
+ },
+ {
+  "file": "relics/fyrtornet.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a lighthouse with a bright beam."
+ },
+ {
+  "file": "relics/prismakronan.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a crown radiating a rainbow."
+ },
+ {
+  "file": "relics/tvillingarna.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: two identical mirrored twin masks."
+ },
+ {
+  "file": "relics/kedjelanken.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: heavy iron chain links glowing."
+ },
+ {
+  "file": "relics/dominobrickan.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a falling row of domino tiles."
+ },
+ {
+  "file": "relics/lavinen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a rolling snow avalanche."
+ },
+ {
+  "file": "relics/ekot.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a bronze bell with sound wave rings."
+ },
+ {
+  "file": "relics/kaskaden.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a cascading waterfall of glowing water."
+ },
+ {
+  "file": "relics/ensamvargen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a lone wolf howling at the moon."
+ },
+ {
+  "file": "relics/brokiga.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a woven tapestry of many colorful threads."
+ },
+ {
+  "file": "relics/overspanning.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a glass battery overflowing with lightning."
+ },
+ {
+  "file": "relics/smedjan.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a blacksmith anvil with hammer and sparks."
+ },
+ {
+  "file": "relics/slipstenen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a whetstone sharpening a crystal blade."
+ },
+ {
+  "file": "relics/gronskan.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a fresh green sprout growing from a rune stone."
+ },
+ {
+  "file": "relics/solglasogonen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: round dark sunglasses reflecting the sun."
+ },
+ {
+  "file": "relics/tidvattnet.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a great tidal wave under the moon."
+ },
+ {
+  "file": "relics/offerkniven.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a ritual dagger with a black blade."
+ },
+ {
+  "file": "relics/alkemisten.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a bubbling alchemy flask with colorful smoke."
+ },
+ {
+  "file": "relics/reaktorn.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a glowing green radioactive core."
+ },
+ {
+  "file": "relics/ledaren.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a horseshoe magnet with sparks."
+ },
+ {
+  "file": "relics/katalysatorn.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a test tube with a violent glowing reaction."
+ },
+ {
+  "file": "relics/hornstenen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a cornerstone block with a carved right angle."
+ },
+ {
+  "file": "relics/hjartstenen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a burning heart-shaped stone."
+ },
+ {
+  "file": "relics/kantvakten.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a sturdy round shield."
+ },
+ {
+  "file": "relics/karnan.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a glowing target bullseye of runes."
+ },
+ {
+  "file": "relics/horisonten.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a mountain horizon at sunset."
+ },
+ {
+  "file": "relics/lodet.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a ship anchor hanging straight down."
+ },
+ {
+  "file": "relics/himlavalvet.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a swirling galaxy in a dome sky."
+ },
+ {
+  "file": "relics/kompassen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: an antique brass compass."
+ },
+ {
+  "file": "relics/eremiten.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a tiny lonely island with one palm tree."
+ },
+ {
+  "file": "relics/tomrummet.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a dark swirling void hole."
+ },
+ {
+  "file": "relics/stenhjartat.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: an anatomical heart carved from stone."
+ },
+ {
+  "file": "relics/murbruket.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a bucket of mortar with a trowel."
+ },
+ {
+  "file": "relics/skuggspelaren.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a jester shadow puppet lit by a candle, casting a large shadow on a wall."
+ },
+ {
+  "file": "relics/baronen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a top hat with a monocle."
+ },
+ {
+  "file": "relics/vandraren.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a hooded wanderer walking with a lantern."
+ },
+ {
+  "file": "relics/grodan.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a green frog sitting on a lily pad."
+ },
+ {
+  "file": "relics/loparen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a sprinting runner silhouette with speed lines."
+ },
+ {
+  "file": "relics/glassen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a melting ice cream cone."
+ },
+ {
+  "file": "relics/rostad_mandel.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a small bowl of roasted almonds."
+ },
+ {
+  "file": "relics/astrologen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a brass telescope pointed at stars."
+ },
+ {
+  "file": "relics/hologrammet.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a shimmering holographic disc."
+ },
+ {
+  "file": "relics/vampyren.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a vampire with a cape and red eyes."
+ },
+ {
+  "file": "relics/lagerelden.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a crackling campfire with logs."
+ },
+ {
+  "file": "relics/lyckokatten.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a lucky cat figurine waving its paw."
+ },
+ {
+  "file": "relics/glasogat.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a magnifying glass with a cracked lens."
+ },
+ {
+  "file": "relics/tillbakablicken.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: an hourglass running backwards."
+ },
+ {
+  "file": "relics/offerdolken.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: an ornate ceremonial dagger with gems."
+ },
+ {
+  "file": "relics/blixtkortet.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a vintage camera with a bright flash."
+ },
+ {
+  "file": "relics/reservfickan.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a pair of patched trousers."
+ },
+ {
+  "file": "relics/spakvinnan.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a fortune teller witch with a crystal ball."
+ },
+ {
+  "file": "relics/falskspelaren.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a card sharp hand hiding a card in a sleeve."
+ },
+ {
+  "file": "relics/bubbelvattnet.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a fizzy soda bottle with bubbles."
+ },
+ {
+  "file": "relics/bananen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a single ripe yellow banana."
+ },
+ {
+  "file": "relics/tomhetsstenen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a black void stone absorbing light."
+ },
+ {
+  "file": "relics/vandringsstaven.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a hiker walking stick with a crystal top."
+ },
+ {
+  "file": "relics/marmorbrottet.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a pickaxe striking white marble."
+ },
+ {
+  "file": "relics/guldbaggen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a golden scarab beetle."
+ },
+ {
+  "file": "relics/agget.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a speckled golden egg."
+ },
+ {
+  "file": "relics/raketen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a small rocket launching with flame."
+ },
+ {
+  "file": "relics/till_manen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a full moon with a tiny rocket flying to it."
+ },
+ {
+  "file": "relics/moln_nio.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a fluffy cloud with a glowing gem on top."
+ },
+ {
+  "file": "relics/fordrojd.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: an hourglass resting on a pile of coins."
+ },
+ {
+  "file": "relics/ansiktslos.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a blank faceless porcelain mask."
+ },
+ {
+  "file": "relics/presentkortet.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a wrapped gift box with a ribbon."
+ },
+ {
+  "file": "relics/midasmasken.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a golden mask turning things to gold."
+ },
+ {
+  "file": "relics/gyllene_biljetten.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a golden ticket glowing."
+ },
+ {
+  "file": "relics/att_gora.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a parchment checklist with a quill."
+ },
+ {
+  "file": "relics/hacket.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a woodcutter axe stuck in a log."
+ },
+ {
+  "file": "relics/skymningen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a city skyline at dusk."
+ },
+ {
+  "file": "relics/maskerna.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: comedy and tragedy theater masks."
+ },
+ {
+  "file": "relics/hangande_lappen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a paper note hanging from a paperclip."
+ },
+ {
+  "file": "relics/ekokammaren.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a spiral seashell with echo rings."
+ },
+ {
+  "file": "relics/forbannade_kronan.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a cursed dark crown with skull ornaments and purple smoke."
+ },
+ {
+  "file": "relics/sollinsen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a magnifying lens focusing a sunbeam."
+ },
+ {
+  "file": "relics/bryggan.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: an arched stone bridge over a gap."
+ },
+ {
+  "file": "relics/smetade_paletten.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a painter palette with smeared colors."
+ },
+ {
+  "file": "relics/plasket.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a splash of glowing water droplets."
+ },
+ {
+  "file": "relics/langa_armen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a long mechanical robotic arm."
+ },
+ {
+  "file": "relics/jonglaren.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a juggler juggling glowing orbs."
+ },
+ {
+  "file": "relics/fyllbulten.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a foaming beer tankard."
+ },
+ {
+  "file": "relics/trubaduren.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a violin with a bow."
+ },
+ {
+  "file": "relics/inbrottstjuven.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a masked burglar with a sack."
+ },
+ {
+  "file": "relics/lyckosolen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a slot machine wheel showing lucky symbols."
+ },
+ {
+  "file": "relics/gycklaren.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a striped circus tent."
+ },
+ {
+  "file": "relics/dubbelhelixen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a glowing DNA double helix."
+ },
+ {
+  "file": "relics/sigillbrevet.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a letter sealed with a red wax seal."
+ },
+ {
+  "file": "relics/kaosclownen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a bunch of colorful balloons."
+ },
+ {
+  "file": "relics/astronomen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: an astronaut helmet with stars reflected."
+ },
+ {
+  "file": "relics/avtrycket.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a blue blueprint scroll with a copied design."
+ },
+ {
+  "file": "relics/tankestormen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a glowing brain with lightning thoughts."
+ },
+ {
+  "file": "relics/spadomskulan.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a black magic eight ball."
+ },
+ {
+  "file": "relics/superposition.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a swirling spiral of overlapping realities."
+ },
+ {
+  "file": "relics/rymdfararen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a flying saucer UFO with a beam."
+ },
+ {
+  "file": "relics/spakortet.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a tarot card with a mystical eye."
+ },
+ {
+  "file": "relics/seansen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a seance candle with ghostly smoke."
+ },
+ {
+  "file": "relics/bronda_runan.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a burnt scorched rune stone steaming."
+ },
+ {
+  "file": "relics/packet.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a sneaky rat with a stolen coin."
+ },
+ {
+  "file": "relics/askkungen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: an erupting volcano king made of ash and lava, legendary."
+ },
+ {
+  "file": "relics/solkonungen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a sun king with a radiant crown and moon, legendary."
+ },
+ {
+  "file": "relics/gravvaktaren.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a skeletal grave guardian with a tombstone, legendary."
+ },
+ {
+  "file": "relics/vaktarbanan.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a black raven with glowing eyes, legendary."
+ },
+ {
+  "file": "relics/spegelvannen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a set of nested matryoshka dolls glowing, legendary."
+ },
+ {
+  "file": "relics/ouroboros.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: an ouroboros serpent biting its own tail, legendary."
+ },
+ {
+  "file": "rune-symbols/sol.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a radiant golden sun, carved into a smooth round dark rune stone."
+ },
+ {
+  "file": "rune-symbols/eld.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a fierce orange flame, carved into a smooth round dark rune stone."
+ },
+ {
+  "file": "rune-symbols/mane.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a pale blue crescent moon, carved into a smooth round dark rune stone."
+ },
+ {
+  "file": "rune-symbols/dod.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a pale bone skull, carved into a smooth round dark rune stone."
+ },
+ {
+  "file": "rune-symbols/natur.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a bright green leafy sprig, carved into a smooth round dark rune stone."
+ },
+ {
+  "file": "rune-symbols/blixt.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a yellow lightning bolt, carved into a smooth round dark rune stone."
+ },
+ {
+  "file": "rune-symbols/kristall.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a cyan diamond crystal, carved into a smooth round dark rune stone."
+ },
+ {
+  "file": "bosses/muren.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a towering stone wall blocking the way, menacing."
+ },
+ {
+  "file": "bosses/stenfaltet.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a field of jagged boulders, menacing."
+ },
+ {
+  "file": "bosses/spegeln.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a haunted ornate mirror, menacing."
+ },
+ {
+  "file": "bosses/forseglaren.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a giant iron padlock seal, menacing."
+ },
+ {
+  "file": "bosses/kedjan.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a giant chained iron shackle, menacing."
+ },
+ {
+  "file": "bosses/psyket.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a giant glowing psychic brain, menacing."
+ },
+ {
+  "file": "bosses/vattnet.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a crashing water wave, menacing."
+ },
+ {
+  "file": "bosses/armen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a massive armored fist, menacing."
+ },
+ {
+  "file": "bosses/nalen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a giant sewing needle, menacing."
+ },
+ {
+  "file": "bosses/virveln.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a swirling vortex, menacing."
+ },
+ {
+  "file": "bosses/tornet.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a dark tower crumbling, menacing."
+ },
+ {
+  "file": "bosses/tanden.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a giant sharp fang, menacing."
+ },
+ {
+  "file": "bosses/kroken.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a giant iron hook, menacing."
+ },
+ {
+  "file": "bosses/ogat.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a giant watching eye, menacing."
+ },
+ {
+  "file": "bosses/munnen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a giant grinning mouth with fangs, menacing."
+ },
+ {
+  "file": "bosses/bergvaggen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: an enormous cliff wall, menacing."
+ },
+ {
+  "file": "bosses/gloden.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: smoldering hot coals, menacing."
+ },
+ {
+  "file": "bosses/dimman.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a creeping fog with eyes, menacing."
+ },
+ {
+  "file": "bosses/purpurkarlet.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a huge purple ritual vessel, final boss, menacing."
+ },
+ {
+  "file": "bosses/karmosinhjartat.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a giant crimson beating heart, final boss, menacing."
+ },
+ {
+  "file": "bosses/grona_bladet.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a giant poisonous green leaf, final boss, menacing."
+ },
+ {
+  "file": "bosses/askstormen.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a raging storm of ash, final boss, menacing."
+ },
+ {
+  "file": "vouchers/overflod.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: an overflowing basket of treasures."
+ },
+ {
+  "file": "vouchers/rensning.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a magic broom sweeping."
+ },
+ {
+  "file": "vouchers/krigsrop.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a war horn."
+ },
+ {
+  "file": "vouchers/hamstraren.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a hamster with stuffed cheeks of coins."
+ },
+ {
+  "file": "vouchers/rea.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a shopping bag with a sale tag."
+ },
+ {
+  "file": "vouchers/lager.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a stack of crates."
+ },
+ {
+  "file": "vouchers/omrullning.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: circular arrows made of light."
+ },
+ {
+  "file": "vouchers/teleskop.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a long brass telescope."
+ },
+ {
+  "file": "vouchers/ristarbod.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a small wooden rune shop hut."
+ },
+ {
+  "file": "vouchers/stjarnbod.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a star shaped market stall."
+ },
+ {
+  "file": "vouchers/slipning.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a sparkling gem being polished."
+ },
+ {
+  "file": "vouchers/penseln.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a calligraphy brush."
+ },
+ {
+  "file": "vouchers/antimateria.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a glowing antimatter atom."
+ },
+ {
+  "file": "tags/pengar.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a sack of gold coins."
+ },
+ {
+  "file": "tags/relik.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a mysterious gift box."
+ },
+ {
+  "file": "tags/stjarna.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a shooting star."
+ },
+ {
+  "file": "tags/ristning.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a magic wand."
+ },
+ {
+  "file": "tags/rabatt.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a price tag."
+ },
+ {
+  "file": "tags/eko.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a friendly ghost."
+ },
+ {
+  "file": "tags/runor.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a bundle of rune stones."
+ },
+ {
+  "file": "packs/rune.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a booster pack of rune stones in a pouch."
+ },
+ {
+  "file": "packs/rist.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a booster pack of carved rune cards."
+ },
+ {
+  "file": "packs/star.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a booster pack of constellation cards."
+ },
+ {
+  "file": "packs/relic.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a treasure chest booster pack."
+ },
+ {
+  "file": "packs/eko.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. Single centered object, bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: a ghostly spectral booster pack."
+ },
+ {
+  "file": "card-backs/rist.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: the back of a tarot-like card with carved runes, full card filling the frame."
+ },
+ {
+  "file": "card-backs/star.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: the back of a card with a starry constellation, full card filling the frame."
+ },
+ {
+  "file": "card-backs/eko.webp",
+  "width": 512,
+  "height": 512,
+  "prompt": "Dark fantasy rune roguelike game icon. bold readable silhouette, painterly digital art, glowing magical highlights, deep purple and gold palette, soft dark vignette background, no text, no letters, no numbers, no frame, no border. Subject: the back of a card with ghostly spectral swirls, full card filling the frame."
+ },
+ {
+  "file": "backgrounds/altar.webp",
+  "width": 1024,
+  "height": 768,
+  "prompt": "Dark fantasy rune roguelike game background art, painterly, moody purple and gold lighting, subtle details, low contrast so UI stays readable, no text, no letters, no characters. Subject: an ancient stone altar table seen from above, carved runes around the edges, candlelight."
+ },
+ {
+  "file": "backgrounds/menu.webp",
+  "width": 1024,
+  "height": 768,
+  "prompt": "Dark fantasy rune roguelike game background art, painterly, moody purple and gold lighting, subtle details, low contrast so UI stays readable, no text, no letters, no characters. Subject: a mystical temple of glowing runestones under a starry night sky."
+ }
+]
