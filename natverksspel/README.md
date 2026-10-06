@@ -118,7 +118,7 @@ Varje fel är simulerat på riktigt. Symptomen räknas fram ur konfigurationen: 
 - **Två nya inställningar:** *Färdiga 3D-modeller* och *Inspelade fotsteg*. Båda är på från början.
 - **Vad som inte används:** animationsbiblioteket i releasen `assets-large-v1` (2 548 FBX-klipp från CMU) passar inte Kenney-figurerna och skulle göra spelet över en gigabyte större, och skräck- och vapenljuden passar inte ett kontor. Krukväxtpaketet saknar licens och är därför inte med.
 
-Tekniskt: `lib/GLTFLoader.js` är GLTFLoader och SkeletonUtils från three.js r158, omgjorda till ett vanligt skript. All kod för version 9 ligger i `js/world/assets3d.js`. Testet `test/v9.js` kontrollerar att alla modeller, texturer och fotsteg laddas, att kollegorna sitter, går och vinkar, att kaffemaskinen och kollegorna går att klicka på, att inget står i vägen vid dörrarna och att spelet fungerar med modellerna avstängda.
+Tekniskt: modellerna laddas som `.glb`, och går det inte prövas samma modell som glTF-JSON (`.gltf.json`), vilket den publicerade länken använder. `lib/GLTFLoader.js` är GLTFLoader och SkeletonUtils från three.js r158, omgjorda till ett vanligt skript. All kod för version 9 ligger i `js/world/assets3d.js`. Testet `test/v9.js` kontrollerar att alla modeller, texturer och fotsteg laddas, att kollegorna sitter, går och vinkar, att kaffemaskinen och kollegorna går att klicka på, att inget står i vägen vid dörrarna och att spelet fungerar med modellerna avstängda.
 
 ## Version 8.1: stadig HUD, 2D som standard och Krabba-passen först
 

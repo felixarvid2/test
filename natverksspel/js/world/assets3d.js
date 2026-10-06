@@ -21,7 +21,11 @@ NV.assets3d = (function () {
     if (promise) return promise;
     if (!enabled() || location.protocol === 'file:') { promise = Promise.resolve(false); return promise; }
     var L = new THREE.GLTFLoader(), jobs = [];
-    function glb(key, path) { jobs.push(L.loadAsync(BASE + path + '.glb').then(function (g) { gltf[key] = g; }, function () { /* modellen saknas: den egna används */ })); }
+    // Där .glb inte kan serveras finns samma modell som glTF-JSON
+    function glb(key, path) {
+      jobs.push(L.loadAsync(BASE + path + '.glb').catch(function () { return L.loadAsync(BASE + path + '.gltf.json'); })
+        .then(function (g) { gltf[key] = g; }, function () { /* modellen saknas: den egna används */ }));
+    }
     Object.keys(CHARS).forEach(function (n) { if (!gltf['c:' + CHARS[n]]) glb('c:' + CHARS[n], 'chars/' + CHARS[n]); });
     FURN.forEach(function (n) { glb(n, 'furniture/' + n); });
     Object.keys(PROPS).forEach(function (n) { glb(n, PROPS[n]); });
