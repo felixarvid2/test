@@ -58,6 +58,7 @@
   function hideTip() { if (tipEl) tipEl.classList.add('hidden'); }
 
   function toast(msg, kind) {
+    if (kind === 'bad' && !UI.anim) R.sfx.error();
     var t = h('div', 'toast ' + (kind || ''), R.esc(msg));
     $('toasts').appendChild(t);
     setTimeout(function () { t.remove(); }, 2500);
@@ -70,6 +71,7 @@
     return fallback;
   }
   UI.art = art;
+  function ico(name) { return '<img class="ico" src="assets/ui/icon-' + name + '.png" alt="">'; }
 
   // ---- Element ---------------------------------------------------------------
   function runeEl(rn, o) {
@@ -144,7 +146,7 @@
     $('casts').textContent = inRound ? G.casts : '–';
     $('discards').textContent = inRound ? G.discards : '–';
     $('money').textContent = '$' + (UI.disp ? UI.disp.money : G.money);
-    $('ante').textContent = G.ante + '/' + R.WIN_ANTE;
+    $('ante').innerHTML = '<img class="rank" src="assets/ui/rank-' + Math.min(9, G.ante) + '.png" alt="">' + G.ante + '/' + R.WIN_ANTE;
   }
   function bossDesc(b) {
     var s = b.d;
@@ -314,7 +316,7 @@
       else if (G.canPlace(i)) toast('Välj först en runa i handen.');
       return;
     }
-    if (c.fresh) { G.unplace(i); R.sfx.pick(); render(); save(); return; }
+    if (c.fresh) { G.unplace(i); R.sfx.unplace(); render(); save(); return; }
     var k = UI.mark.indexOf(i);
     if (k >= 0) UI.mark.splice(k, 1); else UI.mark.push(i);
     R.sfx.pick();
@@ -501,7 +503,7 @@
   function btn(text, cls, fn, disabled) {
     var b = h('button', 'btn ' + (cls || ''), text);
     b.disabled = !!disabled;
-    b.addEventListener('click', function () { hideTip(); fn(); });
+    b.addEventListener('click', function () { hideTip(); R.sfx.click(); fn(); });
     return b;
   }
   function renderMenu(sc) {
@@ -520,10 +522,10 @@
       UI.menu = false; clearSel(); save(); render();
     }));
     m.appendChild(seed);
-    m.appendChild(btn('Hur man spelar', 'ghost', openHelp));
-    m.appendChild(btn('Kodex: alla reliker och kort', 'ghost', function () { openCodex('Grund'); }));
-    m.appendChild(btn('Animationshastighet: ' + UI.speed + '×', 'ghost', function () { UI.speed = UI.speed >= 4 ? 1 : UI.speed * 2; try { localStorage.setItem('rune-speed', UI.speed); } catch (e) { /* ingen lagring */ } render(); }));
-    m.appendChild(btn('Ljud: ' + (R.sfx.muted ? 'av' : 'på'), 'ghost', function () { R.sfx.toggle(); render(); }));
+    m.appendChild(btn(ico('information') + 'Hur man spelar', 'ghost', openHelp));
+    m.appendChild(btn(ico('menuList') + 'Kodex: alla reliker och kort', 'ghost', function () { openCodex('Grund'); }));
+    m.appendChild(btn(ico('fastForward') + 'Animationshastighet: ' + UI.speed + '×', 'ghost', function () { UI.speed = UI.speed >= 4 ? 1 : UI.speed * 2; try { localStorage.setItem('rune-speed', UI.speed); } catch (e) { /* ingen lagring */ } render(); }));
+    m.appendChild(btn(ico(R.sfx.muted ? 'audioOff' : 'audioOn') + 'Ljud: ' + (R.sfx.muted ? 'av' : 'på'), 'ghost', function () { R.sfx.toggle(); render(); }));
     sc.appendChild(m);
   }
   function renderSelect(sc) {
@@ -600,7 +602,7 @@
       var p = R.PACK[pk.id];
       var box = itemBox(art('pack/' + p.kind, p.i), p.n, p.d, '<span class="gold">Paket</span>');
       box.appendChild(h('div', 'price', pk.cost ? '$' + pk.cost : 'Gratis'));
-      box.appendChild(btn('Öppna', 'gold', function () { if (G.buyPack(k)) { R.sfx.buy(); clearSel(); save(); } render(); }, G.money < pk.cost));
+      box.appendChild(btn('Öppna', 'gold', function () { if (G.buyPack(k)) { R.sfx.open(); clearSel(); save(); } render(); }, G.money < pk.cost));
       row2.appendChild(box);
     });
     if (G.shopVoucher) {
@@ -662,7 +664,9 @@
     sc.appendChild(btn('Hoppa över', 'ghost', function () { G.skipPack(); UI.sel = []; save(); render(); }));
   }
   function renderOver(sc, win) {
-    sc.appendChild(h('h2', '', win ? '🏆 Du besegrade cirkel ' + R.WIN_ANTE + '!' : '💀 Altaret slocknade'));
+    var medal = win ? (G.ante > R.WIN_ANTE ? 9 : 7) : G.ante >= 6 ? 3 : G.ante >= 3 ? 2 : 1;
+    sc.appendChild(h('img', 'medal')).src = 'assets/ui/medal-' + medal + '.png';
+    sc.appendChild(h('h2', '', win ? 'Du besegrade cirkel ' + R.WIN_ANTE + '!' : 'Altaret slocknade'));
     var c = h('div', 'cash');
     var st = G.stats;
     [['Cirkel', G.ante], ['Bästa kast', R.fmt(st.best)], ['Kast', st.casts], ['Mest spelade mönster', R.PATTERNS[G.mostPlayed()].name], ['Reliker', G.relics.map(function (r) { return R.RELIC[r.id].i; }).join(' ') || '–'], ['Frö', G.seedText || G.seed]].forEach(function (l) {

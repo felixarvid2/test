@@ -57,6 +57,21 @@ node rune/tools/gen-assets.js --dry              # visar vad som saknas och vad 
 
 Motiven finns i `tools/asset-prompts.js`. Ta bort en bild och kör skriptet igen för att göra om den.
 
+### Grafik och ljud från Kenney (CC0)
+
+Ramar, ikoner, gradbeteckningar, medaljer och ljud kommer från [Kenney](https://kenney.nl) och är CC0 (fria att använda):
+
+| Paket | Används till | Filer |
+|---|---|---|
+| Fantasy UI Borders | Ramar runt paneler, kort, altaret och knappar, avdelare under rubriker | `assets/ui/frame-*.png`, `divider.png` (färgade med `tools/tint-borders.js`) |
+| Game Icons | Knappikoner: Mönster, Påse, Kodex, Meny, sortera, tips, ångra, ljud, hastighet | `assets/ui/icon-*.png` |
+| Mobile Controls | Ikoner för Kast, Byten och Mynt | `assets/ui/icon-hand/arrow_rotate/money.png` |
+| Ranks Pack | Gradbeteckning för cirkeln | `assets/ui/rank-1..9.png` |
+| Medals | Medalj på slutskärmen | `assets/ui/medal-*.png` |
+| Interface Sounds, UI Audio | Klick, placera, byta, köpa, paket, poängräkning, vinst och förlust | `assets/sfx/*.ogg` |
+
+Ljuden spelas med `<audio>`. Kan webbläsaren inte spela ogg används syntetiserade toner i stället.
+
 ## Tester
 
 ```
