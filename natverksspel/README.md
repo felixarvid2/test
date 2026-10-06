@@ -6,7 +6,7 @@ Nätet, adressplanen, utrustningen och felen följer kursboken *Nätverksteknik 
 
 ## Starta
 
-Spelet är helt statiskt och behöver ingen installation eller internetuppkoppling (three.js ligger i `lib/`).
+Spelet är helt statiskt och behöver ingen installation eller internetuppkoppling (three.js ligger i `lib/`). De färdiga 3D-modellerna laddas bara via en webbserver; öppnas `index.html` direkt används spelets egna modeller.
 
 - **Enklast:** öppna `index.html` i Chrome, Edge eller Firefox.
 - **Eller via en lokal webbserver:** `npx http-server natverksspel` och gå till `http://localhost:8080`.
@@ -102,6 +102,23 @@ Datorerna beter sig som riktiga Windows-datorer: saknar de adress försöker de 
 När ett fel är löst skickar du in en felrapport med **F**. En gul ruta uppe till vänster visar hur många rapporter som saknas, och när alla Krabba-fel (eller alla fel) är lösta påminner spelet dig med en ruta där du kan skriva rapporterna direkt. Veckan är klar först när alla rapporter är inlämnade.
 
 Varje fel är simulerat på riktigt. Symptomen räknas fram ur konfigurationen: länkar, duplex, VLAN och trunkar, STP, routing, ARP, ACL, NAT, DHCP, DNS, PoE, port security, IPsec, MTU och lastbalansering. Ett fel försvinner därför bara när orsaken är rättad.
+
+## Version 9: färdiga 3D-modeller från Kenney
+
+3D-läget använder nu modeller, ljud och texturer från mappen `assets/` i repot. Allt är CC0 (fritt att använda), och licenserna ligger i `assets3d/LICENSES/`. Det som spelet använder är kopierat till `natverksspel/assets3d/` (omkring 3,5 MB).
+
+- **Kollegorna är Mini Characters med riktiga animationer.** Varje kollega har en egen figur. De som har ett skrivbord sitter på stolen, Omar går fram och tillbaka vid kaffemaskinen, och alla står och andas när de inte gör något. När en kollega vinkar eller jublar spelas en jubel-animation, skakar de på huvudet syns det, och när du pratar med någon gestikulerar figuren. Huvudet vrids mot dig när du kommer nära. Namnskyltar, utropstecken och klickytan är kvar som förut.
+- **Möbler från Furniture Kit.** Kontorsstolarna, stolarna i fikarummet och vid mötesbordet, sofforna och krukväxterna är utbytta. Tyget får samma färg som spelets egna möbler hade. Sofforna står nu vända ut mot rummet.
+- **Köket och inredningen.** Kaffemaskin, kylskåp, mikrovågsugn och radio i fikarummet, en papperskorg, klädhängare och golvlampa i receptionen, en laptop på gästbordet och en bordslampa på receptionsdisken, låga bokhyllor med böcker under fönstret i ekonomi, små växter på skrivborden, en högtalare på mötesbordet och kartonger vid skrivaren och i serverrummet. Kaffemaskinen går att använda precis som förut.
+- **Lagret i Borås.** En skåpbil står vid lastporten, ett rullband med paket står bredvid packbordet och det står staplade lådor vid väggen.
+- **Golv och himmel.** Trägolven i fikarummet, receptionen och lagerkontoret, betonggolvet och betongväggarna i Borås har fototexturer (Screaming Brain Studios). Fönstren visar en riktig himmel med moln (Kenney Skyboxes).
+- **Inspelade fotsteg.** Fotstegen spelas från inspelningar för heltäckningsmatta, trägolv och betong (Kenney Impact Sounds), fem varianter av varje så att det inte låter likadant varje steg. Det upphöjda golvet i serverrummet låter som betong fast ljusare. Ljuden gäller både i 3D och 2D.
+- **Snabbare än förut.** Modellerna slås ihop med resten av den statiska geometrin, och eftersom de har färre trianglar än spelets egna stolar, växter och figurer blir det färre anrop till grafikkortet (omkring 450 i stället för 575 i kontorslandskapet på låg grafiknivå).
+- **Laddas i bakgrunden.** Spelet startar som vanligt, och modellerna byts in när de har laddats. Har du valt 3D tidigare börjar laddningen direkt när sidan öppnas. Går det inte att ladda dem (till exempel när `index.html` öppnas direkt från disken, där webbläsaren inte får läsa filerna) visas spelets egna modeller som förut.
+- **Två nya inställningar:** *Färdiga 3D-modeller* och *Inspelade fotsteg*. Båda är på från början.
+- **Vad som inte används:** animationsbiblioteket i releasen `assets-large-v1` (2 548 FBX-klipp från CMU) passar inte Kenney-figurerna och skulle göra spelet över en gigabyte större, och skräck- och vapenljuden passar inte ett kontor. Krukväxtpaketet saknar licens och är därför inte med.
+
+Tekniskt: `lib/GLTFLoader.js` är GLTFLoader och SkeletonUtils från three.js r158, omgjorda till ett vanligt skript. All kod för version 9 ligger i `js/world/assets3d.js`. Testet `test/v9.js` kontrollerar att alla modeller, texturer och fotsteg laddas, att kollegorna sitter, går och vinkar, att kaffemaskinen och kollegorna går att klicka på, att inget står i vägen vid dörrarna och att spelet fungerar med modellerna avstängda.
 
 ## Version 8.1: stadig HUD, 2D som standard och Krabba-passen först
 
@@ -1636,7 +1653,10 @@ Fokus på grafik och spelkänsla i 3D, med partiklar och efterbehandling, en sny
 natverksspel/
   index.html, css/style.css
   lib/three.min.js           three.js r158 (MIT, se lib/THREE-LICENSE)
+  lib/GLTFLoader.js          GLTFLoader och SkeletonUtils från three.js r158 (MIT)
   lib/fonts/                 VT323 och Press Start 2P (SIL Open Font License, se OFL-*.txt)
+  assets3d/                  Kenney-figurer, möbler, bilar, fabriksdelar och fotsteg, fototexturer
+                             och himmel (CC0, licenserna i assets3d/LICENSES/)
   js/net/                    nätverksmodell (model.js) och simulator (sim.js)
   js/cli/                    Cisco IOS (ios.js, ios_show.js), Windows/Linux (host.js, fler kommandon
                              i host_more.js), WLC (wlc.js), lastbalanseraren (lb.js), fler WLC- och
@@ -1648,7 +1668,7 @@ natverksspel/
                              vägsökning för musklick i path2d.js, saker att göra i play2d.js,
                              fun2d.js, more2d.js, events2d.js, extra2d.js och final2d.js,
                              grafik i look2d.js),
-                             delad kod (shared.js)
+                             delad kod (shared.js), Kenney-modellerna i 3D (assets3d.js)
   js/ui/                     terminal, dialoger, handbok, inställningar, ljud, karriär (career.js)
                              och minikarta (minimap.js); det nya i version 7 och 8 i v7.js, v8.js, css/v7.css och css/v8.css
   js/game.js                 spelloopen
@@ -1664,4 +1684,4 @@ node natverksspel/test/smoke.js    # DHCP, ping, NAT, DNS och STP i det felfria 
 node natverksspel/test/cli.js SW1 "show vlan brief" "show interfaces trunk"
 ```
 
-Webbläsartesterna `test/ui.js`, `test/flow.js`, `test/view.js`, `test/boot.js`, `test/features.js`, `test/v3.js`, `test/v4.js`, `test/v5.js` och `test/v8.js` (vägsökningen och aktiviteterna i 2D) använder Playwright. Starta en webbserver på port 8765 i `natverksspel/` först.
+Webbläsartesterna `test/ui.js`, `test/flow.js`, `test/view.js`, `test/boot.js`, `test/features.js`, `test/v3.js`, `test/v4.js`, `test/v5.js`, `test/v8.js` (vägsökningen och aktiviteterna i 2D) och `test/v9.js` (Kenney-modellerna i 3D) använder Playwright. Starta en webbserver på port 8765 i `natverksspel/` först.

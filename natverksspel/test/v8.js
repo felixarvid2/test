@@ -6,7 +6,7 @@ const { chromium } = require('playwright');
   const p = await b.newPage({ viewport: { width: 1280, height: 760 } });
   const errs = [];
   p.on('pageerror', e => errs.push('pageerror: ' + e.message + ' ' + (e.stack || '').split('\n').slice(0, 3).join(' | ')));
-  await p.addInitScript(() => { localStorage.setItem('krabba-passet.settings', JSON.stringify({ quality: 'low', mode: '2d', tutorialDone: true, lastVersion: '8.0' })); localStorage.removeItem('krabba-passet.v8'); });
+  await p.addInitScript(() => { localStorage.setItem('krabba-passet.settings', JSON.stringify({ quality: 'low', mode: '2d', tutorialDone: true, lastVersion: '9.0' })); localStorage.removeItem('krabba-passet.v8'); });
   await p.goto('http://localhost:8765/index.html', { waitUntil: 'domcontentloaded' });
   await p.waitForTimeout(4500);
   const r = await p.evaluate(() => {
