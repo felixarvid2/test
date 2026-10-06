@@ -1,7 +1,7 @@
 # Assets
 
 Free game assets by [Kenney](https://kenney.nl) (CC0 – see `License.txt` in each pack), plus the
-AI-generated assets made for Ashfall in `ashfall-ai/`.
+AI-generated assets made for Ashfall in `ashfall-ai/` and for Rune in `rune-ai/`.
 
 | Folder | Content |
 |---|---|
@@ -14,3 +14,4 @@ AI-generated assets made for Ashfall in `ashfall-ai/`.
 | `isometric-hex/` | Isometric and hexagon tiles |
 | `boardgames-puzzle/` | Cards, dominos, sokoban, sports, puzzle |
 | `ashfall-ai/` | Ashfall's generated assets: Meshy 3D models and icons, FLUX 2D art (items, bosses, decals, VFX, maps) |
+| `rune-ai/` | Rune's generated assets: FLUX 2D art (150 relic icons, rune symbols, bosses, vouchers, tags, packs, card backs, backgrounds) |
