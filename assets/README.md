@@ -12,6 +12,7 @@ AI-generated assets made for Ashfall in `ashfall-ai/` and for Rune in `rune-ai/`
 | `textures/` | Patterns, tileable textures, skyboxes |
 | `effects/` | Particles, smoke, splats |
 | `isometric-hex/` | Isometric and hexagon tiles |
+| `3d-models/` | Kenney 3D kits (one folder per pack: city, nature, space, characters, vehicles etc.) |
 | `boardgames-puzzle/` | Cards, dominos, sokoban, sports, puzzle |
 | `ashfall-ai/` | Ashfall's generated assets: Meshy 3D models and icons, FLUX 2D art (items, bosses, decals, VFX, maps) |
 | `rune-ai/` | Rune's generated assets: FLUX 2D art (150 relic icons, rune symbols, bosses, vouchers, tags, packs, card backs, backgrounds) |
