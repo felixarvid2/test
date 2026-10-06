@@ -12,6 +12,8 @@ NV.settings = (function () {
     haptics: true,           // 0 = profilens värde, annars 30/60
     post: true,          // efterbehandling i 3D (glöd, vinjett, färgton)
     particles: true,
+    models3d: true,      // Kenney-modeller, foton och himmel i 3D
+    realSteps: true,     // inspelade fotsteg i stället för syntetiska
     smooth: false,       // mjukare musrörelse
     showFps: false,
     difficulty: 'normal', // 'easy' | 'normal' | 'hard'
@@ -206,6 +208,15 @@ NV.sfx = (function () {
       if (!NV.settings.get('music') && musicTimer) { clearInterval(musicTimer); musicTimer = null; }
     },
     setVolume: function (v) { if (master) master.gain.value = v; },
+    // Inspelade ljud (fotstegen). context() finns bara när ljudet är på och upplåst.
+    context: function () { return on() || null; },
+    sample: function (buf, vol, rate, pan) {
+      if (!on() || !buf) return false;
+      var s = ctx.createBufferSource(), g = ctx.createGain();
+      s.buffer = buf; s.playbackRate.value = rate || 1; g.gain.value = vol;
+      s.connect(g); g.connect(out(pan)); s.start();
+      return true;
+    },
   };
   return api;
 })();

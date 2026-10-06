@@ -775,6 +775,8 @@ NV.UI = (function () {
       '<label for="s-cap">Max bildfrekvens</label><select id="s-cap">' + [[0, 'Obegränsad'], [60, '60 bilder/s'], [30, '30 bilder/s (sparar batteri)']].map(function (x) { return '<option value="' + x[0] + '"' + (+s.get('fpsCap') === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select>' +
       '<label for="s-post">Efterbehandling (glöd, vinjett, färgton)</label><input type="checkbox" id="s-post"' + (s.get('post') ? ' checked' : '') + '>' +
       '<label for="s-part">Partiklar</label><input type="checkbox" id="s-part"' + (s.get('particles') ? ' checked' : '') + '>' +
+      '<label for="s-kenney">Färdiga 3D-modeller (kollegor, möbler, golv och himmel)</label><input type="checkbox" id="s-kenney"' + (s.get('models3d') !== false ? ' checked' : '') + '>' +
+      '<label for="s-steps">Inspelade fotsteg</label><input type="checkbox" id="s-steps"' + (s.get('realSteps') !== false ? ' checked' : '') + '>' +
       '<label for="s-dof">Skärpedjup i 2D (miniatyrkänsla)</label><input type="checkbox" id="s-dof"' + (s.get('dof2d') !== false ? ' checked' : '') + '>' +
       '<label for="s-smooth">Mjuk musrörelse</label><input type="checkbox" id="s-smooth"' + (s.get('smooth') ? ' checked' : '') + '>' +
       '<label for="s-fps">Visa bildfrekvens</label><input type="checkbox" id="s-fps"' + (s.get('showFps') ? ' checked' : '') + '>' +
@@ -807,6 +809,9 @@ NV.UI = (function () {
         bind('s-cap', 'fpsCap', function (e) { return +e.value; });
         $('#s-q', d).addEventListener('change', function () { self.reloadOffer(); });
         bind('s-part', 'particles', function (e) { return e.checked; });
+        bind('s-kenney', 'models3d', function (e) { return e.checked; });
+        $('#s-kenney', d).addEventListener('change', function () { self.reloadOffer(); });
+        bind('s-steps', 'realSteps', function (e) { return e.checked; });
         bind('s-dof', 'dof2d', function (e) { return e.checked; });
         bind('s-smooth', 'smooth', function (e) { return e.checked; });
         bind('s-fps', 'showFps', function (e) { return e.checked; });
