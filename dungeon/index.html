@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Facklans Djup</title>
+<style>
+  :root { --bg:#0b0907; --panel:#17120d; --line:#3a2c1c; --text:#e8dcc4; --dim:#9a8a6e; --hp:#d8453a; --fire:#ffae3c; }
+  * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  html, body { height:100%; background:var(--bg); color:var(--text); font-family:'Courier New', monospace; }
+  body { display:flex; flex-direction:column; align-items:center; padding:8px; gap:8px; touch-action:none; user-select:none; }
+  #hud { width:min(100%, 1008px); display:grid; grid-template-columns:1fr 1fr; gap:4px 12px; background:var(--panel); border:2px solid var(--line); padding:8px 10px; font-size:14px; }
+  .bar { height:12px; background:#000; border:1px solid var(--line); position:relative; }
+  .bar > i { position:absolute; inset:0 auto 0 0; width:50%; }
+  #hpbar > i { background:var(--hp); }
+  #torchbar > i { background:linear-gradient(90deg,#b4501a,var(--fire)); }
+  .row { display:flex; justify-content:space-between; gap:8px; }
+  #stage { position:relative; width:min(100%, 1008px); aspect-ratio:21/15; border:2px solid var(--line); background:#000; }
+  canvas { width:100%; height:100%; display:block; image-rendering:pixelated; }
+  #log { width:min(100%, 1008px); min-height:5.4em; background:var(--panel); border:2px solid var(--line); padding:6px 10px; font-size:13px; line-height:1.35; }
+  #log div:nth-last-child(n+2) { color:var(--dim); }
+  #log div:last-child { color:var(--text); }
+  #pad { display:none; width:min(100%, 520px); grid-template-columns:repeat(5,1fr); gap:6px; }
+  #pad button { background:var(--panel); color:var(--text); border:2px solid var(--line); font:bold 20px monospace; padding:14px 0; border-radius:6px; }
+  #pad button:active { background:var(--line); }
+  @media (pointer:coarse) { #pad { display:grid; } }
+  #overlay { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; background:rgba(5,3,1,.88); padding:16px; gap:10px; }
+  #overlay.hidden { display:none; }
+  #overlay h1 { font-size:clamp(22px,5vw,40px); color:var(--fire); letter-spacing:2px; }
+  #overlay p { font-size:clamp(11px,1.9vw,15px); max-width:640px; line-height:1.45; color:var(--dim); }
+  #overlay b { color:var(--text); }
+  #overlay button { background:var(--fire); color:#1a0e02; border:0; font:bold 16px monospace; padding:10px 22px; cursor:pointer; margin-top:6px; }
+  .small { font-size:11px; color:var(--dim); }
+</style>
+</head>
+<body>
+  <div id="hud">
+    <div><div class="row"><span>HP <b id="hpv"></b></span><span id="depth"></span></div><div class="bar" id="hpbar"><i></i></div></div>
+    <div><div class="row"><span>Fackla <b id="torchv"></b></span><span id="state"></span></div><div class="bar" id="torchbar"><i></i></div></div>
+    <div id="gear"></div><div id="score" style="text-align:right"></div>
+  </div>
+  <div id="stage">
+    <canvas id="cv" width="336" height="240"></canvas>
+    <div id="overlay"></div>
+  </div>
+  <div id="log"></div>
+  <div id="pad">
+    <button data-a="wait">⏳</button><button data-a="up">▲</button><button data-a="torch">🔥</button><button data-a="mute">🔊</button><span></span>
+    <button data-a="left">◀</button><button data-a="down">▼</button><button data-a="right">▶</button><span></span><span></span>
+  </div>
+  <p class="small">Pilar/WASD = gå &nbsp;·&nbsp; Mellanslag = vänta &nbsp;·&nbsp; T = släck/tänd fackla &nbsp;·&nbsp; M = ljud</p>
+  <script src="js/core.js"></script>
+  <script src="js/ui.js"></script>
+</body>
+</html>
