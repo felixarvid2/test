@@ -78,10 +78,10 @@ let muted = false;
 
 // ---------- Vapen ----------
 const WEAPONS = [
-  { id: 'pistol', name: 'PISTOL', ammo: 'bullets', cost: 1, dmg: 2, pellets: 1, spread: 0.01, delay: 0.32, auto: false, sound: ['shot', 1.15], w: 96, flash: 0.9 },
-  { id: 'shotgun', name: 'SHOTGUN', ammo: 'shells', cost: 1, dmg: 1.6, pellets: 8, spread: 0.075, delay: 0.95, auto: false, sound: ['boom', 0.8], w: 170, flash: 1.5 },
-  { id: 'rifle', name: 'GEVÄR', ammo: 'bullets', cost: 1, dmg: 2.4, pellets: 1, spread: 0.012, delay: 0.17, auto: true, sound: ['shot', 0.85], w: 150, flash: 1.1 },
-  { id: 'smg', name: 'KPIST', ammo: 'bullets', cost: 1, dmg: 1.4, pellets: 1, spread: 0.04, delay: 0.09, auto: true, sound: ['shot', 1.45], w: 140, flash: 0.8 },
+  { id: 'pistol', name: 'PISTOL', ammo: 'bullets', cost: 1, dmg: 2, pellets: 1, spread: 0.01, delay: 0.32, auto: false, sound: ['shot', 1.15], w: 58, drop: 8, muzzle: [0.3, 0.02], flash: 0.9 },
+  { id: 'shotgun', name: 'SHOTGUN', ammo: 'shells', cost: 1, dmg: 1.6, pellets: 8, spread: 0.075, delay: 0.95, auto: false, sound: ['boom', 0.8], w: 190, drop: 40, muzzle: [0.03, 0.03], flash: 1.5 },
+  { id: 'rifle', name: 'GEVÄR', ammo: 'bullets', cost: 1, dmg: 2.4, pellets: 1, spread: 0.012, delay: 0.17, auto: true, sound: ['shot', 0.85], w: 180, drop: 30, muzzle: [0.02, 0.4], flash: 1.1 },
+  { id: 'smg', name: 'KPIST', ammo: 'bullets', cost: 1, dmg: 1.4, pellets: 1, spread: 0.04, delay: 0.09, auto: true, sound: ['shot', 1.45], w: 160, drop: 20, muzzle: [0.04, 0.5], flash: 0.8 },
 ];
 const weaponCanvas = {};
 
@@ -270,18 +270,15 @@ function drawHUD() {
   const wp = WEAPONS[P.weapon], img = weaponCanvas[wp.id];
   const bobX = Math.sin(P.bob) * 5, bobY = Math.abs(Math.cos(P.bob)) * 4;
   const kick = P.kick;
-  g.save();
-  const px0 = W * 0.60 + bobX + kick * 5, py0 = VH + 6 + bobY + kick * 14;
-  g.translate(px0, py0);
-  g.rotate(-1.05 - (wp.id === 'pistol' ? 0.1 : 0) - kick * 0.12);
-  const ox = -img.width * 0.12, oy = -img.height * 0.5;
-  g.drawImage(img, ox, oy);
+  const ww = img.width, wh = img.height;
+  const gx = Math.round(W - ww - 4 + bobX + kick * 6), gy = Math.round(VH - wh + wp.drop + bobY + kick * 12);
+  g.drawImage(img, gx, gy);
   if (P.flash > 0.02) {
-    g.globalCompositeOperation = 'lighter'; g.globalAlpha = Math.min(1, P.flash * 1.6);
-    const fs = 54 * wp.flash;
-    g.drawImage(weaponImg.flash, img.width * 0.95 + ox - fs * 0.25, -fs * 0.5 + oy + img.height * 0.4, fs, fs);
+    g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = Math.min(1, P.flash * 1.6);
+    const fs = 56 * wp.flash;
+    g.drawImage(weaponImg.flash, gx + wp.muzzle[0] * ww - fs / 2, gy + wp.muzzle[1] * wh - fs / 2, fs, fs);
+    g.restore();
   }
-  g.restore();
   g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
   // röd skadeblixt, plocka-upp-blixt
   if (P.hurt > 0) { g.fillStyle = `rgba(190,0,0,${Math.min(0.5, P.hurt * 0.6)})`; g.fillRect(0, 0, W, VH); }
