@@ -1,0 +1,93 @@
+SW1#show running-config
+Building configuration...
+
+Current configuration : 3100 bytes
+!
+version 15.0
+no service pad
+service password-encryption
+!
+hostname SW1
+!
+enable secret 5 $1$mERr$hx5rVt7rPNoS4wqbXKX7m0
+!
+no aaa new-model
+system mtu routing 1500
+!
+vtp mode transparent
+!
+spanning-tree mode pvst
+spanning-tree extend system-id
+!
+vlan 10
+ name STAFF
+!
+vlan 20
+ name GUEST
+!
+vlan 99
+ name MGMT
+!
+interface FastEthernet0/1
+ switchport access vlan 10
+ switchport mode access
+ spanning-tree portfast
+!
+interface FastEthernet0/2
+ switchport access vlan 10
+ switchport mode access
+ spanning-tree portfast
+!
+interface FastEthernet0/3
+ switchport access vlan 20
+ switchport mode access
+ spanning-tree portfast
+!
+interface FastEthernet0/4
+ switchport access vlan 20
+ switchport mode access
+ spanning-tree portfast
+!
+interface FastEthernet0/5
+ description Printer
+ switchport access vlan 30
+ switchport mode access
+ spanning-tree portfast
+!
+interface FastEthernet0/6
+ description Uplink to old hub
+ switchport access vlan 10
+ switchport mode access
+ duplex half
+!
+interface FastEthernet0/7
+!
+interface FastEthernet0/8
+!
+interface GigabitEthernet0/1
+ description Trunk to R1 Gi0/0
+ switchport trunk allowed vlan 10,99
+ switchport mode trunk
+!
+interface GigabitEthernet0/2
+ shutdown
+!
+interface Vlan1
+ no ip address
+ shutdown
+!
+interface Vlan99
+ ip address 192.168.99.2 255.255.255.0
+!
+ip default-gateway 192.168.9.1
+ip http server
+!
+line con 0
+line vty 0 4
+ password 7 0822455D0A16
+ login
+line vty 5 15
+ password 7 0822455D0A16
+ login
+!
+end
