@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cisco Config Analyzer</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="7" width="26" height="8" rx="2"/><rect x="3" y="18" width="26" height="8" rx="2"/><circle cx="8" cy="11" r="1.4"/><circle cx="8" cy="22" r="1.4"/><path d="M13 11h12M13 22h12"/></svg>
+      <div>
+        <h1>Cisco Config Analyzer</h1>
+        <p class="sub">Load <code>show running-config</code> from routers and switches, find faults, and troubleshoot step by step. Everything runs locally in your browser.</p>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="configs" class="active">1. Configs <span class="count" id="cnt-devices">0</span></button>
+      <button role="tab" data-tab="findings">2. Findings <span class="count" id="cnt-findings">0</span></button>
+      <button role="tab" data-tab="troubleshoot">3. Troubleshoot</button>
+      <button role="tab" data-tab="network">4. Network</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- CONFIGS -->
+    <section id="tab-configs" class="tab active">
+      <div class="grid2">
+        <div class="card">
+          <h2>Load configurations</h2>
+          <label class="drop" id="drop">
+            <input type="file" id="file" multiple accept=".txt,.cfg,.conf,.log,.ios,text/plain">
+            <strong>Drop config files here</strong> or click to choose.<br>
+            <span class="muted">One file per device, or one file with several configs. Any text file with <code>show running-config</code> output works.</span>
+          </label>
+          <h3>…or paste</h3>
+          <textarea id="paste" rows="9" spellcheck="false" placeholder="Paste the output of 'show running-config' here. You can paste several devices at once."></textarea>
+          <div class="row">
+            <button class="primary" id="btn-paste">Add pasted config</button>
+            <button id="btn-sample">Load example lab (R1, R2, SW1)</button>
+          </div>
+          <label class="check"><input type="checkbox" id="remember"> Remember loaded configs in this browser</label>
+          <p class="muted small">Configs may contain passwords. Nothing is uploaded anywhere; with "remember" enabled they are stored only in this browser's local storage.</p>
+        </div>
+        <div class="card">
+          <div class="row spread">
+            <h2>Loaded devices</h2>
+            <button class="ghost" id="btn-clear">Remove all</button>
+          </div>
+          <div id="devices" class="devices"><p class="empty">No configs loaded yet.</p></div>
+          <div id="summary"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FINDINGS -->
+    <section id="tab-findings" class="tab">
+      <div class="card">
+        <div class="filters">
+          <div class="sevchips" id="sevchips"></div>
+          <select id="f-device"><option value="">All devices</option></select>
+          <select id="f-cat"><option value="">All categories</option></select>
+          <input type="search" id="f-search" placeholder="Search findings…">
+          <button id="btn-export">Export report (.md)</button>
+        </div>
+      </div>
+      <div id="findings"></div>
+    </section>
+
+    <!-- TROUBLESHOOT -->
+    <section id="tab-troubleshoot" class="tab">
+      <div class="card">
+        <h2>Describe the problem</h2>
+        <p class="muted">Write what the users experience. Mention VLANs, IP addresses, devices, interfaces or protocols if you know them – the assistant combines your description with the loaded configs.</p>
+        <textarea id="problem" rows="4" placeholder="e.g. PCs in VLAN 20 don't get an IP address, or: 192.168.10.25 cannot reach the server 172.16.2.10"></textarea>
+        <div class="examples" id="examples"></div>
+        <details class="advanced">
+          <summary>Optional: specify the traffic exactly</summary>
+          <div class="row wrap">
+            <label>Source IP <input id="t-src" placeholder="auto"></label>
+            <label>Destination IP <input id="t-dst" placeholder="auto"></label>
+            <label>Traffic
+              <select id="t-svc">
+                <option value="">auto</option>
+                <option value="icmp">ping (ICMP)</option>
+                <option value="tcp:22">SSH (TCP 22)</option>
+                <option value="tcp:23">Telnet (TCP 23)</option>
+                <option value="tcp:80">HTTP (TCP 80)</option>
+                <option value="tcp:443">HTTPS (TCP 443)</option>
+                <option value="udp:53">DNS (UDP 53)</option>
+                <option value="custom">Other TCP/UDP port…</option>
+              </select>
+            </label>
+            <label id="t-custom-wrap" hidden>Port <input id="t-custom" placeholder="tcp:8080"></label>
+          </div>
+        </details>
+        <div class="row"><button class="primary" id="btn-assist">Help me find the fault</button></div>
+      </div>
+      <div id="assist"></div>
+    </section>
+
+    <!-- NETWORK -->
+    <section id="tab-network" class="tab">
+      <div class="card">
+        <h2>Path tester</h2>
+        <p class="muted">Simulates a packet hop by hop through the loaded devices (routing tables, ACLs, NAT, VTY lines) – and the reply on the way back.</p>
+        <div class="row wrap">
+          <label>Source IP <input id="p-src" placeholder="192.168.10.50"></label>
+          <label>Destination IP <input id="p-dst" placeholder="172.16.2.10"></label>
+          <label>Traffic
+            <select id="p-svc">
+              <option value="icmp">ping (ICMP)</option>
+              <option value="tcp:22">SSH (TCP 22)</option>
+              <option value="tcp:23">Telnet (TCP 23)</option>
+              <option value="tcp:80">HTTP (TCP 80)</option>
+              <option value="tcp:443">HTTPS (TCP 443)</option>
+              <option value="udp:53">DNS (UDP 53)</option>
+            </select>
+          </label>
+          <button class="primary" id="btn-path">Trace</button>
+        </div>
+        <div id="path"></div>
+      </div>
+      <div class="card">
+        <h2>Devices</h2>
+        <div id="net-devices"></div>
+      </div>
+      <div class="card">
+        <h2>Links</h2>
+        <p class="muted small">Layer-3 links are found from shared subnets. Layer-2 links are guessed from interface descriptions that name another loaded device (e.g. "Trunk to SW2 Gi0/1").</p>
+        <div id="net-links"></div>
+      </div>
+      <div class="card">
+        <div class="row spread"><h2>Estimated routing tables</h2><select id="rib-dev"></select></div>
+        <p class="muted small">Calculated from connected interfaces, static routes and OSPF/EIGRP/RIP adjacencies that would form with these configs. BGP routes are not simulated.</p>
+        <div id="rib"></div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="viewer">
+    <div class="viewer-head">
+      <strong id="viewer-title"></strong>
+      <button class="ghost" id="viewer-close" aria-label="Close">✕</button>
+    </div>
+    <pre id="viewer-body" class="config"></pre>
+  </dialog>
+
+  <footer>Rule-based analysis – always confirm with <code>show</code> commands on the live device. Cisco and IOS are trademarks of Cisco Systems; this tool is not affiliated with Cisco.</footer>
+
+  <script src="js/net.js"></script>
+  <script src="js/parser.js"></script>
+  <script src="js/topology.js"></script>
+  <script src="js/checks.js"></script>
+  <script src="js/playbooks.js"></script>
+  <script src="js/assistant.js"></script>
+  <script src="js/samples.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
