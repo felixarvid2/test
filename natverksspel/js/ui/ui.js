@@ -776,6 +776,7 @@ NV.UI = (function () {
       '<label for="s-post">Efterbehandling (glöd, vinjett, färgton)</label><input type="checkbox" id="s-post"' + (s.get('post') ? ' checked' : '') + '>' +
       '<label for="s-part">Partiklar</label><input type="checkbox" id="s-part"' + (s.get('particles') ? ' checked' : '') + '>' +
       '<label for="s-kenney">Färdiga 3D-modeller (kollegor, möbler, golv och himmel)</label><input type="checkbox" id="s-kenney"' + (s.get('models3d') !== false ? ' checked' : '') + '>' +
+      '<label for="s-people">Realistiska kollegor (medelhög grafik och uppåt)</label><input type="checkbox" id="s-people"' + (s.get('realPeople') !== false ? ' checked' : '') + '>' +
       '<label for="s-steps">Inspelade fotsteg</label><input type="checkbox" id="s-steps"' + (s.get('realSteps') !== false ? ' checked' : '') + '>' +
       '<label for="s-dof">Skärpedjup i 2D (miniatyrkänsla)</label><input type="checkbox" id="s-dof"' + (s.get('dof2d') !== false ? ' checked' : '') + '>' +
       '<label for="s-smooth">Mjuk musrörelse</label><input type="checkbox" id="s-smooth"' + (s.get('smooth') ? ' checked' : '') + '>' +
@@ -811,6 +812,8 @@ NV.UI = (function () {
         bind('s-part', 'particles', function (e) { return e.checked; });
         bind('s-kenney', 'models3d', function (e) { return e.checked; });
         $('#s-kenney', d).addEventListener('change', function () { self.reloadOffer(); });
+        bind('s-people', 'realPeople', function (e) { return e.checked; });
+        $('#s-people', d).addEventListener('change', function () { self.reloadOffer(); });
         bind('s-steps', 'realSteps', function (e) { return e.checked; });
         bind('s-dof', 'dof2d', function (e) { return e.checked; });
         bind('s-smooth', 'smooth', function (e) { return e.checked; });

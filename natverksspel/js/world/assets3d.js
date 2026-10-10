@@ -1,7 +1,8 @@
 // Version 9: färdiga modeller från Kenney (CC0, licenserna ligger i assets3d/LICENSES) i 3D-läget.
 // Kollegorna blir Mini Characters med riktiga animationer, stolar, soffor, växter och köket byts mot
 // Furniture Kit, lagret i Borås får en skåpbil, rullband och lådor, golven får fototexturer, fönstren
-// en riktig himmel och fotstegen spelas in. Allt laddas i bakgrunden. Tills det är klart, eller om det
+// en riktig himmel och fotstegen spelas in. Version 9.1: på medelhög grafik och uppåt blir kollegorna
+// riktiga människor från Quaternius, och golv och väggar får ambientCG-texturer med normalkartor. Allt laddas i bakgrunden. Tills det är klart, eller om det
 // inte går (till exempel när sidan öppnas direkt från disken), syns spelets egna modeller som förut.
 NV.assets3d = (function () {
   var BASE = 'assets3d/';
@@ -10,11 +11,23 @@ NV.assets3d = (function () {
   var FURN = ['chairDesk', 'chairCushion', 'loungeSofa', 'loungeDesignSofa', 'pottedPlant', 'plantSmall1', 'plantSmall2', 'plantSmall3', 'kitchenCoffeeMachine', 'kitchenFridge', 'kitchenMicrowave',
     'bookcaseOpenLow', 'books', 'trashcan', 'coatRackStanding', 'lampSquareFloor', 'lampRoundTable', 'laptop', 'cardboardBoxClosed', 'cardboardBoxOpen', 'radio', 'speakerSmall'];
   var PROPS = { delivery: 'props/cars/delivery', conveyor: 'props/factory/conveyor-long', boxLarge: 'props/factory/box-large', boxWide: 'props/factory/box-wide', boxSmall: 'props/factory/box-small' };
-  var TEX = { wood: { file: 'tex/wood.jpg', k: 2 }, concrete: { file: 'tex/concrete.jpg', k: 2 }, concreteDark: { file: 'tex/concreteDark.jpg', k: 1 }, sky: { file: 'tex/sky.jpg' } };
+  // Golv och väggar från ambientCG (CC0) med normal- och grovhetskartor. k skalar upprepningen, tint färgar putsen.
+  function pbr(name, k, tint) { return { file: 'tex/' + name + '.jpg', n: 'tex/' + name + '_n.jpg', r: 'tex/' + name + '_r.jpg', k: k, tint: tint }; }
+  var TEX = {
+    carpet: pbr('carpet', 1), wood: pbr('wood', 1.5), concrete: pbr('concrete', 1), concreteDark: pbr('concreteDark', 1),
+    wall: pbr('plaster', 1, 0xf4f1ea), wallTeal: pbr('plaster', 1, 0x46888c), wallWarm: pbr('plaster', 1, 0xe6d3b6),
+    sky: { file: 'tex/sky.jpg' },
+  };
   var CHAR_SCALE = 2.1;     // Mini Characters är 0,75 m höga
   var FURN_SCALE = 2;       // Furniture Kit är byggt i halv skala
   var gltf = {}, imgs = {}, ready = false, promise = null;
 
+  // Quaternius-figurerna: kläder, hår och utseende per kollega (färgerna kommer från spelets egna figurer)
+  var HAIR = { long: 'hair_long', ponytail: 'hair_long', bun: 'hair_buns', curly: 'hair_buns', short: 'hair_simpleparted', receding: 'hair_buzzed', cap: 'hair_buzzed', beard: 'hair_beard' };
+  var PTEX = ['cloth', 'cloth_n', 'hands_m', 'face_m_dark', 'face_m_light', 'face_f_dark', 'face_f_light', 'eye', 'hair1', 'hair2'];
+  var FEMALE = { Anna: 1, Sara: 1, Lisa: 1, Maja: 1, Linnea: 1, Eva: 1 };
+  var ptex = {};
+  function realPeople() { return NV.settings.get('realPeople') !== false && !NV.gfx.profile().lambert; }
   function enabled() { return NV.settings.get('models3d') !== false && !!(window.THREE && THREE.GLTFLoader && THREE.SkeletonUtils); }
 
   function load() {
@@ -26,11 +39,27 @@ NV.assets3d = (function () {
       jobs.push(L.loadAsync(BASE + path + '.glb').catch(function () { return L.loadAsync(BASE + path + '.gltf.json'); })
         .then(function (g) { gltf[key] = g; }, function () { /* modellen saknas: den egna används */ }));
     }
-    Object.keys(CHARS).forEach(function (n) { if (!gltf['c:' + CHARS[n]]) glb('c:' + CHARS[n], 'chars/' + CHARS[n]); });
+    // Riktiga människor (Quaternius) från medelhög grafik och uppåt, annars Kenneys figurer
+    if (realPeople()) {
+      ['body_male', 'body_female'].concat(Object.keys(HAIR).map(function (h) { return HAIR[h]; })).forEach(function (n) {
+        if (!gltf['p:' + n]) jobs.push(L.loadAsync(BASE + 'people/' + n + '.gltf.json').then(function (g) { gltf['p:' + n] = g; }, function () { /* saknas */ }));
+      });
+      PTEX.forEach(function (n) {
+        jobs.push(new Promise(function (res) {
+          new THREE.TextureLoader().load(BASE + 'people/' + n + '.jpg', function (t) { t.flipY = false; if (!/_n$/.test(n)) t.colorSpace = THREE.SRGBColorSpace; ptex[n] = t; res(); }, undefined, function () { res(); });
+        }));
+      });
+    }
+    else Object.keys(CHARS).forEach(function (n) { if (!gltf['c:' + CHARS[n]]) glb('c:' + CHARS[n], 'chars/' + CHARS[n]); });
     FURN.forEach(function (n) { glb(n, 'furniture/' + n); });
     Object.keys(PROPS).forEach(function (n) { glb(n, PROPS[n]); });
     Object.keys(TEX).forEach(function (n) {
-      jobs.push(new Promise(function (res) { var i = new Image(); i.onload = function () { imgs[n] = i; res(); }; i.onerror = function () { res(); }; i.src = BASE + TEX[n].file; }));
+      ['file', 'n', 'r'].forEach(function (k) {
+        var f = TEX[n][k];
+        if (!f || imgs[f]) return;
+        imgs[f] = null;
+        jobs.push(new Promise(function (res) { var i = new Image(); i.onload = function () { imgs[f] = i; res(); }; i.onerror = function () { res(); }; i.src = BASE + f; }));
+      });
     });
     promise = Promise.all(jobs).then(function () { ready = true; return true; });
     return promise;
@@ -151,22 +180,108 @@ NV.assets3d = (function () {
   }
 
   // ------------------------------------------------------------------ Kollegorna
+  // Animationsnamnen skiljer sig mellan Kenney- och Quaternius-figurerna
+  var ANIM = {
+    kenney: { sit: 'sit', sitTalk: 'sit', walk: 'walk', wave: 'emote-yes', cheer: 'emote-yes', shake: 'emote-no', talk: 'interact-right', watch: 'pick-up', idle: 'idle' },
+    real: { sit: 'sit', sitTalk: 'sitTalk', walk: 'walk', wave: 'interact', cheer: 'cheer', shake: 'talk', talk: 'talk', watch: 'pickup', idle: 'idle' },
+  };
+  function lum(hex) { var c = new THREE.Color(hex); return 0.3 * c.r + 0.59 * c.g + 0.11 * c.b; }
+  function mat(map, color, extra) {
+    var m = new THREE.MeshStandardMaterial({ map: map || null, color: color === undefined ? 0xffffff : color, roughness: 0.85, metalness: 0 });
+    for (var k in extra) m[k] = extra[k];
+    return m;
+  }
+  function realPerson(f, n) {
+    var def = f.def, fem = !!FEMALE[n], g = gltf['p:body_' + (fem ? 'female' : 'male')];
+    if (!g || !ptex.cloth) return null;
+    var model = THREE.SkeletonUtils.clone(g.scene);
+    var dark = lum(def.skin) < 0.42, face = ptex['face_' + (fem ? 'f' : 'm') + '_' + (dark ? 'dark' : 'light')];
+    // Hudtonen: texturen ger ansiktet, färgen justerar tonen lite mot spelets hudfärg
+    var skinTint = new THREE.Color(def.skin).lerp(new THREE.Color(0xffffff), 0.55);
+    var cn = { normalMap: ptex.cloth_n };
+    var M = {
+      shirt: mat(ptex.cloth, new THREE.Color(def.shirt).lerp(new THREE.Color(0xffffff), 0.15), cn),
+      pants: mat(ptex.cloth, def.pants, cn),
+      shoes: mat(ptex.cloth, def.vest ? 0x3a2a1c : 0x2a2522, cn),
+      skin: mat(face, skinTint, { roughness: 0.6 }),
+      hands: mat(ptex.hands_m || face, skinTint, { roughness: 0.6 }),
+      brows: mat(ptex[fem ? 'hair2' : 'hair1'], def.hair),
+      eyes: mat(ptex.eye, 0xffffff, { roughness: 0.25 }),
+    };
+    model.traverse(function (o) {
+      if (!o.isMesh) return;
+      o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false;
+      var nm = o.name;
+      if (/Legs/.test(nm)) o.material = M.pants;
+      else if (/Feet/.test(nm)) o.material = M.shoes;
+      else if (/Arms_2/.test(nm)) o.material = M.hands;
+      else if (/Body|Arms/.test(nm)) o.material = M.shirt;
+      else if (/Head_Skin/.test(nm)) o.material = M.skin;
+      else if (/Eyebrows/.test(nm)) o.material = M.brows;
+      else if (/Eyes/.test(nm)) o.material = M.eyes;
+    });
+    // Hår och skägg sitter på huvudbenet
+    var head = model.getObjectByName('Head');
+    function hair(file) {
+      var h = gltf['p:' + file];
+      if (!h || !head) return;
+      var mesh = null; h.scene.traverse(function (o) { if (o.isMesh && !mesh) mesh = o; });
+      var m = new THREE.Mesh(mesh.geometry, mat(ptex[/long|buns/.test(file) ? 'hair2' : 'hair1'], def.hair, { side: THREE.DoubleSide }));
+      m.castShadow = true;
+      head.add(m);
+    }
+    hair(HAIR[def.hairStyle] || (fem ? 'hair_long' : 'hair_simpleparted'));
+    if (def.beard) hair('hair_beard');
+    if (def.glasses) glasses(model, head);
+    var mixer = new THREE.AnimationMixer(model), acts = {};
+    g.animations.forEach(function (c) { acts[c.name] = mixer.clipAction(c); });
+    acts.sitDown && (acts.sitDown.loop = THREE.LoopOnce);
+    return { model: model, mixer: mixer, acts: acts, head: head, names: ANIM.real, real: true };
+  }
+  // Enkla glasögon framför ögonen, räknade fram i viloställningen och sedan fästa på huvudet
+  function glasses(model, head) {
+    var eyes = null; model.traverse(function (o) { if (/Eyes/.test(o.name) && o.isMesh) eyes = o; });
+    if (!eyes || !head) return;
+    model.updateMatrixWorld(true);
+    eyes.geometry.computeBoundingBox();
+    var bb = eyes.geometry.boundingBox.clone().applyMatrix4(eyes.matrixWorld), c = new THREE.Vector3(), sz = new THREE.Vector3();
+    bb.getCenter(c); bb.getSize(sz);
+    var frame = mat(null, 0x1d1d22, { roughness: 0.4, metalness: 0.3 }), g = new THREE.Group(), r = Math.max(0.018, sz.x * 0.22);
+    [-1, 1].forEach(function (sd) {
+      var rim = new THREE.Mesh(new THREE.TorusGeometry(r, r * 0.12, 6, 18), frame);
+      rim.position.set(sd * sz.x * 0.27, 0, 0); g.add(rim);
+      var arm = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.004, 0.1), frame);
+      arm.position.set(sd * (sz.x * 0.27 + r), 0, -0.05); g.add(arm);
+    });
+    var bridge = new THREE.Mesh(new THREE.BoxGeometry(sz.x * 0.54 - r * 2, 0.004, 0.004), frame); g.add(bridge);
+    g.position.set(c.x, c.y, bb.max.z + 0.012);
+    model.add(g);
+    head.attach(g);
+  }
+  function kenneyPerson(f, n) {
+    var g = gltf['c:' + CHARS[n]];
+    if (!g) return null;
+    var model = THREE.SkeletonUtils.clone(g.scene);
+    model.scale.setScalar(CHAR_SCALE);
+    model.traverse(function (o) { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; } });
+    var mixer = new THREE.AnimationMixer(model), acts = {};
+    g.animations.forEach(function (c) { acts[c.name] = mixer.clipAction(c); });
+    return { model: model, mixer: mixer, acts: acts, head: model.getObjectByName('head'), names: ANIM.kenney };
+  }
   function swapPeople(w) {
     Object.keys(w.people || {}).forEach(function (n) {
-      var f = w.people[n], g = gltf['c:' + CHARS[n]];
-      if (!g || f.k) return;
-      var model = THREE.SkeletonUtils.clone(g.scene);
-      model.scale.setScalar(CHAR_SCALE);
-      model.traverse(function (o) { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; } });
+      var f = w.people[n];
+      if (f.k) return;
+      var k = (realPeople() && realPerson(f, n)) || kenneyPerson(f, n);
+      if (!k) return;
       var holder = new THREE.Group();
       holder.rotation.y = Math.PI;   // figurerna tittar åt +z, spelets kollegor åt -z
-      holder.add(model);
+      holder.add(k.model);
       f.group.add(holder);
       f.J.hips.visible = false;
-      var mixer = new THREE.AnimationMixer(model), acts = {};
-      g.animations.forEach(function (c) { acts[c.name] = mixer.clipAction(c); });
-      f.k = { model: model, holder: holder, mixer: mixer, acts: acts, cur: null, head: model.getObjectByName('head'), q: new THREE.Quaternion(), acc: 0 };
-      play(f.k, f.sitting ? 'sit' : 'idle', 0);
+      k.holder = holder; k.cur = null; k.q = new THREE.Quaternion(); k.acc = 0;
+      f.k = k;
+      play(k, k.names[f.sitting ? 'sit' : 'idle'], 0);
     });
   }
   function play(k, name, fade) {
@@ -177,6 +292,7 @@ NV.assets3d = (function () {
     k.cur = name;
   }
   var Y = new THREE.Vector3(0, 1, 0), qa = new THREE.Quaternion();
+  var SIT_Y = 0, SIT_Z = 0;
   var origUpdate = NV.people.update;
   NV.people.update = function (list, dt, t, camPos, week, talkingTo) {
     origUpdate.apply(this, arguments);
@@ -189,17 +305,17 @@ NV.assets3d = (function () {
       if (d > (NV.gfx.p ? NV.gfx.p.farAnim : 16) && k.acc < 0.12) return;
       var adt = k.acc; k.acc = 0;
       var talking = talkingTo === n, want;
-      if (f.sitting) want = 'sit';
+      if (f.sitting) want = talking ? 'sitTalk' : 'sit';
       else if (f.speed > 0.05) want = 'walk';
-      else if (f.gest > 0 && (f.gestKind === 'wave' || f.gestKind === 'cheer')) want = 'emote-yes';
-      else if (f.gest > 0 && f.gestKind === 'shake') want = 'emote-no';
-      else if (talking) want = 'interact-right';
-      else if (f.gest > 0 && f.gestKind === 'watch') want = 'pick-up';
+      else if (f.gest > 0 && (f.gestKind === 'wave' || f.gestKind === 'cheer' || f.gestKind === 'shake' || f.gestKind === 'watch')) want = f.gestKind;
+      else if (talking) want = 'talk';
       else want = 'idle';
-      play(k, want, 0.25);
-      if (want === 'walk') k.acts.walk.timeScale = Math.max(0.5, f.speed / 0.6);
-      // Sittande: figuren sjunker ner på stolen
-      k.holder.position.set(0, f.sitting ? 0.44 : 0, f.sitting ? 0.06 : 0);
+      play(k, k.names[want], 0.3);
+      var wa = k.acts[k.names.walk];
+      if (want === 'walk' && wa) wa.timeScale = Math.max(0.5, f.speed / (k.real ? 0.9 : 0.6));
+      // Sittande: Kenney-figurerna sjunker ner på stolen, Quaternius-figurernas animation sitter redan
+      if (k.real) k.holder.position.set(0, f.sitting ? SIT_Y : 0, f.sitting ? SIT_Z : 0);
+      else k.holder.position.set(0, f.sitting ? 0.44 : 0, f.sitting ? 0.06 : 0);
       // Huvudet följer spelaren. Förra vridningen tas bort innan animationen räknas fram.
       if (k.head) k.head.quaternion.multiply(qa.copy(k.q).invert());
       k.mixer.update(adt);
@@ -208,11 +324,20 @@ NV.assets3d = (function () {
   };
 
   // ------------------------------------------------------------------ Golv och himmel
+  // Normal- och grovhetskartor delas av alla ytor med samma textur och får ytans upprepning
+  var extra = {};
+  function extraMap(file, t) {
+    if (!file || !imgs[file]) return null;
+    if (!extra[file]) { extra[file] = new THREE.Texture(imgs[file]); extra[file].wrapS = extra[file].wrapT = THREE.RepeatWrapping; extra[file].anisotropy = 4; extra[file].needsUpdate = true; }
+    var m = extra[file].clone();
+    m.repeat.copy(t.repeat); m.offset.copy(t.offset); m.needsUpdate = true;
+    return m;
+  }
   function applyTex(w) {
     Object.keys(TEX).forEach(function (name) {
-      var img = imgs[name];
+      var cfg = TEX[name], img = imgs[cfg.file];
       if (!img) return;
-      var base = NV.tex.get(name), src = base.source, k = TEX[name].k;
+      var base = NV.tex.get(name), src = base.source, k = cfg.k;
       if (base.userData.kenney) return;
       base.userData.kenney = true;
       base.image = img; base.needsUpdate = true;
@@ -224,12 +349,19 @@ NV.assets3d = (function () {
             if (!t || t.source !== src) return;
             t.needsUpdate = true;
             if (k && k !== 1 && !t.userData.kScaled) { t.repeat.multiplyScalar(k); t.userData.kScaled = true; }
+            if (key !== 'map') return;
+            var nm = extraMap(cfg.n, t), rm = extraMap(cfg.r, t);
+            if (nm && 'normalMap' in m) { m.normalMap = nm; m.normalScale = new THREE.Vector2(0.8, 0.8); }
+            if (rm && 'roughnessMap' in m) { m.roughnessMap = rm; m.roughness = 1; }
+            if (cfg.tint !== undefined) m.color.setHex(cfg.tint);
+            m.needsUpdate = true;
           });
           if (name === 'sky' && m.emissiveIntensity) m.emissiveIntensity = 0.75;
         });
       });
     });
   }
+
 
   // ------------------------------------------------------------------ Allt på en gång
   function apply(w, early) {

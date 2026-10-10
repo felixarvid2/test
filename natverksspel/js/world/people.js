@@ -11,7 +11,7 @@ NV.people = (function () {
     Bo: { site: 'gbg', desk: 'PC-Bo', shirt: 0x5a7fa6, pants: 0x3a3a3a, skin: 0xefc4a4, hair: 0x9a9a9a, hairStyle: 'receding', glasses: true, beard: true, tie: 0x8a2b2b, role: 'Ekonomichef' },
     Maja: { site: 'gbg', desk: 'PC-Maja', shirt: 0xd9a441, pants: 0x283044, skin: 0xa8734f, hair: 0x1a1a1a, long: true, hairStyle: 'curly', role: 'Redovisning' },
     Omar: { site: 'gbg', stand: { x: -3.4, z: -7.8, ry: 0.6 }, shirt: 0x2f2f2f, pants: 0x1f2a44, skin: 0xb5835a, hair: 0x121212, hairStyle: 'short', beard: true, lanyard: true, role: 'Drift (din kollega)' },
-    Linnea: { site: 'gbg', stand: { x: 7.2, z: -7.1, ry: 0 }, shirt: 0x3c7478, pants: 0x2d2d2d, skin: 0xf2d1b8, hair: 0xb5651d, long: true, hairStyle: 'long', headset: true, role: 'Receptionist' },
+    Linnea: { site: 'gbg', stand: { x: 7.2, z: -7.1, ry: Math.PI }, shirt: 0x3c7478, pants: 0x2d2d2d, skin: 0xf2d1b8, hair: 0xb5651d, long: true, hairStyle: 'long', headset: true, role: 'Receptionist' },
     Eva: { site: 'gbg', stand: { x: 0.2, z: -4.6, ry: -2.4 }, shirt: 0x6a4c93, pants: 0x222222, skin: 0xe0ac8a, hair: 0x5a5a5a, long: true, hairStyle: 'bun', glasses: true, role: 'Revisor', weeks: [6] },
     Nils: { site: 'boras', stand: { x: 92.2, z: -7.2, ry: -2.2 }, shirt: 0xe07b24, pants: 0x2c3e50, skin: 0xeec09c, hair: 0x8a5a2b, hairStyle: 'cap', vest: true, role: 'Lagerchef' },
   };

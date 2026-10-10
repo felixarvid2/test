@@ -1,12 +1,13 @@
-// v9: Kenney-modellerna i 3D. Kräver en webbserver på port 8765.
+// v9: färdiga modeller i 3D (Kenney och Quaternius) och ambientCG-texturerna. Kräver en webbserver på port 8765.
 // Kontrollerar att figurer, möbler, rekvisita, texturer och fotsteg laddas, att kollegorna animeras,
 // att kaffemaskinen och kollegorna fortfarande går att använda och att spelet klarar sig utan modellerna.
+// Låg grafik ger Kenneys figurer, medelhög ger riktiga människor (Quaternius) med egna animationer.
 const { chromium } = require('playwright');
-async function run(b, models) {
+async function run(b, models, quality) {
   const p = await b.newPage({ viewport: { width: 1100, height: 650 } });
   const errs = [];
   p.on('pageerror', e => errs.push('pageerror: ' + e.message + ' ' + (e.stack || '').split('\n').slice(0, 3).join(' | ')));
-  await p.addInitScript((m) => { localStorage.setItem('krabba-passet.settings', JSON.stringify({ quality: 'low', mode: '3d', modeChosen: true, tutorialDone: true, lastVersion: '9.0', models3d: m })); }, models);
+  await p.addInitScript((m) => { localStorage.setItem('krabba-passet.settings', JSON.stringify({ quality: m[1], mode: '3d', modeChosen: true, tutorialDone: true, lastVersion: '9.1', models3d: m[0] })); }, [models, quality || 'low']);
   await p.goto('http://localhost:8765/index.html', { waitUntil: 'domcontentloaded' });
   await p.waitForTimeout(5000);
   await p.evaluate(() => { const g = NV.game; g.ui.hideMenu(); g.startWeek(3); g.ui.closeDialog(); });
@@ -16,17 +17,19 @@ async function run(b, models) {
     const g = NV.game, w = g.world, out = { fail: [] };
     out.kit = w.kit ? w.kit.children.length : 0;
     out.people = Object.keys(w.people).filter(n => w.people[n].k).length;
+    out.real = Object.keys(w.people).filter(n => w.people[n].k && w.people[n].k.real).length;
+    out.glasses = w.people.Lisa.k && w.people.Lisa.k.head ? w.people.Lisa.k.head.children.length : 0;
     // Kollegorna växlar animation: sitter, går och vinkar
     const omar = w.people.Omar, anna = w.people.Anna;
     if (omar.k) {
-      for (let i = 0; i < 400 && omar.k.cur !== 'walk'; i++) { w.pos.set(20, 1.6, 20); NV.people.update(w.people, 0.05, i * 0.05, w.pos, 3, null); }
-      if (omar.k.cur !== 'walk') out.fail.push('Omar går inte (' + omar.k.cur + ')');
-      if (anna.k.cur !== 'sit') out.fail.push('Anna sitter inte (' + anna.k.cur + ')');
+      for (let i = 0; i < 400 && omar.k.cur !== omar.k.names.walk; i++) { w.pos.set(20, 1.6, 20); NV.people.update(w.people, 0.05, i * 0.05, w.pos, 3, null); }
+      if (omar.k.cur !== omar.k.names.walk) out.fail.push('Omar går inte (' + omar.k.cur + ')');
+      if (anna.k.cur !== anna.k.names.sit) out.fail.push('Anna sitter inte (' + anna.k.cur + ')');
       if (anna.J.hips.visible) out.fail.push('den gamla figuren syns');
       omar.speed = 0; omar.gest = 1; omar.gestKind = 'wave'; omar.paceT = 99;
       w.pos.set(omar.group.position.x, 1.6, omar.group.position.z + 3);
       NV.people.update(w.people, 0.05, 0, w.pos, 3, null);
-      if (omar.k.cur !== 'emote-yes') out.fail.push('Omar vinkar inte (' + omar.k.cur + ')');
+      if (omar.k.cur !== omar.k.names.wave) out.fail.push('Omar vinkar inte (' + omar.k.cur + ')');
     }
     // Kaffemaskinen och kollegorna går fortfarande att klicka på
     const cm = w.builder.anchors.coffee;
@@ -36,7 +39,7 @@ async function run(b, models) {
     const h = w.pick();
     out.pick = h && h.userData && h.userData.interact ? h.userData.interact.type : (h && h.type);
     // Texturerna och himlen är utbytta
-    out.tex = ['wood', 'concrete', 'concreteDark', 'sky'].filter(n => NV.tex.get(n).image && NV.tex.get(n).image.tagName === 'IMG').length;
+    out.tex = ['carpet', 'wood', 'concrete', 'concreteDark', 'wall', 'wallTeal', 'wallWarm', 'sky'].filter(n => NV.tex.get(n).image && NV.tex.get(n).image.tagName === 'IMG').length;
     // Ingen möbel står där spelaren startar eller vid dörrarna
     [['gbg', -9.5, -1.2], ['gbg', 10.5, -9.3], ['boras', 89.6, 0]].forEach(s => { if (w.collides(s[1], s[2], 0.25)) out.fail.push('blockerat vid ' + s.join(' ')); });
     // Fotstegen
@@ -59,9 +62,15 @@ async function run(b, models) {
   console.log('med modeller: rekvisita', a.r.kit, '· kollegor', a.r.people, '· texturer', a.r.tex, '· fotsteg', a.r.steps, '· sikte', a.r.pick);
   if (a.r.kit < 60) errs.push('för få modeller: ' + a.r.kit);
   if (a.r.people !== 10) errs.push('alla kollegor byttes inte: ' + a.r.people);
-  if (a.r.tex !== 4) errs.push('texturerna byttes inte: ' + a.r.tex);
+  if (a.r.tex !== 8) errs.push('texturerna byttes inte: ' + a.r.tex);
   if (!/^[1-5]\/[1-5]\/[1-5]$/.test(a.r.steps)) errs.push('fotstegen laddades inte: ' + a.r.steps);
   if (a.r.pick !== 'coffee') errs.push('kaffemaskinen träffas inte: ' + a.r.pick);
+  if (a.r.real) errs.push('låg grafik ska ge Kenney-figurer');
+  const m = await run(b, true, 'medium');
+  console.log('medelhög grafik: riktiga kollegor', m.r.real, '· på Lisas huvud', m.r.glasses, 'delar');
+  if (m.r.real !== 10) errs.push('alla kollegor blev inte riktiga människor: ' + m.r.real);
+  if (m.r.glasses < 2) errs.push('Lisa saknar hår eller glasögon');
+  m.errs.forEach(e => errs.push('medelhög: ' + e));
   const c = await run(b, false);
   console.log('utan modeller: rekvisita', c.r.kit, '· kollegor', c.r.people, '· sikte', c.r.pick);
   if (c.r.kit || c.r.people) errs.push('modellerna laddades fast de var avstängda');
