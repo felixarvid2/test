@@ -1,0 +1,6 @@
+Golv- och väggtexturer i assets3d/tex (carpet, wood, concrete, concreteDark, plaster) kommer från ambientCG
+(https://ambientcg.com): Carpet012, WoodFloor051, Concrete034, Concrete048 och PaintedPlaster017.
+
+License: Creative Commons CC0 1.0 Universal
+https://creativecommons.org/publicdomain/zero/1.0/
+"All ambientCG assets are provided under the Creative Commons CC0 1.0 Universal License." (https://docs.ambientcg.com/license/)

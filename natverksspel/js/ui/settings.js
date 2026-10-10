@@ -14,6 +14,7 @@ NV.settings = (function () {
     particles: true,
     models3d: true,      // Kenney-modeller, foton och himmel i 3D
     realSteps: true,     // inspelade fotsteg i stället för syntetiska
+    realPeople: true,    // riktiga människor (Quaternius) i 3D på medelhög grafik och uppåt
     smooth: false,       // mjukare musrörelse
     showFps: false,
     difficulty: 'normal', // 'easy' | 'normal' | 'hard'

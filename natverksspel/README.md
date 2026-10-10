@@ -103,6 +103,18 @@ När ett fel är löst skickar du in en felrapport med **F**. En gul ruta uppe t
 
 Varje fel är simulerat på riktigt. Symptomen räknas fram ur konfigurationen: länkar, duplex, VLAN och trunkar, STP, routing, ARP, ACL, NAT, DHCP, DNS, PoE, port security, IPsec, MTU och lastbalansering. Ett fel försvinner därför bara när orsaken är rättad.
 
+## Version 9.1: riktiga människor och nya golv och väggar
+
+- **Kollegorna är riktiga människor** på medelhög grafik och uppåt. Figurerna kommer från Quaternius (CC0): kläder ur *Modular Character Outfits*, huvud, ögon och frisyrer ur *Universal Base Characters* och animationer ur *Universal Animation Library*. Huvudet är utklippt ur basfiguren och fäst på klädernas skelett, och animationerna är överförda från animationsbibliotekets skelett till klädernas. På låg grafiknivå används Kenney-figurerna från version 9, eftersom de är lättare att rita.
+- **Varje kollega ser ut som förut, fast på riktigt.** Skjortan får kollegans färg, byxorna sina färger, och huden, frisyren och hårfärgen följer spelets egna figurer: långt hår, knut eller kort, skägg för Karim, Bo och Omar och glasögon för Lisa, Bo och Eva. Kläderna och håret är gråskalade så att spelet kan färga dem.
+- **Animationer:** de som sitter vid skrivborden sitter på riktigt och byter till en pratande sittställning när du pratar med dem. Omar går, och de som står andas, pratar med händerna, vinkar och jublar. Huvudet vrids fortfarande mot dig.
+- **Linnea står vänd mot receptionsdisken.** Förut stod hon med ryggen mot den.
+- **Nya golv och väggar från ambientCG (CC0)** med normal- och grovhetskartor: marinblå heltäckningsmatta i kontoret, ljus ekparkett i fikarummet, receptionen och lagerkontoret, slipad betong och betongväggar i Borås och målad puts på väggarna i Göteborg, i samma färger som förut.
+- **Ny inställning:** *Realistiska kollegor*. Stänger du av den används Kenney-figurerna även på hög grafik.
+- `test/v9.js` kontrollerar nu också att alla tio kollegor blir riktiga människor på medelhög grafik och att Lisa har hår och glasögon.
+
+Licenserna ligger i `assets3d/LICENSES/quaternius.txt` och `assets3d/LICENSES/ambientcg.txt`. De andra Quaternius-paketen (Ultimate Modular Men/Women) ligger på Google Drive, och dit gick det inte att ladda ner härifrån.
+
 ## Version 9: färdiga 3D-modeller från Kenney
 
 3D-läget använder nu modeller, ljud och texturer från mappen `assets/` i repot. Allt är CC0 (fritt att använda), och licenserna ligger i `assets3d/LICENSES/`. Det som spelet använder är kopierat till `natverksspel/assets3d/` (omkring 3,5 MB).
@@ -111,7 +123,7 @@ Varje fel är simulerat på riktigt. Symptomen räknas fram ur konfigurationen: 
 - **Möbler från Furniture Kit.** Kontorsstolarna, stolarna i fikarummet och vid mötesbordet, sofforna och krukväxterna är utbytta. Tyget får samma färg som spelets egna möbler hade. Sofforna står nu vända ut mot rummet.
 - **Köket och inredningen.** Kaffemaskin, kylskåp, mikrovågsugn och radio i fikarummet, en papperskorg, klädhängare och golvlampa i receptionen, en laptop på gästbordet och en bordslampa på receptionsdisken, låga bokhyllor med böcker under fönstret i ekonomi, små växter på skrivborden, en högtalare på mötesbordet och kartonger vid skrivaren och i serverrummet. Kaffemaskinen går att använda precis som förut.
 - **Lagret i Borås.** En skåpbil står vid lastporten, ett rullband med paket står bredvid packbordet och det står staplade lådor vid väggen.
-- **Golv och himmel.** Trägolven i fikarummet, receptionen och lagerkontoret, betonggolvet och betongväggarna i Borås har fototexturer (Screaming Brain Studios). Fönstren visar en riktig himmel med moln (Kenney Skyboxes).
+- **Golv och himmel.** Trägolven i fikarummet, receptionen och lagerkontoret, betonggolvet och betongväggarna i Borås har fototexturer (Screaming Brain Studios, ersatta av ambientCG i version 9.1). Fönstren visar en riktig himmel med moln (Kenney Skyboxes).
 - **Inspelade fotsteg.** Fotstegen spelas från inspelningar för heltäckningsmatta, trägolv och betong (Kenney Impact Sounds), fem varianter av varje så att det inte låter likadant varje steg. Det upphöjda golvet i serverrummet låter som betong fast ljusare. Ljuden gäller både i 3D och 2D.
 - **Snabbare än förut.** Modellerna slås ihop med resten av den statiska geometrin, och eftersom de har färre trianglar än spelets egna stolar, växter och figurer blir det färre anrop till grafikkortet (omkring 450 i stället för 575 i kontorslandskapet på låg grafiknivå).
 - **Laddas i bakgrunden.** Spelet startar som vanligt, och modellerna byts in när de har laddats. Har du valt 3D tidigare börjar laddningen direkt när sidan öppnas. Går det inte att ladda dem (till exempel när `index.html` öppnas direkt från disken, där webbläsaren inte får läsa filerna) visas spelets egna modeller som förut.
@@ -1655,8 +1667,8 @@ natverksspel/
   lib/three.min.js           three.js r158 (MIT, se lib/THREE-LICENSE)
   lib/GLTFLoader.js          GLTFLoader och SkeletonUtils från three.js r158 (MIT)
   lib/fonts/                 VT323 och Press Start 2P (SIL Open Font License, se OFL-*.txt)
-  assets3d/                  Kenney-figurer, möbler, bilar, fabriksdelar och fotsteg, fototexturer
-                             och himmel (CC0, licenserna i assets3d/LICENSES/)
+  assets3d/                  Kenney-figurer, möbler, bilar, fabriksdelar och fotsteg, Quaternius-figurer
+                             (people/), ambientCG-texturer och himmel (CC0, licenserna i assets3d/LICENSES/)
   js/net/                    nätverksmodell (model.js) och simulator (sim.js)
   js/cli/                    Cisco IOS (ios.js, ios_show.js), Windows/Linux (host.js, fler kommandon
                              i host_more.js), WLC (wlc.js), lastbalanseraren (lb.js), fler WLC- och
