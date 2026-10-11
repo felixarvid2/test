@@ -16,7 +16,11 @@ NV.settings = (function () {
     realSteps: true,     // inspelade fotsteg i stället för syntetiska
     realPeople: true,
     view3d: 'fps',       // 'fps' (förstaperson) eller 'hd2d' (pixelfigurer i 3D-diorama)
-    tiltShift: true,     // tilt-shift-oskärpa i HD-2D    // riktiga människor (Quaternius) i 3D på medelhög grafik och uppåt
+    tiltShift: true,     // tilt-shift-oskärpa i HD-2D
+    tiltAmount: 1,       // hur stark tilt-shiften är (0,2–1)
+    hdDist: 16, hdPitch: 40, hdSpriteScale: 1, hdTurnStep: 45, hdPath: true, hdIcons: true,   // HD-2D-kameran och hjälpmedlen
+    bobAmount: 1,        // hur mycket kameran gungar i 3D
+    padSens: 1, padRumble: true,   // handkontrollen    // riktiga människor (Quaternius) i 3D på medelhög grafik och uppåt
     smooth: false,       // mjukare musrörelse
     showFps: false,
     difficulty: 'normal', // 'easy' | 'normal' | 'hard'

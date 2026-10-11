@@ -193,6 +193,7 @@
   W.setHD2D = function (on) {
     on = !!on;
     if (!this.hdInit && on) this.initHD2D();
+    if (!this.hdInit) { this.hd2d = false; return; }   // av innan läget har byggts: inget att stänga
     if (this.hd2d === on) return;
     this.hd2d = on;
     var self = this;
@@ -245,13 +246,12 @@
       if (self.hdDown && Math.hypot(e.clientX - self.hdDown.x, e.clientY - self.hdDown.y) > 8) return;
       self.hdClick(e.clientX, e.clientY, e.shiftKey);
     });
-    c.addEventListener('wheel', function (e) { if (!self.hd2d) return; self.hdDist = Math.max(7, Math.min(26, (self.hdDist || 16) * (e.deltaY > 0 ? 1.1 : 0.9))); e.preventDefault(); }, { passive: false });
+    // 170: zoomen sköts mjukt i hd2d_more.js (de gamla lyssnarna hoppade och krockade med den)
+    c.addEventListener('wheel', function (e) { if (self.hd2d) e.preventDefault(); }, { passive: false });
     document.addEventListener('keydown', function (e) {
       if (!self.hd2d || !self.active || (self.game.ui && self.game.ui.captures())) return;
       if (e.code === 'KeyQ') self.hdYawT += Math.PI / 4;
       if (e.code === 'KeyZ') self.hdYawT -= Math.PI / 4;
-      if (e.code === 'Equal' || e.code === 'NumpadAdd') self.hdDist = Math.max(7, (self.hdDist || 16) * 0.9);
-      if (e.code === 'Minus' || e.code === 'NumpadSubtract') self.hdDist = Math.min(26, (self.hdDist || 16) * 1.1);
     });
   };
 
@@ -342,14 +342,15 @@
     this.hdMoving = sp > 0.3;
     // Kameran: snett ovanifrån, följer mjukt efter
     this.hdFocus = this.hdFocus || new THREE.Vector3(this.pos.x, 0.9, this.pos.z);
-    var fk = 1 - Math.exp(-dt * 5);
-    this.hdFocus.x += (this.pos.x - this.hdFocus.x) * fk; this.hdFocus.z += (this.pos.z - this.hdFocus.z) * fk; this.hdFocus.y = 0.9;
+    var fk = 1 - Math.exp(-dt * 5), goal = this.hdFocusGoal || this.pos;   // hdFocusGoal: t.ex. mitt emellan dig och den du pratar med
+    this.hdFocus.x += (goal.x - this.hdFocus.x) * fk; this.hdFocus.z += (goal.z - this.hdFocus.z) * fk; this.hdFocus.y = 0.9;
     var D = this.hdDist || 16;
     this.shakeA = Math.max(0, (this.shakeA || 0) - dt * 1.5);
     var sh = this.shakeA * this.shakeA * 0.15;
-    this.camera.position.set(this.hdFocus.x - ux * D * Math.cos(PITCH) + (Math.random() - 0.5) * sh, this.hdFocus.y + D * Math.sin(PITCH), this.hdFocus.z - uz * D * Math.cos(PITCH));
+    var PT = this.hdPitchNow || PITCH;
+    this.camera.position.set(this.hdFocus.x - ux * D * Math.cos(PT) + (Math.random() - 0.5) * sh, this.hdFocus.y + D * Math.sin(PT), this.hdFocus.z - uz * D * Math.cos(PT));
     this.camera.lookAt(this.hdFocus);
-    this.yaw = this.tYaw = cy; this.pitch = this.tPitch = -PITCH; this.eye = 1.65; this.crouch = false; this.zoomed = false;
+    this.yaw = this.tYaw = cy; this.pitch = this.tPitch = -PT; this.eye = 1.65; this.crouch = false; this.zoomed = false;
     HDU.uHdPlayer.value.set(this.pos.x, 1.0, this.pos.z);
     HDU.uHdFwd.value.set(ux, uz);
   };
@@ -394,8 +395,9 @@
     if (!this.hd2d) return r;
     var self = this, cy = this.hdYaw, t = this.t;
     // Nya material (t.ex. modeller som laddats klart) får också genomskärningen
+    // 165: bara när scenen har fått nya objekt
     this.hdPatchT += dt;
-    if (this.hdPatchT > 2) { this.hdPatchT = 0; patchScene(this); }
+    if (this.hdPatchT > 2) { this.hdPatchT = 0; var cnt = 0; this.scene.traverse(function () { cnt++; }); if (cnt !== this.hdObjCount) { this.hdObjCount = cnt; patchScene(this); } }
     // Du själv
     var me = this.hdMe, walkF = this.hdMoving ? Math.floor(this.hdWalkPh) % 4 : (Math.sin(t * 2.2) > 0.6 ? 4 : 0);
     me.g.position.set(this.pos.x, 0, this.pos.z);
@@ -472,6 +474,9 @@
     if (this.hd2d) { this.hdPath = null; this.hdTarget = null; this.hdFocus = null; this.yaw = this.tYaw = this.hdYaw; }
     return r;
   };
+
+  // Det som tilläggen (hd2d_more.js) behöver
+  NV.hd2d = { HDU: HDU, fx: fx, makeSprite: makeSprite, screenDir: screenDir, setFrame: setFrame, spriteTex: spriteTex, PLAYER_LOOK: PLAYER_LOOK, PX: PX, PITCH: PITCH, FOV: FOV, patchScene: patchScene };
 
   // ------------------------------------------------------------------ Spelet: tre visningslägen
   // HD-2D använder 3D-världen, så spelets läge är '3d' och inställningen view3d säger hur den visas.

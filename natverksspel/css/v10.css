@@ -1,0 +1,23 @@
+/* Version 10: HD-2D och 3D (punkt 149–152, 180–183) */
+/* 149: tipsrutan följer muspekaren i HD-2D */
+body.mode-hd2d:not(.touch) #hint { transform: none; left: 0; top: 0; font-size: 13px; padding: 5px 11px; }
+/* 150: inget sikte i HD-2D; 114: siktets färg följer det du tittar på */
+body.mode-hd2d #crosshair { display: none; }
+#crosshair.active { background: var(--ch, var(--accent)); box-shadow: 0 0 8px var(--ch, transparent); }
+/* 151: pilen vid bildkanten mot målet */
+.hd-edge { position: fixed; z-index: 30; transform: translate(-50%, -50%); pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.hd-edge.hidden, body.photo .hd-edge { display: none; }
+.hd-edge span { font-size: 28px; color: #ffd54a; text-shadow: 0 0 8px rgba(0, 0, 0, 0.8); display: block; }
+.hd-edge b { font: 600 12px "Segoe UI", system-ui, sans-serif; color: #fff; background: rgba(12, 15, 19, 0.75); padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+/* 152: visningsknappar i pausmenyn */
+.pause-views { display: flex; gap: 6px; align-items: center; justify-content: center; margin-top: 10px; color: #c9d1db; font-size: 13px; }
+.pause-views button { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.18); color: #fff; border-radius: 8px; padding: 5px 12px; cursor: pointer; }
+.pause-views button.on { background: #3c7478; border-color: #57a0a5; }
+.help-v10 h3 { margin: 14px 0 4px; }
+/* 180–183: pekskärmsknappar för HD-2D och 3D */
+.v10-touch { position: fixed; right: 14px; bottom: 210px; z-index: 25; display: none; flex-direction: column; gap: 8px; }
+body.touch.mode-3d .v10-touch { display: flex; }
+.v10-touch button { width: 48px; height: 48px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.3); background: rgba(12, 15, 19, 0.6); color: #fff; font-size: 22px; }
+body:not(.mode-hd2d) .v10-touch .hd-only { display: none; }
+/* 173: kaffeboostens nedräkning */
+.chip.boost { background: rgba(197, 139, 90, 0.35); }
