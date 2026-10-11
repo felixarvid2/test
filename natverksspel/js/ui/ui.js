@@ -107,10 +107,10 @@ NV.UI = (function () {
         else if (k === 'KeyR') { self.game.replayPing(); e.preventDefault(); }
         else if (k === 'KeyK') { NV.settings.set('minimap', !NV.settings.get('minimap')); self.toast(NV.settings.get('minimap') ? 'Minikartan visas (K).' : 'Minikartan är dold (K).'); }
         else if (k === 'KeyP') { var on = document.body.classList.toggle('photo'); $('#photo-tip').classList.toggle('hidden', !on); }
-        else if (k === 'Escape' && self.game.mode === '2d') { self.showPause(); e.preventDefault(); }
+        else if (k === 'Escape' && freeMouse(self.game)) { self.showPause(); e.preventDefault(); }
       } else if (e.code === 'Escape' && self.dialogOpen() && !self.dialogLocked) {
         self.closeDialog();
-      } else if (e.code === 'Escape' && self.pauseOpen() && self.game.mode === '2d') {
+      } else if (e.code === 'Escape' && self.pauseOpen() && freeMouse(self.game)) {
         self.hidePause();
       }
     });
@@ -124,13 +124,16 @@ NV.UI = (function () {
       e.stopPropagation();
     });
   }
+  // 2D och HD-2D har fri muspekare, förstapersons-3D låser musen
+  function view(g) { return g.mode === '2d' ? '2d' : (NV.settings.get('view3d') === 'hd2d' ? 'hd2d' : '3d'); }
+  function freeMouse(g) { return g.mode === '2d' || !!(g.world && g.world.hd2d); }
   var P = UI.prototype;
 
   P.dialogOpen = function () { return !this.dialog.classList.contains('hidden'); };
   P.menuOpen = function () { return !this.menu.classList.contains('hidden'); };
   P.pauseOpen = function () { return !this.pause.classList.contains('hidden'); };
   P.captures = function () {
-    var c = this.dialogOpen() || this.menuOpen() || this.game.terminal.open || (this.game.mode === '2d' && this.pauseOpen());
+    var c = this.dialogOpen() || this.menuOpen() || this.game.terminal.open || (freeMouse(this.game) && this.pauseOpen());
     // Världen bakom fönster blir suddig (utom bakom terminalen, där pingpaketen ska synas)
     var blur = c && !this.game.terminal.open;
     if (blur !== this._blur) { this._blur = blur; document.body.classList.toggle('covered', blur); }
@@ -141,11 +144,11 @@ NV.UI = (function () {
   P.onLockChange = function (locked) {
     if (locked) { this.hidePause(); return; }
     if (NV.touch.active()) return;
-    if (!this.captures() && this.game.mode === '3d') this.showPause();
+    if (!this.captures() && !freeMouse(this.game)) this.showPause();
   };
   P.afterOverlay = function () {
     if (this.captures()) return;
-    if (this.game.mode === '3d' && !NV.touch.active()) {
+    if (!freeMouse(this.game) && !NV.touch.active()) {
       this.showPause();
       this.game.world.lock();
     }
@@ -181,7 +184,7 @@ NV.UI = (function () {
     if (gt) html += '<div class="hud-guide">👉 ' + esc(gt) + '</div>';
     if (g.boosted && g.boosted()) html += '<div class="hud-loc">☕ Kaffeboost: ' + Math.ceil((g.boostUntil - Date.now()) / 1000) + ' s</div>';
     if (g.goggles) html += '<div class="hud-loc" style="color:#6ee787">🥽 Nätverksglasögon på (G)</div>';
-    if (!collapsed) html += '<div class="hud-keys">' + (g.mode === '2d' ? 'WASD/pilar gå · klicka för att gå · <b>E</b> använd · <b>+/−</b> zoom' : 'WASD gå · mus titta · <b>E</b> använd · högerklick zoom · <b>C</b> huka · <b>V</b> ficklampa') + ' · <b>T</b> laptop · <b>F</b> felrapport · <b>L</b> ledtråd · <b>G</b> glasögon · <b>M</b> karta · <b>J</b> prestationer · <b>H</b> handbok · <b>F1</b> hjälp · <b>U</b> dölj</div>';
+    if (!collapsed) html += '<div class="hud-keys">' + (g.mode === '2d' ? 'WASD/pilar gå · klicka för att gå · <b>E</b> använd · <b>+/−</b> zoom' : g.world && g.world.hd2d ? 'WASD gå · klicka för att gå · <b>E</b> använd · <b>Q</b>/<b>Z</b> vrid · hjul zoom' : 'WASD gå · mus titta · <b>E</b> använd · högerklick zoom · <b>C</b> huka · <b>V</b> ficklampa') + ' · <b>T</b> laptop · <b>F</b> felrapport · <b>L</b> ledtråd · <b>G</b> glasögon · <b>M</b> karta · <b>J</b> prestationer · <b>H</b> handbok · <b>F1</b> hjälp · <b>U</b> dölj</div>';
     this.hud.innerHTML = html;
     var rb = this.hud.querySelector('[data-report]'), self = this;
     if (rb) rb.addEventListener('click', function (e) { e.stopPropagation(); self.reportPicker(); });
@@ -766,7 +769,8 @@ NV.UI = (function () {
     var g = this.game, self = this;
     var s = NV.settings;
     var html = '<div class="set-grid">' +
-      '<span>Visning</span><div class="seg"><button data-mode="2d" class="' + (g.mode === '2d' ? 'on' : '') + '">2D (16-bit)</button><button data-mode="3d" class="' + (g.mode === '3d' ? 'on' : '') + '"' + (g.webgl ? '' : ' disabled') + '>3D</button></div>' +
+      '<span>Visning</span><div class="seg"><button data-mode="2d" class="' + (view(g) === '2d' ? 'on' : '') + '">2D (16-bit)</button><button data-mode="hd2d" class="' + (view(g) === 'hd2d' ? 'on' : '') + '"' + (g.webgl ? '' : ' disabled') + '>HD-2D</button><button data-mode="3d" class="' + (view(g) === '3d' ? 'on' : '') + '"' + (g.webgl ? '' : ' disabled') + '>3D</button></div>' +
+      '<label for="s-tilt">Tilt-shift i HD-2D (suddigt upptill och nertill)</label><input type="checkbox" id="s-tilt"' + (s.get('tiltShift') !== false ? ' checked' : '') + '>' +
       '<label for="s-sens">Muskänslighet</label><input type="range" id="s-sens" min="0.2" max="3" step="0.1" value="' + s.get('sens') + '">' +
       '<label for="s-inv">Invertera Y-axeln</label><input type="checkbox" id="s-inv"' + (s.get('invertY') ? ' checked' : '') + '>' +
       '<label for="s-fov">Synvinkel (FOV)</label><input type="range" id="s-fov" min="55" max="95" step="1" value="' + s.get('fov') + '">' +
@@ -815,6 +819,7 @@ NV.UI = (function () {
         bind('s-people', 'realPeople', function (e) { return e.checked; });
         $('#s-people', d).addEventListener('change', function () { self.reloadOffer(); });
         bind('s-steps', 'realSteps', function (e) { return e.checked; });
+        bind('s-tilt', 'tiltShift', function (e) { if (g.world && g.world.applySettings) setTimeout(function () { g.world.applySettings(); }, 0); return e.checked; });
         bind('s-dof', 'dof2d', function (e) { return e.checked; });
         bind('s-smooth', 'smooth', function (e) { return e.checked; });
         bind('s-fps', 'showFps', function (e) { return e.checked; });
@@ -853,7 +858,7 @@ NV.UI = (function () {
     var prog = g.progress();
     var saved = g.savedRun();
     var html = '<div class="menu-inner"><div class="logo">🦀</div><h1>Krabba-passet</h1><p class="tag">Du är nätverkstekniker på Nordvik. Bygg upp Nordviks nät från fabriksinställda lådor via CLI – eller felsök det som Krabban har gjort sönder och skriv felrapporter.</p>' +
-      '<div class="mode-pick"><span>Välj visning:</span><div class="seg big"><button data-mode="2d" class="' + (g.mode === '2d' ? 'on' : '') + '"><b>2D</b><small>16-bitars pixelvärld</small></button><button data-mode="3d" class="' + (g.mode === '3d' ? 'on' : '') + '"' + (g.webgl ? '' : ' disabled title="WebGL saknas"') + '><b>3D</b><small>förstaperson</small></button></div></div>';
+      '<div class="mode-pick"><span>Välj visning:</span><div class="seg big"><button data-mode="2d" class="' + (view(g) === '2d' ? 'on' : '') + '"><b>2D</b><small>16-bitars pixelvärld</small></button><button data-mode="hd2d" class="' + (view(g) === 'hd2d' ? 'on' : '') + '"' + (g.webgl ? '' : ' disabled title="WebGL saknas"') + '><b>HD-2D</b><small>pixelfigurer i ett 3D-diorama</small></button><button data-mode="3d" class="' + (view(g) === '3d' ? 'on' : '') + '"' + (g.webgl ? '' : ' disabled title="WebGL saknas"') + '><b>3D</b><small>förstaperson</small></button></div></div>';
     var rk = NV.career.rank();
     html += '<div class="menu-rank"><span>🏅 <b>' + esc(rk.name) + '</b> · ' + rk.xp + ' XP · ' + NV.career.unlockedCount() + '/' + NV.career.ACH.length + ' prestationer</span><button data-ach>Karriär (J)</button></div>';
     if (saved && !(g.running && g.week === saved.week)) html += '<div class="menu-row"><button class="primary" data-continue>Fortsätt ' + esc(NV.levels.name(saved.week).toLowerCase()) + ' (' + fmtTime(saved.elapsed || 0) + ')</button></div>';

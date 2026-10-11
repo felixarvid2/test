@@ -664,6 +664,7 @@ NV.World2D = (function () {
   var LOOKS = {
     Anna: { cap: null }, Karim: { glasses: true }, Sara: { lanyard: true }, Lisa: { lanyard: true }, Bo: { tie: true, glasses: true }, Maja: {}, Omar: { beard: true }, Linnea: { headset: true }, Eva: { glasses: true }, Nils: { vest: true },
   };
+  NV.looks2d = LOOKS;   // HD-2D-läget ritar samma figurer
   W.buildPeople = function () {
     var self = this;
     var A = this.builder.anchors;

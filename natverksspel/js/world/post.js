@@ -1,5 +1,6 @@
 // Efterbehandling för 3D: HDR-bild → glöd (bloom), filmisk tonmappning, färgton per rum,
 // vinjett, lite kromatisk aberration och filmkorn. Allt i egna shaders utan tillägg.
+// I HD-2D-läget läggs dessutom tilt-shift-oskärpa på: skarpt kring figuren, suddigt upptill och nertill.
 NV.Post = (function () {
   var VERT = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
 
@@ -28,7 +29,7 @@ NV.Post = (function () {
     '}'].join('\n');
   var COPY = 'uniform sampler2D tSrc; varying vec2 vUv; void main(){ gl_FragColor = vec4(texture2D(tSrc, vUv).rgb, 1.0); }';
   var FINAL = [
-    'uniform sampler2D tScene; uniform sampler2D tB0; uniform sampler2D tB1; uniform sampler2D tB2; uniform sampler2D tB3;',
+    'uniform sampler2D tScene; uniform sampler2D tDof; uniform float uTilt; uniform float uFocus; uniform float uBand; uniform sampler2D tB0; uniform sampler2D tB1; uniform sampler2D tB2; uniform sampler2D tB3;',
     'uniform float uBloom; uniform float uExposure; uniform vec3 uTint; uniform float uSat; uniform float uContrast;',
     'uniform float uVignette; uniform float uGrain; uniform float uCA; uniform float uTime; uniform float uAlarm; uniform vec3 uFlash; uniform float uFlashA;',
     'uniform float uGoggles; uniform vec2 uRes;',
@@ -49,6 +50,7 @@ NV.Post = (function () {
     '  col.r = texture2D(tScene, vUv - off).r;',
     '  col.g = texture2D(tScene, vUv).g;',
     '  col.b = texture2D(tScene, vUv + off).b;',
+    '  if (uTilt > 0.0) { float fd = abs(vUv.y - uFocus); float bk = smoothstep(uBand, uBand + 0.38, fd) * uTilt; col = mix(col, texture2D(tDof, vUv).rgb, bk); }',
     '  vec3 bl = texture2D(tB0, vUv).rgb * 0.45 + texture2D(tB1, vUv).rgb * 0.3 + texture2D(tB2, vUv).rgb * 0.18 + texture2D(tB3, vUv).rgb * 0.12;',
     '  col += bl * uBloom;',
     '  col *= uTint;',
@@ -82,13 +84,14 @@ NV.Post = (function () {
     var HF = THREE.HalfFloatType;
     this.rt = new THREE.WebGLRenderTarget(4, 4, { type: HF, samples: opts.samples || 0 });
     this.levels = [];
+    this.dofA = new THREE.WebGLRenderTarget(4, 4, { type: HF }); this.dofB = new THREE.WebGLRenderTarget(4, 4, { type: HF });
     for (var i = 0; i < 4; i++) this.levels.push({ a: new THREE.WebGLRenderTarget(4, 4, { type: HF }), b: new THREE.WebGLRenderTarget(4, 4, { type: HF }) });
     function mat(frag, u) { return new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: frag, uniforms: u, depthTest: false, depthWrite: false }); }
     this.mBright = mat(BRIGHT, { tSrc: { value: null }, uThreshold: { value: 1.25 } });
     this.mBlur = mat(BLUR, { tSrc: { value: null }, uDir: { value: new THREE.Vector2() } });
     this.mCopy = mat(COPY, { tSrc: { value: null } });
     this.mFinal = mat(FINAL, {
-      tScene: { value: null }, tB0: { value: null }, tB1: { value: null }, tB2: { value: null }, tB3: { value: null },
+      tScene: { value: null }, tDof: { value: null }, uTilt: { value: 0 }, uFocus: { value: 0.5 }, uBand: { value: 0.1 }, tB0: { value: null }, tB1: { value: null }, tB2: { value: null }, tB3: { value: null },
       uBloom: { value: 0.6 }, uExposure: { value: 1.05 }, uTint: { value: new THREE.Vector3(1, 1, 1) }, uSat: { value: 1.05 }, uContrast: { value: 1.03 },
       uVignette: { value: 0.35 }, uGrain: { value: 0.025 }, uCA: { value: 0.012 }, uTime: { value: 0 }, uAlarm: { value: 0 },
       uFlash: { value: new THREE.Color(1, 0.9, 0.5) }, uFlashA: { value: 0 }, uGoggles: { value: 0 }, uRes: { value: new THREE.Vector2(1, 1) },
@@ -102,6 +105,8 @@ NV.Post = (function () {
     this.rt.setSize(w, h);
     var lw = w, lh = h;
     this.levels.forEach(function (L) { lw = Math.max(2, Math.floor(lw / 2)); lh = Math.max(2, Math.floor(lh / 2)); L.a.setSize(lw, lh); L.b.setSize(lw, lh); L.w = lw; L.h = lh; });
+    this.dofW = Math.max(2, Math.floor(w / 3)); this.dofH = Math.max(2, Math.floor(h / 3));
+    this.dofA.setSize(this.dofW, this.dofH); this.dofB.setSize(this.dofW, this.dofH);
     this.u.uRes.value.set(w, h);
   };
   P.pass = function (m, target) {
@@ -122,6 +127,15 @@ NV.Post = (function () {
       self.mBlur.uniforms.tSrc.value = L.b.texture; self.mBlur.uniforms.uDir.value.set(0, 1 / L.h); self.pass(self.mBlur, L.a);
       src = L.a.texture;
     });
+    // Tilt-shift: en suddig kopia av hela bilden i tredjedels upplösning
+    if (this.u.uTilt.value > 0) {
+      this.mCopy.uniforms.tSrc.value = this.rt.texture; this.pass(this.mCopy, this.dofA);
+      for (var k = 0; k < 2; k++) {
+        this.mBlur.uniforms.tSrc.value = this.dofA.texture; this.mBlur.uniforms.uDir.value.set((1.5 + k) / this.dofW, 0); this.pass(this.mBlur, this.dofB);
+        this.mBlur.uniforms.tSrc.value = this.dofB.texture; this.mBlur.uniforms.uDir.value.set(0, (1.5 + k) / this.dofH); this.pass(this.mBlur, this.dofA);
+      }
+      this.u.tDof.value = this.dofA.texture;
+    }
     this.u.tScene.value = this.rt.texture;
     this.u.tB0.value = this.levels[0].a.texture; this.u.tB1.value = this.levels[1].a.texture;
     this.u.tB2.value = this.levels[2].a.texture; this.u.tB3.value = this.levels[3].a.texture;
