@@ -17,11 +17,12 @@ Spelet väljer grafiknivå automatiskt (Minimal, Låg, Medel, Hög eller Ultra) 
 
 På **mobil och surfplatta** styr du med en styrspak nere till vänster och knappar till höger, drar med fingret för att titta i 3D och trycker direkt på saker för att använda dem. ☰ uppe till höger har alla funktioner, och terminalen får en rad med Tab, ?, pilar, Ctrl+C, Ctrl+Z och Ctrl+A K. Mobiler startar i 2D, men 3D finns i menyn. Liggande läge rekommenderas.
 
-## 3D eller 2D
+## 3D, HD-2D eller 2D
 
 Välj visning i startmenyn (valet sparas och kan bytas mitt i en vecka via menyn).
 
 - **3D** – förstaperson i ett stiliserat kontor med glöd, reflektioner, solstrålar och partiklar. Klicka i bilden för att styra med musen. Fungerar inte pekarlåset (t.ex. i en inbäddad vy) kan du i stället hålla ned vänster musknapp och dra för att titta. Högerklick eller Z zoomar in, t.ex. för att läsa portnummer.
+- **HD-2D** – spelets pixelfigurer i 3D-kontoret, sett snett ovanifrån som ett diorama med ljusstrålar, glöd och tilt-shift (se version 9.2). Klicka för att gå, Q och Z vrider kameran.
 - **2D** – en 16-bitars pixelvärld sedd snett uppifrån, i stil med SNES-rollspel. Samma kontor, rack, kollegor och fel, men du går med WASD eller klickar där du vill gå. Klicka på ett rack, en dator eller en person för att gå dit och använda det. Pratbubblor visar vem som har ett ärende (!) och vem du har hjälpt (✓). Väggar tonas ut när du går bakom dem.
 
 ## Styrning
@@ -102,6 +103,20 @@ Datorerna beter sig som riktiga Windows-datorer: saknar de adress försöker de 
 När ett fel är löst skickar du in en felrapport med **F**. En gul ruta uppe till vänster visar hur många rapporter som saknas, och när alla Krabba-fel (eller alla fel) är lösta påminner spelet dig med en ruta där du kan skriva rapporterna direkt. Veckan är klar först när alla rapporter är inlämnade.
 
 Varje fel är simulerat på riktigt. Symptomen räknas fram ur konfigurationen: länkar, duplex, VLAN och trunkar, STP, routing, ARP, ACL, NAT, DHCP, DNS, PoE, port security, IPsec, MTU och lastbalansering. Ett fel försvinner därför bara när orsaken är rättad.
+
+## Version 9.2: HD-2D som tredje visningsläge
+
+Spelet har nu tre visningslägen: **2D** (16-bitars pixelvärld), **HD-2D** och **3D** (förstaperson). Du väljer i menyn eller i inställningarna, och spelet kommer ihåg valet.
+
+- **HD-2D är pixelfigurer i en 3D-värld**, i stil med Octopath Traveler och Triangle Strategy. Kontoret och lagret är samma 3D-värld som i förstapersonsläget, med möbler, golv och ljus, men sedd snett ovanifrån med ett smalt synfält, så att det ser ut som ett diorama. Du och kollegorna ritas som platta sprites med spelets egna pixelfigurer från 2D-läget, med mjuka skuggor under fötterna. Kollegorna sitter, går, vänder sig mot dig och hoppar när de jublar.
+- **Genomskärning:** taket syns inte, och allt högt på kamerans sida om dig, som väggar och pallställ, kapas strax ovanför bordshöjd med en rastrerad övergång. Du ser alltid rummet du står i.
+- **Ljus och stämning:** solstrålar faller snett in genom alla fönster och lägger ljusa fönsterrutor på golvet. I Borås kommer ljuset genom lastporten och takfönstren. Damm svävar i ljuset, skärmarna och lamporna har en mjuk glöd, och färgtonen är varmare med mer glöd och vinjett.
+- **Tilt-shift:** området runt dig är skarpt, och det som ligger högre upp och längre ner i bilden blir suddigt, som en miniatyrmodell. Det går att stänga av i inställningarna.
+- **Styrning:** klicka på golvet för att gå dit. Figuren hittar vägen runt möbler och väggar med samma vägsökning som i 2D. Klickar du på något du kan använda, eller på en kollega, går figuren dit och använder det. WASD och piltangenterna går i kamerans riktning, Shift springer, E använder det du står närmast, **Q** och **Z** vrider kameran 45° och hjulet eller +/− zoomar. Pekskärmen fungerar med styrspaken och genom att trycka.
+- **Tillgångar:** ljuseffekterna (glöd, fönsterljus, gnistor och dis) kommer från Kenney Particle Pack (CC0, licensen i `assets3d/LICENSES/particle-pack.txt`). Figurerna är spelets egna.
+- Ny inställning: *Tilt-shift i HD-2D*. Det nya testet `test/hd2d.js` kontrollerar menyns tre val, att kollegorna blir sprites, klick för att gå, att gå fram och prata med Anna, WASD i kamerans riktning och byten mellan alla tre lägena.
+
+Tekniskt: läget ligger i `js/world/hd2d.js` och slår på en vy av 3D-världen (`world.setHD2D`), så allt annat i 3D fungerar som förut. Genomskärningen är en liten tillsats i varje materials shader, och tilt-shiften är ett nytt steg i efterbehandlingen (`post.js`).
 
 ## Version 9.1: riktiga människor och nya golv och väggar
 
