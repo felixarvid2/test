@@ -7,7 +7,7 @@ async function run(b, models, quality) {
   const p = await b.newPage({ viewport: { width: 1100, height: 650 } });
   const errs = [];
   p.on('pageerror', e => errs.push('pageerror: ' + e.message + ' ' + (e.stack || '').split('\n').slice(0, 3).join(' | ')));
-  await p.addInitScript((m) => { localStorage.setItem('krabba-passet.settings', JSON.stringify({ quality: m[1], mode: '3d', modeChosen: true, tutorialDone: true, lastVersion: '9.2', models3d: m[0] })); }, [models, quality || 'low']);
+  await p.addInitScript((m) => { localStorage.setItem('krabba-passet.settings', JSON.stringify({ quality: m[1], mode: '3d', modeChosen: true, tutorialDone: true, lastVersion: '10.0', models3d: m[0] })); }, [models, quality || 'low']);
   await p.goto('http://localhost:8765/index.html', { waitUntil: 'domcontentloaded' });
   await p.waitForTimeout(5000);
   await p.evaluate(() => { const g = NV.game; g.ui.hideMenu(); g.startWeek(3); g.ui.closeDialog(); });
@@ -24,7 +24,7 @@ async function run(b, models, quality) {
     if (omar.k) {
       for (let i = 0; i < 400 && omar.k.cur !== omar.k.names.walk; i++) { w.pos.set(20, 1.6, 20); NV.people.update(w.people, 0.05, i * 0.05, w.pos, 3, null); }
       if (omar.k.cur !== omar.k.names.walk) out.fail.push('Omar går inte (' + omar.k.cur + ')');
-      if (anna.k.cur !== anna.k.names.sit) out.fail.push('Anna sitter inte (' + anna.k.cur + ')');
+      if (anna.k.cur !== anna.k.names.sit && anna.k.cur !== anna.k.names.sitTalk) out.fail.push('Anna sitter inte (' + anna.k.cur + ')');
       if (anna.J.hips.visible) out.fail.push('den gamla figuren syns');
       omar.speed = 0; omar.gest = 1; omar.gestKind = 'wave'; omar.paceT = 99;
       w.pos.set(omar.group.position.x, 1.6, omar.group.position.z + 3);

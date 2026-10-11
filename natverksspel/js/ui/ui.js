@@ -771,6 +771,16 @@ NV.UI = (function () {
     var html = '<div class="set-grid">' +
       '<span>Visning</span><div class="seg"><button data-mode="2d" class="' + (view(g) === '2d' ? 'on' : '') + '">2D (16-bit)</button><button data-mode="hd2d" class="' + (view(g) === 'hd2d' ? 'on' : '') + '"' + (g.webgl ? '' : ' disabled') + '>HD-2D</button><button data-mode="3d" class="' + (view(g) === '3d' ? 'on' : '') + '"' + (g.webgl ? '' : ' disabled') + '>3D</button></div>' +
       '<label for="s-tilt">Tilt-shift i HD-2D (suddigt upptill och nertill)</label><input type="checkbox" id="s-tilt"' + (s.get('tiltShift') !== false ? ' checked' : '') + '>' +
+      '<label for="s-tiltamt">Tilt-shift-styrka</label><input type="range" id="s-tiltamt" min="0.2" max="1" step="0.05" value="' + (s.get('tiltAmount') === undefined ? 1 : s.get('tiltAmount')) + '">' +
+      '<label for="s-hddist">HD-2D: kamerans avstånd</label><input type="range" id="s-hddist" min="7" max="26" step="0.5" value="' + (s.get('hdDist') || 16) + '">' +
+      '<label for="s-hdpitch">HD-2D: kameravinkel (flack–brant)</label><input type="range" id="s-hdpitch" min="28" max="62" step="1" value="' + (s.get('hdPitch') || 40) + '">' +
+      '<label for="s-hdscale">HD-2D: figurstorlek</label><input type="range" id="s-hdscale" min="0.8" max="1.3" step="0.05" value="' + (s.get('hdSpriteScale') || 1) + '">' +
+      '<label for="s-hdstep">HD-2D: vridsteg med Q/Z</label><select id="s-hdstep"><option value="45"' + (s.get('hdTurnStep') !== 90 ? ' selected' : '') + '>45°</option><option value="90"' + (s.get('hdTurnStep') === 90 ? ' selected' : '') + '>90°</option></select>' +
+      '<label for="s-hdpath">HD-2D: visa vägen som prickar</label><input type="checkbox" id="s-hdpath"' + (s.get('hdPath') !== false ? ' checked' : '') + '>' +
+      '<label for="s-hdicons">HD-2D: ikoner över det du kan använda</label><input type="checkbox" id="s-hdicons"' + (s.get('hdIcons') !== false ? ' checked' : '') + '>' +
+      '<label for="s-bobamt">3D: hur mycket kameran gungar</label><input type="range" id="s-bobamt" min="0" max="1.5" step="0.1" value="' + (s.get('bobAmount') === undefined ? 1 : s.get('bobAmount')) + '">' +
+      '<label for="s-padsens">Handkontroll: spakens känslighet</label><input type="range" id="s-padsens" min="0.4" max="2" step="0.1" value="' + (s.get('padSens') || 1) + '">' +
+      '<label for="s-padrumble">Handkontroll: vibration</label><input type="checkbox" id="s-padrumble"' + (s.get('padRumble') !== false ? ' checked' : '') + '>' +
       '<label for="s-sens">Muskänslighet</label><input type="range" id="s-sens" min="0.2" max="3" step="0.1" value="' + s.get('sens') + '">' +
       '<label for="s-inv">Invertera Y-axeln</label><input type="checkbox" id="s-inv"' + (s.get('invertY') ? ' checked' : '') + '>' +
       '<label for="s-fov">Synvinkel (FOV)</label><input type="range" id="s-fov" min="55" max="95" step="1" value="' + s.get('fov') + '">' +
@@ -819,6 +829,16 @@ NV.UI = (function () {
         bind('s-people', 'realPeople', function (e) { return e.checked; });
         $('#s-people', d).addEventListener('change', function () { self.reloadOffer(); });
         bind('s-steps', 'realSteps', function (e) { return e.checked; });
+        bind('s-tiltamt', 'tiltAmount', function (e) { return +e.value; });
+        bind('s-hddist', 'hdDist', function (e) { if (g.world && g.world.hd2d) g.world.hdDistT = +e.value; return +e.value; });
+        bind('s-hdpitch', 'hdPitch', function (e) { return +e.value; });
+        bind('s-hdscale', 'hdSpriteScale', function (e) { return +e.value; });
+        bind('s-hdstep', 'hdTurnStep', function (e) { return +e.value; });
+        bind('s-hdpath', 'hdPath', function (e) { return e.checked; });
+        bind('s-hdicons', 'hdIcons', function (e) { return e.checked; });
+        bind('s-bobamt', 'bobAmount', function (e) { return +e.value; });
+        bind('s-padsens', 'padSens', function (e) { return +e.value; });
+        bind('s-padrumble', 'padRumble', function (e) { return e.checked; });
         bind('s-tilt', 'tiltShift', function (e) { if (g.world && g.world.applySettings) setTimeout(function () { g.world.applySettings(); }, 0); return e.checked; });
         bind('s-dof', 'dof2d', function (e) { return e.checked; });
         bind('s-smooth', 'smooth', function (e) { return e.checked; });

@@ -22,7 +22,7 @@ På **mobil och surfplatta** styr du med en styrspak nere till vänster och knap
 Välj visning i startmenyn (valet sparas och kan bytas mitt i en vecka via menyn).
 
 - **3D** – förstaperson i ett stiliserat kontor med glöd, reflektioner, solstrålar och partiklar. Klicka i bilden för att styra med musen. Fungerar inte pekarlåset (t.ex. i en inbäddad vy) kan du i stället hålla ned vänster musknapp och dra för att titta. Högerklick eller Z zoomar in, t.ex. för att läsa portnummer.
-- **HD-2D** – spelets pixelfigurer i 3D-kontoret, sett snett ovanifrån som ett diorama med ljusstrålar, glöd och tilt-shift (se version 9.2). Klicka för att gå, Q och Z vrider kameran.
+- **HD-2D** – spelets pixelfigurer i 3D-kontoret, sett snett ovanifrån som ett diorama med ljusstrålar, glöd och tilt-shift (se version 9.2 och 10). Klicka för att gå, Q och Z vrider kameran, X går till nästa mål.
 - **2D** – en 16-bitars pixelvärld sedd snett uppifrån, i stil med SNES-rollspel. Samma kontor, rack, kollegor och fel, men du går med WASD eller klickar där du vill gå. Klicka på ett rack, en dator eller en person för att gå dit och använda det. Pratbubblor visar vem som har ett ärende (!) och vem du har hjälpt (✓). Väggar tonas ut när du går bakom dem.
 
 ## Styrning
@@ -54,6 +54,12 @@ Välj visning i startmenyn (valet sparas och kan bytas mitt i en vecka via menyn
 | K | Minikarta |
 | P | Fotoläge |
 | Z / X (2D) | Zooma in / ut |
+| X (HD-2D / 3D) | Gå till nästa mål / visa vägen dit |
+| Q / Z, Home (HD-2D) | Vrid kameran / tillbaka till utgångsläget |
+| 1–6 (HD-2D / 3D) | Emotes |
+| Alt (3D) | Visa det du kan använda |
+| F4 | Byt visning: 2D → HD-2D → 3D |
+| Handkontroll | Spakar går och tittar, Ⓐ använd, Ⓑ stäng, Ⓧ mål, Ⓨ glasögon, Start paus, Select karta |
 | 1–9 (menyn) | Starta en vecka |
 | Esc | Paus / stäng |
 
@@ -103,6 +109,257 @@ Datorerna beter sig som riktiga Windows-datorer: saknar de adress försöker de 
 När ett fel är löst skickar du in en felrapport med **F**. En gul ruta uppe till vänster visar hur många rapporter som saknas, och när alla Krabba-fel (eller alla fel) är lösta påminner spelet dig med en ruta där du kan skriva rapporterna direkt. Veckan är klar först när alla rapporter är inlämnade.
 
 Varje fel är simulerat på riktigt. Symptomen räknas fram ur konfigurationen: länkar, duplex, VLAN och trunkar, STP, routing, ARP, ACL, NAT, DHCP, DNS, PoE, port security, IPsec, MTU och lastbalansering. Ett fel försvinner därför bara när orsaken är rättad.
+
+## Version 10: 200 förbättringar i HD-2D och 3D
+
+Version 10 bygger vidare på HD-2D och förstapersonsläget: en mjukare kamera, vägen till målet som prickar på golvet, emotes och kollegor som svarar, mer ljus och liv, stöd för handkontroll och tio nya inställningar. Numren står också som kommentarer i koden: `js/world/hd2d_more.js` (1–90), `js/world/v10.js` (91–200) och `css/v10.css`.
+
+### HD-2D: kameran
+
+1. Zoomen är mjuk. Hjulet och tangenterna ändrar ett målavstånd som kameran glider mot, i stället för att hoppa.
+2. Kamerans avstånd sparas till nästa gång du spelar.
+3. Kamerans vridning sparas också, så fort den har ändrats.
+4. Kameran är flackare när den är nära och brantare när den är långt bort.
+5. Home vrider tillbaka kameran till utgångsläget.
+6. Q och Z vrider med ett svischljud.
+7. Kameran ligger lite framför dig i gångriktningen, så att du ser vart du är på väg.
+8. Kameravinkeln går att ställa in, från flack till brant.
+9. \+ och − zoomar lika mjukt som hjulet.
+10. Kameran går närmare när du pratar med någon.
+11. Under ett samtal ligger kameran mitt emellan dig och den du pratar med.
+12. Kameran går också närmare när du sitter vid konsolen.
+13. Med *Minska rörelse* skakar och sveper kameran aldrig.
+14. Kameran andas lite när du står still.
+
+### HD-2D: mus och pekskärm
+
+15. Håll mittenknappen och dra för att vrida kameran.
+16. Högerklick stannar figuren.
+17. Dubbelklick springer dit.
+18. Nyp med två fingrar för att zooma.
+19. Nypet har samma gränser som hjulet (7–26 m).
+20. Figuren vänder sig mot målet så fort du klickar.
+
+### HD-2D: vägen och målet
+
+21. Vägen figuren går visas som prickar på golvet.
+22. **X** går till nästa mål, samma mål som kompasspilen pekar på.
+23. Muspekaren blir en hand över det du kan använda.
+24. Tipset följer muspekaren.
+25. Går du mot någon som rör sig söker figuren en ny väg.
+26. Klickar du där det inte går att komma fram visas "Dit kommer du inte" som flytande text på platsen.
+27. Det hörs ett ljud när du inte kommer dit och ett klick när du kan.
+28. Mellanslag hoppar.
+
+### HD-2D: figurerna
+
+29. **1–6** visar emotes ovanför figuren. De följer med och tonar bort.
+30. Det blir dammpuffar när du springer.
+31. Figurerna får rummets ljus: blått i serverrummet, varmt i köket, kallt i lagret.
+32. På kvällen blir figurerna varmare i tonen.
+33. En siluett av dig syns genom väggar och hyllor som står i vägen.
+34. Skuggan krymper när du är i luften.
+35. Figurerna blir lite ljusare när de står i en solfläck.
+36. Den du håller muspekaren över lyser upp.
+37. "…" svävar ovanför den du pratar med.
+38. De som sitter och skriver gungar lite.
+39. Den du pratar med vänder sig mot dig.
+40. Står du still länge ser figuren sig omkring.
+41. Laptopen som hänger framför kameran i 3D syns inte i HD-2D.
+42. Ficklampan lyser från din figur, inte från kameran.
+43. Trycker du E utan något i närheten säger spelet det.
+44. Klicka på minikartan för att gå dit.
+45. Namnskylten över den du håller muspekaren över syns alltid.
+46. Namnskyltar långt bort tonas ut.
+47. Den gula lådan runt figurerna (från 3D) syns inte i HD-2D.
+48. Tipset säger "Klicka –" i stället för "E –".
+49. En guldring visar var du klickade på något, och en vit ring var du klickade på golvet.
+
+### HD-2D: ljus och väder
+
+50. Solens färg följer tiden på dagen.
+51. När det regnar blir ljuset grått och svagt.
+52. Moln drar förbi och dämpar solen ibland.
+53. Lamporna blir varmare på kvällen.
+54. Skärmarna flimrar när någon skriver.
+55. Dammet följer partikelinställningen och grafiknivån.
+56. På låg grafik blir glöden enklare.
+57. Tilt-shiftens styrka går att ställa in, och under ett samtal ligger skärpan på den du pratar med.
+58. Rummen du besöker räknas.
+
+### HD-2D: prestationer
+
+59. *Diorama-turist*: besök alla rum i HD-2D.
+60. *Kamerasnurr*: vrid kameran åtta gånger.
+61. *Vägvisaren*: gå till nästa mål med X fem gånger.
+62. *Skuttaren*: hoppa 20 gånger.
+63. *Pixelmimare*: använd alla sex emotes.
+
+### HD-2D: miljön
+
+64. Rackens lampor blinkar i serverrummet.
+65. Lysrören i Borås ger ljuspölar på golvet, och de som blinkar i 3D blinkar även här.
+66. Ljuspanelerna i det dolda taket blir ljuspölar på golvet.
+67. Det glimtar i solfläckarna.
+68. Dis drar längs golvet i lagret.
+69. Kaffemaskinens lampa lyser, och larmet i serverrummet blinkar rött vid en storm.
+70. Krabban har ett sken, så att den syns ovanifrån.
+71. Monitorväggen i serverrummet lyser.
+72. Små ikoner svävar över de tre närmaste sakerna du kan använda.
+73. I pausmenyn snurrar kameran långsamt runt dig.
+74. När en vecka startar sveper kameran in.
+75. En prestation ger konfetti runt figuren.
+76. En ny nivå ger en gnistrande ring.
+77. Dammet yr i Borås när du går.
+78. Din figur gungar i takt med stegen.
+79. När du springer gungar den mer.
+80. Kollegor som går gungar också.
+81. Figuren landar mjukt efter ett hopp.
+82. Figurernas storlek går att ställa in.
+83. Q och Z vrider 45° eller 90°, efter inställningen.
+84. Shift+Q och Shift+Z vrider i små steg (15°).
+85. En pil vid bildkanten pekar mot målet när det inte syns.
+86. Målet pulserar på golvet.
+87. X säger vart du går.
+88. X en gång till avbryter.
+89. En ring på golvet visar var du pekar.
+90. Ringen blir röd där du inte kan gå.
+
+### Handkontroll
+
+91. Vänster spak går, i både HD-2D och 3D.
+92. Höger spak vrider kameran i HD-2D och tittar i 3D.
+93. Ⓐ använder.
+94. Ⓑ stänger dialogrutor, terminalen och pausmenyn.
+95. Ⓧ går till målet i HD-2D och visar vägen i 3D.
+96. Ⓨ tar på och av nätverksglasögonen.
+97. LB och RB vrider kameran i HD-2D. I 3D tänder RB ficklampan.
+98. Avtryckarna zoomar.
+99. Start öppnar och stänger pausmenyn.
+100. Select öppnar kartan.
+101. När du ansluter en handkontroll visar spelet vilka knappar som gör vad.
+102. Handkontrollen vibrerar kort när du använder något.
+103. Spakarna har en dödzon, så att figuren inte kryper av sig själv.
+104. Tipset visar Ⓐ i stället för E när du spelar med handkontroll.
+
+### 3D: kameran, vägen och kollegorna
+
+105. Mushjulet zoomar i 3D.
+106. Hjulzoomen glider mjukt mot sitt mål.
+107. **X** visar vägen till målet som prickar på golvet.
+108. Vägen försvinner efter 12 sekunder.
+109. Går du ifrån vägen räknas den om.
+110. **1–6** visar emotes framför dig, med ett ljud.
+111. Kollegor nära dig vinkar tillbaka.
+112. Håll **Alt** för att se konturer runt allt du kan använda i närheten.
+113. Konturerna har en färg efter typ: rack, dator, kollega och så vidare.
+114. Siktet får samma färg som det du tittar på.
+115. Fotstegen växlar mellan vänster och höger öra.
+116. Fotstegens volym beror på golvet: matta, trä eller betong.
+117. Fotstegen är tystare när du hukar och högre när du springer.
+118. Kameran lutar lite framåt när du springer.
+119. Hur mycket kameran gungar går att ställa in.
+120. De som står vänder hela kroppen mot dig när ni pratar.
+121. Ringer telefonen pratar de i den.
+122. Animationerna går inte längre i takt med varandra.
+123. Tempot skiljer sig lite mellan personerna.
+124. Kollegorna har skuggfläckar under sig när riktiga skuggor saknas, som på låg grafik.
+125. Kollegor i närheten jublar när du löser ett fel.
+126. De du har hjälpt kan vinka igen efter en stund.
+127. Springer du förbi tittar de efter dig.
+128. Solstrålarnas färg följer tiden på dagen.
+129. Lamporna blir varmare på kvällen.
+130. Fönsterljuset syns på golvet även i 3D.
+131. Skärmarna lyser svagt.
+132. 3D-läget har egna solstrålar. De döljs i HD-2D, som har sina egna.
+133. Det blir lätt oskärpa upptill och nertill när du zoomar (Z eller högerklick).
+134. När du pratar med någon vänder sig kameran mot kollegan.
+135. Kameran zoomar också in lite under samtalet.
+136. **F4** byter visning (2D → HD-2D → 3D) i alla lägen.
+137. En kort text säger vilken visning du bytte till.
+138. Hjälpen (F1) beskriver HD-2D och handkontrollen.
+
+### Inställningar
+
+139. *Tilt-shift-styrka*.
+140. *HD-2D: kamerans avstånd*.
+141. *HD-2D: kameravinkel* (flack–brant).
+142. *HD-2D: figurstorlek*.
+143. *HD-2D: vridsteg med Q/Z* (45° eller 90°).
+144. *HD-2D: visa vägen som prickar*.
+145. *HD-2D: ikoner över det du kan använda*.
+146. *3D: hur mycket kameran gungar*.
+147. *Handkontroll: spakens känslighet*.
+148. *Handkontroll: vibration*.
+
+### Gränssnitt
+
+149. I HD-2D följer tipsrutan muspekaren.
+150. I HD-2D syns inget sikte mitt i bilden.
+151. Pilen vid bildkanten har en egen stil som syns mot både ljust och mörkt.
+152. Pausmenyn har tre knappar för att byta visning.
+
+### Prestationer
+
+153. *Handkontroll*: spela med en handkontroll.
+154. *Alla vyer*: spela i 2D, HD-2D och 3D.
+155. *Ruttplanerare*: visa vägen till målet med X fem gånger i 3D.
+156. *Teamkänsla*: få kollegorna att jubla fem gånger.
+157. *Vinka tillbaka*: vinka till en kollega som vinkar tillbaka.
+158. *Zoomaren*: zooma med hjulet tio gånger i 3D.
+
+### Ljud
+
+159. Det hörs ett ljud när vägen visas.
+160. Emotes har ett ljud.
+161. En klocka ringer när en handkontroll ansluts.
+162. Alt ger ett litet klick.
+163. F4 ger ett svisch.
+
+### Prestanda och rättningar
+
+164. Kontrollen av om något skymmer dig görs var sjätte bildruta i stället för varje.
+165. Genomskärningen läggs bara på nya material när scenen har fått nya objekt.
+166. Allt som är nytt i HD-2D byggs först när läget används första gången.
+167. Ikonernas texturer ritas en gång och återanvänds.
+168. Kompasstexten säger att X tar dig till målet.
+169. Laptopen framför kameran (vid racket) visas aldrig i HD-2D.
+170. De gamla zoomlyssnarna, som hoppade och krockade med den mjuka zoomen, är borta.
+171. Ficklampan flyttas tillbaka till kameran när du byter från HD-2D till 3D.
+172. Dörren till den andra platsen säger hur lång resan är.
+173. Kaffeboosten räknar ned i HUD:en.
+174. Minikartan visar kamerans synfält i HD-2D och åt vilket håll du är vänd.
+175. Vägen (X) tas bort när du åker till den andra platsen.
+176. Kameran zoomar ut lite när du springer i HD-2D.
+177. Fotoläget döljer HD-2D:s hjälpmedel: prickar, ikoner, ringar och pilar.
+178. Fotoläget gör tilt-shiften skarpare.
+179. På pekskärm: tryck och håll i HD-2D för att springa dit.
+
+### Pekskärm och handkontroll
+
+180. Pekskärmsknappen 🧭 går till målet i HD-2D och visar vägen i 3D.
+181. ⟲ vrider kameran åt vänster i HD-2D.
+182. ⟳ vrider kameran åt höger.
+183. 👋 vinkar.
+184. Byt visning direkt i pausmenyn. Pausmenyns text stämmer i HD-2D.
+185. Tangenthjälpen visar handkontrollens knappar när du använder en.
+186. Styrkorset upp och ner zoomar i HD-2D.
+187. Klick på höger spak hoppar.
+188. Klick på vänster spak slår på och av springläget.
+189. Spelet säger till när handkontrollen kopplas bort.
+190. 2D-världen läser också handkontrollen för meny och paus, och räknas till prestationen *Alla vyer*.
+191. Kaffeboosten syns som ånga runt dig.
+192. Alt visar också namnet på det närmaste du kan använda.
+193. Alt visar högst sex namn och hoppar över dubbletter.
+194. Den som vinkar tillbaka får en 😊 ovanför huvudet.
+195. 😊 hamnar på rätt höjd, oavsett om personen sitter eller står.
+196. Emotes har en kort spärrtid, så att de inte staplas på varandra.
+197. Styrkorset vänster och höger vinkar och tummar upp.
+198. Zoomen släpper när du börjar springa.
+199. Kompassen visar (Ⓧ) i stället för (X) när du spelar med handkontroll.
+200. När vägen visas säger spelet hur lång den är i meter.
+
+Det nya testet `test/v10.js` simulerar en handkontroll och kontrollerar mjuk zoom, X till målet, prickarna, emotes och vinkning tillbaka, hopp, Alt-konturerna, ikonerna, rutten och hjulzoomen i 3D, jubel, F4, pausmenyns visningsknappar, de tio inställningarna och de elva nya prestationerna.
 
 ## Version 9.2: HD-2D som tredje visningsläge
 
@@ -1711,4 +1968,4 @@ node natverksspel/test/smoke.js    # DHCP, ping, NAT, DNS och STP i det felfria 
 node natverksspel/test/cli.js SW1 "show vlan brief" "show interfaces trunk"
 ```
 
-Webbläsartesterna `test/ui.js`, `test/flow.js`, `test/view.js`, `test/boot.js`, `test/features.js`, `test/v3.js`, `test/v4.js`, `test/v5.js`, `test/v8.js` (vägsökningen och aktiviteterna i 2D) och `test/v9.js` (Kenney-modellerna i 3D) använder Playwright. Starta en webbserver på port 8765 i `natverksspel/` först.
+Webbläsartesterna `test/ui.js`, `test/flow.js`, `test/view.js`, `test/boot.js`, `test/features.js`, `test/v3.js`, `test/v4.js`, `test/v5.js`, `test/v8.js` (vägsökningen och aktiviteterna i 2D), `test/v9.js` (Kenney-modellerna i 3D), `test/hd2d.js` (HD-2D) och `test/v10.js` (förbättringarna i version 10, med en simulerad handkontroll) använder Playwright. Starta en webbserver på port 8765 i `natverksspel/` först.
