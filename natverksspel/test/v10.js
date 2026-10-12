@@ -9,7 +9,7 @@ const { chromium } = require('playwright');
   const errs = [];
   p.on('pageerror', e => errs.push('pageerror: ' + e.message + ' ' + (e.stack || '').split('\n').slice(0, 3).join(' | ')));
   await p.addInitScript(() => {
-    localStorage.setItem('krabba-passet.settings', JSON.stringify({ quality: 'low', mode: '3d', view3d: 'hd2d', modeChosen: true, tutorialDone: true, lastVersion: '10.0' }));
+    localStorage.setItem('krabba-passet.settings', JSON.stringify({ quality: 'low', mode: '3d', view3d: 'hd2d', modeChosen: true, tutorialDone: true, lastVersion: '10.1' }));
     // En låtsad handkontroll som håller vänster spak framåt
     window.__pad = { connected: true, id: 'Testkontroll', axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })) };
     navigator.getGamepads = () => [window.__pad];

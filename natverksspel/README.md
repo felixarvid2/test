@@ -110,6 +110,10 @@ När ett fel är löst skickar du in en felrapport med **F**. En gul ruta uppe t
 
 Varje fel är simulerat på riktigt. Symptomen räknas fram ur konfigurationen: länkar, duplex, VLAN och trunkar, STP, routing, ARP, ACL, NAT, DHCP, DNS, PoE, port security, IPsec, MTU och lastbalansering. Ett fel försvinner därför bara när orsaken är rättad.
 
+## Version 10.1: figurerna står upprätt i HD-2D
+
+Figurerna i HD-2D ritades som vanliga sprites, som alltid är vända rakt mot kameran. Eftersom kameran tittar snett nedåt lutade de därför bakåt, och huvudet hamnade över en meter bakom fötterna. Gick du nära en vägg försvann överkroppen in i den. Nu flyttas varje hörn av figuren längs sin egen synlinje till ett lodrätt plan genom fötterna. Figuren ser exakt likadan ut i bilden, men står upprätt i djupled och en bit närmare kameran, så att väggar och hyllor bakom den inte skär av den. Det som står framför figuren skymmer den fortfarande. Ändringen ligger i `standUp` i `js/world/hd2d.js`.
+
 ## Version 10: 200 förbättringar i HD-2D och 3D
 
 Version 10 bygger vidare på HD-2D och förstapersonsläget: en mjukare kamera, vägen till målet som prickar på golvet, emotes och kollegor som svarar, mer ljus och liv, stöd för handkontroll och tio nya inställningar. Numren står också som kommentarer i koden: `js/world/hd2d_more.js` (1–90), `js/world/v10.js` (91–200) och `css/v10.css`.
