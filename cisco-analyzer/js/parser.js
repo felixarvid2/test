@@ -3,9 +3,15 @@
   const CCA = root.CCA = root.CCA || {};
   const N = CCA.net;
 
+  // Normalises pasted text: BOM, Windows/Mac line endings, tabs, terminal "--More--" artefacts and backspaces.
+  function clean(text) {
+    return String(text).replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n').replace(/\t/g, ' ')
+      .replace(/ ?--More-- ?(\x08+ +\x08+)?/g, '').replace(/[\x08]/g, '');
+  }
+
   // Splits text that may contain several pasted configs into one chunk per device.
   function splitConfigs(text) {
-    const lines = String(text).replace(/\r\n?/g, '\n').split('\n');
+    const lines = clean(text).split('\n');
     const chunks = [];
     let cur = [];
     let seenHostname = false;
@@ -30,7 +36,7 @@
 
   // Builds a tree of { text, line, children } from indentation.
   function buildTree(text) {
-    const lines = String(text).replace(/\r\n?/g, '\n').split('\n');
+    const lines = clean(text).split('\n');
     const rootNode = { text: '', line: 0, indent: -1, children: [] };
     const stack = [rootNode];
     const banners = [];
@@ -66,7 +72,7 @@
       if (/^(Building configuration|Current configuration|Last configuration change|NVRAM config last)/i.test(trimmed)) continue;
       if (trimmed === 'end' && raw.search(/\S/) === 0) continue;
       // Skip the prompt line that often comes with a paste ("R1#show run").
-      if (/^\S+[#>]\s*(sh|show)\b/i.test(trimmed)) continue;
+      if (/^\S+[#>]\s*(sh|sho|show|more|wr|write|term|terminal|conf|copy)\b/i.test(trimmed) || /^\S+[#>]\s*$/.test(trimmed)) continue;
       const indent = raw.search(/\S/);
       const node = { text: trimmed, line: lineNo, indent, children: [] };
       while (stack.length > 1 && stack[stack.length - 1].indent >= indent) stack.pop();
@@ -269,7 +275,17 @@
       else if ((m = t.match(/^bandwidth\s+(\d+)/))) ifc.bandwidth = Number(m[1]);
       else if ((m = t.match(/^clock rate\s+(\d+)/))) ifc.clockRate = Number(m[1]);
       else if ((m = t.match(/^(?:ip )?vrf forwarding\s+(\S+)/))) ifc.vrf = m[1];
-      else if ((m = t.match(/^ip nat\s/))) { /* handled above */ }
+      else if ((m = t.match(/^tunnel source\s+(\S+)/))) ifc.tunnel = Object.assign(ifc.tunnel || {}, { source: N.isIp(m[1]) ? m[1] : (N.normalizeIfName(m[1]) || m[1]), sourceLine: c.line });
+      else if ((m = t.match(/^tunnel destination\s+(\S+)/))) ifc.tunnel = Object.assign(ifc.tunnel || {}, { destination: m[1], destLine: c.line });
+      else if ((m = t.match(/^tunnel mode\s+(.+)$/))) ifc.tunnel = Object.assign(ifc.tunnel || {}, { mode: m[1].trim() });
+      else if (t === 'ip ospf mtu-ignore') ifc.ospf.mtuIgnore = true;
+      else if ((m = t.match(/^ipv6 ospf\s+(\d+)\s+area\s+(\S+)/)) || (m = t.match(/^ospfv3\s+(\d+)\s+ipv[46]\s+area\s+(\S+)/))) ifc.ospfv3 = { pid: m[1], area: m[2] };
+      else if (t === 'ip dhcp snooping trust') ifc.dhcpSnoopingTrust = true;
+      else if (t === 'ip arp inspection trust') ifc.arpTrust = true;
+      else if ((m = t.match(/^ip dhcp snooping limit rate\s+(\d+)/))) ifc.dhcpSnoopingRate = Number(m[1]);
+      else if ((m = t.match(/^spanning-tree guard\s+(\S+)/))) ifc.stpGuard = m[1];
+      else if (t === 'spanning-tree bpdufilter enable') ifc.bpdufilter = true;
+      else if (t === 'no ip proxy-arp') ifc.noProxyArp = true;
     }
     if (ifc.ipv4.length && !ifc.ipv4.some(a => !a.secondary)) ifc.ipv4[0].secondary = false;
     return ifc;
@@ -283,7 +299,7 @@
   function parseRouterOspf(node) {
     const m = node.text.match(/^router ospf\s+(\d+)(?:\s+vrf\s+(\S+))?/);
     const o = { pid: m[1], vrf: m[2] || null, line: node.line, routerId: null, networks: [], passiveDefault: false, passive: [], noPassive: [],
-      defaultOriginate: null, redistribute: [], areaAuth: {}, autoCost: null };
+      defaultOriginate: null, redistribute: [], areaAuth: {}, areaType: {}, refBw: 100, ranges: [] };
     for (const c of node.children) {
       const t = c.text;
       let mm;
@@ -295,6 +311,9 @@
       else if ((mm = t.match(/^default-information originate(.*)$/))) o.defaultOriginate = { always: /always/.test(mm[1]), line: c.line };
       else if ((mm = t.match(/^redistribute\s+(\S+)(.*)$/))) o.redistribute.push({ proto: mm[1], args: mm[2].trim(), line: c.line });
       else if ((mm = t.match(/^area\s+(\S+)\s+authentication(\s+message-digest)?/))) o.areaAuth[normArea(mm[1])] = mm[2] ? 'message-digest' : 'simple';
+      else if ((mm = t.match(/^area\s+(\S+)\s+(stub|nssa)(\s+no-summary)?/))) o.areaType[normArea(mm[1])] = mm[2] + (mm[3] ? ' no-summary' : '');
+      else if ((mm = t.match(/^auto-cost reference-bandwidth\s+(\d+)/))) o.refBw = Number(mm[1]);
+      else if ((mm = t.match(/^area\s+(\S+)\s+range\s+(\S+)\s+(\S+)/))) o.ranges.push({ area: normArea(mm[1]), addr: mm[2], mask: mm[3], line: c.line });
     }
     return o;
   }
@@ -395,7 +414,10 @@
       servicePasswordEncryption: false, sshVersion: null, domainName: null, httpServer: false, httpsServer: false,
       snmp: [], stpMode: null, vtp: {}, banners, loggingHosts: [], ntpServers: [], cdpRun: true, lldpRun: false,
       ipv6Routing: false, domainLookup: true, nameServers: [], ipRoutingLine: null, noIpRouting: false, ipRoutingExplicit: false,
-      aaaNewModel: false, keyChains: {}, routeMaps: {}, prefixLists: {}, top: tree.children
+      aaaNewModel: false, keyChains: {}, routeMaps: {}, prefixLists: {}, top: tree.children,
+      vrfs: {}, ipv6Routes: [], ospfv3: [], aaaLists: { login: {} }, dhcpSnooping: { enabled: false, vlans: null, option82: true },
+      arpInspection: null, stpPriority: {}, errdisableRecovery: false, timestamps: false, loggingBuffered: false, clockTimezone: null,
+      objectGroups: {}, natOutside: [], platform: 'ios', bpduguardDefault: false
     };
     for (const node of tree.children) {
       const t = node.text;
@@ -518,7 +540,44 @@
       else if (t === 'no ip domain-lookup' || t === 'no ip domain lookup') dev.domainLookup = false;
       else if ((m = t.match(/^ip name-server\s+(.+)$/))) dev.nameServers.push(...m[1].trim().split(/\s+/));
       else if (t === 'aaa new-model') dev.aaaNewModel = true;
+      else if ((m = t.match(/^(?:ip vrf|vrf definition)\s+(\S+)/))) dev.vrfs[m[1]] = { name: m[1], line: node.line };
+      else if ((m = t.match(/^ipv6 route\s+(\S+)\s+(\S+)/))) dev.ipv6Routes.push({ prefix: m[1], via: m[2], line: node.line });
+      else if ((m = t.match(/^(?:ipv6 router ospf|router ospfv3)\s+(\d+)/))) dev.ospfv3.push({ pid: m[1], line: node.line });
+      else if ((m = t.match(/^key chain\s+(\S+)/))) dev.keyChains[m[1]] = { name: m[1], keys: node.children.filter(c => /^key\s+\d+/.test(c.text)).length, line: node.line };
+      else if ((m = t.match(/^route-map\s+(\S+)/))) (dev.routeMaps[m[1]] = dev.routeMaps[m[1]] || { name: m[1], line: node.line, entries: 0 }).entries++;
+      else if ((m = t.match(/^ip prefix-list\s+(\S+)/))) dev.prefixLists[m[1]] = dev.prefixLists[m[1]] || { name: m[1], line: node.line };
+      else if ((m = t.match(/^aaa authentication login\s+(\S+)\s+(.+)$/))) dev.aaaLists.login[m[1]] = { name: m[1], methods: m[2].trim().split(/\s+/), line: node.line };
+      else if (t === 'ip dhcp snooping') { dev.dhcpSnooping.enabled = true; dev.dhcpSnooping.line = node.line; }
+      else if ((m = t.match(/^ip dhcp snooping vlan\s+(\S+)/))) dev.dhcpSnooping.vlans = vlanList(m[1]);
+      else if (t === 'no ip dhcp snooping information option') dev.dhcpSnooping.option82 = false;
+      else if ((m = t.match(/^ip arp inspection vlan\s+(\S+)/))) dev.arpInspection = { vlans: vlanList(m[1]), line: node.line };
+      else if ((m = t.match(/^spanning-tree vlan\s+(\S+)\s+priority\s+(\d+)/))) { for (const v of vlanList(m[1])) dev.stpPriority[v] = Number(m[2]); }
+      else if ((m = t.match(/^spanning-tree vlan\s+(\S+)\s+root\s+(primary|secondary)/))) { for (const v of vlanList(m[1])) dev.stpPriority[v] = m[2] === 'primary' ? 24576 : 28672; }
+      else if (/^spanning-tree portfast (edge )?bpduguard default/.test(t)) dev.bpduguardDefault = true;
+      else if (/^errdisable recovery cause/.test(t)) dev.errdisableRecovery = true;
+      else if (/^service timestamps log/.test(t)) dev.timestamps = true;
+      else if (/^logging buffered/.test(t)) dev.loggingBuffered = true;
+      else if ((m = t.match(/^clock timezone\s+(.+)$/))) dev.clockTimezone = m[1];
+      else if ((m = t.match(/^object-group network\s+(\S+)/))) {
+        const g = dev.objectGroups[m[1]] = { name: m[1], items: [], line: node.line };
+        for (const c of node.children) {
+          const x = c.text.split(/\s+/);
+          if (x[0] === 'host') g.items.push({ addr: x[1], wild: '0.0.0.0' });
+          else if (x[0] === 'range') g.items.push({ from: x[1], to: x[2] });
+          else if (x[0] === 'group-object') g.items.push({ group: x[1] });
+          else if (N.isIp(x[0]) && N.isIp(x[1])) g.items.push({ addr: x[0], wild: N.intToIp(~N.ipToInt(x[1]) >>> 0) });
+          else if ((mm => mm && g.items.push({ addr: mm[1], wild: N.intToIp(~N.prefixToMaskInt(Number(mm[2])) >>> 0) }))(x[0].match(/^(\d+\.\d+\.\d+\.\d+)\/(\d+)$/))) { /* CIDR */ }
+        }
+      }
+      else if ((m = t.match(/^ip nat outside source static\s+(\S+)\s+(\S+)/))) dev.natOutside.push({ global: m[1], local: m[2], line: node.line });
+      else if (/^(ASA Version|: Saved|feature\s+\S+|PIX Version)/.test(t) || /^!Command: show running-config/.test(t)) dev.platform = /^feature|!Command/.test(t) ? 'nxos' : 'asa';
     }
+    // VLAN state lines (vlan X / state suspend / shutdown)
+    for (const node of tree.children) {
+      const m = node.text.match(/^vlan\s+(\d+)\s*$/);
+      if (m && dev.vlans[m[1]] && node.children.some(c => /^(state suspend|shutdown)$/.test(c.text))) dev.vlans[m[1]].suspended = true;
+    }
+    for (const acl of Object.values(dev.acls)) acl.groups = dev.objectGroups;
     dev.type = guessDeviceType(dev, tree);
     dev.ipRouting = dev.type === 'router' ? !dev.noIpRouting : dev.ipRoutingExplicit;
     if (dev.type === 'switch' && dev.ipRouting) dev.type = 'l3switch';

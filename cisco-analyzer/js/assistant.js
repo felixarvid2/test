@@ -16,8 +16,63 @@
     [/\b(rdp|remote desktop)\b/, { proto: 'tcp', dstPort: 3389, label: 'RDP (TCP 3389)' }]
   ];
 
-  function extract(text, devices) {
+  // Swedish (and informal English) phrases are translated to the English keywords the playbooks use.
+  const SYNONYMS = [
+    [/\bfår inte (någon )?ip(-adress)?\b|\bfår ingen ip(-adress)?\b|\bingen ip-adress\b/g, ' no ip address dhcp '],
+    [/\bkan inte pinga\b|\bpingar inte\b|\bping fungerar inte\b|\bping går inte\b/g, ' ping cannot reach '],
+    [/\bkan inte nå\b|\bkommer inte åt\b|\bnår inte\b|\bkommer inte fram\b/g, ' cannot reach '],
+    [/\bingen (anslutning|kontakt|uppkoppling)\b|\bfungerar inte\b|\bfunkar inte\b|\bgår inte\b/g, ' no connectivity not working '],
+    [/\b(långsam|långsamt|segt|seg|trögt)\b/g, ' slow '],
+    [/\b(nere|ligger nere|är nere)\b/g, ' down '],
+    [/\b(ibland|periodvis|sporadiskt|av och till)\b/g, ' intermittent '],
+    [/\b(grannar|granne|grannskap)\b/g, ' neighbor '],
+    [/\b(logga in|inloggning)\b/g, ' login '],
+    [/\blösenord\b/g, ' password '],
+    [/\b(fjärråtkomst|fjärrstyra)\b/g, ' remote access '],
+    [/\bmellan vlan(en)?\b/g, ' between vlans '],
+    [/\b(blockerad|blockeras|stoppas)\b/g, ' blocked '],
+    [/\bbrandvägg\b/g, ' firewall '],
+    [/\b(namnuppslag|namnupplösning)\b/g, ' dns name resolution '],
+    [/\b(ip-konflikt|dubbel ip|samma ip)\b/g, ' duplicate ip conflict '],
+    [/\bskrivare(n|na)?\b/g, ' printers '],
+    [/\b(trunken|trunk-port)\b/g, ' trunk '],
+    [/\bporten\b/g, ' port '],
+    [/\bfrån\b/g, ' from '],
+    [/\btill\b/g, ' to '],
+    [/\b(can not|can't|cant|unable to|could not|couldn't)\b/g, ' cannot '],
+    [/\b(doesn't work|does not work|isn't working|is not working|broken)\b/g, ' not working ']
+  ];
+
+  // \b only knows ASCII letters, so "nå" or "får" would never match. Rebuild the pattern with Unicode-aware boundaries.
+  const UB = '(?:(?<![\\p{L}\\p{N}])(?=[\\p{L}\\p{N}])|(?<=[\\p{L}\\p{N}])(?![\\p{L}\\p{N}]))';
+  function unicodeBoundaries(rx) { return new RegExp(rx.source.split('\\b').join(UB), 'gu'); }
+
+  function normalise(text) {
+    let s = ' ' + text.toLowerCase() + ' ';
+    for (const [rx, to] of SYNONYMS) s = s.replace(unicodeBoundaries(rx), m => m + to);
+    return s.replace(/\s+/g, ' ');
+  }
+
+  // Finds which mentioned entity is the source ("from X") and which the destination ("to X", "reach X").
+  function roles(text, ex) {
     const lower = text.toLowerCase();
+    const mentions = [];
+    for (const x of ex.ips) mentions.push({ kind: 'ip', value: x.ip, prefix: x.prefix, index: x.index });
+    let m;
+    const vre = /\bvlan\s*(\d{1,4})\b/gi;
+    while ((m = vre.exec(text))) mentions.push({ kind: 'vlan', value: Number(m[1]), index: m.index });
+    for (const d of ex.devs) {
+      const i = lower.search(new RegExp('(^|[^a-z0-9_-])' + d.hostname.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '($|[^a-z0-9_-])'));
+      if (i >= 0) mentions.push({ kind: 'dev', value: d, index: i + (i > 0 ? 1 : 0) });
+    }
+    const before = (mn, words) => words.test(lower.slice(Math.max(0, mn.index - 24), mn.index));
+    const src = mentions.find(mn => before(mn, /\b(from|från|source|src)\s+(the\s+)?(\S+\s+)?(in\s+|i\s+|on\s+|på\s+)?$/));
+    const dst = mentions.find(mn => mn !== src && before(mn, /\b(to|till|reach|nå|ping|pinga|towards|mot|dest(ination)?|access|åt|connect to|ssh to|telnet to)\s+(the\s+)?(\S+\s+)?(in\s+|i\s+|on\s+|på\s+)?$/));
+    return { src, dst, mentions };
+  }
+
+  function extract(text, devices) {
+    const lower = normalise(text);
     const ips = N.findIps(text);
     const vlans = [];
     const re = /\bvlan\s*(\d{1,4})\b/gi;
@@ -27,8 +82,10 @@
     const devs = devices.filter(d => new RegExp('(^|[^A-Za-z0-9_-])' + d.hostname.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '($|[^A-Za-z0-9_-])', 'i').test(text));
     let service = null;
     for (const [rx, s] of SERVICES) if (rx.test(lower)) { service = s; break; }
-    const internet = /\b(internet|google|8\.8\.8\.8|online|isp|outside world|websites?|youtube|external)\b/.test(lower);
-    return { ips, vlans, ifaces, devs, service, internet, lower };
+    const internet = /\b(internet|google|8\.8\.8\.8|online|isp|outside world|websites?|youtube|external|nätet utanför)\b/.test(lower);
+    const ex = { ips, vlans, ifaces, devs, service, internet, lower, text };
+    ex.roles = roles(text, ex);
+    return ex;
   }
 
   function scorePlaybooks(ex) {
@@ -71,8 +128,12 @@
     return N.intToIp((base + off) >>> 0);
   }
 
-  function pickHost(model, gws) {
-    const g = gws.find(x => T.ifUp(x.dev, x.ifc)) || gws[0];
+  // Picks a host behind one of the gateways; with several candidates (the same VLAN number in
+  // different networks) the gateway that has a specific route to the other end of the conversation wins.
+  function pickHost(model, gws, otherIp) {
+    const score = x => (T.ifUp(x.dev, x.ifc) ? 1 : 0) + (otherIp && N.isIp(otherIp) ? (() => { const r = T.lookupIn(model.ribs[x.dev.id] || [], otherIp); return r ? (r.prefix > 0 ? 4 : 1) : 0; })() + (model.all.some(a => a.dev === x.dev && N.inSubnet(otherIp, a.ip, a.mask)) ? 4 : 0)
+      + (model.componentOf && model.all.some(a => N.inSubnet(otherIp, a.ip, a.mask) && model.componentOf(a.dev) === model.componentOf(x.dev)) ? 3 : 0) : 0);
+    const g = gws.slice().sort((a, b) => score(b) - score(a))[0];
     if (!g) return null;
     // Avoid choosing an address that is assigned to a device.
     let h = hostIn(g.ip, g.mask);
@@ -80,18 +141,56 @@
     return h;
   }
 
+  function resolveMention(model, mn, notes, role, otherIp) {
+    if (!mn) return null;
+    if (mn.kind === 'ip') {
+      if (mn.prefix !== null && mn.prefix !== undefined && mn.prefix < 31 && mn.value === N.network(mn.value, N.prefixToMask(mn.prefix))) {
+        const h = hostIn(mn.value, N.prefixToMask(mn.prefix));
+        notes.push('A host in ' + mn.value + '/' + mn.prefix + ' is represented by ' + h + '.');
+        return h;
+      }
+      return mn.value;
+    }
+    if (mn.kind === 'vlan') {
+      const h = pickHost(model, vlanGateways(model, mn.value, true), otherIp);
+      if (h) notes.push('A host in VLAN ' + mn.value + ' is represented by ' + h + '.');
+      return h;
+    }
+    if (mn.kind === 'dev') {
+      const a = T.l3Addresses(mn.value, false).find(x => !/^Loopback/.test(x.ifc.name)) || T.l3Addresses(mn.value, false)[0];
+      if (a) notes.push((role === 'src' ? 'Source ' : 'Destination ') + mn.value.hostname + ' is represented by its address ' + a.ip + ' (' + a.ifc.short + ').');
+      return a ? a.ip : null;
+    }
+    return null;
+  }
+
   function choosePath(model, ex, opts) {
     let src = opts.src || null, dst = opts.dst || null;
     const notes = [];
-    const ips = ex.ips.map(x => x.ip);
+    // Resolve concrete addresses first so a VLAN can be matched to the network the other end lives in.
+    const rs = ex.roles || {};
+    const first = [['src', rs.src], ['dst', rs.dst]].sort((a, b) => (a[1] && a[1].kind === 'vlan' ? 1 : 0) - (b[1] && b[1].kind === 'vlan' ? 1 : 0));
+    for (const [role, mn] of first) {
+      if (!mn) continue;
+      if (role === 'src' && !src) src = resolveMention(model, mn, notes, 'src', dst || (rs.dst && rs.dst.kind === 'ip' ? rs.dst.value : null) || (ex.ips[0] && ex.ips[0].ip));
+      if (role === 'dst' && !dst) dst = resolveMention(model, mn, notes, 'dst', src || (ex.ips[0] && ex.ips[0].ip));
+    }
+    // A network written as CIDR ("10.1.1.0/24") stands for a host inside it.
+    const ips = ex.ips.map(x => (x.prefix !== null && x.prefix < 31 && x.ip === N.network(x.ip, N.prefixToMask(x.prefix))) ? hostIn(x.ip, N.prefixToMask(x.prefix)) : x.ip).filter(ip => ip !== src && ip !== dst);
     if (!src && !dst && ips.length >= 2) { src = ips[0]; dst = ips[1]; }
     else if (!src && ips.length >= 1 && dst && ips[0] !== dst) src = ips[0];
     else if (!dst && ips.length >= 1 && src && ips[0] !== src) dst = ips[0];
-    const vlanHost = v => { const h = pickHost(model, vlanGateways(model, v, true)); if (h) notes.push('A host in VLAN ' + v + ' is represented by ' + h + '.'); return h; };
-    if (!src && ex.vlans.length) src = vlanHost(ex.vlans[0]);
-    if (!dst && ex.vlans.length > 1) dst = vlanHost(ex.vlans[1]);
+    const vlanHost = v => { const h = pickHost(model, vlanGateways(model, v, true), dst || src || ips[0]); if (h) notes.push('A host in VLAN ' + v + ' is represented by ' + h + '.'); return h; };
+    const usedVlans = [ex.roles && ex.roles.src && ex.roles.src.kind === 'vlan' && ex.roles.src.value, ex.roles && ex.roles.dst && ex.roles.dst.kind === 'vlan' && ex.roles.dst.value];
+    const freeVlans = ex.vlans.filter(v => !usedVlans.includes(v));
+    if (!src && freeVlans.length) src = vlanHost(freeVlans.shift());
+    if (!dst && freeVlans.length) dst = vlanHost(freeVlans.shift());
     if (!src && ips.length === 1 && (ex.internet || ex.vlans.length || ex.devs.length)) src = ips[0];
     if (!dst && ips.length === 1 && src && src !== ips[0]) dst = ips[0];
+    if (!src && dst && ex.devs.length && ex.roles && ex.roles.src === undefined && ex.devs.length > 1) {
+      const d = ex.devs.find(x => !T.l3Addresses(x, false).some(a => a.ip === dst));
+      if (d) src = resolveMention(model, { kind: 'dev', value: d }, notes, 'src');
+    }
     if (!dst && ex.devs.length && src) {
       const d = ex.devs.find(x => !T.l3Addresses(x, false).some(a => a.ip === src)) || ex.devs[0];
       const a = T.l3Addresses(d, false)[0];

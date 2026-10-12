@@ -1,0 +1,12 @@
+{
+  "name": "cisco-config-analyzer",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Finds faults in Cisco IOS running-configs and helps you troubleshoot a described problem.",
+  "scripts": {
+    "test": "node test/run.js",
+    "test:ui": "node test/ui.js",
+    "samples": "node tools/build-samples.js",
+    "build": "node tools/build-single.js"
+  }
+}
