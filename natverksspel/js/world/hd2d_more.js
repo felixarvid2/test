@@ -33,8 +33,51 @@
       else if (!on && tl.parent !== this.camera) { this.camera.add(tl); this.camera.add(tl.target); tl.position.set(0.15, -0.1, 0); tl.target.position.set(0.1, -0.05, -1); }
     }
     document.body.classList.toggle('hd-dots', !!on && S.get('hdPath') !== false);
+    this.hdRackParts(!!on);
     return r;
   };
+
+  // Racken är svåra att se uppifrån. I HD-2D går hela racket att klicka på och öppnar samma
+  // frontpanelsvy som i 2D. Utanför HD-2D tas delarna bort ur listan så att 3D-läget inte påverkas.
+  W.hdRackParts = function (on) {
+    var D = this.dev, self = this;
+    if (!D || !D.racks || !this.interactables) return;
+    this.hdRackOn = on;
+    if (!this.hdRackMeshes) {
+      this.hdRackMeshes = [];
+      Object.keys(D.racks).forEach(function (id) {
+        D.racks[id].group.children.forEach(function (m) {
+          if (m.isMesh && !m.userData.interact) { m.userData.hdRack = { type: 'rack', id: id }; self.hdRackMeshes.push(m); }
+        });
+      });
+    }
+    this.hdRackMeshes.forEach(function (m) {
+      var i = self.interactables.indexOf(m);
+      if (on) { m.userData.interact = m.userData.hdRack; if (i < 0) self.interactables.push(m); }
+      else { delete m.userData.interact; if (i >= 0) self.interactables.splice(i, 1); }
+    });
+  };
+  // Vilket rack en enhet sitter i
+  W.hdRackOf = function (devId) {
+    var D = this.dev, e = D && D.entries && D.entries[devId];
+    if (!e || !e.rack) return null;
+    return Object.keys(D.racks).filter(function (k) { return D.racks[k] === e.rack; })[0] || null;
+  };
+  // Klick på en enhet i ett rack öppnar också frontpanelsvyn; där klickar du på enheten för konsolen
+  NV.afterGame(function () {
+    var g = NV.game; if (!g) return;
+    var orig = g.onInteract;
+    g.onInteract = function (i) {
+      var w = this.world, rk = w && w.hd2d && i && i.type === 'console' && !i.fromRack ? w.hdRackOf(i.id) : null;
+      if (rk && this.ui.rackView) { NV.sfx.open && NV.sfx.open(); this.ui.rackView(rk); return; }
+      return orig.apply(this, arguments);
+    };
+    var origDesc = g.describe;
+    if (origDesc) g.describe = function (i) {
+      var w = this.world, rk = w && w.hd2d && i && i.type === 'console' ? w.hdRackOf(i.id) : null;
+      return rk ? origDesc.call(this, { type: 'rack', id: rk }) : origDesc.apply(this, arguments);
+    };
+  });
 
   // 166: allt det här byggs först när HD-2D används första gången
   W.initHdMore = function () {
@@ -196,6 +239,7 @@
     var r = ORIG_UPDATE.apply(this, arguments);
     if (!this.hd2d || !this.hdMore) return r;
     var self = this, M = this.hdMore, t = this.t, zone = this.zoneName || '', h = hour(this), ui = this.game.ui;
+    if (!this.hdRackOn) this.hdRackParts(true);   // om HD-2D slogs på innan listan fanns
     if (this.hdTarget && this.hdTarget.inter && this.hdTarget.inter.type === 'npc') {
       var f = this.people[this.hdTarget.inter.id];
       this.hdRepath = (this.hdRepath || 0) + dt;

@@ -9,7 +9,7 @@ const { chromium } = require('playwright');
   const errs = [];
   p.on('pageerror', e => errs.push('pageerror: ' + e.message + ' ' + (e.stack || '').split('\n').slice(0, 3).join(' | ')));
   await p.addInitScript(() => {
-    localStorage.setItem('krabba-passet.settings', JSON.stringify({ quality: 'low', mode: '3d', view3d: 'hd2d', modeChosen: true, tutorialDone: true, lastVersion: '10.2' }));
+    localStorage.setItem('krabba-passet.settings', JSON.stringify({ quality: 'low', mode: '3d', view3d: 'hd2d', modeChosen: true, tutorialDone: true, lastVersion: '10.3' }));
     // En låtsad handkontroll som håller vänster spak framåt
     window.__pad = { connected: true, id: 'Testkontroll', axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })) };
     navigator.getGamepads = () => [window.__pad];
@@ -75,6 +75,12 @@ const { chromium } = require('playwright');
     w.prScale = 1; w.perfLowT = -99; w.perfSlow = 1; w.fAcc = 1.6; w.fN = 1;   // en långsam mätning till sänker upplösningen
     w.render(1 / 30, w.zone()); out.lumAfterPerf = lum(); out.pendingResize = !!w.needResize;
     w.render(1 / 30, w.zone()); out.lumAfterResize = lum(); out.prScale = w.prScale;
+    // Racken: i HD-2D öppnar en enhet frontpanelsvyn, och därifrån kopplas konsolen in
+    out.rackDesc = g.describe({ type: 'console', id: 'SW1' });
+    g.onInteract({ type: 'console', id: 'SW1' }); out.rackUnits = document.querySelectorAll('#dialog .rack-unit').length;
+    const unit = document.querySelector('#dialog .rack-unit.can canvas'); unit && unit.click();
+    out.rackConsole = !!(g.terminal && g.terminal.open); g.terminal && g.terminal.open && g.terminal.hide(); g.ui.closeDialog();
+    out.rackClickable = w.hdRackMeshes ? w.hdRackMeshes.filter(m => w.interactables.includes(m)).length : 0;
     // Rendering utan fel i alla lägen
     for (const v of ['hd2d', '3d']) { g.setMode(v); for (let i = 0; i < 4; i++) { w.update(1 / 30); w.render(1 / 30, w.zone()); } }
     return out;
@@ -97,6 +103,7 @@ const { chromium } = require('playwright');
   if (r.settings !== 10) errs.push('inställningar saknas: ' + r.settings);
   if (r.ach !== 11) errs.push('prestationer saknas: ' + r.ach);
   if (!(r.lumAfterPerf > 200 && r.lumAfterResize > 200 && r.pendingResize && r.prScale < 1)) errs.push('canvasen töms när upplösningen byts: ' + [r.lumAfterPerf, r.lumAfterResize, r.pendingResize, r.prScale].join(' '));
+  if (!(r.rackUnits >= 5 && r.rackConsole && r.rackClickable > 5 && /Rack A/.test(r.rackDesc))) errs.push('frontpanelsvyn i HD-2D: ' + [r.rackUnits, r.rackConsole, r.rackClickable, r.rackDesc].join(' '));
   console.log(errs.length ? errs.join('\n') : 'inga fel');
   await b.close();
   process.exit(errs.length ? 1 : 0);

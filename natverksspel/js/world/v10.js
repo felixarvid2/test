@@ -381,7 +381,7 @@
       var r = origHelp.apply(this, arguments), body = document.querySelector('#dialog .dlg-body') || document.querySelector('#dialog');
       if (body && !body.querySelector('.help-v10')) {
         var d = document.createElement('div'); d.className = 'help-v10';
-        d.innerHTML = '<h3>HD-2D</h3><p>Klicka på golvet för att gå och på saker eller kollegor för att använda dem. WASD går i kamerans riktning, Q och Z vrider kameran (Shift för små steg, mittenknappen drar fritt, Home rätar upp), hjulet zoomar, X går till nästa mål, Mellanslag hoppar, 1–6 är emotes, högerklick stannar och dubbelklick springer.</p>' +
+        d.innerHTML = '<h3>HD-2D</h3><p>Klicka på golvet för att gå och på saker eller kollegor för att använda dem. Klicka på ett rack för att se frontpanelerna på nära håll, som i 2D; klicka där på en switch eller router för att koppla in konsolkabeln. WASD går i kamerans riktning, Q och Z vrider kameran (Shift för små steg, mittenknappen drar fritt, Home rätar upp), hjulet zoomar, X går till nästa mål, Mellanslag hoppar, 1–6 är emotes, högerklick stannar och dubbelklick springer.</p>' +
           '<h3>3D och HD-2D</h3><p>Håll Alt för att se allt du kan använda i närheten. X visar vägen till nästa mål på golvet i 3D. Hjulet zoomar mjukt i 3D. F4 byter mellan 2D, HD-2D och 3D.</p>' +
           '<h3>Handkontroll</h3><p>Vänster spak går, höger spak tittar eller vrider. Ⓐ använd, Ⓑ stäng, Ⓧ mål, Ⓨ glasögon, LB/RB vrid (HD-2D), LT/RT zoom, D-pad zoom och emotes, Select karta, Start meny. Spakklick: vänster springer, höger hoppar.</p>';
         body.appendChild(d);

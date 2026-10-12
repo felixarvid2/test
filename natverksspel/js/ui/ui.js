@@ -748,7 +748,7 @@ NV.UI = (function () {
           fp.canvas.addEventListener('click', function () {
             if (!sp.devId) return;
             self.closeDialog();
-            g.onInteract({ type: 'console', id: sp.devId });
+            g.onInteract({ type: 'console', id: sp.devId, fromRack: true });
           });
           return { fp: fp, sp: sp };
         });
