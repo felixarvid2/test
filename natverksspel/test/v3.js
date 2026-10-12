@@ -9,7 +9,7 @@ const { chromium } = require('playwright');
   const out = (process.env.OUT || require('os').tmpdir()) + '/';
   const shot = async (n) => { await p.screenshot({ path: out + 'v3_' + n + '.png' }); };
   const wait = (ms) => p.waitForTimeout(ms);
-  await p.addInitScript(() => { try { const s = JSON.parse(localStorage.getItem('krabba-passet.settings') || '{}'); s.lastVersion = '10.1'; localStorage.setItem('krabba-passet.settings', JSON.stringify(s)); } catch (e) {} });
+  await p.addInitScript(() => { try { const s = JSON.parse(localStorage.getItem('krabba-passet.settings') || '{}'); s.lastVersion = '10.2'; localStorage.setItem('krabba-passet.settings', JSON.stringify(s)); } catch (e) {} });
   await p.goto('http://localhost:8765/index.html', { waitUntil: 'domcontentloaded' });
   await p.waitForTimeout(4000);
   await wait(4000);

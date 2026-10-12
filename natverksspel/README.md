@@ -110,6 +110,14 @@ När ett fel är löst skickar du in en felrapport med **F**. En gul ruta uppe t
 
 Varje fel är simulerat på riktigt. Symptomen räknas fram ur konfigurationen: länkar, duplex, VLAN och trunkar, STP, routing, ARP, ACL, NAT, DHCP, DNS, PoE, port security, IPsec, MTU och lastbalansering. Ett fel försvinner därför bara när orsaken är rättad.
 
+## Version 10.2: ingen svart blinkning
+
+Ibland blinkade bilden svart, oftast i HD-2D. Spelet sänker och höjer upplösningen efter bildfrekvensen, och den kontrollen gjordes i slutet av varje bildruta, efter att bilden hade ritats. När canvasen får en ny storlek töms den, så webbläsaren visade en tom (svart) canvas tills nästa bildruta. HD-2D är tyngre att rita, så bildfrekvensen pendlade oftare kring gränserna och upplösningen byttes med några sekunders mellanrum.
+
+- Ny upplösning, även när fönstret ändrar storlek, sätts nu precis innan bilden ritas, så canvasen visas aldrig tom.
+- Det krävs två långsamma mätningar i rad för att sänka upplösningen och tre snabba för att höja den, och den höjs inte inom tio sekunder efter en sänkning. Upplösningen pendlar alltså inte längre fram och tillbaka.
+- `test/v10.js` kontrollerar att canvasen inte är tom efter ett upplösningsbyte.
+
 ## Version 10.1: figurerna står upprätt i HD-2D
 
 Figurerna i HD-2D ritades som vanliga sprites, som alltid är vända rakt mot kameran. Eftersom kameran tittar snett nedåt lutade de därför bakåt, och huvudet hamnade över en meter bakom fötterna. Gick du nära en vägg försvann överkroppen in i den. Nu flyttas varje hörn av figuren längs sin egen synlinje till ett lodrätt plan genom fötterna. Figuren ser exakt likadan ut i bilden, men står upprätt i djupled och en bit närmare kameran, så att väggar och hyllor bakom den inte skär av den. Det som står framför figuren skymmer den fortfarande. Ändringen ligger i `standUp` i `js/world/hd2d.js`.
