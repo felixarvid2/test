@@ -27,8 +27,10 @@
       checkNat(dev, add, model);
       checkDhcp(dev, add, model);
       checkHsrp(dev, add);
+      if (CCA.checksExtra) CCA.checksExtra.device(dev, add, model);
     }
     checkCross(model, add);
+    if (CCA.checksExtra) CCA.checksExtra.cross(model, add);
     // The router-on-a-stick check names the exact trunk; drop the generic duplicate.
     const ros = findings.filter(f => f.id === 'ros-vlan-not-allowed');
     for (let i = findings.length - 1; i >= 0; i--) {
@@ -912,7 +914,8 @@
       nettype: 'Different OSPF network types (e.g. broadcast vs point-to-point) give different hello behaviour and LSA types – the adjacency may flap or routes may be missing.',
       asn: 'EIGRP neighbors must use the same autonomous system number.',
       k: 'EIGRP K-values (metric weights) must match ("K-value mismatch").',
-      version: 'A RIPv2 router ignores RIPv1 updates; use "version 2" on all routers.'
+      version: 'A RIPv2 router ignores RIPv1 updates; use "version 2" on all routers.',
+      areatype: 'Both routers must agree on whether the area is a stub/NSSA (the E/N bits in the hello must match).'
     };
     return d[kind] || '';
   }
@@ -936,6 +939,7 @@
     if (kind === 'nettype') return ['interface ' + ifB.name, ' ip ospf network ' + a.timers.type];
     if (kind === 'asn') return ['! on ' + b.dev.hostname + ': run EIGRP with the same AS as ' + a.dev.hostname, 'router eigrp ' + a.asn, ' network ' + b.net + ' ' + N.intToIp(~N.ipToInt(b.mask) >>> 0)];
     if (kind === 'k') return ['router eigrp <as>', ' metric weights 0 1 0 1 0 0   ! default on both'];
+    if (kind === 'areatype') return ['! make the area type identical on both routers, e.g.', 'router ospf ' + b.proc.pid, ' area ' + a.area + ' ' + ((a.proc.areaType && a.proc.areaType[a.area]) || 'stub')];
     if (kind === 'version') return ['router rip', ' version 2', ' no auto-summary   ! on all routers'];
     return [];
   }

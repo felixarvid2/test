@@ -40,8 +40,8 @@
     },
     {
       id: 'dhcp', title: 'Clients do not get an IP address (DHCP)',
-      keywords: ['dhcp', '169.254', 'apipa', 'no ip address', 'get an ip', 'gets no ip', 'getting ip', 'obtain', 'ipconfig /renew', 'automatic address', 'lease', 'helper', 'relay', 'address from dhcp', 'self-assigned'],
-      tags: ['dhcp', 'relay', 'helper-address', 'vlan', 'trunk', 'gateway'],
+      keywords: ['dhcp', '169.254', 'apipa', 'no ip address', 'get an ip', 'gets no ip', 'getting ip', 'obtain', 'ipconfig /renew', 'automatic address', 'lease', 'helper', 'relay', 'address from dhcp', 'self-assigned', 'snooping', 'option 82', 'giaddr'],
+      tags: ['dhcp', 'relay', 'helper-address', 'vlan', 'trunk', 'gateway', 'dhcp snooping', 'no ip address'],
       summary: 'DHCP Discover is a layer-2 broadcast. It must reach either a local DHCP server or the gateway interface, which then relays it (ip helper-address) as unicast to the server. The reply must be able to come back.',
       questions: ['Do the clients get 169.254.x.x (no answer) or a wrong address (rogue/ wrong pool)?', 'Is the DHCP server on the same subnet or on another router/server?', 'Does it fail for all clients in the VLAN or only one port?', 'Does a client with a static IP in that VLAN reach the gateway?'],
       causes: [
@@ -50,7 +50,8 @@
         { text: 'The pool has the wrong network, or all addresses are used / excluded.', tags: ['dhcp'] },
         { text: 'The pool hands out a wrong default-router (clients get an IP but cannot leave the subnet).', tags: ['gateway'] },
         { text: 'An inbound ACL blocks UDP 67/68, or "no service dhcp" is configured.', tags: ['acl'] },
-        { text: 'Port-security / err-disabled port, or PortFast missing (client gives up before STP forwards).', tags: ['port-security', 'stp'] }
+        { text: 'Port-security / err-disabled port, or PortFast missing (client gives up before STP forwards).', tags: ['port-security', 'stp'] },
+        { text: 'DHCP snooping drops the server replies (uplink not trusted) or inserts option 82 that the server rejects.', tags: ['dhcp snooping'] }
       ],
       diagnose: [
         { on: 'host', cmd: 'ipconfig /release  then  ipconfig /renew', why: 'Forces a new DHCP exchange.', expect: 'An address in the right subnet; 169.254.x.x means no server answered.' },
@@ -61,7 +62,8 @@
         { on: 'l3', cmd: 'show ip interface <gateway-interface> | include Helper', why: 'Relay configured on the client gateway?', expect: '"Helper address is <dhcp-server-ip>" when the server is remote.' },
         { on: 'switch', cmd: 'show interfaces <port> switchport', why: 'Port mode and access VLAN.', expect: '"Access Mode VLAN" is the client VLAN.' },
         { on: 'switch', cmd: 'show interfaces trunk', why: 'Is the client VLAN carried towards the gateway/DHCP server?', expect: 'VLAN in "allowed and active" and "forwarding".' },
-        { on: 'switch', cmd: 'show interfaces status err-disabled', why: 'Port-security or BPDU guard may have shut the port.', expect: 'No entries.' }
+        { on: 'switch', cmd: 'show interfaces status err-disabled', why: 'Port-security or BPDU guard may have shut the port.', expect: 'No entries.' },
+        { on: 'switch', cmd: 'show ip dhcp snooping', why: 'If snooping is on: are the uplinks trusted?', expect: 'Uplinks towards the DHCP server "trusted yes".' }
       ],
       verify: [
         { on: 'host', cmd: 'ipconfig /renew  →  ipconfig /all', expect: 'Correct IP, mask, default gateway and DNS server.' },
@@ -252,7 +254,7 @@
     },
     {
       id: 'remote', title: 'Cannot SSH/Telnet to a device',
-      keywords: ['ssh', 'telnet', 'remote access', 'remote management', 'vty', 'login', 'password', 'connection refused', 'putty', 'manage', 'management', 'authentication failed', '% no password set', 'password required'],
+      keywords: ['ssh', 'telnet', 'remote access', 'remote management', 'vty', 'login', 'password', 'connection refused', 'putty', 'manage', 'management', 'authentication failed', '% no password set', 'password required', 'aaa', 'tacacs', 'radius', 'locked out', 'lockout'],
       tags: ['ssh', 'telnet', 'remote access', 'vty', 'login', 'management', 'gateway', 'acl'],
       summary: 'Remote access needs IP reachability to the device (switches: SVI + default gateway), allowed transport on the VTY lines, a working login method (password or local user) and, for SSH, hostname + domain name + RSA keys.',
       questions: ['Does ping to the device work?', 'Is the error "connection refused", a timeout, or a failed login?', 'SSH or Telnet?'],
@@ -262,7 +264,8 @@
         { text: '"login" without password, or "login local" without username.', tags: ['login'] },
         { text: 'SSH: no domain name / RSA keys, or SSH version mismatch.', tags: ['ssh'] },
         { text: 'access-class on the VTY lines blocks your source address.', tags: ['acl', 'vty'] },
-        { text: 'No enable secret – you can log in but not enter privileged mode.', tags: ['enable'] }
+        { text: 'No enable secret – you can log in but not enter privileged mode.', tags: ['enable'] },
+        { text: 'AAA: "aaa new-model" with a missing or wrong method list.', tags: ['aaa'] }
       ],
       diagnose: [
         { on: 'host', cmd: 'ping <device-ip>', why: 'Basic reachability.', expect: 'Replies (if not: fix routing/default-gateway first).' },
@@ -422,6 +425,36 @@
         { on: 'host', cmd: 'ipconfig  |  ip -6 addr; ip -6 route', why: 'Host address and gateway.', expect: 'Global address and a fe80:: default gateway.' }
       ],
       verify: [{ on: 'host', cmd: 'ping -6 <remote-ipv6>', expect: 'Replies.' }]
+    },
+    {
+      id: 'wan', title: 'Serial / WAN link is down',
+      keywords: ['serial', 'wan', 'ppp', 'hdlc', 'chap', 'pap', 'clock rate', 'dce', 'dte', 'lcp', 'frame relay', 'leased line', 's0/0/0', 'se0/0/0'],
+      tags: ['serial', 'wan', 'ppp', 'hdlc', 'chap', 'clock rate', 'interface down', 'link'],
+      summary: 'A serial link needs matching encapsulation (HDLC is the Cisco default, PPP must be set on both ends), clocking from the DCE end in a back-to-back lab, and – with PPP authentication – matching usernames/passwords (CHAP uses the peer\'s hostname).',
+      questions: ['Is it up/down (layer 2) or down/down (layer 1)?', 'Which end has the DCE cable?', 'Was PPP authentication just added?'],
+      causes: [{ text: 'Encapsulation mismatch (HDLC vs PPP).', tags: ['ppp', 'hdlc'] }, { text: 'No clock rate on the DCE side.', tags: ['clock rate'] }, { text: 'PPP CHAP/PAP failure (wrong username = peer hostname, or different secrets).', tags: ['chap'] }, { text: 'Interface shut down or cable/CSU-DSU problem.', tags: ['interface down'] }],
+      diagnose: [
+        { on: 'router', cmd: 'show ip interface brief', why: 'Status/protocol of the serial interface.', expect: 'up/up.' },
+        { on: 'router', cmd: 'show interfaces <interface>', why: 'Encapsulation, LCP state, keepalives.', expect: 'Same encapsulation both ends; "LCP Open" for PPP.' },
+        { on: 'router', cmd: 'show controllers serial <x/y/z>', why: 'Which end is DCE and whether a clock rate is set.', expect: '"DCE V.35, clock rate 128000" on one end.' },
+        { on: 'router', cmd: 'debug ppp authentication', why: 'See CHAP/PAP failures.', expect: '"Passed" – a "Failed" shows a username/password mismatch.' }
+      ],
+      verify: [{ on: 'router', cmd: 'show interfaces <interface>', expect: 'up/up, LCP Open.' }, { on: 'router', cmd: 'ping <remote-serial-ip>', expect: 'Replies.' }]
+    },
+    {
+      id: 'tunnel', title: 'GRE / VPN tunnel problems',
+      keywords: ['tunnel', 'gre', 'vpn', 'ipsec', 'dmvpn', 'recursive', 'recurdown', 'tunnel0', 'tu0', 'site-to-site'],
+      tags: ['tunnel', 'gre', 'vpn', 'routing'],
+      summary: 'A GRE tunnel is up/up when it has a source, a destination and a route to that destination. Routing over the tunnel must not advertise the tunnel endpoints through the tunnel itself (recursive routing).',
+      questions: ['Is the tunnel up/down or flapping?', 'Can you ping the remote public address from the router?'],
+      causes: [{ text: 'Missing tunnel source/destination or source interface down.', tags: ['tunnel'] }, { text: 'No route to the tunnel destination.', tags: ['routing'] }, { text: 'Recursive routing (destination learned via the tunnel).', tags: ['tunnel'] }, { text: 'Firewall/ACL blocks GRE (protocol 47) or IPsec (UDP 500/4500, ESP).', tags: ['acl'] }],
+      diagnose: [
+        { on: 'router', cmd: 'show interfaces <interface>', why: 'Tunnel state, source and destination.', expect: 'up/up with the right source/destination.' },
+        { on: 'router', cmd: 'show ip route <tunnel-destination>', why: 'Route to the remote endpoint – via the WAN, not the tunnel.', expect: 'Next hop on the WAN side.' },
+        { on: 'router', cmd: 'ping <tunnel-destination> source <wan-interface>', why: 'Underlay reachability.', expect: 'Replies.' },
+        { on: 'router', cmd: 'show logging | include TUN', why: 'Recursive routing messages.', expect: 'No RECURDOWN.' }
+      ],
+      verify: [{ on: 'router', cmd: 'ping <remote-tunnel-ip>', expect: 'Replies over the tunnel.' }, { on: 'router', cmd: 'show interfaces <interface>', expect: 'Stable up/up.' }]
     },
     {
       id: 'intermittent', title: 'Intermittent problems / duplicate addresses',

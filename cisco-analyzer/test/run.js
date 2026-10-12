@@ -2,7 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
-['net', 'parser', 'topology', 'checks', 'playbooks', 'assistant', 'samples'].forEach(f => require(path.join(__dirname, '..', 'js', f + '.js')));
+['net', 'parser', 'topology', 'checks', 'checks-extra', 'playbooks', 'assistant', 'samples'].forEach(f => require(path.join(__dirname, '..', 'js', f + '.js')));
 const CCA = globalThis.CCA;
 const N = CCA.net;
 
@@ -11,7 +11,7 @@ function test(name, fn) {
   try { fn(); passed++; console.log('  ok  ' + name); }
   catch (e) { failed++; console.log('  FAIL ' + name + '\n       ' + e.message); }
 }
-const load = names => names.map(n => CCA.parser.parseDevice(fs.readFileSync(path.join(__dirname, '..', 'samples', n + '.txt'), 'utf8'), n + '.txt'));
+const load = names => names.map(n => CCA.parser.parseDevice(fs.readFileSync(path.join(__dirname, '..', 'samples', 'branch', n + '.txt'), 'utf8'), n + '.txt'));
 const ids = r => r.findings.map(f => f.id);
 
 console.log('net');
@@ -33,7 +33,7 @@ test('interface names', () => {
 
 console.log('parser');
 test('splits several pasted configs', () => {
-  const all = ['R1', 'R2', 'SW1'].map(n => fs.readFileSync(path.join(__dirname, '..', 'samples', n + '.txt'), 'utf8')).join('\n');
+  const all = ['R1', 'R2', 'SW1'].map(n => fs.readFileSync(path.join(__dirname, '..', 'samples', 'branch', n + '.txt'), 'utf8')).join('\n');
   assert.strictEqual(CCA.parser.splitConfigs(all).length, 3);
 });
 test('parses the sample router', () => {
@@ -142,7 +142,78 @@ test('works without any configs loaded', () => {
   assert.ok(r.diagnose.length && r.verify.length);
 });
 test('samples.js is in sync with samples/*.txt', () => {
-  for (const s of CCA.samples) assert.strictEqual(s.text, fs.readFileSync(path.join(__dirname, '..', 'samples', s.name), 'utf8'), s.name);
+  for (const lab of CCA.labs) for (const s of lab.files) assert.strictEqual(s.text, fs.readFileSync(path.join(__dirname, '..', 'samples', lab.id, s.name), 'utf8'), s.name);
+});
+
+console.log('campus lab');
+const loadLab = id => CCA.labs.find(l => l.id === id).files.map(f => CCA.parser.parseDevice(f.text, f.name));
+const campus = CCA.checks.analyze(loadLab('campus'));
+for (const id of ['dhcp-snooping-untrusted', 'dhcp-snooping-option82', 'dai-untrusted', 'ppp-auth-mismatch', 'serial-no-clock', 'eigrp-adj-asn', 'eigrp-adj-auth',
+  'keychain-missing', 'aaa-list-missing', 'tunnel-dest-unreachable', 'static-loop', 'dhcp-helper-unreachable', 'stp-no-root', 'stp-bpdufilter', 'if-portsec-phone', 'sec-vty-5-15'])
+  test('finds ' + id, () => assert.ok(ids(campus).includes(id), 'missing ' + id));
+test('a routing loop is reported once', () => assert.strictEqual(ids(campus).filter(i => i === 'static-loop').length, 1));
+
+console.log('parser robustness');
+test('BOM, CRLF, tabs and --More-- are handled', () => {
+  const d = CCA.parser.parseDevice('﻿R9#sh run\r\nhostname R9\r\ninterface Gi0/0\r\n\tip address 10.0.0.1 255.255.255.0\r\n --More-- \r\nend\r\n');
+  assert.strictEqual(d.hostname, 'R9');
+  assert.strictEqual(d.interfaces['GigabitEthernet0/0'].ipv4[0].ip, '10.0.0.1');
+});
+test('VRF interfaces stay out of the global routing table', () => {
+  const d = CCA.parser.parseDevice('hostname V\nvrf definition RED\ninterface Gi0/0\n vrf forwarding RED\n ip address 10.9.9.1 255.255.255.0\ninterface Gi0/1\n ip address 10.1.1.1 255.255.255.0\nend');
+  const m = CCA.topology.build([d]);
+  assert.ok(m.ribs[d.id].some(r => r.net === '10.1.1.0'));
+  assert.ok(!m.ribs[d.id].some(r => r.net === '10.9.9.0'));
+});
+test('object-groups are evaluated in ACLs', () => {
+  const d = CCA.parser.parseDevice('hostname O\nobject-group network SERVERS\n host 10.5.5.5\n 10.6.0.0 255.255.0.0\nip access-list extended IN\n permit tcp any object-group SERVERS eq 443\nend');
+  const acl = d.acls.IN;
+  assert.strictEqual(CCA.topology.evaluateAcl(acl, { proto: 'tcp', src: '1.1.1.1', dst: '10.6.1.1', dstPort: 443 }).action, 'permit');
+  assert.strictEqual(CCA.topology.evaluateAcl(acl, { proto: 'tcp', src: '1.1.1.1', dst: '10.7.1.1', dstPort: 443 }).action, 'deny');
+});
+test('OSPF stub flag mismatch and mtu-ignore', () => {
+  const a = CCA.parser.parseDevice('hostname A\ninterface Gi0/0\n ip address 10.0.0.1 255.255.255.252\n mtu 1400\n ip ospf mtu-ignore\nrouter ospf 1\n area 5 stub\n network 10.0.0.0 0.0.0.3 area 5\nend');
+  const b = CCA.parser.parseDevice('hostname B\ninterface Gi0/0\n ip address 10.0.0.2 255.255.255.252\nrouter ospf 1\n network 10.0.0.0 0.0.0.3 area 5\nend');
+  const r = ids(CCA.checks.analyze([a, b]));
+  assert.ok(r.includes('ospf-adj-areatype'));
+  assert.ok(!r.includes('ospf-adj-mtu'));
+});
+test('DHCP client interface gives a default route', () => {
+  const d = CCA.parser.parseDevice('hostname E\ninterface Gi0/1\n ip address dhcp\ninterface Gi0/0\n ip address 10.1.1.1 255.255.255.0\nend');
+  const m = CCA.topology.build([d]);
+  assert.ok(m.ribs[d.id].some(r => r.prefix === 0 && r.dhcp));
+  assert.strictEqual(CCA.topology.trace(m, '10.1.1.50', '8.8.8.8', {}).status, 'exit');
+});
+test('ASA configs are flagged as unsupported', () => assert.ok(ids(one('ASA Version 9.8(4)\nhostname FW\nend')).includes('platform-unsupported')));
+
+console.log('assistant v2');
+test('Swedish description is understood', () => {
+  const r = ask('Datorerna i VLAN 20 får ingen IP-adress');
+  assert.strictEqual(r.topics[0].pb.id, 'dhcp');
+});
+test('"from X to Y" sets the direction', () => {
+  const r = ask('I cannot ping 172.16.2.10 from VLAN 10');
+  assert.strictEqual(r.path.dst, '172.16.2.10');
+  assert.ok(r.path.src.startsWith('192.168.10.'));
+});
+test('a CIDR network stands for a host in it', () => {
+  const r = ask('from 172.16.2.0/24 to 192.168.10.5 nothing works');
+  assert.ok(r.path.src.startsWith('172.16.2.') && r.path.src !== '172.16.2.0');
+});
+test('VLAN host is chosen in the network of the other end', () => {
+  const both = CCA.checks.analyze(CCA.labs.flatMap(l => l.files.map(f => CCA.parser.parseDevice(f.text, f.name))));
+  const r = CCA.assistant.assist(both, 'VLAN 10 cannot reach 10.20.0.5');
+  assert.ok(r.path.src.startsWith('10.10.0.'), r.path.src);
+});
+test('serial question finds the PPP problem', () => {
+  const r = CCA.assistant.assist(campus, 'the serial link between HQ-RTR and BR-RTR is down');
+  assert.ok(r.topics.some(t => t.pb.id === 'wan'));
+  assert.strictEqual(r.relevant[0].f.id, 'ppp-auth-mismatch');
+});
+test('topology diagram renders every device', () => {
+  require(path.join(__dirname, '..', 'js', 'diagram.js'));
+  const svg = CCA.diagram.render(campus.model, campus.findings);
+  for (const d of campus.model.devices) assert.ok(svg.includes('>' + d.hostname + '<'), d.hostname);
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

@@ -1,0 +1,57 @@
+HQ-RTR#show running-config
+Building configuration...
+!
+version 15.7
+service timestamps log datetime msec
+service password-encryption
+!
+hostname HQ-RTR
+!
+aaa new-model
+aaa authentication login default local
+!
+enable secret 9 $9$Pn0tR3al$abcdefghijklmnopqrstuvwxyz0123456789ABCD
+username netadmin privilege 15 secret 9 $9$Pn0tR3al$ZYXWVUTSRQPONMLKJIHGFEDCBA9876543210zyxw
+!
+ip domain-name campus.example
+ip ssh version 2
+!
+interface Loopback0
+ ip address 10.255.0.1 255.255.255.255
+!
+interface Tunnel0
+ description GRE to partner
+ ip address 172.31.0.1 255.255.255.252
+ tunnel source GigabitEthernet0/1
+ tunnel destination 198.51.100.2
+!
+interface GigabitEthernet0/0
+ description Link to DSW1 Gi0/1
+ ip address 10.1.0.1 255.255.255.252
+ ip authentication mode eigrp 100 md5
+ ip authentication key-chain eigrp 100 EIGRP-KEYS
+!
+interface GigabitEthernet0/1
+ description ISP
+ ip address 203.0.113.10 255.255.255.252
+!
+interface Serial0/0/0
+ description WAN to BR-RTR
+ ip address 10.2.0.1 255.255.255.252
+ encapsulation ppp
+ ppp authentication chap
+!
+router eigrp 100
+ network 10.1.0.0 0.0.0.3
+ network 10.2.0.0 0.0.0.3
+ network 10.255.0.1 0.0.0.0
+!
+ip route 10.50.0.0 255.255.0.0 10.1.0.2
+!
+line con 0
+ logging synchronous
+line vty 0 4
+ login authentication VTY-AUTH
+ transport input ssh
+!
+end

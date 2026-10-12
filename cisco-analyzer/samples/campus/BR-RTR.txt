@@ -1,0 +1,32 @@
+BR-RTR#show running-config
+!
+version 15.7
+service timestamps log datetime msec
+!
+hostname BR-RTR
+!
+enable secret 9 $9$Pn0tR3al$abcdefghijklmnopqrstuvwxyz0123456789ABCD
+username netadmin privilege 15 secret 9 $9$Pn0tR3al$ZYXWVUTSRQPONMLKJIHGFEDCBA9876543210zyxw
+ip domain-name campus.example
+!
+interface GigabitEthernet0/0
+ description Branch LAN
+ ip address 10.20.0.1 255.255.255.0
+!
+interface Serial0/0/0
+ description WAN to HQ-RTR
+ ip address 10.2.0.2 255.255.255.252
+ encapsulation ppp
+!
+router eigrp 200
+ network 10.2.0.0 0.0.0.3
+ network 10.20.0.0 0.0.0.255
+ passive-interface GigabitEthernet0/0
+!
+line con 0
+ logging synchronous
+line vty 0 4
+ login local
+ transport input ssh
+!
+end

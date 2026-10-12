@@ -29,7 +29,7 @@
       if (!includeDown && !ifUp(dev, ifc)) continue;
       for (const a of ifc.ipv4) {
         if (N.maskToPrefix(a.mask) < 0) continue;
-        out.push({ dev, ifc, ip: a.ip, mask: a.mask, secondary: a.secondary, net: N.network(a.ip, a.mask), prefix: N.maskToPrefix(a.mask) });
+        out.push({ dev, ifc, ip: a.ip, mask: a.mask, secondary: a.secondary, net: N.network(a.ip, a.mask), prefix: N.maskToPrefix(a.mask), vrf: ifc.vrf || null });
       }
     }
     return out;
@@ -42,14 +42,15 @@
     const segments = {};
     for (const a of all) {
       const key = a.net + '/' + a.prefix;
-      (segments[key] = segments[key] || { key, net: a.net, mask: a.mask, prefix: a.prefix, members: [] }).members.push(a);
+      const k2 = (a.vrf ? a.vrf + ':' : '') + key;
+      (segments[k2] = segments[k2] || { key, vrf: a.vrf, net: a.net, mask: a.mask, prefix: a.prefix, members: [] }).members.push(a);
     }
     // Pairs that look like the same link but use different masks.
     const maskMismatches = [];
     for (let i = 0; i < all.length; i++) {
       for (let j = i + 1; j < all.length; j++) {
         const a = all[i], b = all[j];
-        if (a.dev === b.dev || a.mask === b.mask) continue;
+        if (a.dev === b.dev || a.mask === b.mask || a.vrf !== b.vrf) continue;
         if (N.inSubnet(a.ip, b.ip, b.mask) || N.inSubnet(b.ip, a.ip, a.mask)) {
           // Avoid flagging a /32 loopback that happens to sit inside a bigger LAN range.
           if (a.prefix === 32 || b.prefix === 32) continue;
@@ -154,7 +155,7 @@
     const ospfIfs = [], eigrpIfs = [], ripIfs = [];
     for (const d of devices) {
       for (const a of l3Addresses(d, false)) {
-        if (a.secondary) continue;
+        if (a.secondary || a.vrf) continue;
         const o = d.ospf.length || a.ifc.ospf.area ? ospfFor(d, a.ifc, a) : null;
         if (o) {
           const t = ospfTimers(a.ifc);
@@ -193,7 +194,9 @@
       if (a.auth !== b.auth) p.push({ kind: 'auth', text: 'authentication mismatch (' + a.auth + ' vs ' + b.auth + ')' });
       else if (a.auth === 'md5' && a.ifc.ospf.md5 && b.ifc.ospf.md5 && (a.ifc.ospf.md5.key !== b.ifc.ospf.md5.key || a.ifc.ospf.md5.secret !== b.ifc.ospf.md5.secret)) p.push({ kind: 'auth', text: 'MD5 key ID or key string differs' });
       else if (a.auth === 'simple' && a.ifc.ospf.authKey && b.ifc.ospf.authKey && a.ifc.ospf.authKey !== b.ifc.ospf.authKey) p.push({ kind: 'auth', text: 'authentication key differs' });
-      if (a.mtu !== b.mtu) p.push({ kind: 'mtu', text: 'MTU mismatch (' + a.mtu + ' vs ' + b.mtu + ') – neighbors get stuck in EXSTART/EXCHANGE' });
+      if (a.mtu !== b.mtu && !a.ifc.ospf.mtuIgnore && !b.ifc.ospf.mtuIgnore) p.push({ kind: 'mtu', text: 'MTU mismatch (' + a.mtu + ' vs ' + b.mtu + ') – neighbors get stuck in EXSTART/EXCHANGE' });
+      const at = x => (x.proc.areaType && x.proc.areaType[x.area]) ? x.proc.areaType[x.area].split(' ')[0] : 'normal';
+      if (a.area === b.area && at(a) !== at(b)) p.push({ kind: 'areatype', text: 'area type mismatch for area ' + a.area + ' (' + at(a) + ' vs ' + at(b) + ') – the stub flag in the hellos differs' });
       const rid = x => x.proc.routerId;
       if (rid(a) && rid(b) && rid(a) === rid(b)) p.push({ kind: 'rid', text: 'duplicate router-id ' + rid(a) });
       return p;
@@ -245,9 +248,14 @@
     const add = (d, r) => ribs[d.id].push(r);
     // Connected
     for (const d of devices) {
-      for (const a of l3Addresses(d, false)) {
+      for (const a of l3Addresses(d, false).filter(x => !x.vrf)) {
         add(d, { code: 'C', ad: 0, net: a.net, mask: a.mask, prefix: a.prefix, iface: a.ifc.name, nextHop: null, dev: d });
       }
+    }
+    // An interface with "ip address dhcp" normally receives a default route from the DHCP server.
+    for (const d of devices) {
+      const dh = d.interfaceOrder.map(n => d.interfaces[n]).find(i => i.dhcpClient && ifUp(d, i) && !i.isL2);
+      if (dh && !d.staticRoutes.some(r => r.prefix === '0.0.0.0' && r.mask === '0.0.0.0')) add(d, { code: 'S*', ad: 254, net: '0.0.0.0', mask: '0.0.0.0', prefix: 0, iface: dh.name, nextHop: null, dev: d, origin: 'DHCP (' + dh.short + ')', dhcp: true });
     }
     const connectedHas = (d, ip) => ribs[d.id].some(r => r.code === 'C' && N.inSubnet(ip, r.net, r.mask));
     // Static
@@ -365,10 +373,25 @@
   const PROTO_NUM = { 1: 'icmp', 6: 'tcp', 17: 'udp', 47: 'gre', 50: 'esp', 51: 'ahp', 88: 'eigrp', 89: 'ospf', 103: 'pim', 112: 'vrrp' };
   const ICMP_TYPES = ['echo', 'echo-reply', 'unreachable', 'ttl-exceeded', 'time-exceeded', 'traceroute', 'packet-too-big', 'redirect', 'host-unreachable', 'port-unreachable'];
 
-  function addrMatch(spec, ip) {
+  function groupMatch(groups, name, ip, depth) {
+    const g = groups && groups[name];
+    if (!g || depth > 5) return null;
+    for (const it of g.items) {
+      if (it.group) { const r = groupMatch(groups, it.group, ip, depth + 1); if (r) return true; }
+      else if (it.from) { const n = N.ipToInt(ip); if (n >= N.ipToInt(it.from) && n <= N.ipToInt(it.to)) return true; }
+      else if (N.wildcardMatch(ip, it.addr, it.wild)) return true;
+    }
+    return false;
+  }
+
+  function addrMatch(spec, ip, groups) {
     if (!spec) return { ok: false, uncertain: true };
     if (spec.any) return { ok: true };
-    if (spec.objectGroup || spec.unknown) return { ok: false, uncertain: true };
+    if (spec.objectGroup) {
+      const r = groupMatch(groups, spec.objectGroup, ip, 0);
+      return r === null ? { ok: false, uncertain: true } : { ok: r };
+    }
+    if (spec.unknown) return { ok: false, uncertain: true };
     return { ok: N.wildcardMatch(ip, spec.addr, spec.wild) };
   }
 
@@ -395,11 +418,11 @@
       let proto = e.proto;
       if (/^\d+$/.test(proto)) proto = PROTO_NUM[proto] || proto;
       if (proto !== 'ip' && proto !== pkt.proto) continue;
-      const s = addrMatch(e.src, pkt.src);
+      const s = addrMatch(e.src, pkt.src, acl.groups);
       if (s.uncertain) uncertain = true;
       if (!s.ok) continue;
       if (acl.type === 'extended') {
-        const d = addrMatch(e.dst, pkt.dst);
+        const d = addrMatch(e.dst, pkt.dst, acl.groups);
         if (d.uncertain) uncertain = true;
         if (!d.ok) continue;
         if ((proto === 'tcp' || proto === 'udp')) {
@@ -425,6 +448,13 @@
     const protocols = protocolModel(devices, seg.segments);
     const ribs = buildRibs(devices, protocols);
     const model = { devices, ...seg, l2Links: l2, protocols, ribs };
+    // Physically connected groups of devices (shared subnet or described link), so unrelated labs loaded together stay apart.
+    const parent = {};
+    const find = x => (parent[x] === undefined || parent[x] === x) ? (parent[x] = x) : (parent[x] = find(parent[x]));
+    const join = (a, b) => { parent[find(a)] = find(b); };
+    for (const sg of seg.segments) for (let i = 1; i < sg.members.length; i++) join(sg.members[0].dev.id, sg.members[i].dev.id);
+    for (const l of l2) join(l.a.dev.id, l.b.dev.id);
+    model.componentOf = d => find(d.id);
     model.ownerOf = ip => seg.all.find(a => a.ip === ip) || null;
     model.devById = id => devices.find(d => d.id === id);
     return model;
@@ -571,6 +601,7 @@
       const nextOwner = model.all.find(a => a.ip === nextIp && a.dev !== dev && ifUp(a.dev, a.ifc));
       if (!nextOwner) {
         if (!route.nextHop && outIfc) hop.l2 = (hop.l2 || []).concat(vlanIssues(model, dev, outIfc));
+        if (route.dhcp) return done({ hops, status: 'exit', reason: dev.hostname + ' forwards it out ' + (outIfc ? outIfc.short : route.iface) + ' using the default route learned via DHCP. The trace ends here.', endDev: dev, pkt });
         if (!route.nextHop) return done({ hops, status: 'delivered', reason: 'Delivered onto the connected subnet ' + route.net + '/' + route.prefix + ' via ' + dev.hostname + ' ' + (outIfc ? outIfc.short : route.iface) + ' (assuming host ' + pkt.dst + ' exists there and uses a correct gateway).', endDev: dev, endIfc: outIfc, toHost: true, pkt });
         return done({ hops, status: 'exit', reason: dev.hostname + ' forwards to next hop ' + route.nextHop + ' via ' + (outIfc ? outIfc.short : route.iface) + ', which is not among the loaded configs. The trace ends here.', endDev: dev, pkt });
       }
