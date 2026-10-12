@@ -9,7 +9,7 @@ const { chromium } = require('playwright');
   const errs = [];
   p.on('pageerror', e => errs.push('pageerror: ' + e.message + ' ' + (e.stack || '').split('\n').slice(0, 3).join(' | ')));
   await p.addInitScript(() => {
-    localStorage.setItem('krabba-passet.settings', JSON.stringify({ quality: 'low', mode: '3d', view3d: 'hd2d', modeChosen: true, tutorialDone: true, lastVersion: '10.1' }));
+    localStorage.setItem('krabba-passet.settings', JSON.stringify({ quality: 'low', mode: '3d', view3d: 'hd2d', modeChosen: true, tutorialDone: true, lastVersion: '10.2' }));
     // En låtsad handkontroll som håller vänster spak framåt
     window.__pad = { connected: true, id: 'Testkontroll', axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })) };
     navigator.getGamepads = () => [window.__pad];
@@ -68,6 +68,13 @@ const { chromium } = require('playwright');
     out.settings = ['s-tiltamt', 's-hddist', 's-hdpitch', 's-hdscale', 's-hdstep', 's-hdpath', 's-hdicons', 's-bobamt', 's-padsens', 's-padrumble'].filter(id => document.getElementById(id)).length;
     g.ui.closeDialog();
     out.ach = ['hdRooms', 'hdTurns', 'hdAuto', 'hdHop', 'hdEmotes', 'pad', 'views3', 'routes', 'cheers', 'waveBack', 'zoomer'].filter(id => NV.career.ACH.some(a => a[0] === id)).length;
+    // Upplösningen byts före ritningen, så att canvasen aldrig visas tom (svart blinkning)
+    g.setMode('hd2d'); g.ui.closeDialog(); g.ui.hidePause && g.ui.hidePause(); step(2); out.captures = g.ui.captures();
+    const cv = document.createElement('canvas'); cv.width = 16; cv.height = 9; const cx = cv.getContext('2d');
+    const lum = () => { cx.clearRect(0, 0, 16, 9); cx.drawImage(w.renderer.domElement, 0, 0, 16, 9); const d = cx.getImageData(0, 0, 16, 9).data; let s = 0; for (let i = 0; i < d.length; i += 4) s += d[i + 3]; return s / (d.length / 4); };
+    w.prScale = 1; w.perfLowT = -99; w.perfSlow = 1; w.fAcc = 1.6; w.fN = 1;   // en långsam mätning till sänker upplösningen
+    w.render(1 / 30, w.zone()); out.lumAfterPerf = lum(); out.pendingResize = !!w.needResize;
+    w.render(1 / 30, w.zone()); out.lumAfterResize = lum(); out.prScale = w.prScale;
     // Rendering utan fel i alla lägen
     for (const v of ['hd2d', '3d']) { g.setMode(v); for (let i = 0; i < 4; i++) { w.update(1 / 30); w.render(1 / 30, w.zone()); } }
     return out;
@@ -89,6 +96,7 @@ const { chromium } = require('playwright');
   if (r.pauseViews !== 3) errs.push('pausmenyn saknar visningsknappar');
   if (r.settings !== 10) errs.push('inställningar saknas: ' + r.settings);
   if (r.ach !== 11) errs.push('prestationer saknas: ' + r.ach);
+  if (!(r.lumAfterPerf > 200 && r.lumAfterResize > 200 && r.pendingResize && r.prScale < 1)) errs.push('canvasen töms när upplösningen byts: ' + [r.lumAfterPerf, r.lumAfterResize, r.pendingResize, r.prScale].join(' '));
   console.log(errs.length ? errs.join('\n') : 'inga fel');
   await b.close();
   process.exit(errs.length ? 1 : 0);

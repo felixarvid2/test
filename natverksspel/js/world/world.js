@@ -99,7 +99,7 @@ NV.World = (function () {
     this.bindInput();
     this.resize();
     var self = this;
-    window.addEventListener('resize', function () { self.resize(); });
+    window.addEventListener('resize', function () { self.needResize = true; });
   };
 
   W.resize = function () {
@@ -735,6 +735,9 @@ NV.World = (function () {
   };
   W.render = function (rdt, z) {
     var P = this.post;
+    // En ny upplösning sätts precis innan bilden ritas. Att ändra storlek på canvasen tömmer den,
+    // så görs det efter ritningen visas en svart bildruta.
+    if (this.needResize) { this.needResize = false; this.resize(); }
     this.renderer.info.autoReset = false;
     this.renderer.info.reset();
     if (P) {
@@ -767,10 +770,14 @@ NV.World = (function () {
     // Går det fortfarande trögt på lägsta upplösning: föreslå en lägre grafiknivå en gång
     this.slowCount = fps < 24 && this.prScale <= 0.56 ? (this.slowCount || 0) + 1 : 0;
     if (this.slowCount >= 4 && !this.perfAsked && NV.gfx.lower() && this.game.running) { this.perfAsked = true; this.game.ui.perfPrompt(NV.gfx.lower()); }
+    // Två långsamma mätningar i rad sänker upplösningen och tre snabba höjer den, men inte inom
+    // tio sekunder efter en sänkning, så att den inte pendlar fram och tillbaka
     var old = this.prScale;
-    if (fps < 38 && this.prScale > 0.55) this.prScale = Math.max(0.55, this.prScale - 0.12);
-    else if (fps > 57 && this.prScale < 1) this.prScale = Math.min(1, this.prScale + 0.06);
-    if (old !== this.prScale) this.resize();
+    this.perfSlow = fps < 38 ? (this.perfSlow || 0) + 1 : 0;
+    this.perfFast = fps > 57 ? (this.perfFast || 0) + 1 : 0;
+    if (this.perfSlow >= 2 && this.prScale > 0.55) { this.prScale = Math.max(0.55, this.prScale - 0.12); this.perfSlow = 0; this.perfLowT = this.t; }
+    else if (this.perfFast >= 3 && this.prScale < 1 && !(this.t - (this.perfLowT || -99) < 10)) { this.prScale = Math.min(1, this.prScale + 0.06); this.perfFast = 0; }
+    if (old !== this.prScale) this.needResize = true;
   };
 
   return World;
