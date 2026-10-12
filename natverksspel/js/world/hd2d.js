@@ -61,8 +61,29 @@
   }
 
   // ------------------------------------------------------------------ Figurer som sprites
+  // En vanlig sprite är vänd rakt mot kameran och lutar därför bakåt lika mycket som kameran lutar
+  // nedåt: huvudet hamnar över en meter bakom fötterna och försvinner in i väggen bakom figuren.
+  // Här flyttas varje hörn längs sin egen synlinje till ett lodrätt plan genom fötterna, så att
+  // figuren ser exakt likadan ut i bilden men står upprätt i djupled, och sedan en bit mot kameran
+  // så att väggar och hyllor precis bakom inte skär av den när kameran är vriden snett.
+  var STAND_BIAS = 0.45;
+  function standUp(m) {
+    m.onBeforeCompile = function (sh) {
+      sh.vertexShader = sh.vertexShader.replace('mvPosition.xy += rotatedPosition;', [
+        'vec3 hdC = mvPosition.xyz + vec3( rotatedPosition, 0.0 );',
+        'vec3 hdUp = normalize( ( viewMatrix * vec4( 0.0, 1.0, 0.0, 0.0 ) ).xyz );',
+        'vec3 hdN = vec3( 0.0, - hdUp.z, hdUp.y );',
+        'float hdD = dot( hdN, hdC );',
+        'vec3 hdP = abs( hdD ) > 1e-4 ? hdC * ( dot( hdN, mvPosition.xyz ) / hdD ) : hdC;',
+        'float hdL = length( hdP );',
+        'mvPosition.xyz = hdP * ( max( hdL - ' + STAND_BIAS.toFixed(2) + ', 0.05 ) / hdL );'
+      ].join('\n'));
+    };
+    m.customProgramCacheKey = function () { return 'hd-stand'; };
+    return m;
+  }
   function makeSprite(scene) {
-    var m = new THREE.SpriteMaterial({ map: null, alphaTest: 0.5, transparent: false, fog: false });
+    var m = standUp(new THREE.SpriteMaterial({ map: null, alphaTest: 0.5, transparent: false, fog: false }));
     var s = new THREE.Sprite(m);
     s.center.set(0.5, 0);
     s.scale.set((NV.art2d.FW + 2) * PX, (NV.art2d.FH + 2) * PX, 1);
