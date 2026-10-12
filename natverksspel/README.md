@@ -22,7 +22,7 @@ På **mobil och surfplatta** styr du med en styrspak nere till vänster och knap
 Välj visning i startmenyn (valet sparas och kan bytas mitt i en vecka via menyn).
 
 - **3D** – förstaperson i ett stiliserat kontor med glöd, reflektioner, solstrålar och partiklar. Klicka i bilden för att styra med musen. Fungerar inte pekarlåset (t.ex. i en inbäddad vy) kan du i stället hålla ned vänster musknapp och dra för att titta. Högerklick eller Z zoomar in, t.ex. för att läsa portnummer.
-- **HD-2D** – spelets pixelfigurer i 3D-kontoret, sett snett ovanifrån som ett diorama med ljusstrålar, glöd och tilt-shift (se version 9.2 och 10). Klicka för att gå, Q och Z vrider kameran, X går till nästa mål.
+- **HD-2D** – spelets pixelfigurer i 3D-kontoret, sett snett ovanifrån som ett diorama med ljusstrålar, glöd och tilt-shift (se version 9.2 och 10). Klicka för att gå, Q och Z vrider kameran, X går till nästa mål. Klicka på ett rack för att se frontpanelerna som i 2D.
 - **2D** – en 16-bitars pixelvärld sedd snett uppifrån, i stil med SNES-rollspel. Samma kontor, rack, kollegor och fel, men du går med WASD eller klickar där du vill gå. Klicka på ett rack, en dator eller en person för att gå dit och använda det. Pratbubblor visar vem som har ett ärende (!) och vem du har hjälpt (✓). Väggar tonas ut när du går bakom dem.
 
 ## Styrning
@@ -109,6 +109,10 @@ Datorerna beter sig som riktiga Windows-datorer: saknar de adress försöker de 
 När ett fel är löst skickar du in en felrapport med **F**. En gul ruta uppe till vänster visar hur många rapporter som saknas, och när alla Krabba-fel (eller alla fel) är lösta påminner spelet dig med en ruta där du kan skriva rapporterna direkt. Veckan är klar först när alla rapporter är inlämnade.
 
 Varje fel är simulerat på riktigt. Symptomen räknas fram ur konfigurationen: länkar, duplex, VLAN och trunkar, STP, routing, ARP, ACL, NAT, DHCP, DNS, PoE, port security, IPsec, MTU och lastbalansering. Ett fel försvinner därför bara när orsaken är rättad.
+
+## Version 10.3: frontpanelsvyn i HD-2D
+
+Uppifrån i HD-2D är switcharna och portarna små och svåra att se. Nu går hela racket att klicka på i HD-2D, och då öppnas samma frontpanelsvy som i 2D. Där ser du alla enheter på nära håll med lampor och portar, och du kan hålla musen över en port för att se dess status. Klicka på en switch eller router i vyn för att koppla in konsolkabeln. Klickar eller trycker du E på en enhet i racket öppnas också vyn, och tipset säger "Titta på Rack A (nät)". I förstapersonsläget (3D) fungerar racken som förut. Hjälpen (F1) beskriver det, och `test/v10.js` kontrollerar det.
 
 ## Version 10.2: ingen svart blinkning
 

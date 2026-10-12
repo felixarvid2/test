@@ -7,7 +7,7 @@ async function run(b, models, quality) {
   const p = await b.newPage({ viewport: { width: 1100, height: 650 } });
   const errs = [];
   p.on('pageerror', e => errs.push('pageerror: ' + e.message + ' ' + (e.stack || '').split('\n').slice(0, 3).join(' | ')));
-  await p.addInitScript((m) => { localStorage.setItem('krabba-passet.settings', JSON.stringify({ quality: m[1], mode: '3d', modeChosen: true, tutorialDone: true, lastVersion: '10.2', models3d: m[0] })); }, [models, quality || 'low']);
+  await p.addInitScript((m) => { localStorage.setItem('krabba-passet.settings', JSON.stringify({ quality: m[1], mode: '3d', modeChosen: true, tutorialDone: true, lastVersion: '10.3', models3d: m[0] })); }, [models, quality || 'low']);
   await p.goto('http://localhost:8765/index.html', { waitUntil: 'domcontentloaded' });
   await p.waitForTimeout(5000);
   await p.evaluate(() => { const g = NV.game; g.ui.hideMenu(); g.startWeek(3); g.ui.closeDialog(); });
