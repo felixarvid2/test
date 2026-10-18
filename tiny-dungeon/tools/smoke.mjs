@@ -285,6 +285,21 @@ const scenarios = {
       await s.page.close();
     }
   },
+  // Clear a room instantly and walk through the upgrade overlay to the doors and into the next room.
+  async doors(browser) {
+    const s = await open(browser, 'doors', '&room=6&god=1');
+    await startRun(s);
+    await s.waitState((st) => st.st === 'fight', 20000, 100);
+    await s.eval(() => window.__game.killAll());
+    const d = await s.waitState((st) => st.st === 'doors', 60000, 150);
+    if (!d) throw new Error('never reached the doors');
+    await sleep(900);
+    await s.shot('open');
+    await s.waitState((st) => st.st === 'fight' && st.room === 7, 40000, 150);
+    await sleep(500);
+    await s.shot('next-room');
+    await s.page.close();
+  },
   // Readability check: a crowded room full of enemies and effects.
   async crowd(browser) {
     const s = await open(browser, 'crowd', '&room=9&god=1&up=fire_weapon,chain_lightning,explosive_death,blade_orbit,thunderstorm,quick_hands,frost_touch');
