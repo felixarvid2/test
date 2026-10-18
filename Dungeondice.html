@@ -248,8 +248,8 @@ main{flex:1;display:flex;flex-direction:column;align-items:center;justify-conten
    74-115 DICE (mest grafiska effekter)
    ========================================================= */
 #dice-area{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;
-  perspective:900px;min-height:104px;position:relative;
-  padding:12px 20px;border-radius:var(--r-xl);
+  perspective:900px;min-height:124px;position:relative;
+  padding:22px 28px;align-items:center;border-radius:var(--r-xl);
   background:radial-gradient(ellipse at 50% 60%,rgba(60,40,100,0.18) 0%,transparent 70%);
 }
 /* 74 Dice tray felt (bakom tärningar) */
@@ -684,6 +684,7 @@ header::after,.modal::after,.shop-item::after,#dice-area::after{
 .blind-card .icon .spr{filter:drop-shadow(0 0 8px rgba(245,197,66,.6))}
 .hbtn .spr{width:1.15em;height:1.15em;vertical-align:middle}
 .shop-item .icon .spr{width:1em;height:1em}
+.modal button .spr,.modal h2 .spr{width:1.35em;height:1.35em;vertical-align:-.3em}
 .relic .spr{width:1.45em;height:1.45em;vertical-align:middle}
 .rico{display:inline-flex;align-items:center;justify-content:center;font-size:inherit}
 .rico .spr{width:1.4em;height:1.4em}
@@ -1123,8 +1124,10 @@ function ricoURL(r){
   const rnd=()=>{h^=h<<13;h^=h>>>17;h^=h<<5;return (h>>>0)/4294967296};
   const pal=RICO_PAL[r.r]||RICO_PAL.common, N=9, grid=[];
   for(let y=0;y<N;y++){grid.push([]);for(let x=0;x<5;x++){
-    const edge=(x===0)+(y===0)+(y===N-1);
-    const v=rnd(); grid[y].push(edge>0?(v<.28?1:0):(v<.62?(v<.3?2:1):0));
+    // kärna först (läsbar siluett), därefter slumpade kanter och detaljer
+    const core=(x>=2&&y>=2&&y<=N-3)||(x>=1&&y>=3&&y<=N-4);
+    const v=rnd();
+    grid[y].push(core?(v<.35?2:1):(v<.38?1:0));
   }}
   grid[Math.floor(N/2)][4]=2;grid[Math.floor(N/2)][3]=1;
   const c=document.createElement('canvas');c.width=c.height=N+2;
@@ -1135,6 +1138,8 @@ function ricoURL(r){
     if(v){g.fillStyle=v===2?pal[0]:pal[1];g.fillRect(x+1,y+1,1,1)}
     else if(at(x-1,y)||at(x+1,y)||at(x,y-1)||at(x,y+1)){g.fillStyle='#1a1326';g.fillRect(x+1,y+1,1,1)}
   }
+  // highlight uppe till vänster på första fyllda pixeln
+  outer:for(let y=0;y<N;y++)for(let x=0;x<N;x++)if(at(x,y)){g.fillStyle='#ffffff';g.globalAlpha=.85;g.fillRect(x+1,y+1,1,1);g.globalAlpha=1;break outer}
   return _ricoCache[key]=c.toDataURL();
 }
 function relicIco(r){
@@ -2131,7 +2136,7 @@ function openStats(){
   const ov=document.getElementById('overlay');
   ov.classList.add('active');
   ov.innerHTML=`<div class="modal">
-    <h2>📊 ${t('stats')}</h2>
+    <h2>${spr('gi_leaderboardsSimple')} ${t('stats')}</h2>
     <div class="tabs">
       <div class="tab active" onclick="showStatsTab('run',this)">${t('stats_this_run')}</div>
       <div class="tab" onclick="showStatsTab('all',this)">${t('stats_all')}</div>
@@ -2185,7 +2190,7 @@ function openAchievements(){
     </div>`;
   }).join('');
   ov.innerHTML=`<div class="modal wide">
-    <h2>🏆 ${t('achievements')}</h2>
+    <h2>${spr('gi_trophy')} ${t('achievements')}</h2>
     <p>${unlocked}/${ACHIEVEMENTS.length} ${t('ach_unlocked')}</p>
     <div class="ach-list">${html}</div>
     <div class="buttons"><button onclick="closeOverlay()">${t('close')}</button></div>
@@ -2195,7 +2200,7 @@ function openHelp(){
   const ov=document.getElementById('overlay');
   ov.classList.add('active');
   ov.innerHTML=`<div class="modal wide">
-    <h2>❓ ${t('help')}</h2>
+    <h2>${spr('gi_question')} ${t('help')}</h2>
     <p style="text-align:left;white-space:pre-line">${t('help_desc')}</p>
     <div class="buttons"><button onclick="closeOverlay()">${t('close')}</button></div>
   </div>`;
@@ -2218,7 +2223,7 @@ function showMainMenu(){
   ov.classList.add('active');
   ov.innerHTML=`<div class="modal">
     <h2 style="font-size:38px;letter-spacing:6px">🎲 DUNGEON DICE 🎲</h2>
-    <p style="font-size:13px">${LANG==='sv'?'Ett roguelike med 165+ reliker, 10 bossar och oändligt djup.':'A roguelike with 165+ relics, 10 bosses and infinite depth.'}</p>
+    <p style="font-size:13px">${LANG==='sv'?'Ett roguelike med 160 reliker, 10 bossar och oändligt djup.':'A roguelike with 160 relics, 10 bosses and infinite depth.'}</p>
     <p style="font-size:12px;color:var(--dim)">
       ${t('best_ante')}: <b style="color:#f5c542">${state.bestAnte}</b> • ${t('best_score')}: <b style="color:#f5c542">${state.bestScore.toLocaleString()}</b><br>
       ${t('total_runs')}: ${state.totalRuns} • ${t('wins')}: ${state.wins}
@@ -2230,13 +2235,13 @@ function showMainMenu(){
       <button class="primary" onclick="startRun({seed:getSeed()})">${t('new_run')}</button>
       <button onclick="startRun({endless:true,seed:getSeed()})">${t('endless')}</button>
       <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap">
-        <button onclick="openAchievements()">🏆 ${t('achievements')}</button>
-        <button onclick="openStats()">📊 ${t('stats')}</button>
+        <button onclick="openAchievements()">${spr('gi_trophy')} ${t('achievements')}</button>
+        <button onclick="openStats()">${spr('gi_leaderboardsSimple')} ${t('stats')}</button>
       </div>
       <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap">
         <button onclick="openDiceSkins()">🎨 ${t('dice_skins')}</button>
         <button onclick="toggleLang()">🌐 ${LANG==='sv'?'English':'Svenska'}</button>
-        <button onclick="openHelp()">❓ ${t('help')}</button>
+        <button onclick="openHelp()">${spr('gi_question')} ${t('help')}</button>
       </div>
     </div>
     <p style="font-size:10px;color:var(--dim);margin-top:14px">${t('difficulty')}:
