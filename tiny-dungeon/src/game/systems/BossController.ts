@@ -1,5 +1,5 @@
 import { BALANCE, type BossAttackTuning } from '../../config/balance';
-import type { BossAttackId, BossDef } from '../../core/types';
+import type { BossAttackId, BossDef, BossPhase } from '../../core/types';
 import { COLORS, EXTRA_KEY } from '../assets';
 import type { Enemy } from '../entities/Enemy';
 import type { Projectile } from '../entities/ProjectilePool';
@@ -55,6 +55,8 @@ export class BossController {
   /** Seconds until the next attack may start. */
   cooldown = 1.4;
   private last: BossAttackId | null = null;
+  private bag: BossAttackId[] = [];
+  private bagPhase: BossPhase | null = null;
   private readonly timers: Timed[] = [];
   private readonly processes: Process[] = [];
   private readonly owned = new Set<{ destroy(): void }>();
@@ -245,11 +247,20 @@ export class BossController {
 
   private startAttack(): void {
     const phase = this.phase;
-    const list = phase.attacks;
-    const w = this.w;
-    let id = list[Math.floor(w.rng.next() * list.length)];
-    for (let tries = 0; tries < 3 && list.length > 1 && id === this.last; tries++) id = list[Math.floor(w.rng.next() * list.length)];
-    this.launchAttack(id);
+    // Shuffle bag: every attack of the phase is used once before any repeats, so each fight shows the
+    // boss's whole moveset and never spams one move. A new phase starts a fresh bag.
+    if (this.bag.length === 0 || this.bagPhase !== phase) {
+      const bag = [...phase.attacks];
+      for (let i = bag.length - 1; i > 0; i--) {
+        const j = Math.floor(this.w.rng.next() * (i + 1));
+        [bag[i], bag[j]] = [bag[j], bag[i]];
+      }
+      // The bag is drawn from the end; never open with the move that just played.
+      if (bag.length > 1 && bag[bag.length - 1] === this.last) bag.unshift(bag.pop() as BossAttackId);
+      this.bag = bag;
+      this.bagPhase = phase;
+    }
+    this.launchAttack(this.bag.pop() as BossAttackId);
     this.cooldown = phase.attackDelay / phase.speedMult;
   }
 
