@@ -92,6 +92,7 @@ export function planRoom(
     const time = Math.round(at * 10) / 10;
     let remaining = (total * shares[w]) / shareSum;
     for (let guard = 0; guard < 40; guard++) {
+      if (count >= r.enemyCountHardCap) break;
       const capped = count >= r.enemyCountSoftCap;
       const unitMin = (e: EnemyDef): number => e.cost * (elite ? d.eliteCostMult : 1);
       const cands = pool.filter((e) => unitMin(e) <= remaining && (!capped || e.cost >= 3));
@@ -103,7 +104,7 @@ export function planRoom(
         isElite = false;
         unit = e.cost;
       }
-      const n = isElite ? 1 : rng.int(1, Math.max(1, Math.min(r.maxGroupSize, Math.floor(remaining / unit))));
+      const n = isElite ? 1 : rng.int(1, Math.max(1, Math.min(r.maxGroupSize, Math.floor(remaining / unit), r.enemyCountHardCap - count)));
       const key = `${time}|${e.id}|${isElite}`;
       const prev = merged.get(key);
       if (prev) prev.count += n;

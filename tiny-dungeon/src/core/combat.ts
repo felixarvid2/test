@@ -184,5 +184,5 @@ export function enemyXp(def: EnemyDef | BossDef, roomIndex: number, elite = fals
 
 /** Gold per kill before the player's goldMult. */
 export function enemyGold(def: EnemyDef | BossDef, plan: Pick<RoomPlan, 'goldMult'>, elite = false): number {
-  return def.gold * plan.goldMult * (elite ? BALANCE.difficulty.eliteRewardMult : 1);
+  return def.gold * BALANCE.economy.enemyGoldScale * plan.goldMult * (elite ? BALANCE.difficulty.eliteRewardMult : 1);
 }

@@ -111,7 +111,7 @@ export const BALANCE = {
       multiStrike: 3,
       projectileSpeedMult: 3,
       swordArc: 360,
-      bowArrows: 3,
+      bowArrows: 4,
       staffBounces: 6,
       elementPower: 5,
       burnChance: 1,
@@ -204,8 +204,10 @@ export const BALANCE = {
     waveCountMax: 7,
     /** Largest single group of one enemy type in a wave. */
     maxGroupSize: 5,
-    /** Max total non-elite enemies planned for one room; budget beyond it goes to costly enemies only. */
+    /** Past this many planned enemies only costly ones (cost >= 3) are added; elites are exempt. */
     enemyCountSoftCap: 40,
+    /** Absolute ceiling of planned non-elite enemies per room (kept below limits.maxEnemiesAlive). */
+    enemyCountHardCap: 50,
     /** Fraction of max HP restored when a room is cleared. */
     clearHealFraction: 0.1,
     /** Door generation. */
@@ -216,8 +218,8 @@ export const BALANCE = {
     /** Elite / treasure room rewards. */
     eliteRoomGoldMult: 1.6,
     eliteRoomMinRarity: 'rare' as Rarity,
-    treasureGoldBase: 20,
-    treasureGoldPerRoom: 4,
+    treasureGoldBase: 10,
+    treasureGoldPerRoom: 2,
     treasureMinRarity: 'rare' as Rarity,
     /** Wall-clock seconds a typical room lasts (used by the simulation for run duration). */
     uiSecondsPerRoom: 6,
@@ -229,14 +231,14 @@ export const BALANCE = {
      * Smooth scaling per room i' = i - 1: hp = (1 + hpLinear*i') * hpGrowth^i', same for damage. The
      * exponential tail is what finally stops any capped build (endless mode needs a soft wall).
      */
-    hpLinear: 0.2,
-    hpGrowth: 1.06,
+    hpLinear: 0.16,
+    hpGrowth: 1.05,
     dmgLinear: 0.07,
-    dmgGrowth: 1.03,
-    goldLinear: 0.08,
+    dmgGrowth: 1.045,
+    goldLinear: 0.04,
     /** Spawn budget: budgetBase + budgetLinear*(i-1) (+ budgetQuad*(i-1)^2). Enemy costs are in EnemyDef.cost. */
     budgetBase: 14,
-    budgetLinear: 3.4,
+    budgetLinear: 3.0,
     budgetQuad: 0.02,
     /** Elite chance per spawned enemy: min(eliteMax, eliteBase + eliteLinear*(i-1)). */
     eliteBase: 0.02,
@@ -247,8 +249,8 @@ export const BALANCE = {
     eliteDmgMult: 1.35,
     eliteRewardMult: 3,
     /** Extra boss HP per full 15-room cycle already completed (loops get harder than the curve alone). */
-    bossLoopHp: 0.25,
-    bossLoopDmg: 0.15,
+    bossLoopHp: 0.5,
+    bossLoopDmg: 0.2,
     /** XP per kill grows like gold does. */
     xpLinear: 0.06,
   },
@@ -258,6 +260,8 @@ export const BALANCE = {
   economy: {
     /** Banked per cleared room on top of the gold collected (so a bad run still pays a little). */
     roomBonusGold: 2,
+    /** Multiplier on every enemy's and boss's gold drop (before room scaling and goldMult). */
+    enemyGoldScale: 0.4,
     /** Gold card (fallback when nothing else can be offered). */
     goldPouchBase: 12,
     goldPouchPerRoom: 4,
@@ -267,11 +271,11 @@ export const BALANCE = {
   // ---- Weapons & combat maths -----------------------------------------------------------------
   weapons: {
     /** Each weapon-specific upgrade level adds this much damage (weapon level = 1 + such levels). */
-    levelDamageBonus: 0.08,
+    levelDamageBonus: 0.06,
     /** Damage dealt by a Double Strike repeat, relative to the first hit. */
-    multiStrikeDamage: 0.6,
+    multiStrikeDamage: 0.45,
     /** Weapons picked up later deal this fraction of their normal damage (the hero's own weapon is the main one). */
-    extraWeaponDamage: 0.65,
+    extraWeaponDamage: 0.55,
     minCooldown: 0.12,
     swordBaseArc: 110,
     /** Pick up to this many weapons per run. */
@@ -281,7 +285,7 @@ export const BALANCE = {
     /** Thunder / meteor / orbit / explosion strengths are multiples of the player's base hit. */
     thunderDamage: 1.3,
     thunderRadius: 60,
-    meteorDamage: 1.6,
+    meteorDamage: 1.4,
     meteorRadius: 95,
     /** Orbit blades revolve this far from the hero and touch each enemy at most every orbitTouchInterval s. */
     orbitRadius: 70,

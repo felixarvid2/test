@@ -22,14 +22,14 @@ export const HEROES: Record<HeroId, HeroDef> = {
     desc: 'Fast, fragile marksman who lives on crits.',
     frame: 'tile:ranger',
     weapon: 'bow',
-    base: { maxHp: 100, moveSpeed: 215, critChance: 0.12, attackSpeedMult: 1.1 },
+    base: { maxHp: 105, moveSpeed: 215, critChance: 0.1, attackSpeedMult: 1.1 },
     passive: {
       name: 'Eagle Eye',
-      desc: '+30% crit damage, +15% range',
-      effects: [{ stat: 'critDamage', add: 0.3 }, { stat: 'rangeMult', pct: 0.15 }],
+      desc: '+25% crit damage, +15% range',
+      effects: [{ stat: 'critDamage', add: 0.25 }, { stat: 'rangeMult', pct: 0.15 }],
     },
     favoredTags: ['crit', 'projectile', 'speed'],
-    unlockCost: 300,
+    unlockCost: 400,
   },
   mage: {
     id: 'mage',
@@ -37,7 +37,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
     desc: 'Frail caster; every element hits harder.',
     frame: 'tile:mage',
     weapon: 'staff',
-    base: { maxHp: 90, elementPower: 1.3 },
+    base: { maxHp: 100, elementPower: 1.4 },
     passive: {
       name: 'Arcane Affinity',
       desc: '+10% burn, slow, chain and poison chance',
@@ -47,7 +47,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
       ],
     },
     favoredTags: ['elemental', 'fire', 'frost', 'lightning', 'poison'],
-    unlockCost: 600,
+    unlockCost: 900,
   },
 };
 

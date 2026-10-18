@@ -113,7 +113,10 @@ export interface UpgradeDef {
   requiresWeapon?: WeaponId;  // only offered while that weapon is owned
   grantsWeapon?: WeaponId;    // picking it adds the weapon (weapon cards)
   unlock?: string;            // meta unlock id required before it can appear
-  /** Instant effect when picked (Healing Potion, Gold Pouch). Such cards are only offered as filler. */
+  /**
+   * Instant effect when picked (Healing Potion, Gold Pouch). Such cards are only offered as filler.
+   * healFraction = share of max HP healed; gold = multiplier of the pouch size (run.ts pouchGold).
+   */
   onPick?: { healFraction?: number; gold?: number };
 }
 

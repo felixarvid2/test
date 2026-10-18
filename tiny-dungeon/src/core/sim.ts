@@ -40,16 +40,16 @@ export const SIM = {
   meleeChaseDelay: 3,        // seconds a sword needs to catch up with ranged / summoner enemies
   reachBonus: 40,            // px the player walks toward enemies before they arrive
   swordTargetsBase: 1.8,     // enemies hit per swing at 110 degrees in a crowd
-  arrowAccuracy: 0.55,       // extra arrows / bolts landing
-  pierceHit: 0.55,           // chance a piercing arrow finds another enemy in line
+  arrowAccuracy: 0.45,       // extra arrows / bolts landing
+  pierceHit: 0.45,           // chance a piercing arrow finds another enemy in line
   bounceHit: 0.75,
   orbitTouchesPerBlade: 1 / BALANCE.combat.orbitTouchInterval,
   roomTail: 1.5,             // seconds to walk / pick up after the last kill
   maxRoomTime: 150,
   bossBodyRate: 0.5,         // boss contact attempts per second once it arrives
   knockbackBenefit: 0.15,    // fewer melee touches per +100% knockback (sword only)
-  kiteBonus: 0.1,            // extra avoided attempts when no melee weapon is owned (the hero backs away while shooting)
-  kiteBossBonus: 0.12,
+  kiteBonus: 0.04,           // extra avoided attempts when no melee weapon is owned (the hero backs away while shooting)
+  kiteBossBonus: 0.05,
   speedAvoid: 0.3,
   skill: {
     novice: { avoid: 0.25, bossAvoid: 0.3, specialBonus: 0.08 },

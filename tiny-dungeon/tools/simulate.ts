@@ -98,10 +98,10 @@ for (const room of [20, 25, 30, 35, 40]) {
 }
 
 // ---- upgrade pick rates (observed) and marginal impact (paired ablation)
-const ablationSeeds = Number(arg('ablation', '100'));
+const ablationSeeds = Number(arg('ablation', '60'));
 console.log(`\n== Upgrades: observed ownership and marginal impact ==`);
 console.log(`impact = mean rooms gained when the card is the first pick vs. no pick on the same seeds (${ablationSeeds} seeds per hero, only heroes that can be offered it).`);
-console.log(`Rooms come in boss-sized lumps at low power, so compare within a rarity. flag: > +${over} overpowered, < +${under} weak`);
+console.log(`Rooms come in boss-sized lumps at low power, so compare within a rarity. flag: > +${over} x (common 1, rare/epic 1.5, legendary 2) overpowered, < +${under} weak`);
 const lifts = new Map<string, number[]>(); // `${id}:${hero}` -> per-seed lifts
 if (ablationSeeds > 0) {
   for (const hero of heroes) {
@@ -123,6 +123,7 @@ if (ablationSeeds > 0) {
     }
   }
 }
+const OVER_FACTOR = { common: 1, rare: 1.5, epic: 1.5, legendary: 2 } as const;
 const pickCount = new Map<string, number>();
 for (const r of results) for (const id of Object.keys(r.upgrades)) pickCount.set(id, (pickCount.get(id) ?? 0) + 1);
 const liftOf = (id: string, hero: HeroId): number => {
@@ -130,14 +131,22 @@ const liftOf = (id: string, hero: HeroId): number => {
   return a && a.length ? mean(a) : NaN;
 };
 const fmt = (x: number): string => (Number.isNaN(x) ? '-' : (x >= 0 ? '+' : '') + x.toFixed(2));
-console.log(`${pad('upgrade', 18)}${pad('rarity', 11)}${padl('owned', 7)}${padl('knight', 8)}${padl('ranger', 8)}${padl('mage', 8)}${padl('mean', 8)}`);
+console.log(`owned = share of runs that ended with the card; rooms = mean room reached with it minus without it (confounded by run length, see docs)`);
+console.log(`${pad('upgrade', 18)}${pad('rarity', 11)}${padl('owned', 7)}${padl('rooms', 8)}${padl('knight', 8)}${padl('ranger', 8)}${padl('mage', 8)}${padl('impact', 8)}`);
+const ownedDelta = (id: string): number => {
+  const withIt = results.filter((r) => (r.upgrades[id] ?? 0) > 0).map((r) => r.roomReached);
+  const without = results.filter((r) => (r.upgrades[id] ?? 0) === 0).map((r) => r.roomReached);
+  return withIt.length >= 20 && without.length >= 20 ? mean(withIt) - mean(without) : NaN;
+};
 const rows = UPGRADES.filter((u) => !u.onPick).map((u) => {
   const per = heroes.map((h) => liftOf(u.id, h)).filter((x) => !Number.isNaN(x));
   return { u, owned: (pickCount.get(u.id) ?? 0) / results.length, mean: per.length ? mean(per) : NaN };
 }).sort((a, b) => (Number.isNaN(b.mean) ? -99 : b.mean) - (Number.isNaN(a.mean) ? -99 : a.mean));
 for (const row of rows) {
-  const flag = Number.isNaN(row.mean) ? '' : row.mean > over ? '  <-- OVERPOWERED' : row.mean < under ? '  <-- weak' : '';
-  console.log(`${pad(row.u.id, 18)}${pad(row.u.rarity, 11)}${padl((row.owned * 100).toFixed(0) + '%', 7)}${padl(fmt(liftOf(row.u.id, 'knight')), 8)}${padl(fmt(liftOf(row.u.id, 'ranger')), 8)}${padl(fmt(liftOf(row.u.id, 'mage')), 8)}${padl(fmt(row.mean), 8)}${flag}`);
+  const limit = over * OVER_FACTOR[row.u.rarity];
+  const economy = row.u.tags.includes('economy');
+  const flag = Number.isNaN(row.mean) ? '' : row.mean > limit ? '  <-- OVERPOWERED' : row.mean < under ? (economy ? '  (economy card: no combat value modelled)' : '  <-- weak') : '';
+  console.log(`${pad(row.u.id, 18)}${pad(row.u.rarity, 11)}${padl((row.owned * 100).toFixed(0) + '%', 7)}${padl(fmt(ownedDelta(row.u.id)), 8)}${padl(fmt(liftOf(row.u.id, 'knight')), 8)}${padl(fmt(liftOf(row.u.id, 'ranger')), 8)}${padl(fmt(liftOf(row.u.id, 'mage')), 8)}${padl(fmt(row.mean), 8)}${flag}`);
 }
 const byRarity = (['common', 'rare', 'epic', 'legendary'] as const).map((r) => {
   const xs = rows.filter((x) => x.u.rarity === r && !Number.isNaN(x.mean)).map((x) => x.mean);
@@ -189,5 +198,25 @@ if (progression > 0) {
 
 // ---- target check
 const allRooms = results.map((r) => r.roomReached).sort((a, b) => a - b);
+const meanRoom = mean(allRooms);
+const meanMin = mean(results.map((r) => r.durationSec)) / 60;
+const verdict = (ok: boolean): string => (ok ? 'ok  ' : 'MISS');
 console.log('\n== Targets ==');
-console.log(`median room ${pct(allRooms, 0.5)}, p90 ${pct(allRooms, 0.9)}, mean run length ${f1(mean(results.map((r) => r.durationSec)) / 60)} min`);
+console.log(`median room ${pct(allRooms, 0.5)}, mean ${f1(meanRoom)}, p90 ${pct(allRooms, 0.9)}, mean run length ${f1(meanMin)} min`);
+if (metaName === 'none') {
+  console.log(`${verdict(meanRoom >= 5 && meanRoom <= 9)} fresh player (no permanent upgrades): mean room 5-9 (${f1(meanRoom)})`);
+  console.log(`${verdict(meanMin >= 2 && meanMin <= 5)} fresh player: run lasts 2-5 minutes (${f1(meanMin)})`);
+  const first = results.map((r) => r.bossFights.find((f) => f.room === 5)).filter((f) => f !== undefined);
+  const w5 = first.filter((f) => f?.won).length / Math.max(1, first.length);
+  console.log(`${verdict(w5 > 0.25 && w5 < 0.8)} first boss is a real check but not a wall: win rate 25-80% (${(w5 * 100).toFixed(0)}%)`);
+}
+if (metaName === 'max' && skill === 'expert') {
+  console.log(`${verdict(pct(allRooms, 0.5) >= 20)} maxed expert: median room >= 20 (${pct(allRooms, 0.5)})`);
+}
+for (const b of BOSSES) {
+  const f = results.flatMap((r) => r.bossFights.filter((x) => x.boss === b.id && x.room === b.room));
+  if (f.length >= 100) {
+    const w = f.filter((x) => x.won).length / f.length;
+    console.log(`${verdict(w >= 0.08)} ${b.name} is not a wall: first-fight win rate >= 8% (${(w * 100).toFixed(0)}%)`);
+  }
+}
