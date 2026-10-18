@@ -3,10 +3,12 @@
  * docs/BALANCE.md) and look at wave reached and run length. Targets (greedy bot from
  * src/sim/bot.ts): fresh save (start towers, no meta) dies around wave 11 (9-13) after 3-6 simulated
  * minutes; mid meta (~1500 gems spent) waves 13-16; late meta (~5000 gems) beats the Dragon (wave 15)
- * and dies in the endless loop around waves 19-23; the 'noUpgrades' policy dies about 2 waves earlier
+ * and dies in the endless loop around waves 19-24; the 'noUpgrades' policy dies about 2 waves earlier
  * than greedy and 'spreadOut' (never merges) around wave 6.
- * Last measured (40 seeds, default pools): greedy fresh median 11 (7-14) in 5.6 min, mid 16 (14-19) in
- * 8.1 min, late 20.5 (17-22) in 9.5 min; all upgrades maxed ('max' preset) 23.
+ * Last measured (40 seeds, default loadouts: start trio fresh, arrow + cannon + frost + lightning mid/late):
+ * greedy fresh median 11 (8-15) in 5.5 min, mid 16 (13-19) in 8.0 min, late 21 (16-23) in 9.7 min; all
+ * upgrades maxed ('max' preset) 26. Across all 4-tower loadouts of the 8 towers the mid-meta median is 15
+ * (11.9-18.4), see the loadout probe in docs/BALANCE.md.
  */
 export const BALANCE = {
   castle: {
@@ -71,7 +73,7 @@ export const BALANCE = {
 
   boss: {
     /** Each loop through Goblin King -> Stone Golem -> Dragon multiplies these. */
-    loopHpMult: 3.6,
+    loopHpMult: 5,
     loopCoinMult: 1.6,
     loopDamageMult: 1.25,
     loopGemMult: 1.3,

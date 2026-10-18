@@ -144,8 +144,8 @@ export const SYNERGIES: SynergyDef[] = [
   },
   {
     id: 'tripleThreat', name: 'Triple Threat', icon: 'star',
-    description: 'Arrow + Cannon + Frost: all towers gain +15% attack speed and +10% damage.',
+    description: 'Arrow + Cannon + Frost: all towers gain +10% attack speed and +7% damage.',
     requires: { towers: ['arrow', 'cannon', 'frost'] },
-    effects: [stat('fireRate', 'pct', 0.15), stat('damage', 'pct', 0.1)],
+    effects: [stat('fireRate', 'pct', 0.1), stat('damage', 'pct', 0.07)],
   },
 ];

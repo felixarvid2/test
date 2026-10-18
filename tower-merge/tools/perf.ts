@@ -1,11 +1,11 @@
 /**
  * Headless performance benchmark of the simulation: 150 enemies and 12 level 5 towers firing with
  * a large set of flags (procs, statuses, spreads, chains), the projectile cap saturated. Prints
- * milliseconds per update(1/60) (avg / p95 / max), events per frame, an estimate of the garbage
+ * milliseconds per update(1/60) (avg / p95 / max) for the cold start and the steady state, events per frame, an estimate of the garbage
  * produced per update and how fast a whole late-game bot run simulates.
  *
  *   npm run perf              (node --expose-gc, so heap deltas are measured around forced collections)
- *   npm run perf -- --frames 3600 --enemies 150
+ *   npm run perf -- --frames 3600 --enemies 150 --warmup 3000
  */
 import { performance } from 'node:perf_hooks';
 import { BALANCE } from '../src/data/balance';
@@ -15,7 +15,7 @@ import { spawnEnemy } from '../src/sim/enemies';
 import type { SimState } from '../src/sim/state';
 import { defaultRunOptions, runBot } from '../src/sim/bot';
 import { createWorld } from '../src/sim/World';
-import { buildOptions, FULL_POOL } from './balance/presets';
+import { buildOptions, BEST_LOADOUT } from './balance/presets';
 import { percentile } from './balance/stats';
 
 const argv = process.argv.slice(2);
@@ -24,6 +24,8 @@ const arg = (k: string, d: number): number => {
   return i >= 0 ? Number(argv[i + 1]) : d;
 };
 const FRAMES = arg('frames', 1800);
+const WARMUP = arg('warmup', 3000);
+const COLD_FRAMES = 180;
 const ENEMIES = arg('enemies', 150);
 const gc = (globalThis as { gc?: () => void }).gc;
 
@@ -60,35 +62,41 @@ function stress(): void {
     spawned++;
   }
   s.grid.rebuild();
-  for (let i = 0; i < 180; i++) { w.update(1 / 60); w.drainEvents(); } // warm-up
+  /** Runs `frames` updates the way the renderer does (drain every frame); times each and samples garbage every 10th. */
+  const measure = (frames: number) => {
+    const ms: number[] = [];
+    const garbage: number[] = [];
+    let events = 0;
+    for (let i = 0; i < frames; i++) {
+      if (gc && i % 10 === 0) gc();
+      const heap0 = process.memoryUsage().heapUsed;
+      const t0 = performance.now();
+      w.update(1 / 60);
+      ms.push(performance.now() - t0);
+      const heap1 = process.memoryUsage().heapUsed;
+      if (gc && i % 10 === 0) garbage.push(Math.max(0, heap1 - heap0));
+      events += w.drainEvents().length;
+    }
+    return { ms, kb: garbage.map((b) => b / 1024), events, frames };
+  };
+  const report = (label: string, r: ReturnType<typeof measure>): void => {
+    const avg = (a: number[]): number => a.reduce((x, y) => x + y, 0) / Math.max(1, a.length);
+    console.log(`${label} (${r.frames} frames)`);
+    console.log(`  update(1/60): avg ${avg(r.ms).toFixed(3)} ms, p95 ${percentile(r.ms, 0.95).toFixed(3)} ms, p99 ${percentile(r.ms, 0.99).toFixed(3)} ms, max ${Math.max(...r.ms).toFixed(3)} ms (60 fps budget 16.7 ms)`);
+    if (gc) console.log(`  garbage per update (heapUsed delta, GC forced before each sample): avg ${avg(r.kb).toFixed(1)} KiB, p95 ${percentile(r.kb, 0.95).toFixed(1)} KiB, max ${Math.max(...r.kb).toFixed(1)} KiB`);
+    console.log(`  events drained: ${(r.events / r.frames).toFixed(1)} per frame`);
+  };
 
-  const ms: number[] = [];
-  const garbage: number[] = [];
-  let events = 0;
-  for (let i = 0; i < FRAMES; i++) {
-    if (gc && i % 10 === 0) gc();
-    const heap0 = process.memoryUsage().heapUsed;
-    const t0 = performance.now();
-    w.update(1 / 60);
-    ms.push(performance.now() - t0);
-    const heap1 = process.memoryUsage().heapUsed;
-    if (gc && i % 10 === 0) garbage.push(Math.max(0, heap1 - heap0));
-    events += w.drainEvents().length; // the renderer drains every frame
-  }
-  const avg = ms.reduce((a, b) => a + b, 0) / ms.length;
-  console.log(`stress: ${spawned} enemies spawned, ${s.alive} alive at the end, 12 level ${MAX_TOWER_LEVEL} towers, ${HEAVY.length} flags, ${FRAMES} frames`);
-  console.log(`  update(1/60): avg ${avg.toFixed(3)} ms, p95 ${percentile(ms, 0.95).toFixed(3)} ms, p99 ${percentile(ms, 0.99).toFixed(3)} ms, max ${Math.max(...ms).toFixed(3)} ms (60 fps budget 16.7 ms)`);
-  console.log(`  events drained: ${(events / FRAMES).toFixed(1)} per frame; projectiles active ${s.projectiles.filter((p) => p.active).length}/${BALANCE.caps.maxProjectiles}`);
-  if (gc) {
-    const kb = garbage.map((b) => b / 1024);
-    console.log(`  allocations (heapUsed delta of single updates, GC forced before each sample): avg ${(kb.reduce((a, b) => a + b, 0) / kb.length).toFixed(1)} KiB, p95 ${percentile(kb, 0.95).toFixed(1)} KiB, max ${Math.max(...kb).toFixed(1)} KiB per update`);
-  } else {
-    console.log('  allocations: run with --expose-gc (npm run perf) for the heap estimate');
-  }
+  console.log(`stress: ${spawned} enemies spawned, 12 level ${MAX_TOWER_LEVEL} towers, ${HEAVY.length} flags`);
+  report('cold start (first frames: JIT warm-up and pool growth)', measure(COLD_FRAMES));
+  for (let i = 0; i < WARMUP; i++) { w.update(1 / 60); w.drainEvents(); }
+  report(`steady state (after ${WARMUP} warm-up frames)`, measure(FRAMES));
+  console.log(`  ${s.alive} enemies alive; projectiles active ${s.projectiles.filter((p) => p.active).length}/${BALANCE.caps.maxProjectiles}`);
+  if (!gc) console.log('  allocations: run with --expose-gc (npm run perf) for the heap estimate');
 }
 
 function fullRun(): void {
-  const options = buildOptions({ seed: 11, meta: 'late', pool: FULL_POOL });
+  const options = buildOptions({ seed: 11, meta: 'late', pool: BEST_LOADOUT.late });
   let frames = 0;
   const t0 = performance.now();
   const r = runBot(options, 'greedy', 40);

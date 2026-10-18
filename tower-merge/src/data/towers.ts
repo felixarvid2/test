@@ -101,7 +101,7 @@ export const TOWERS: Record<TowerId, TowerDef> = {
   },
   sniper: {
     id: 'sniper', name: 'Sniper Tower', role: 'Instant long-range shots at the toughest enemy. Huge damage, slow reload.',
-    attack: 'beam', damage: 51, fireRate: 0.35, range: 560, splashRadius: 0, projectileSpeed: 0,
+    attack: 'beam', damage: 48, fireRate: 0.35, range: 560, splashRadius: 0, projectileSpeed: 0,
     critChance: 0.1, critMult: 2.5, statusPower: 1, statusDuration: 1.5, chainCount: 0, chainRange: 0, armorPen: 0.2,
     hitsAir: true, baseEffects: [], color: 0xc084fc, unlock: { kind: 'gems', cost: 350 }, buyWeight: 10,
     levels: [
@@ -114,7 +114,7 @@ export const TOWERS: Record<TowerId, TowerDef> = {
   },
   magic: {
     id: 'magic', name: 'Magic Tower', role: 'Arcane orbs with unpredictable effects. Strong when upgraded.',
-    attack: 'projectile', damage: 14, fireRate: 1.0, range: 200, splashRadius: 0, projectileSpeed: 450,
+    attack: 'projectile', damage: 12.5, fireRate: 1.0, range: 200, splashRadius: 0, projectileSpeed: 450,
     critChance: 0.03, critMult: 2, statusPower: 1, statusDuration: 1.5, chainCount: 0, chainRange: 0, armorPen: 0,
     hitsAir: true, baseEffects: [], color: 0xe879f9, unlock: { kind: 'gems', cost: 500 }, buyWeight: 12,
     levels: [

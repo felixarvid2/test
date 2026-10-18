@@ -103,8 +103,9 @@ export function towersForMeta(meta: MetaPreset, pool: 'start' | 'full' | 'mixed'
 /** A random loadout of `size` distinct unlocked towers (every tower except Cannon hits air, so one always does). */
 export function randomLoadout(rng: Rng, unlocked: readonly TowerId[], size: number): TowerId[] {
   const ids = [...unlocked];
+  const n = Math.min(size, ids.length);
   const out: TowerId[] = [];
-  while (out.length < Math.min(size, ids.length)) out.push(ids.splice(rng.int(ids.length), 1)[0]);
+  while (out.length < n) out.push(ids.splice(rng.int(ids.length), 1)[0]);
   return out;
 }
 
