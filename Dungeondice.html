@@ -827,6 +827,67 @@ html{scrollbar-width:thin;scrollbar-color:rgba(140,110,200,.6) #120d1c}
 .popup-score{font-family:var(--font-pixel);-webkit-text-stroke:2px rgba(26,19,38,.85);paint-order:stroke fill;letter-spacing:2px}
 /* 250 Loggen nere i hörnet i pixelstil med guldkant */
 .popup-log{font-family:var(--font-pixel);border-left:3px solid var(--gold);letter-spacing:.3px}
+/* ---- omgång 3: 251-275 knappar, reliker, tooltips, tillgänglighet ---- */
+/* 251 Knappar med tydlig mörk överkant och glans */
+button{box-shadow:0 4px 0 #2a1f40,0 6px 12px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.14)}
+/* 252 Tryckt knapp sjunker hela vägen */
+button:active:not(:disabled){transform:translateY(4px);box-shadow:0 0 0 #2a1f40,0 2px 4px rgba(0,0,0,.5),inset 0 2px 6px rgba(0,0,0,.35)}
+/* 253 Synlig tangentbordsfokus på knappar */
+button:focus-visible,.hbtn:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+/* 254 Kasta-knappen större */
+#roll-btn{min-width:124px;font-size:16px}
+/* 255 Poäng-knappen får guldkrans när den går att använda */
+#score-btn:not(:disabled){box-shadow:0 4px 0 #4a2a0a,0 6px 12px rgba(0,0,0,.4),0 0 0 2px rgba(245,197,66,.35),0 0 18px rgba(245,197,66,.3)}
+/* 256 Inaktiva knappar med snedstreck */
+button:disabled{background-image:repeating-linear-gradient(135deg,rgba(0,0,0,.18) 0 6px,transparent 6px 12px)}
+/* 257 Små knappar lika breda */
+button.small{min-width:92px}
+/* 258 Luft och maxbredd på kontrollraden */
+#controls{gap:clamp(6px,1.5vw,12px);max-width:640px;margin-inline:auto}
+/* 259 Kontrollrad som svag panel */
+#controls{padding:10px 14px;border-radius:var(--r-lg);background:rgba(0,0,0,.22);border:1px solid rgba(160,130,220,.14)}
+/* 260 Roll-knappens text får lite pixelskugga */
+#roll-btn,#score-btn{text-shadow:0 2px 0 rgba(0,0,0,.45)}
+/* 261 Relikernas tooltip i pixelstil med guldrubrik */
+.relic .tip{font-family:var(--font-pixel);letter-spacing:.3px;line-height:1.45;border-width:2px;padding:10px 12px}
+.relic .tip b{font-size:14px;border-bottom:1px solid rgba(245,197,66,.3);padding-bottom:4px}
+/* 262 Tooltipkanten i relikens sällsynthetsfärg */
+.relic.uncommon .tip{border-color:#4d9fff}
+.relic.rare .tip{border-color:#c44dff}
+.relic.legendary .tip{border-color:var(--gold)}
+/* 263 Reliker lite större */
+.relic{width:44px;height:44px;border-radius:10px}
+.relic-slot{width:44px;height:44px}
+/* 264 Reliker lyfter vid hover */
+.relic:hover{transform:translateY(-4px) scale(1.06)}
+/* 265 Liten sällsynthetsprick i hörnet */
+.relic::before{content:'';position:absolute;top:3px;right:3px;width:5px;height:5px;border-radius:50%;background:#8a8fa0;box-shadow:0 0 0 1px rgba(0,0,0,.6)}
+.relic.uncommon::before{background:#4d9fff}
+.relic.rare::before{background:#c44dff}
+.relic.legendary::before{background:var(--gold)}
+/* 266 Reliksfältet bryter rad och klipper inte längre tooltips */
+#relics-bar{flex-wrap:wrap;gap:8px;padding:8px 10px;overflow:visible;max-height:none;position:relative;z-index:25}
+/* 267 Säljbar relik får röd ring vid hover */
+.relic:hover{border-color:#ff7a8a}
+/* 276-fix Reliker klipper inte längre sin tooltip (gamla overflow:hidden), glansen blir statisk */
+.relic{overflow:visible}
+.relic:hover::after{animation:none;border-radius:inherit;opacity:.5}
+/* 268 Kast-, släng- och handsiffror med avstånd */
+#round-info b{min-width:2.4ch;text-align:center}
+/* 269 Relikplatsräknaren med guldkant */
+#round-info b:last-of-type{border-color:rgba(245,197,66,.4)}
+/* 270 Headerns språkknapp bredare klickyta */
+#lang-btn{min-width:64px}
+/* 271 Tangentbordsfokus på tärningar */
+.die:focus-visible{outline:2px dashed var(--gold);outline-offset:4px}
+/* 272 Fokus på reliker */
+.relic:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+/* 273 Kombinationsrubriken avgränsad från framstegsfältet */
+#combo-banner{margin-bottom:4px}
+/* 274 Kontrollerna får skuggad bas mot bakgrunden */
+main{padding-bottom:18px}
+/* 275 Mörkare marginaler på stora skärmar för fokus på spelytan */
+@media (min-width:1200px){#app{max-width:1000px}}
 </style>
 </head>
 <body>
@@ -1069,7 +1130,9 @@ const Sound = (()=>{
   };
 })();
 function updateMuteBtn(){const b=document.getElementById('mute-btn');if(b)b.innerHTML=spr(Sound.isMuted()?'gi_audioOff':'gi_audioOn');}
-function hdrIcons(){const m={'Stats':'gi_leaderboardsSimple','Achv':'gi_trophy','Help':'gi_question','Quit':'gi_cross'};document.querySelectorAll('.hbtn').forEach(b=>{const k=m[b.title];if(k)b.innerHTML=spr(k)});updateMuteBtn()}
+function a11y(){document.querySelectorAll('.hbtn').forEach(b=>{if(b.title&&!b.getAttribute('aria-label'))b.setAttribute('aria-label',b.title)});
+  const cb=document.getElementById('combo-banner');if(cb)cb.setAttribute('aria-live','polite');const ov=document.getElementById('overlay');if(ov)ov.setAttribute('role','dialog')}
+function hdrIcons(){const m={'Stats':'gi_leaderboardsSimple','Achv':'gi_trophy','Help':'gi_question','Quit':'gi_cross'};document.querySelectorAll('.hbtn').forEach(b=>{const k=m[b.title];if(k)b.innerHTML=spr(k)});updateMuteBtn();a11y()}
 function toggleMute(){Sound.toggle();}
 
 /* ========================
@@ -1633,6 +1696,9 @@ function renderDie(d,idx,held){
     el.appendChild(badge);
   }
   el.onclick=()=>toggleHold(idx);
+  el.tabIndex=0;el.setAttribute('role','button');el.setAttribute('aria-pressed',held?'true':'false');
+  el.setAttribute('aria-label',(LANG==='sv'?'Tärning ':'Die ')+d.value);
+  el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleHold(idx)}};
   return el;
 }
 
@@ -1896,6 +1962,7 @@ function toggleHold(idx){
   if(!el){render();return}
   da.classList.add('no-land');
   el.classList.toggle('held',state.held.has(idx));
+  el.setAttribute('aria-pressed',state.held.has(idx)?'true':'false');
   da.classList.toggle('has-held',state.held.size>0);
   updateComboPreview();
   document.getElementById('score-btn').disabled=state.phase!=='playing'||state.rollsUsed===0;
