@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { COLORS, EXTRA_KEY, ICONS_KEY } from '../assets';
 import { services } from '../../services';
+import { bankRun } from '../../core/bank';
 import { canBuyMeta } from '../../core/meta';
 import { dailyChallenge } from '../../core/daily';
 import { todayKey } from '../../core/rng';
@@ -10,8 +11,8 @@ import { META_UPGRADES } from '../../data/meta';
 import { WEAPONS } from '../../data/weapons';
 import { UPGRADE_BY_ID } from '../../data/upgrades';
 import { createBackground } from '../ui/background';
-import { addSheen, bob, glow, heroSprite, ensureTextures, reduced, sparks } from '../ui/fx';
-import { Button, MIN_TOUCH, W, fadeInScene, goto, label, panel, textStyle, titleStyle } from '../ui/kit';
+import { addSheen, bob, fmt, glow, heroSprite, ensureTextures, reduced, sparks } from '../ui/fx';
+import { Button, MIN_TOUCH, W, fadeInScene, goto, label, panel, textStyle, titleStyle, toast } from '../ui/kit';
 import { installDebugHook } from '../ui/debug';
 import { openModal } from '../ui/modal';
 import { CounterPill } from '../ui/widgets';
@@ -19,6 +20,26 @@ import { SCENES } from './keys';
 
 /** gameReady() is reported once per session, the first time the menu can be used. */
 let gameReadySent = false;
+/** A run interrupted by closing the app is recovered the first time the menu opens in a session. */
+let recoveryChecked = false;
+
+/** Banks save.pendingRun (a run that never reached Game Over). Returns the gold granted, or 0. */
+function recoverPendingRun(): number {
+  const save = services.save.data;
+  const pending = save.pendingRun;
+  if (!pending) return 0;
+  const r = bankRun(save, pending, { dailyKey: todayKey() });
+  save.pendingRun = null;
+  void services.save.flush();
+  if (!r.alreadyBanked) {
+    try {
+      services.platform.sendScore(pending.roomsCleared).catch(() => undefined);
+    } catch {
+      // leaderboards are optional
+    }
+  }
+  return r.alreadyBanked ? 0 : r.gold;
+}
 
 export class MenuScene extends Phaser.Scene {
   constructor() { super(SCENES.menu); }
@@ -29,12 +50,20 @@ export class MenuScene extends Phaser.Scene {
     services.audio.playMusic('music_menu');
     createBackground(this, { walls: true, parade: true, dim: 0.58 });
 
+    // Before the gold counter is built, so it shows the recovered gold.
+    let recovered = 0;
+    if (!recoveryChecked) {
+      recoveryChecked = true;
+      recovered = recoverPendingRun();
+    }
+
     this.buildTopBar();
     this.buildLogo();
     this.buildHero();
     this.buildPlay();
     this.buildDaily();
     this.buildGrid();
+    if (recovered > 0) toast(this, `Recovered ${fmt(recovered)} gold from your last run`, COLORS.gold, 420);
 
     installDebugHook(this);
     if (!gameReadySent) {

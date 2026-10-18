@@ -628,7 +628,7 @@ function emptySave(): SaveData {
     },
     settings: { musicVolume: 1, sfxVolume: 1, screenShake: true, reducedMotion: false, damageNumbers: true, joystick: 'floating' },
     daily: {}, rewards: { day: '', claimsToday: 0, claimed: {}, tokens: 0 },
-    cosmetics: { owned: [], equipped: {} }, lastRun: null,
+    cosmetics: { owned: [], equipped: {} }, lastRun: null, pendingRun: null,
   };
 }
 

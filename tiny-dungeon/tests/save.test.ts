@@ -20,6 +20,23 @@ describe('migrate', () => {
     expect(migrate(JSON.parse(JSON.stringify(d)))).toEqual(d);
   });
 
+  it('defaults pendingRun to null and keeps a valid one', () => {
+    expect(migrate({ gold: 5 }).pendingRun).toBeNull();
+    const pending = {
+      runId: 'r1', mode: 'daily', hero: 'mage', roomsCleared: 4, kills: 50, gold: 90, level: 5,
+      bossesDefeated: ['giant_slime'], synergies: ['inferno_burst'], durationSec: 120, noDamageRooms: 1, legendaries: 0,
+    };
+    const s = migrate({ gold: 5, pendingRun: pending });
+    expect(s.pendingRun).toEqual(pending);
+    expect(migrate(JSON.parse(JSON.stringify(s))).pendingRun).toEqual(pending);
+  });
+
+  it('drops a malformed pendingRun', () => {
+    for (const bad of [5, 'x', [], {}, { runId: 3 }, { runId: '' }, null]) {
+      expect(migrate({ pendingRun: bad }).pendingRun).toBeNull();
+    }
+  });
+
   it('repairs wrong types, NaN and negatives', () => {
     const s = migrate({
       gold: NaN, meta: { a: -3, b: 2.7, c: 'x' }, heroes: 'knight', selectedHero: 5,

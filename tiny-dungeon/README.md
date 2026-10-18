@@ -4,6 +4,26 @@ A portrait (9:16) pixel-art roguelite auto-battler for YouTube Playables. It als
 
 Built with Phaser 3.90, TypeScript and Vite.
 
+## Screenshots
+
+<table>
+  <tr>
+    <td><img src="docs/media/01-menu.png" width="200" alt="Main menu"></td>
+    <td><img src="docs/media/crowd-t3.png" width="200" alt="Crowd of enemies"></td>
+    <td><img src="docs/media/61-upgrade-3cards.png" width="200" alt="Upgrade selection"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/media/tele-dragon-dragonBreath.png" width="200" alt="Dungeon Dragon breath telegraph"></td>
+    <td><img src="docs/media/boss-warning.png" width="200" alt="Boss warning"></td>
+    <td><img src="docs/media/72-gameover-results.png" width="200" alt="Game over results"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/media/20-shop.png" width="200" alt="Permanent shop"></td>
+    <td><img src="docs/media/10-heroes-knight.png" width="200" alt="Knight hero"></td>
+    <td><img src="docs/media/treasure-modal.png" width="200" alt="Treasure room"></td>
+  </tr>
+</table>
+
 ## How it plays
 
 The hero attacks automatically. You only move: drag anywhere, or use WASD / arrow keys.
@@ -45,7 +65,7 @@ Run these in `tiny-dungeon/`.
 | `node tools/ui-smoke.mjs` | Headless Playwright play-through of the UI |
 | `python3 tools/build_assets.py` | Rebuilds sprite atlases and mp3s from the CC0 packs in `../assets` |
 
-The smoke scripts write screenshots to `docs/screens/`.
+The smoke scripts write screenshots to `docs/screens/` (gitignored).
 
 ## URL parameters
 

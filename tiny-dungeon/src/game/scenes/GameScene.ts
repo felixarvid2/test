@@ -216,6 +216,8 @@ export class GameScene extends Phaser.Scene {
       this.cleanup.push(() => { kb.off('keydown-ESC', onKey); kb.off('keydown-P', onKey); });
     }
     this.cleanup.push(onHostPause(() => this.pauseGame()));
+    // services' own pause handler flushes before this one runs, so flush again after the snapshot.
+    this.cleanup.push(onHostPause(() => { if (this.snapshotRun()) void services.save.flush(); }));
     const onBlur = (): void => this.pauseGame();
     window.addEventListener('blur', onBlur);
     this.cleanup.push(() => window.removeEventListener('blur', onBlur));
@@ -236,6 +238,21 @@ export class GameScene extends Phaser.Scene {
     this.registry.set('boss', null);
     this.scene.stop(SCENES.hud);
     this.tweens.killAll();
+  }
+
+  // ---- run recovery -------------------------------------------------------------------------------
+
+  /**
+   * Stores the run in progress as save.pendingRun so closing the app mid-run does not lose it (the menu
+   * banks it on the next launch). Not for runs that died or were already banked by Game Over.
+   * Returns true when pendingRun was updated; the caller decides how to persist it.
+   */
+  private snapshotRun(): boolean {
+    if (this.state === 'dying' || this.state === 'dead') return false;
+    const data = services.save.data;
+    if (data.lastRun?.runId === this.run.runId) return false;
+    data.pendingRun = toSummary(this.run);
+    return true;
   }
 
   // ---- pause --------------------------------------------------------------------------------------
@@ -535,6 +552,7 @@ export class GameScene extends Phaser.Scene {
     const type = this.roomType;
     const hpBefore = run.hp;
     onRoomCleared(run);
+    if (this.snapshotRun()) void services.save.save();
     const healed = Math.round(run.hp - hpBefore);
     if (healed > 0) this.w.numbers.spawn(this.w.player.x, this.w.player.y - 56, `+${healed}`, COLORS.heal, 3);
     this.prevRoomType = type;

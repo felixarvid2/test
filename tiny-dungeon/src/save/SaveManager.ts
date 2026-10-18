@@ -59,6 +59,7 @@ export function defaultSave(): SaveData {
     rewards: { day: '', claimsToday: 0, claimed: {}, tokens: 0 },
     cosmetics: { owned: [], equipped: {} },
     lastRun: null,
+    pendingRun: null,
   };
 }
 
@@ -177,6 +178,7 @@ function sanitizeRewards(v: unknown): RewardLedger {
   };
 }
 
+/** Validates a stored run summary (lastRun / pendingRun); null when it is not one. */
 function sanitizeLastRun(v: unknown): RunSummary | null {
   if (!isObj(v) || typeof v.runId !== 'string' || !v.runId) return null;
   return {
@@ -221,6 +223,7 @@ function sanitize(raw: Obj): SaveData {
     rewards: sanitizeRewards(raw.rewards),
     cosmetics: { owned: strList(cos.owned), equipped },
     lastRun: sanitizeLastRun(raw.lastRun),
+    pendingRun: sanitizeLastRun(raw.pendingRun),
   };
 }
 

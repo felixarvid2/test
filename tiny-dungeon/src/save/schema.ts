@@ -49,4 +49,6 @@ export interface SaveData {
   rewards: RewardLedger;
   cosmetics: { owned: string[]; equipped: Partial<Record<HeroId, string>> };
   lastRun: RunSummary | null;
+  /** Snapshot of the run in progress (saved at room clears and on pause); banked on the next launch if the run never reached Game Over. */
+  pendingRun: RunSummary | null;
 }

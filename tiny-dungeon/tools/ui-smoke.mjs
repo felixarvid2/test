@@ -393,10 +393,15 @@ try {
   await sleep(1500);
   await shot(page, '66-upgrade-picking');
   await speedUp(page, 3);
-  await waitFor(page, () => window.__td.game.scene.getScene('Upgrade').children.list.some((o) => o.depth === 3000), null, 30000);
-  await sleep(3500);
+  // The banner closes itself after ~2.6 s of scene time, so poll for it instead of sleeping a fixed
+  // time: on a slow software-GL browser a fixed sleep outlasts the banner and the scene is gone.
+  const sawBanner = await waitFor(page, () => {
+    const walk = (o) => (o.type === 'Text' && o.text === 'Inferno Burst' && o.visible) || (o.list ? o.list.some(walk) : false);
+    return window.__td.game.scene.getScenes(true).some((sc) => sc.children.list.some(walk));
+  }, null, 30000).then(() => true, () => false);
+  await sleep(400);
   await shot(page, '67-upgrade-synergy-banner');
-  check('a completed synergy shows its banner', await hasText(page, 'Inferno Burst'));
+  check('a completed synergy shows its banner', sawBanner);
   await page.close();
 
   // ---- Game over: revive offer, give up, banking, double gold ---------------------------------------
@@ -474,6 +479,19 @@ try {
   await sleep(5000);
   await shot(page, '74-gameover-abandoned');
   check('abandoned runs skip the revive offer', !(await textPos(page, 'Give up')));
+  await page.close();
+
+  // ---- Run recovery: an interrupted run is banked the first time the menu opens ------------------
+  const pendingSeed = { ...SEED, pendingRun: { runId: 'smoke-pending', mode: 'normal', hero: 'knight', roomsCleared: 4, kills: 55, gold: 100, level: 5, bossesDefeated: [], synergies: [], durationSec: 150, noDamageRooms: 0, legendaries: 0 } };
+  page = await newPage('?debug=1&mockads=1', pendingSeed);
+  await sleep(500);
+  const recovered = await save(page);
+  check('an interrupted run (pendingRun) is banked on launch and cleared', recovered.pendingRun === null && recovered.lastRun?.runId === 'smoke-pending' && recovered.gold > 5000 && recovered.stats.runs === 10, `gold ${recovered.gold}`);
+  await page.close();
+  page = await newPage('?debug=1&mockads=1', { ...pendingSeed, lastRun: { ...pendingSeed.pendingRun } });
+  await sleep(500);
+  const notTwice = await save(page);
+  check('an already banked pendingRun is only cleared, not banked twice', notTwice.pendingRun === null && notTwice.gold === 5000 && notTwice.stats.runs === 9, `gold ${notTwice.gold}`);
   await page.close();
 
   // ---- Overlay settings -----------------------------------------------------------------------------

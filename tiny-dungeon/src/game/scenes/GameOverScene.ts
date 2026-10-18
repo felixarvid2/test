@@ -1,9 +1,7 @@
 import Phaser from 'phaser';
 import { COLORS, ICONS_KEY } from '../assets';
 import { services } from '../../services';
-import { evaluateAchievements, recordRun } from '../../core/achievements';
-import { recordDaily } from '../../core/daily';
-import { runGoldReward } from '../../core/meta';
+import { bankRun } from '../../core/bank';
 import { todayKey } from '../../core/rng';
 import { toSummary } from '../../core/run';
 import type { AchievementDef, RunSummary } from '../../core/types';
@@ -177,27 +175,18 @@ export class GameOverScene extends Phaser.Scene {
   /** Banks the run exactly once (guarded by save.lastRun.runId) and returns what to display. */
   private bank(): Banked {
     const save = services.save.data;
-    const run = this.d.run;
-    const summary = toSummary(run);
-    const gold = runGoldReward(summary);
-    if (save.lastRun?.runId === run.runId) {
-      // Already banked (scene restarted): show the numbers, grant nothing again.
-      return { summary, gold, earned: [], newBest: false, best: save.stats.bestRoom };
+    const summary = toSummary(this.d.run);
+    const r = bankRun(save, summary, { dailyKey: todayKey() });
+    if (!r.alreadyBanked) {
+      try {
+        services.platform.sendScore(summary.roomsCleared).catch(() => undefined);
+      } catch {
+        // leaderboards are optional
+      }
     }
-    const prevBest = save.stats.bestRoom;
-    recordRun(save, summary);
-    if (run.mode === 'daily') recordDaily(save, todayKey(), summary.roomsCleared, summary.kills);
-    save.gold += gold;
-    const earned = evaluateAchievements(save, summary);
-    save.lastRun = summary;
-    try {
-      services.platform.sendScore(summary.roomsCleared).catch(() => undefined);
-    } catch {
-      // leaderboards are optional
-    }
+    // Also persists the cleared pendingRun (when already banked this is a no-op rewrite).
     this.flushed = services.save.flush();
-    const reached = summary.roomsCleared + 1;
-    return { summary, gold, earned, newBest: reached > prevBest, best: save.stats.bestRoom };
+    return { summary, gold: r.gold, earned: r.earned, newBest: r.newBest, best: r.best };
   }
 
   private wait(ms: number): Promise<void> {
