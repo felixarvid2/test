@@ -49,6 +49,10 @@
   #touch .pausebtn { top: calc(2vh + env(safe-area-inset-top, 0px)); }
   #touch .deck { top: calc(2vh + var(--b) * .8 + env(safe-area-inset-top, 0px)); }
   #touch .map { top: calc(2vh + var(--b) * 1.6 + env(safe-area-inset-top, 0px)); }
+  #touch .fsbtn { top: calc(2vh + var(--b) * 2.4 + env(safe-area-inset-top, 0px)); }
+  #touch:not(.playing) .tb.fsbtn { display: block; } /* helskärm går att nå även i pausen */
+  .fsonly { display: none; }
+  body.touch .fsonly { display: inline-block; }
   #touch .swap { left: calc(var(--rx) + env(safe-area-inset-left, 0px)); bottom: calc(3vh + env(safe-area-inset-bottom, 0px)); }
   #touch:not(.playing) .tb { display: none; }
   #touch .joy { position: absolute; width: 26vmin; height: 26vmin; transform: translate(-50%, -50%); pointer-events: none; opacity: .6; }
@@ -78,6 +82,7 @@
   <div class="row">
     <label class="label" for="seed">FRÖ</label><input id="seed" maxlength="16" placeholder="SLUMPAT" autocomplete="off">
     <button id="unlocks" class="ghost" disabled>LÅS UPP KORT</button>
+    <button id="fullscreen" class="ghost fsonly" type="button">HELSKÄRM</button>
   </div>
   <div class="row sliders">
     <label class="label" for="sens">KÄNSLIGHET <output id="sensv"></output></label><input id="sens" type="range" min="0.2" max="3" step="0.1">

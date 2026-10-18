@@ -1343,7 +1343,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Minus' || e.code === 'Equal') { settings.vol = clamp(settings.vol + (e.code === 'Minus' ? -0.1 : 0.1), 0, 1); saveSettings(); applyVolume(); say(`VOLYM ${Math.round(settings.vol * 100)}%`, 1.2); }
   if (e.code === 'Comma' || e.code === 'Period') { settings.fov = clamp(settings.fov + (e.code === 'Comma' ? -4 : 4), 60, 100); saveSettings(); say(`SYNFÄLT ${settings.fov}°`, 1.2); }
   if (e.code === 'KeyN') { settings.muted = !settings.muted; saveSettings(); applyVolume(); say(settings.muted ? 'LJUD AV' : 'LJUD PÅ', 1); }
-  if (e.code === 'KeyO') { const el = document.documentElement; if (document.fullscreenElement) document.exitFullscreen(); else if (el.requestFullscreen) el.requestFullscreen().catch(() => {}); }
+  if (e.code === 'KeyO') toggleFullscreen();
   if (e.code === 'KeyC' && (state === 'play' || state === 'pause')) { showDeck(); return; }
   if (state === 'play') {
     if (e.code === 'KeyE' || e.code === 'Space') useKey();
@@ -1380,6 +1380,23 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) pause
 canvas.addEventListener('wheel', e => { e.preventDefault(); if (state === 'play') cycleWeapon(Math.sign(e.deltaY)); }, { passive: false });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
+// ---------- Helskärm ----------
+const fsElement = () => document.fullscreenElement || document.webkitFullscreenElement;
+const fsSupported = () => !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+function toggleFullscreen() {
+  const el = document.documentElement;
+  try {
+    if (fsElement()) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (!req || !fsSupported()) { say('HELSKÄRM GÅR INTE HÄR – ÖPPNA SIDAN I WEBBLÄSAREN', 3); return; }
+    const r = req.call(el, { navigationUI: 'hide' });
+    const lock = () => { try { const o = screen.orientation; if (o && o.lock) o.lock('landscape').catch(() => {}); } catch (e) { /* valfritt */ } };
+    if (r && r.then) r.then(lock).catch(() => say('HELSKÄRM NEKADES', 2)); else lock();
+  } catch (e) { say('HELSKÄRM GÅR INTE HÄR', 2); }
+}
+const syncFsIcons = () => { const big = !fsElement(); document.querySelectorAll('.fsicon').forEach(i => { i.src = A + 'touch/icon_size_' + (big ? 'larger' : 'smaller') + '.png'; }); };
+document.addEventListener('fullscreenchange', syncFsIcons); document.addEventListener('webkitfullscreenchange', syncFsIcons);
+
 // ---------- Mobilstyrning (Kenney Mobile Controls, CC0) ----------
 // Vänster halva: flytande joystick (gå/springa). Höger halva: dra för att vrida. Knappar: skjut (dra också för att sikta), sikta, ladda om, använd, byt vapen, karta, kort, paus.
 const touch = { active: false, mx: 0, my: 0, mag: 0, look: 0, lookY: 0 };
@@ -1387,15 +1404,17 @@ const isTouch = () => matchMedia('(pointer: coarse)').matches || 'ontouchstart' 
 function setupTouch() {
   const ui = document.getElementById('touch');
   const T = A + 'touch/';
-  const btn = (act, icon, cls) => `<button class="tb ${cls}" data-act="${act}" aria-label="${act}"><img src="${T}btn.png" alt=""><img class="ic" src="${T}icon_${icon}.png" alt=""></button>`;
+  const btn = (act, icon, cls) => `<button class="tb ${cls}" data-act="${act}" aria-label="${act}"><img src="${T}btn.png" alt=""><img class="ic${act === 'fullscreen' ? ' fsicon' : ''}" src="${T}icon_${icon}.png" alt=""></button>`;
   ui.innerHTML = `<div class="joy" hidden><img class="pad" src="${T}pad.png" alt=""><img class="nub" src="${T}nub.png" alt=""></div>
     ${btn('fire', 'crosshair', 'fire')}${btn('aim', 'target', 'aim')}${btn('reload', 'arrow_rotate', 'reload')}${btn('use', 'hand', 'use')}${btn('swap', 'arrow_curved', 'swap')}
-    ${btn('map', 'search', 'map small')}${btn('deck', 'star', 'deck small')}${btn('pause', 'pause', 'pausebtn small')}
+    ${btn('map', 'search', 'map small')}${btn('deck', 'star', 'deck small')}${btn('pause', 'pause', 'pausebtn small')}${btn('fullscreen', 'size_larger', 'fsbtn small')}
     <div class="rotate">VRID TELEFONEN TILL LIGGANDE LÄGE</div>`;
   const joy = ui.querySelector('.joy'), nub = ui.querySelector('.nub');
   const ptrs = new Map(); // pointerId -> { kind, x, y, ox, oy }
   const R = () => Math.min(innerWidth, innerHeight) * 0.13; // joystickens radie
   ui.addEventListener('pointerdown', e => {
+    const fsb = e.target.closest('.fsbtn');
+    if (fsb) { ui.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { kind: 'btn', btn: fsb, fs: true }); fsb.classList.add('on'); e.preventDefault(); return; }
     if (state !== 'play') { // tryck för att fortsätta, gå vidare osv.
       if (state === 'pause') resume(); else if (state === 'stats') nextFloor(); else leaveRunScreen();
       e.preventDefault(); return;
@@ -1441,6 +1460,7 @@ function setupTouch() {
     if (p.kind === 'joy') { touch.mx = touch.my = touch.mag = 0; joy.hidden = true; }
     if (p.btn) p.btn.classList.remove('on');
     if (p.fire) mouseDown = false;
+    if (p.fs && e.type === 'pointerup') toggleFullscreen(); // helskärm måste begäras när fingret släpps (användargest)
   };
   ui.addEventListener('pointerup', end); ui.addEventListener('pointercancel', end);
   ui.addEventListener('contextmenu', e => e.preventDefault());
@@ -1500,4 +1520,5 @@ document.getElementById('start').addEventListener('click', () => begin('new'));
 document.getElementById('daily').addEventListener('click', () => begin('daily'));
 document.getElementById('continue').addEventListener('click', () => begin('continue'));
 document.getElementById('unlocks').addEventListener('click', () => { ensureAudio(); openUnlocks(); });
+document.getElementById('fullscreen').addEventListener('click', () => toggleFullscreen());
 })();
