@@ -24,6 +24,8 @@ export class Lane {
   private readonly dx: Float64Array;
   private readonly dy: Float64Array;
   private readonly ang: Float64Array;
+  private readonly px: Float64Array;
+  private readonly py: Float64Array;
 
   constructor(pts: readonly Point[]) {
     this.pts = pts;
@@ -33,6 +35,12 @@ export class Lane {
     this.dx = new Float64Array(n);
     this.dy = new Float64Array(n);
     this.ang = new Float64Array(n);
+    this.px = new Float64Array(n + 1);
+    this.py = new Float64Array(n + 1);
+    for (let i = 0; i <= n; i++) {
+      this.px[i] = pts[i].x;
+      this.py[i] = pts[i].y;
+    }
     let acc = 0;
     for (let i = 0; i < n; i++) {
       const ex = pts[i + 1].x - pts[i].x;
@@ -62,7 +70,6 @@ export class Lane {
     while (seg > 0 && d < this.cum[seg]) seg--;
     while (seg < last && d >= this.cum[seg + 1]) seg++;
     const t = d - this.cum[seg];
-    const p0 = this.pts[seg];
     const dxs = this.dx[seg];
     const dys = this.dy[seg];
     // Left normal of the segment, blended with the neighbour's near corners.
@@ -79,8 +86,8 @@ export class Lane {
       ny = ny * (1 - wgt) + this.dx[seg + 1] * wgt;
     }
     const nl = vlen(nx, ny) || 1;
-    out[0] = p0.x + dxs * t + (nx / nl) * lateral;
-    out[1] = p0.y + dys * t + (ny / nl) * lateral;
+    out[0] = this.px[seg] + dxs * t + (nx / nl) * lateral;
+    out[1] = this.py[seg] + dys * t + (ny / nl) * lateral;
     out[2] = this.ang[seg];
     out[3] = seg;
   }
