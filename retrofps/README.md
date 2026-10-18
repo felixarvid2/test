@@ -12,7 +12,14 @@ M/Tab karta · P/Esc paus · `[` `]` muskänslighet · `,` `.` synfält · `-` `
 
 ## Roguelike
 
-- **Genererade våningar** (`js/gen.js`, `js/rng.js`): rum och korridorer med minimalt uppspännande träd och slingor, dörrar, hemliga rum, skattrum med kortkista, butiksrum, elitfiender och eldfat. Storleken och fienderna ökar med djupet, och temat (väggar, golv, dimma, namn) varierar.
+- **Genererade våningar i fem biomer** (`js/gen.js`, `js/rng.js`). Varje varv går igenom alla fem i slumpad ordning, och storleken och fienderna ökar med djupet.
+  - *Kryptan* (inomhus): rum och korridorer med minimalt uppspännande träd och slingor, dörrar, hemliga rum, skattrum, butiksrum och elitrum. Sju teman med olika väggar, golv, dimma och namn.
+  - *Grottorna*: cellautomat (45 % sten, fem utjämningar) och några slumpvandrare som gräver slingrande gångar. Flood fill behåller den största grottan och binder ihop resten med två rutor breda tunnlar. Droppstenar och lerfläckar.
+  - *Kyrkogården* (utomhus, under natthimlen): ett öppet fält innanför en mur, med kapell, kryptor (med kista), gravkvarter med rader av gravstenar, grusgångar från ingången och döda träd där brusfunktionen säger det.
+  - *Skogen* (utomhus): brus avgör var skogen är tät (trädridå) och var det är gläntor. En slingrande stig går från start till utgång, och en andra stig grenar av och går ihop med den igen, så det alltid finns en slinga. Gläntor med sidostigar och ibland en stuga med kista.
+  - *Borggården* (delvis utomhus): en öppen gård under himlen omgiven av byggnadslängor med rum, dörrar och ibland en grind, med torn, pelare och ett centralt torn som skydd.
+  - Gemensamt för alla: utgången hamnar längst bort från starten (räknat i gångavstånd), stora öppna ytor bryts upp med skydd, och varje föremål som blockerar kontrolleras så att det aldrig stänger av en väg. Generatorn tar 3–6 ms per våning.
+  - Valet av metod bygger på en genomgång av rot.js, cellautomater, Brogue-liknande rumspåbyggnad, BSP, Wave Function Collapse, slumpvandring, brus/Voronoi och Herringbone Wang tiles. Egna algoritmer per biom passar en rutnätsraycaster bäst; rot.js hade gett ett extra beroende och en andra slumpgenerator utan utomhusbiomer.
 - **Frö och dagens runda**: samma frö ger samma våningar. Fröet visas i pausen och efter rundan, och kan skrivas in på startskärmen. *Dagens runda* har samma frö för alla under dagen.
 - **Kort** (`js/cards.js`, `js/cardui.js`): 50 vanliga kort i fyra sällsyntheter (vanlig, ovanlig, sällsynt, legendarisk). Korten ger permanenta bonusar under rundan, till exempel skada, eldhastighet, krit, genomslag, explosioner, brand, livsstöld, sköld, extraliv, magnet och rabatt. Fem förbannade kort ger en stark fördel med en nackdel. Det finns synergier, som eld + explosion och krit + kritskada.
 - **Åtta vapen**: pistol, hagelgevär, gevär och kpist, samt
@@ -63,7 +70,8 @@ M/Tab karta · P/Esc paus · `[` `]` muskänslighet · `,` `.` synfält · `-` `
 - **Siktstöd på pekskärm:** kulan dras lätt mot en synlig fiende nära hårkorset, och vridningen saktar in när hårkorset ligger över en fiende.
 - **Synfält och känslighet:** båda kan ställas in med reglage på startskärmen, `,` `.` och `[` `]` i spelet, och sparas.
 
-Testerna körs med `node tools/gen-test.js` (300 våningar och 50 bossarenor) och `node tools/cards-test.js`.
+Testerna körs med `node tools/gen-test.js` (alla biomer, slumpade biomer och alla bossarenor) och `node tools/cards-test.js`.
+`node tools/gen-preview.js <biom|boss:arena|random> [frö] [djup]` skriver ut en våning som text, och `?biome=<id>` och `?boss=<id>` i adressen väljer biom och boss för test.
 Fiendearken byggs med `tools/enemy-sprites/prep.py` och vapenkortens bilder med `tools/weapon-cards/make.py`.
 `tools/cards-demo.html` visar kortgränssnittet fristående.
 
