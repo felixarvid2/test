@@ -1,0 +1,29 @@
+{
+  "name": "tower-merge",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "sprites": "node tools/sprite-manifest.mjs",
+    "build": "node tools/sprite-manifest.mjs && tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "sim": "tsx tools/simulate.ts",
+    "smoke": "node tools/smoke.mjs",
+    "package": "npm run build && node tools/package.mjs",
+    "perf": "node --expose-gc --import tsx tools/perf.ts"
+  },
+  "dependencies": {
+    "phaser": "3.90.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "playwright": "1.56.1",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vite": "6.4.4",
+    "vitest": "3.2.7"
+  }
+}
