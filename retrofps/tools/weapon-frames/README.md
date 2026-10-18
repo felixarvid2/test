@@ -1,16 +1,17 @@
 # Vapenbildrutor
 
-Förstapersonsvapnen i Krypta är renderade ur **RetroWeaponPack_V1.zip** (release `assets-large-v1`):
-paketets FPS-armar (`FP_Arms.fbx`) får vapnet i höger hand (`hand_item_r`), poseras med paketets egna
-animationer (BasePose, AimPose, Fire, Fire_Aiming, Reload/ReloadStart/Step/End, Draw) och renderas från
-riggens kamera. Höger hand håller greppet, vänster hand framstocken/pumpen.
+Förstapersonsvapnen i Krypta är renderade ur **RetroWeaponPack_V1.zip** (release `assets-large-v1`) i
+Doom/Quake 1-stil: inga händer, bara vapnet som sticker rakt fram från skärmens nederkant.
+Vapnet riktas upp så att pipan pekar rakt in i bilden, kameran står snett bakom och ovanför, och
+paketets egna `*_Fire`-animationer ger slide- och pumprörelsen. Rekyl, vapenbyte och omladdning görs i spelet.
 
 ```bash
 cd retrofps/tools/weapon-frames
 npm i three playwright-core
 unzip RetroWeaponPack_V1.zip 'Assets/RetroWeaponsPack/*' -d guns   # zippen från releasen
-node batch.mjs all frames      # renderar 960x498-bildrutor + mynningspositioner till frames/
-python3 pack.py                # beskär, skalar till 320x166-vyn och skriver assets/gfx/fp_*.png + js/weapons.js
+node render.mjs all qframes    # renderar 960x498-bildrutor + mynningspositioner
+python3 pack.py qframes        # skalar och placerar i 320x166-vyn, skriver assets/gfx/fp_*.png + js/weapons.js
 ```
 
-`batch.mjs` letar efter Chromium i `/opt/pw-browsers/chromium`; ändra `executablePath` om din ligger någon annanstans.
+Kamerans placering per vapen står i `render.mjs` (`cam`), storlek och placering på skärmen i `pack.py` (`TARGET`).
+`render.mjs` letar efter Chromium i `/opt/pw-browsers/chromium`; ändra `executablePath` om din ligger någon annanstans.

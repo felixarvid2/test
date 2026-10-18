@@ -20,12 +20,25 @@ window.renderFrame=async(p)=>{
   const clip=(await load(p.armsAnim)).animations[0];
   const mx=new THREE.AnimationMixer(arms);mx.clipAction(clip).play();const ta=Math.min(clip.duration-1e-4,Math.max(0,p.t));mx.setTime(ta);
   const gun=await load(p.gunFbx);const gm=await mat(p.gunTex);gun.traverse(o=>{if(o.isMesh){o.material=gm;o.frustumCulled=false}});
-  if(!gun.userData.pivot){const pv=new THREE.Group();pv.add(gun);gun.userData.pivot=pv;}const pv=gun.userData.pivot;
-  if(current&&current!==pv)socket.remove(current);socket.add(pv);current=pv;
+  if(!gun.userData.pivot){const pv=new THREE.Group();pv.userData.isPivot=true;pv.add(gun);gun.userData.pivot=pv;}const pv=gun.userData.pivot;
+  for(const c of [...sc.children])if(c.userData.isPivot)sc.remove(c);if(pv.parent&&pv.parent!==socket)pv.parent.remove(pv);if(current&&current!==pv)socket.remove(current);socket.add(pv);current=pv;
   const g=(p.grot||[0,0,0]).map(x=>x*Math.PI/180);pv.rotation.set(g[0],g[1],g[2]);
   if(p.gunAnim){const gc=(await load(p.gunAnim)).animations[0];if(gc){const m2=new THREE.AnimationMixer(gun);m2.clipAction(gc).play();m2.setTime(Math.min(gc.duration-1e-4,Math.max(0,p.t)));}}
   else if(p.gunBase){const gc=(await load(p.gunBase)).animations[0];if(gc){const m2=new THREE.AnimationMixer(gun);m2.clipAction(gc).play();m2.setTime(0);}}
+  arms.traverse(o=>{if(o.name==='FPS_Arms_Mesh')o.visible=!p.hideArms});
   arms.updateMatrixWorld(true);
+  if(p.straight){ // rak vapenvy: lossa vapnet ur handen och rikta pipan längs +X med ovansidan upp
+    pv.rotation.set(0,0,0);pv.updateMatrixWorld(true);const gw=new THREE.Quaternion();gun.getWorldQuaternion(gw);
+    const axes=[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]].map(a=>new THREE.Vector3(...a));
+    const best=t=>axes.reduce((b,a)=>a.clone().applyQuaternion(gw).dot(t)>b.clone().applyQuaternion(gw).dot(t)?a:b);
+    const f=best(new THREE.Vector3(1,0,0)),u=best(new THREE.Vector3(0,1,0)),w=new THREE.Vector3().crossVectors(f,u);
+    const L=new THREE.Matrix4().makeBasis(f,u,w),Wm=new THREE.Matrix4().makeBasis(new THREE.Vector3(1,0,0),new THREE.Vector3(0,1,0),new THREE.Vector3(0,0,1));
+    const Rt=Wm.clone().multiply(L.clone().transpose());const qt=new THREE.Quaternion().setFromRotationMatrix(Rt);
+    const gl=gun.quaternion.clone();socket.remove(pv);sc.add(pv);current=null;pv.position.set(0,0,0);pv.quaternion.copy(qt.multiply(gl.invert()));
+    if(p.roll)pv.rotateX(p.roll*Math.PI/180);
+    pv.updateMatrixWorld(true);
+  }
+  const gbx=new THREE.Box3();gun.traverse(o=>{if(o.isMesh){o.updateMatrixWorld(true);const pos=o.geometry.attributes.position;const v2=new THREE.Vector3();for(let i=0;i<pos.count;i+=3){o.getVertexPosition(i,v2).applyMatrix4(o.matrixWorld);gbx.expandByPoint(v2)}}});
   const [yaw,pitch,dx,dy,dz]=p.cam;const fwd=new THREE.Vector3(1,0,0).applyAxisAngle(new THREE.Vector3(0,1,0),yaw*Math.PI/180);
   const right=new THREE.Vector3().crossVectors(fwd,new THREE.Vector3(0,1,0)).normalize();
   const look=fwd.clone().applyAxisAngle(right,pitch*Math.PI/180);
@@ -38,7 +51,7 @@ window.renderFrame=async(p)=>{
   const front=pts.filter(q=>q.clone().sub(cam.position).dot(look)>mxv-1.2);const c=new THREE.Vector3();front.forEach(q=>c.add(q));c.divideScalar(front.length||1);
   const ndc=c.clone().project(cam);const muzzle=[(ndc.x+1)/2*W,(1-ndc.y)/2*H];
   r.render(sc,cam);
-  return {png:r.domElement.toDataURL('image/png'),muzzle,dur:clip.duration};
+  return {png:r.domElement.toDataURL('image/png'),muzzle,dur:clip.duration,gmin:gbx.min.toArray(),gmax:gbx.max.toArray()};
 };
 window.ready=true;
 </script>

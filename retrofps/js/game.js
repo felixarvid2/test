@@ -113,10 +113,10 @@ function play(name, vol = 1, rate = 1, opt = {}) {
 // ---------- Vapen ----------
 // mag = magasinsstorlek, ammo = ammotyp, delay = tid mellan skott
 const WEAPONS = [
-  { id: 'pistol', name: 'PISTOL', short: 'PISTOL', ammo: 'p9', mag: 9, dmg: 2.2, pellets: 1, spread: 0.012, delay: 0.3, auto: false, sound: ['shot', 1.15, 0.85], flash: 0.75, kick: 0.6 },
-  { id: 'shotgun', name: 'HAGELGEVÄR', short: 'HAGEL', ammo: 'shells', mag: 6, dmg: 1.7, pellets: 9, spread: 0.07, delay: 0.95, auto: false, sound: ['boom', 0.8, 0.9], flash: 1.4, kick: 2.2, shellReload: true },
-  { id: 'rifle', name: 'GEVÄR', short: 'GEVÄR', ammo: 'r556', mag: 24, dmg: 2.8, pellets: 1, spread: 0.014, delay: 0.13, auto: true, sound: ['shot', 0.82, 0.9], flash: 1.0, kick: 0.9 },
-  { id: 'smg', name: 'KULSPRUTEPISTOL', short: 'KPIST', ammo: 'p9', mag: 32, dmg: 1.5, pellets: 1, spread: 0.035, delay: 0.085, auto: true, sound: ['shot', 1.45, 0.65], flash: 0.75, kick: 0.5 },
+  { id: 'pistol', name: 'PISTOL', short: 'PISTOL', ammo: 'p9', mag: 9, dmg: 2.2, pellets: 1, spread: 0.012, delay: 0.3, auto: false, sound: ['shot', 1.15, 0.85], flash: 0.75, kick: 0.8, reload: 1.1 },
+  { id: 'shotgun', name: 'HAGELGEVÄR', short: 'HAGEL', ammo: 'shells', mag: 6, dmg: 1.7, pellets: 9, spread: 0.07, delay: 0.95, auto: false, sound: ['boom', 0.8, 0.9], flash: 1.4, kick: 2.2, shellReload: true, reload: 0 },
+  { id: 'rifle', name: 'GEVÄR', short: 'GEVÄR', ammo: 'r556', mag: 24, dmg: 2.8, pellets: 1, spread: 0.014, delay: 0.13, auto: true, sound: ['shot', 0.82, 0.9], flash: 1.0, kick: 0.9, reload: 1.7 },
+  { id: 'smg', name: 'KULSPRUTEPISTOL', short: 'KPIST', ammo: 'p9', mag: 32, dmg: 1.5, pellets: 1, spread: 0.035, delay: 0.085, auto: true, sound: ['shot', 1.45, 0.65], flash: 0.75, kick: 0.5, reload: 1.5 },
 ];
 const AMMO = { p9: { name: '9MM', max: 200 }, r556: { name: '5.56', max: 150 }, shells: { name: 'PATRONER', max: 50 } };
 const WF = window.WEAPON_FRAMES;
@@ -398,30 +398,37 @@ function enemyFrame(e) {
 
 // ---------- Förstapersonsvapen ----------
 const wcan = document.createElement('canvas'), wctx = wcan.getContext('2d');
-function weaponFrame() { // vilken bildruta och förskjutning som ska visas
+function weaponFrame() { // bildruta och förskjutning: vapnet sticker rakt fram (Doom/Quake), rörelser görs här
   const wp = WEAPONS[P.weapon], f = WF[wp.id], st = f.states;
-  const aiming = WS.aim > 0.5;
-  let idx = aiming ? st.aim[0] : st.idle[0], dy = 0;
   const pick = (arr, k) => arr[clamp(Math.floor(k * arr.length), 0, arr.length - 1)];
-  if (WS.state === 'draw') idx = pick(st.draw, WS.t / drawTime());
-  else if (WS.state === 'holster') idx = pick(st.draw, 1 - WS.t / 0.22);
+  let idx = st.idle[0], dx = 0, dy = 0;
+  if (WS.shot < f.dur.fire) idx = pick(st.fire, WS.shot / f.dur.fire);
+  // rekyl: vapnet knycker bakåt (nedåt på skärmen) och fjädrar tillbaka
+  const kt = WS.shot / 0.16;
+  if (kt < 1) dy += Math.sin(Math.min(1, kt) * Math.PI) * wp.kick * 7 * (1 - WS.aim * 0.5);
+  if (WS.state === 'draw') dy += (1 - easeOut(WS.t / drawTime())) * f.h;
+  else if (WS.state === 'holster') dy += easeIn(WS.t / 0.22) * f.h;
   else if (WS.state === 'reload') {
-    if (wp.shellReload) {
-      const seg = WS.shellPhase === 'start' ? st.reload.slice(0, 3) : WS.shellPhase === 'step' ? st.reload.slice(3, 8) : st.reload.slice(8);
-      idx = pick(seg, WS.t / shellSeg(WS.shellPhase));
-    } else idx = pick(st.reload, WS.t / f.dur.reload);
-  } else if (WS.shot < (aiming ? f.dur.aimfire : f.dur.fire)) {
-    idx = pick(aiming ? st.aimfire : st.fire, WS.shot / (aiming ? f.dur.aimfire : f.dur.fire));
+    if (wp.shellReload) { // ner lite för varje patron
+      const k = WS.t / shellSeg(WS.shellPhase);
+      dy += WS.shellPhase === 'start' ? easeOut(k) * 34 : WS.shellPhase === 'end' ? (1 - easeIn(k)) * 34 : 34 + Math.sin(k * Math.PI) * 10;
+      dx += WS.shellPhase === 'step' ? -Math.sin(k * Math.PI) * 4 : 0;
+    } else { // ner ur bild och upp igen
+      const k = WS.t / wp.reload;
+      dy += Math.sin(clamp(k, 0, 1) * Math.PI) * f.h * 0.75;
+    }
   }
-  if (state === 'dead') dy = Math.min(80, P.deadT * 140);
-  return { f, idx, dy };
+  dx += (160 - (f.x + f.w / 2)) * WS.aim * 0.6; dy -= WS.aim * 6; // sikta: in mot mitten och upp
+  if (state === 'dead') dy += Math.min(f.h, P.deadT * 160);
+  return { f, idx, dx, dy };
 }
-const drawTime = () => Math.min(0.55, WF[WEAPONS[P.weapon].id].dur.draw * 0.7);
+const easeOut = k => 1 - (1 - clamp(k, 0, 1)) ** 2, easeIn = k => clamp(k, 0, 1) ** 2;
+const drawTime = () => 0.32;
 const shellSeg = ph => ph === 'start' ? 0.32 : ph === 'step' ? 0.5 : 0.42;
 function drawWeapon() {
-  const { f, idx, dy } = weaponFrame();
+  const { f, idx, dx, dy } = weaponFrame();
   const amp = P.bobAmp * (1 - WS.aim * 0.75);
-  const ox = Math.round(Math.sin(P.bob) * 4 * amp - WS.swayX), oy = Math.round(Math.abs(Math.cos(P.bob)) * 3 * amp - WS.swayY + dy + P.shake * 2);
+  const ox = Math.round(Math.sin(P.bob) * 4 * amp - WS.swayX + dx), oy = Math.round(Math.abs(Math.cos(P.bob)) * 3 * amp - WS.swayY + dy + P.shake * 2);
   const img = wimg[WEAPONS[P.weapon].id];
   // ljussätt vapnet efter platsen man står på (och mynningsblixten)
   const L = clamp(lightAt(P.x, P.y) * 1.05 + P.flash * 4, 0.28, 1.25);
@@ -764,7 +771,7 @@ function updateWeapon(dt) {
         } else { WS.state = 'idle'; play('reload', 0.45, 1.4); }
       }
     } else {
-      const dur = WF[wp.id].dur.reload;
+      const dur = wp.reload;
       if (!WS.loaded && WS.t >= dur * 0.65) { WS.loaded = true; finishReload(); play('click', 0.5, 0.9); }
       if (WS.t >= dur) { WS.state = 'idle'; WS.loaded = false; }
     }

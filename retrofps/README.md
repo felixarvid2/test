@@ -8,17 +8,17 @@ tre fiendetyper, hemliga rum och sparat framsteg.
 E/mellanslag öppna dörr eller hemlig vägg · Shift spring · 1–4/Q/mushjul byt vapen · M/Tab karta ·
 P/Esc paus · `[` `]` muskänslighet · `-` `+` volym · N ljud av · O helskärm.
 
-## Förbättringar i version 2
+## Förbättringar
 
 Vapen och känsla
-1. Vapnen hålls av riktiga förstapersonsarmar ur RetroWeaponPack: höger hand på greppet, vänster hand på framstocken eller pumpen, pistolen med två händer.
-2. Paketets egna skjutanimationer: rekyl, slide och pump.
-3. Magasin och omladdning (R) med paketets omladdningsanimationer.
+1. Vapnen sticker rakt fram från skärmens nederkant som i Doom och Quake 1, utan händer. De är renderade ur RetroWeaponPack.
+2. Paketets egna skjutanimationer för slide och pump, plus en rekylknyck.
+3. Magasin och omladdning (R): vapnet sänks ur bild och kommer upp igen.
 4. Hagelgeväret laddas en patron i taget, och man kan avbryta omladdningen genom att skjuta.
 5. Automatisk omladdning när magasinet tar slut.
 6. Torrt klick när magasinet är tomt.
-7. Vapenbyte stoppar undan det gamla vapnet och drar fram det nya (paketets Draw-animation).
-8. Sikta med höger musknapp: paketets siktpose, lätt zoom, mindre spridning och långsammare rörelse.
+7. Vid vapenbyte sänks det gamla vapnet och det nya höjs upp.
+8. Sikta med höger musknapp: vapnet flyttas in mot mitten, lätt zoom, mindre spridning och långsammare rörelse.
 9. Mynningsflamman sitter vid vapnets verkliga mynning i varje bildruta.
 10. Vapnet svajar efter musrörelser.
 11. Vapnet gungar i takt med farten och lugnar sig mjukt när man stannar.
@@ -76,7 +76,7 @@ Spelare och gränssnitt
 
 | Vad | Källa |
 |---|---|
-| Förstapersonsarmar och vapen (pistol, hagelgevär, gevär, kpist) med animationer | release `assets-large-v1` → `RetroWeaponPack_V1.zip`, renderade med `tools/weapon-frames` |
+| Förstapersonsvapen (pistol, hagelgevär, gevär, kpist) med skjutanimationer | release `assets-large-v1` → `RetroWeaponPack_V1.zip`, renderade med `tools/weapon-frames` |
 | Mynningsflamma | `RetroWeaponPack_V1.zip` → `FX/Textures/MuzzleFlash.png` |
 | Väggar, dörrar, golv, tak | `assets/textures/retro-textures-fantasy` (Kenney, CC0) |
 | Skelett, eldskelett, vampyr | `assets/2d-pixel/Enemy_Animations_Set` |
