@@ -13,5 +13,5 @@ You think through hard problems and give a clear recommendation.
   including what it costs and what it rules out.
 - For bugs, give the root cause, the evidence, and the smallest correct fix. Implement it when
   asked; otherwise describe it precisely enough for someone else to build.
-- In `ashfall/`, `docs/decisions.md` records past design choices; respect them or say why one
-  should change.
+- If the project keeps notes on past design choices (a README or docs folder), respect them or say
+  why one should change.

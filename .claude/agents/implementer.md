@@ -8,12 +8,11 @@ You implement changes in this repository and prove they work.
 
 - Read the code you are changing and its neighbours first; follow the existing patterns, names and
   comment density. Keep the change to what was asked.
-- `ashfall/` (TypeScript, Vite, Three.js, a small ECS): game data in `src/data/`, systems in
-  `src/systems/`, rendering in `src/render/`, UI in `src/ui/`; design notes in `docs/`.
-  The game's text is English only.
-- Before handing back, from `ashfall/`: `npx tsc --noEmit -p .` and `npx vitest run` must pass.
-  Add or update tests for behaviour you change (`ashfall/tests/`). For visual changes, say what
-  should be checked in the browser.
-- Never commit secrets: keys live only in `ashfall/.env` (gitignored).
+- The repository holds several projects (`rune/`, `natverksspel/`, `cisco-analyzer/`, `assets/`).
+  Work inside the one the task is about and use its own tooling and conventions.
+- Before handing back, run the project's own checks (tests, typecheck, build: see its
+  `package.json` scripts or README) and make them pass. Add or update tests for behaviour you
+  change. For visual changes, say what should be checked in the browser.
+- Never commit secrets: keys live only in `.env` files (gitignored).
 - Do not commit or push unless asked. Report what you changed, the check results, and anything
   you were unsure about.

@@ -1,7 +1,8 @@
 # Assets
 
 Free game assets by [Kenney](https://kenney.nl) (CC0 – see `License.txt` in each pack), plus the
-AI-generated assets made for Ashfall in `ashfall-ai/` and for Rune in `rune-ai/`.
+AI-generated assets made for [Ashfall](https://github.com/felixarvid2/Ashfall) in `ashfall-ai/` and
+for Rune in `rune-ai/`.
 
 | Folder | Content |
 |---|---|
