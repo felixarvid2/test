@@ -28,6 +28,8 @@
     <button class="d" id="b-shop">BUTIK</button>
     <button class="d" id="b-souls">SJÄLSBUTIK</button>
     <button class="d" id="b-deck">KORTLEK</button>
+    <button class="d" id="b-draftx">DRAFT MED SYNERGI, FÖRVISA OCH NYA KORT</button>
+    <button class="d" id="b-codex">KORTARKIV</button>
   </div>
   <div id="log">Tangenter 1-9, pilar, Enter och Esc fungerar i fönstren. Spelkänslig tangent-test: tryck på tangenter medan ett fönster är öppet och se om de loggas nedan.</div>
 </main>
@@ -41,7 +43,9 @@
     int(a, b) { return a + Math.floor(this.next() * (b - a + 1)); }, pick(a) { return a[Math.floor(this.next() * a.length)]; },
     weighted(a, fn) { let t = 0; for (const x of a) t += fn(x); let r = this.next() * t; for (const x of a) { r -= fn(x); if (r <= 0) return x; } return a[a.length - 1]; } };
   const q = new URLSearchParams(location.search);
-  const state = { owned: ['slipstenen', 'slipstenen', 'kantvakten', 'glodkol', 'fyrklovern', 'offerdolken', 'askkungen', 'stenhjartat', 'lagerelden', 'prisma'], gold: 140, depth: 1, souls: 55 };
+  const state = { owned: ['slipstenen', 'slipstenen', 'kantvakten', 'glodkol', 'fyrklovern', 'offerdolken', 'askkungen', 'stenhjartat', 'lagerelden', 'prisma', 'halvmane', 'korsriddaren', 'offerkniven', 'grodan'], gold: 140, depth: 1, souls: 55 };
+  // sedda kort (för NY-märket och kortarkivet): ägda plus några till
+  const seen = new Set(state.owned.concat(['benflojt', 'manesilver', 'guldbaggen', 'ekot', 'vampyren', 'ouroboros', 'pakt_pistol', 'studskulan']));
   const unlocked = new Set(Cards.ALL.map(c => c.id)); // demo: allt upplåst
   const $ = id => document.getElementById(id);
   const log = t => { $('log').textContent = t + '\n' + $('log').textContent; };
@@ -83,11 +87,27 @@
   $('b-shop').onclick = shop;
   $('b-souls').onclick = souls;
   $('b-deck').onclick = () => CardUI.deck(state.owned);
+  // draft med alla nya val: synergi- och NY-märken, förvisa (en gång) och nya kort för guld
+  function draftX(cards) {
+    cards = cards || draw(3);
+    const shown = () => cards.forEach(c => seen.add(c.id));
+    CardUI.draft(cards, {
+      title: 'VÅNING 2 KLARAD', subtitle: 'VÄLJ ETT KORT', skipLabel: 'HOPPA ÖVER (+25 GULD)',
+      owned: state.owned, seen: new Set(seen),
+      banish: c => { const rep = Cards.draw(rng, 1, { owned: state.owned.concat(cards.map(x => x.id)), depth: state.depth, unlocked })[0] || null; if (rep) { cards = cards.map(x => x === c ? rep : x); log('förvisade ' + c.name + ' -> ' + rep.name); } return rep; },
+      reroll: { price: 25, gold: state.gold, onReroll: () => { if (state.gold < 25) return null; state.gold -= 25; stat(); cards = draw(3); log('nya kort'); return cards; } },
+    }, c => { shown(); if (c) { state.owned.push(c.id); log('valde ' + c.name); } else log('hoppade över'); stat(); });
+  }
+  $('b-draftx').onclick = () => draftX();
+  $('b-codex').onclick = () => CardUI.codex(Cards.ALL, { seen, owned: new Set(state.owned), unlocked: new Set(Cards.ALL.filter(c => !c.unlock || c.unlock < 30).map(c => c.id)) }, () => log('stängde arkivet'));
   const auto = q.get('auto');
   if (auto === 'draft') draft(3); else if (auto === 'draft5') draft(5); else if (auto === 'shop') shop(); else if (auto === 'souls') souls(); else if (auto === 'deck') CardUI.deck(state.owned);
   else if (auto === 'legend') CardUI.draft(['tomhetsstenen', 'gravvaktaren', 'ouroboros', 'askkungen', 'vaktarbanan'].map(Cards.byId), { title: 'LEGENDARISKA TESTKORT' }, () => {})
+  else if (auto === 'draftx') draftX(['bronda_runan', 'spakvinnan', 'prismakronan'].map(Cards.byId));
+  else if (auto === 'curse') draftX(['maskerna', 'ansiktslos', 'feltrycket'].map(Cards.byId));
+  else if (auto === 'codex') $('b-codex').click();
   else if (auto === 'toast') { CardUI.toast(Cards.byId('forbannade_kronan')); CardUI.toast(Cards.byId('ouroboros')); }
-  window.__demo = { state, draw };
+  window.__demo = { state, draw, seen, draftX };
 })();
 </script>
 </body>

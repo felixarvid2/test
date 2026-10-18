@@ -54,6 +54,33 @@ const MOD_KEYS = {
   lowHpDmg: 'Andel extra skada när HP < 35 %',
   speedOnKill: 'Sekunder snabbare rörelse efter dödande',
   execute: 'Vanliga fiender under denna andel HP dör direkt',
+  grenades: 'Extra max granater (platt)',
+  grenadeDmg: 'Andel extra granatskada',
+  stamina: 'Andel mer uthållighet',
+  dashCd: 'Andel kortare återhämtning för rusning',
+  airDmg: 'Andel extra skada medan man är i luften (hopp)',
+  backstab: 'Andel extra skada mot fiender som inte sett dig',
+  comboGold: 'Extra guld per steg i kombomätaren (platt)',
+  trapResist: 'Andel mindre skada från fällor, lava och gas',
+  freezeChance: 'Chans (0-1) att frysa fienden',
+  poisonChance: 'Chans (0-1) att förgifta',
+  shockChance: 'Chans (0-1) att en blixt hoppar till en närliggande fiende',
+  interest: 'Andel ränta på guldet vid varje ny våning (max 30 guld)',
+  floorHeal: 'HP som ges vid varje ny våning',
+  killExplode: 'Chans (0-1) att dödade fiender exploderar',
+  reloadNova: 'Skada i en stöt runt dig när du laddar om (platt, 0 = av)',
+  eliteGold: 'Andel extra guld från eliter och väktare',
+  trapSense: 'Fällor syns på kartan (1 = på)',
+  enemySense: 'Fiender syns på kartan genom väggar (1 = på)',
+  critHeal: 'HP per kritisk träff',
+  dashDmg: 'Skada på fiender man rusar igenom (platt)',
+  shieldOnKill: 'Sköldpoäng per dödad fiende',
+  ammoRegen: 'Andel av ett magasin som fylls på per sekund i reserven',
+  knockback: 'Andel större knuff vid träff',
+  chestChoice: 'Extra val i kistor (platt)',
+  freeReroll: 'Gratis "nya kort" i butiken per våning (platt)',
+  hazardImmune: 'Immun mot lava, vatten, is och nät (1 = på)',
+  doubleJump: 'Dubbelhopp (1 = på)',
 };
 const KEYS = Object.keys(MOD_KEYS);
 
@@ -113,6 +140,61 @@ const DEFS = [
   ['vaktarbanan', 'NATTKORPEN', 'legendarisk', { fireRate: 0.3, reloadSpeed: 0.3, ammoSave: 0.15, moveSpeed: 0.1 }, 1, '+30 % ELDHASTIGHET\n+30 % LADDNING\n15 % GRATIS SKOTT\n+10 % RÖRELSE', { unlock: 50 }],
   ['spegelvannen', 'SPEGELVÄNNEN', 'legendarisk', { extraPellets: 2, pierce: 1, magSize: 0.2 }, 1, '+2 KULOR PER SKOTT\nGÅR IGENOM +1 FIENDE\n+20 % MAGASIN', { unlock: 45 }],
   ['ouroboros', 'OUROBOROS', 'legendarisk', { extraLife: 1, regen: 1, lifesteal: 0.05, healMul: 0.25 }, 1, '+1 ÅTERUPPLIVNING\n+1 HP PER SEKUND\n5 % AV SKADAN BLIR HP\n+25 % HELNING', { unlock: 60 }],
+  // ---- NYA KORT (version 4): granater, rörelse, gift, frost, blixt, guld och skuggor ----
+  // vanliga
+  ['fyllbulten', 'MJÖDHORNET', 'vanlig', { stamina: 0.15 }, 4, '+15 % UTHÅLLIGHET'],
+  ['fyrfoten', 'VARGTASSEN', 'vanlig', { dashCd: 0.12 }, 4, '12 % KORTARE ÅTERHÄMTNING\nFÖR RUSNING'],
+  ['hornstenen', 'HÖRNSTENEN', 'vanlig', { trapResist: 0.2 }, 3, '-20 % SKADA FRÅN FÄLLOR,\nLAVA OCH GAS'],
+  ['agget', 'DRAKÄGGET', 'vanlig', { grenades: 1 }, 3, '+1 MAX GRANAT'],
+  ['benflojt', 'BENFLÖJTEN', 'vanlig', { grenadeDmg: 0.2 }, 3, '+20 % GRANATSKADA'],
+  ['hangande_lappen', 'SKULDSEDELN', 'vanlig', { interest: 0.05 }, 3, '5 % RÄNTA PÅ GULDET VID\nVARJE NY VÅNING (MAX 30)'],
+  ['gronskan', 'GRODDEN', 'vanlig', { floorHeal: 10 }, 3, '+10 HP VID VARJE NY VÅNING'],
+  ['att_gora', 'KRÖNIKAN', 'vanlig', { comboGold: 1 }, 3, '+1 GULD PER KOMBOSTEG'],
+  ['grodan', 'TRÄSKPADDAN', 'vanlig', { poisonChance: 0.12 }, 3, '12 % CHANS ATT FÖRGIFTA'],
+  ['halvmane', 'HALVMÅNEN', 'vanlig', { backstab: 0.25 }, 3, '+25 % SKADA MOT\nOVETANDE FIENDER'],
+  ['dominobrickan', 'BENTÄRNINGARNA', 'vanlig', { knockback: 0.3 }, 3, '+30 % KNUFF VID TRÄFF'],
+  ['sollinsen', 'BRÄNNGLASET', 'vanlig', { critChance: 0.04, burnChance: 0.05 }, 3, '+4 % KRITCHANS\n5 % BRANDCHANS'],
+  ['glasogat', 'SPRUCKNA LUPPEN', 'vanlig', { critHeal: 1 }, 3, '+1 HP PER KRITISK TRÄFF'],
+  ['akrobaten', 'GYCKLARENS SKUGGA', 'vanlig', { airDmg: 0.2 }, 3, '+20 % SKADA I LUFTEN'],
+  ['urtidsrunan', 'URTIDSURNAN', 'vanlig', { ammoRegen: 0.02 }, 3, '2 % AV ETT MAGASIN PER\nSEKUND TILL RESERVEN'],
+  ['fyrkanten', 'RUNPLATTAN', 'vanlig', { shieldOnKill: 1 }, 3, '+1 SKÖLD PER DÖDAD FIENDE'],
+  ['idolen', 'GULDIDOLEN', 'vanlig', { eliteGold: 0.3 }, 3, '+30 % GULD FRÅN ELIT\nOCH VÄKTARE'],
+  ['moln_nio', 'FROSTMOLNET', 'vanlig', { freezeChance: 0.06 }, 3, '6 % CHANS ATT FRYSA FIENDEN'],
+  ['askstav', 'ÅSKSTAVEN', 'vanlig', { shockChance: 0.08 }, 3, '8 % CHANS ATT EN BLIXT\nHOPPAR TILL EN GRANNE'],
+  ['feltrycket', 'FALSKA TÄRNINGEN', 'vanlig', { freeReroll: 1, goldMul: -0.15 }, 1, '+1 GRATIS NYA KORT I\nBUTIKEN PER VÅNING\n-15 % GULD', { curse: true, bad: 1 }],
+  // ovanliga
+  ['spakvinnan', 'HÄXANS KRISTALL', 'ovanlig', { poisonChance: 0.18 }, 3, '18 % CHANS ATT FÖRGIFTA', { unlock: 15 }],
+  ['kristallkronan', 'ISKRONAN', 'ovanlig', { freezeChance: 0.12 }, 2, '12 % CHANS ATT FRYSA FIENDEN', { unlock: 15 }],
+  ['tankestormen', 'STORMHJÄRNAN', 'ovanlig', { shockChance: 0.15 }, 2, '15 % CHANS ATT EN BLIXT\nHOPPAR TILL EN GRANNE', { unlock: 20 }],
+  ['inbrottstjuven', 'GRAVPLUNDRAREN', 'ovanlig', { backstab: 0.4, moveSpeed: 0.05 }, 2, '+40 % SKADA MOT\nOVETANDE FIENDER\n+5 % RÖRELSEHASTIGHET'],
+  ['snedsteget', 'SPÖKTRAPPAN', 'ovanlig', { dashDmg: 15, dashCd: 0.1 }, 2, 'RUSNING GENOM FIENDER\nGÖR 15 SKADA\n10 % KORTARE ÅTERHÄMTNING'],
+  ['spakortet', 'ALLSEENDE ÖGAT', 'ovanlig', { enemySense: 1 }, 1, 'FIENDER SYNS PÅ KARTAN\nGENOM VÄGGAR', { unlock: 20 }],
+  ['avtrycket', 'FÄLLKARTAN', 'ovanlig', { trapSense: 1, trapResist: 0.1 }, 1, 'FÄLLOR SYNS PÅ KARTAN\n-10 % SKADA FRÅN FÄLLOR'],
+  ['tomrummet', 'TOMRUMSRINGEN', 'ovanlig', { killExplode: 0.1 }, 3, '10 % CHANS ATT DÖDADE\nFIENDER EXPLODERAR'],
+  ['trubaduren', 'DÖDSFIOLEN', 'ovanlig', { reloadNova: 15 }, 2, 'OMLADDNING GER EN STÖT\nSOM GÖR 15 SKADA RUNT DIG', { unlock: 15 }],
+  ['lyckokatten', 'LYCKOKATTEN', 'ovanlig', { freeReroll: 1, luck: 0.05 }, 2, '+1 GRATIS NYA KORT I\nBUTIKEN PER VÅNING\n+5 % LYCKA'],
+  ['sigillbrevet', 'SIGILLBREVET', 'ovanlig', { chestChoice: 1 }, 2, '+1 VAL I KISTOR', { unlock: 15 }],
+  ['rotknuta', 'LIVSROTEN', 'ovanlig', { floorHeal: 20, regen: 0.2 }, 2, '+20 HP VID VARJE NY VÅNING\n+0,2 HP PER SEKUND'],
+  ['schablonen', 'BÖDELNS MÅTT', 'ovanlig', { critChance: 0.06, critHeal: 2 }, 2, '+6 % KRITCHANS\n+2 HP PER KRITISK TRÄFF'],
+  ['maskerna', 'DE TVÅ MASKERNA', 'ovanlig', { backstab: 0.6, damageTaken: 0.15 }, 1, '+60 % SKADA MOT\nOVETANDE FIENDER\n+15 % SKADA DU TAR', { curse: true, bad: 1, unlock: 20 }],
+  ['baronen', 'BARONENS HATT', 'ovanlig', { eliteGold: 0.4, shopDiscount: 0.05 }, 2, '+40 % GULD FRÅN ELIT\nOCH VÄKTARE\n-5 % PRISER I BUTIKEN'],
+  // sällsynta
+  ['vandringsstaven', 'FROSTSTAVEN', 'sallsynt', { freezeChance: 0.15, slowChance: 0.1 }, 2, '15 % CHANS ATT FRYSA\n10 % CHANS ATT SAKTA NED', { unlock: 25 }],
+  ['bryggan', 'BRON ÖVER AVGRUNDEN', 'sallsynt', { hazardImmune: 1 }, 1, 'IMMUN MOT LAVA, VATTEN,\nIS OCH NÄT', { unlock: 30 }],
+  ['kubtornet', 'VAKTTORNET', 'sallsynt', { shield: 10, shieldOnKill: 2 }, 2, '+10 SKÖLD\n+2 SKÖLD PER DÖDAD FIENDE'],
+  ['spadomskulan', 'ÖDESKULAN', 'sallsynt', { chestChoice: 1, luck: 0.1 }, 1, '+1 VAL I KISTOR\n+10 % LYCKA', { unlock: 30 }],
+  ['glad_trefot', 'SKRATTBOMBEN', 'sallsynt', { grenades: 2, grenadeDmg: 0.3 }, 2, '+2 MAX GRANATER\n+30 % GRANATSKADA', { unlock: 25 }],
+  ['pirathatten', 'KRUTKAPTENENS HATT', 'sallsynt', { dmg: 0.08, knockback: 0.4, killExplode: 0.08 }, 2, '+8 % SKADA\n+40 % KNUFF VID TRÄFF\n8 % CHANS ATT DÖDADE\nFIENDER EXPLODERAR'],
+  ['horisonten', 'HORISONTRUNAN', 'sallsynt', { interest: 0.1, floorHeal: 10 }, 1, '10 % RÄNTA PÅ GULDET VID\nVARJE NY VÅNING (MAX 30)\n+10 HP VID VARJE NY VÅNING'],
+  ['runsten', 'ÅSKRUNAN', 'sallsynt', { shockChance: 0.2, reloadNova: 20 }, 1, '20 % CHANS ATT EN BLIXT\nHOPPAR TILL EN GRANNE\nOMLADDNING GER EN STÖT\nSOM GÖR 20 SKADA', { unlock: 30 }],
+  ['eremiten', 'EREMITENS Ö', 'sallsynt', { floorHeal: 30, regen: 0.5, moveSpeed: -0.1 }, 1, '+30 HP VID VARJE NY VÅNING\n+0,5 HP PER SEKUND\n-10 % RÖRELSEHASTIGHET', { curse: true, bad: 1 }],
+  ['snedkronet', 'GIFTKRONAN', 'sallsynt', { poisonChance: 0.25, critChance: 0.05 }, 2, '25 % CHANS ATT FÖRGIFTA\n+5 % KRITCHANS', { unlock: 25 }],
+  // legendariska
+  ['prismakronan', 'REGNBÅGSKRONAN', 'legendarisk', { burnChance: 0.15, freezeChance: 0.15, poisonChance: 0.15, shockChance: 0.15 }, 1, '15 % BRANDCHANS\n15 % CHANS ATT FRYSA\n15 % CHANS ATT FÖRGIFTA\n15 % BLIXTCHANS', { unlock: 50 }],
+  ['gryningen', 'GRYNINGSKORSET', 'legendarisk', { doubleJump: 1, airDmg: 0.35, stamina: 0.25 }, 1, 'DUBBELHOPP\n+35 % SKADA I LUFTEN\n+25 % UTHÅLLIGHET', { unlock: 45 }],
+  ['travstaven', 'PILGRIMSSTAVEN', 'legendarisk', { dashCd: 0.3, dashDmg: 30, dodge: 0.08 }, 1, '30 % KORTARE ÅTERHÄMTNING\nFÖR RUSNING\nRUSNING GÖR 30 SKADA\n+8 % CHANS ATT UNDVIKA', { unlock: 40 }],
+  ['brokiga', 'ÖDETS VÄV', 'legendarisk', { cardChoices: 1, chestChoice: 1, freeReroll: 1, luck: 0.15 }, 1, '+1 VAL VID KORTDRAGNING\n+1 VAL I KISTOR\n+1 GRATIS NYA KORT PER VÅNING\n+15 % LYCKA', { unlock: 55 }],
+  ['ansiktslos', 'DEN ANSIKTSLÖSE', 'legendarisk', { backstab: 1, enemySense: 1, dmg: 0.2, maxHp: -30, healMul: -0.25 }, 1, '+100 % SKADA MOT OVETANDE\nFIENDER SYNS GENOM VÄGGAR\n+20 % SKADA\n-30 MAX HP\n-25 % HELNING', { curse: true, bad: 2, unlock: 40 }],
   // ---- VAPENPAKTER: låser rundan till ett vapen och öppnar dess unika uppgraderingar ----
   ['pakt_pistol', 'REVOLVERMANNENS ED', 'sallsynt', { dmg: 0.15 }, 1, '+15 % SKADA\nALL AMMO BLIR 9MM\n5 UNIKA UPPGRADERINGAR\nBARA PISTOL RESTEN AV RUNDAN', { pact: 'pistol', bad: 1 }],
   ['pakt_hagel', 'SLAKTARENS ED', 'sallsynt', { dmg: 0.15 }, 1, '+15 % SKADA\nALL AMMO BLIR PATRONER\n5 UNIKA UPPGRADERINGAR\nBARA HAGELGEVÄR RESTEN AV RUNDAN', { pact: 'shotgun', bad: 1 }],
@@ -161,11 +243,93 @@ const DEFS = [
   ['tomhetsstenen', 'TOMHETSSTENEN', 'legendarisk', { dmg: 0.6, fireRate: 0.25, maxHp: -40, damageTaken: 0.35 }, 1, '+60 % SKADA\n+25 % ELDHASTIGHET\n-40 MAX HP\n+35 % SKADA DU TAR', { curse: true, bad: 2, unlock: 40 }],
 ];
 
-const ALL = DEFS.map(([id, name, rarity, mods, max, text, extra]) => Object.assign(
-  { id, name, rarity, text, icon: 'assets/cards/' + id + '.png', mods, max }, extra || {}));
+// ---------- Set och synergier ----------
+// Set: äger man 3 olika kort ur samma set får man setets bonus (räknas in i computeMods).
+const SET_NEED = 3;
+const SETS = {
+  eld:    { name: 'ASKANS ORDEN',     text: '+10 % BRANDCHANS\n+10 % EXPLOSIONSCHANS\n+1 MAX GRANAT', mods: { burnChance: 0.1, explodeChance: 0.1, grenades: 1 } },
+  frost:  { name: 'VINTERNS VAKT',    text: '+10 % CHANS ATT FRYSA\n+10 % CHANS ATT SAKTA NED\n-10 % SKADA FRÅN ELDKLOT', mods: { freezeChance: 0.1, slowChance: 0.1, projectileResist: 0.1 } },
+  guld:   { name: 'GIRIGHETENS SKATT', text: '+20 % GULD\n+5 % RÄNTA VID NY VÅNING\n-10 % PRISER I BUTIKEN', mods: { goldMul: 0.2, interest: 0.05, shopDiscount: 0.1 } },
+  krit:   { name: 'BÖDELNS BLICK',    text: '+5 % KRITCHANS\n+30 % KRITSKADA\n+1 HP PER KRITISK TRÄFF', mods: { critChance: 0.05, critDmg: 0.3, critHeal: 1 } },
+  skugga: { name: 'SKUGGANS VÄG',     text: '+30 % SKADA MOT OVETANDE\n+5 % CHANS ATT UNDVIKA\nFIENDER SYNS PÅ KARTAN', mods: { backstab: 0.3, dodge: 0.05, enemySense: 1 } },
+  luft:   { name: 'VINDENS BARN',     text: 'DUBBELHOPP\n+15 % SKADA I LUFTEN\n+5 % RÖRELSEHASTIGHET', mods: { doubleJump: 1, airDmg: 0.15, moveSpeed: 0.05 } },
+};
+// Synergitaggar: kort med samma tagg spelar bra ihop (t.ex. eld + explosion, krit + kritskada).
+const SYN = { eld: 'ELD', krit: 'KRIT', gift: 'GIFT', frost: 'FROST', blixt: 'BLIXT', skold: 'SKÖLD', guld: 'GULD', liv: 'LIV', rusning: 'RUSNING', skugga: 'SKUGGA', granat: 'GRANAT' };
+// set och syn för alla kort samlas här: id: [set eller '', syn-taggar...]
+const TAGS = {
+  // eld och explosioner
+  glodkol: ['eld', 'eld'], bronda_runan: ['eld', 'eld'], askkungen: ['eld', 'eld'], benflojt: ['eld', 'eld', 'granat'],
+  tomrummet: ['eld', 'eld'], glad_trefot: ['eld', 'eld', 'granat'], agget: ['', 'eld', 'granat'], pirathatten: ['', 'eld'],
+  // frost
+  manesilver: ['frost', 'frost'], moln_nio: ['frost', 'frost'], kristallkronan: ['frost', 'frost'], vandringsstaven: ['frost', 'frost'],
+  prismakronan: ['frost', 'frost', 'eld', 'gift', 'blixt'],
+  // guld
+  guldbaggen: ['guld', 'guld'], hangande_lappen: ['guld', 'guld'], att_gora: ['guld', 'guld'], idolen: ['guld', 'guld'],
+  lyckokatten: ['guld', 'guld'], baronen: ['guld', 'guld'], packet: ['', 'guld'], midasmasken: ['', 'guld'], horisonten: ['', 'guld', 'liv'], feltrycket: ['', 'guld'],
+  // krit
+  korsriddaren: ['krit', 'krit'], offerkniven: ['krit', 'krit'], glasogat: ['krit', 'krit', 'liv'], schablonen: ['krit', 'krit', 'liv'],
+  sollinsen: ['krit', 'krit', 'eld'], solkonungen: ['', 'krit'], offerdolken: ['', 'krit'], snedkronet: ['', 'krit', 'gift'],
+  // skuggor
+  regnbagsfjadern: ['skugga', 'skugga'], halvmane: ['skugga', 'skugga'], inbrottstjuven: ['skugga', 'skugga'], snedsteget: ['skugga', 'skugga', 'rusning'],
+  spakortet: ['skugga', 'skugga'], maskerna: ['skugga', 'skugga'], ansiktslos: ['', 'skugga'],
+  // luft och rörelse
+  stovelremmen: ['luft', 'rusning'], fyllbulten: ['luft', 'rusning'], fyrfoten: ['luft', 'rusning'], akrobaten: ['luft'],
+  gryningen: ['luft'], travstaven: ['luft', 'rusning'],
+  // gift, blixt, sköld och liv
+  grodan: ['', 'gift'], spakvinnan: ['', 'gift'],
+  askstav: ['', 'blixt'], tankestormen: ['', 'blixt'], runsten: ['', 'blixt'],
+  glorian: ['', 'skold'], stenmuren: ['', 'skold'], murbruket: ['', 'skold'], fyrkanten: ['', 'skold'], kubtornet: ['', 'skold'],
+  vampyren: ['', 'liv'], seansen: ['', 'liv'], ouroboros: ['', 'liv'], lagerelden: ['', 'liv'], gronskan: ['', 'liv'], rotknuta: ['', 'liv'], eremiten: ['', 'liv'],
+};
+
+const ALL = DEFS.map(([id, name, rarity, mods, max, text, extra]) => {
+  const c = Object.assign({ id, name, rarity, text, icon: 'assets/cards/' + id + '.png', mods, max }, extra || {});
+  const t = TAGS[id];
+  if (t) { if (t[0]) c.set = t[0]; if (t.length > 1) c.syn = t.slice(1); }
+  return c;
+});
 const BY_ID = {};
 for (const c of ALL) BY_ID[c.id] = c;
 const byId = id => BY_ID[id] || null;
+const setCards = setId => ALL.filter(c => c.set === setId);
+
+// Antal olika ägda kort per set
+function setCounts(ownedIds) {
+  const seen = new Set(), n = {};
+  for (const id of ownedIds || []) {
+    const c = BY_ID[id];
+    if (!c || !c.set || seen.has(id)) continue;
+    seen.add(id); n[c.set] = (n[c.set] || 0) + 1;
+  }
+  return n;
+}
+// [{ id, name, have, need: 3, active, text }] för alla set, påbörjade först
+function setProgress(ownedIds) {
+  const n = setCounts(ownedIds);
+  return Object.keys(SETS).map(id => ({ id, name: SETS[id].name, have: Math.min(n[id] || 0, SET_NEED), need: SET_NEED, active: (n[id] || 0) >= SET_NEED, text: SETS[id].text, cards: setCards(id).map(c => c.id) }))
+    .sort((a, b) => (b.have > 0) - (a.have > 0) || b.have - a.have);
+}
+// Kort skäl (svenska) till att kortet passar med de ägda korten, eller ''.
+function synergy(card, ownedIds) {
+  if (!card) return '';
+  const owned = new Set(ownedIds || []);
+  if (card.set && SETS[card.set] && !owned.has(card.id)) {
+    const have = setCounts(ownedIds)[card.set] || 0;
+    if (have > 0 && have < SET_NEED) {
+      const s = SETS[card.set];
+      return have + 1 >= SET_NEED ? 'FULLBORDAR ' + s.name : s.name + ' ' + (have + 1) + '/' + SET_NEED;
+    }
+  }
+  for (const tag of card.syn || []) {
+    for (const id of owned) {
+      if (id === card.id) continue;
+      const o = BY_ID[id];
+      if (o && o.syn && o.syn.includes(tag)) return (SYN[tag] || tag.toUpperCase()) + ' + ' + o.name;
+    }
+  }
+  return '';
+}
 
 // ---------- Summering ----------
 function computeMods(ownedIds) {
@@ -176,8 +340,51 @@ function computeMods(ownedIds) {
     if (!c) continue;
     for (const k in c.mods) if (k in m) m[k] += c.mods[k];
   }
+  const n = setCounts(ownedIds);
+  for (const sid in n) if (n[sid] >= SET_NEED && SETS[sid]) for (const k in SETS[sid].mods) if (k in m) m[k] += SETS[sid].mods[k];
   for (const k of KEYS) m[k] = Math.round(m[k] * 1e6) / 1e6; // slipp flyttalsbrus
   return m;
+}
+
+// ---------- Effektrader med tal ----------
+// [enhet, etikett]: p = andel (0,1 -> 10 %), n = tal, f = på/av. INVERT: högre värde är sämre.
+const FMT = {
+  dmg: ['p', 'SKADA'], fireRate: ['p', 'ELDHASTIGHET'], reloadSpeed: ['p', 'LADDNINGSHASTIGHET'], magSize: ['p', 'MAGASIN'],
+  accuracy: ['p', 'TRÄFFSÄKERHET'], moveSpeed: ['p', 'RÖRELSEHASTIGHET'], maxHp: ['n', 'MAX HP'], armorPerFloor: ['n', 'RUSTNING PER VÅNING'],
+  regen: ['n', 'HP PER SEKUND'], lifesteal: ['p', 'LIVSSTÖLD'], critChance: ['p', 'KRITCHANS'], critDmg: ['p', 'KRITSKADA'],
+  pierce: ['n', 'GENOMSLAG'], extraPellets: ['n', 'KULOR PER SKOTT'], explodeChance: ['p', 'EXPLOSIONSCHANS'], burnChance: ['p', 'BRANDCHANS'],
+  slowChance: ['p', 'CHANS ATT SAKTA NED'], killHeal: ['n', 'HP PER DÖDAD FIENDE'], killArmor: ['n', 'RUSTNING PER DÖDAD'], goldMul: ['p', 'GULD'],
+  ammoMul: ['p', 'AMMO FRÅN FÖREMÅL'], healMul: ['p', 'HELNING'], dodge: ['p', 'CHANS ATT UNDVIKA'], thorns: ['n', 'TAGGSKADA'],
+  damageTaken: ['p', 'SKADA DU TAR'], projectileResist: ['p', 'SKYDD MOT ELDKLOT'], meleeResist: ['p', 'SKYDD MOT NÄRSTRID'],
+  magnet: ['n', 'RUTOR RÄCKVIDD'], luck: ['p', 'LYCKA'], extraLife: ['n', 'ÅTERUPPLIVNING'], ammoSave: ['p', 'GRATIS SKOTT'],
+  shield: ['n', 'SKÖLD'], light: ['p', 'LJUS'], secretSense: ['f', 'HEMLIGA VÄGGAR PÅ KARTAN'], cardChoices: ['n', 'KORTVAL'],
+  shopDiscount: ['p', 'RABATT I BUTIKEN'], bossDmg: ['p', 'SKADA MOT BOSS OCH ELIT'], firstShot: ['p', 'SKADA PÅ FÖRSTA SKOTTET'],
+  lowHpDmg: ['p', 'SKADA VID LÅG HP'], speedOnKill: ['n', 'S FART EFTER DÖDANDE'], execute: ['p', 'AVRÄTTNINGSGRÄNS'],
+  grenades: ['n', 'MAX GRANATER'], grenadeDmg: ['p', 'GRANATSKADA'], stamina: ['p', 'UTHÅLLIGHET'], dashCd: ['p', 'SNABBARE RUSNING'],
+  airDmg: ['p', 'SKADA I LUFTEN'], backstab: ['p', 'SKADA MOT OVETANDE'], comboGold: ['n', 'GULD PER KOMBOSTEG'],
+  trapResist: ['p', 'SKYDD MOT FÄLLOR'], freezeChance: ['p', 'CHANS ATT FRYSA'], poisonChance: ['p', 'CHANS ATT FÖRGIFTA'],
+  shockChance: ['p', 'BLIXTCHANS'], interest: ['p', 'RÄNTA PER VÅNING'], floorHeal: ['n', 'HP PER VÅNING'],
+  killExplode: ['p', 'CHANS ATT DÖDADE EXPLODERAR'], reloadNova: ['n', 'SKADA I OMLADDNINGSSTÖT'], eliteGold: ['p', 'GULD FRÅN ELIT'],
+  trapSense: ['f', 'FÄLLOR PÅ KARTAN'], enemySense: ['f', 'FIENDER PÅ KARTAN'], critHeal: ['n', 'HP PER KRIT'], dashDmg: ['n', 'RUSNINGSSKADA'],
+  shieldOnKill: ['n', 'SKÖLD PER DÖDAD'], ammoRegen: ['p', 'MAGASIN PER S I RESERVEN'], knockback: ['p', 'KNUFF'],
+  chestChoice: ['n', 'VAL I KISTOR'], freeReroll: ['n', 'GRATIS NYA KORT PER VÅNING'], hazardImmune: ['f', 'IMMUN MOT LAVA, VATTEN, IS OCH NÄT'],
+  doubleJump: ['f', 'DUBBELHOPP'],
+};
+const INVERT = { damageTaken: true };
+const num = v => String(Math.round(v * 100) / 100).replace('.', ',');
+// En rad per mod: { key, value, text: '+10 % SKADA', good }. Positivt = bra utom för INVERT-nycklar.
+function modLines(cardOrMods) {
+  const mods = cardOrMods && cardOrMods.mods ? cardOrMods.mods : (cardOrMods || {});
+  const out = [];
+  for (const key in mods) {
+    const v = mods[key];
+    if (!v || !FMT[key]) continue;
+    const [u, label] = FMT[key];
+    const sign = v > 0 ? '+' : '-';
+    const text = u === 'f' ? label : u === 'p' ? sign + num(Math.abs(v) * 100) + ' % ' + label : sign + num(Math.abs(v)) + ' ' + label;
+    out.push({ key, value: v, text, good: INVERT[key] ? v < 0 : v > 0 });
+  }
+  return out;
 }
 
 // ---------- Dragning ----------
@@ -236,8 +443,9 @@ function tag(card) {
 function describe(card) {
   const r = RARITY[card.rarity];
   const head = card.name + ' (' + (tag(card) ? tag(card) + ' ' : '') + r.label + ')';
-  return head + '\n' + card.text + (card.max > 1 ? '\nKAN TAS ' + card.max + ' GÅNGER' : '');
+  return head + '\n' + card.text + (card.max > 1 ? '\nKAN TAS ' + card.max + ' GÅNGER' : '')
+    + (card.set && SETS[card.set] ? '\nSET: ' + SETS[card.set].name : '');
 }
 
-window.Cards = { ALL, byId, RARITY, RARITY_ORDER, MOD_KEYS, WEAPON_NAME, draw, computeMods, price, describe, tag };
+window.Cards = { ALL, byId, RARITY, RARITY_ORDER, MOD_KEYS, WEAPON_NAME, SETS, SYN, draw, computeMods, price, describe, tag, setProgress, synergy, modLines };
 })();

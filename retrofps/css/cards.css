@@ -38,10 +38,13 @@
 }
 .cu-card {
   --rc: #c9a87a; --bc: var(--rc); --glow: rgba(201,168,122,.35);
-  position: relative; width: var(--cw); aspect-ratio: 11 / 17; perspective: 900px;
+  position: relative; width: 100%; aspect-ratio: 11 / 17; perspective: 900px;
   font-size: calc(var(--cw) / 22); cursor: pointer; outline: none; color: var(--ink);
   transition: transform .18s ease, opacity .3s ease; text-align: left;
 }
+.cu-cards.extra { --cw: min(220px, calc((100vw - 32px - (var(--n, 3) - 1) * 16px) / var(--n, 3)), 32vh); align-items: flex-start; }
+.cu-slot { position: relative; width: var(--cw); display: flex; flex-direction: column; gap: 8px; }
+.cu-slot.shake { animation: cu-shake .3s; }
 .cu-card:hover, .cu-card:focus-visible { transform: translateY(-8px); }
 .cu-card:focus-visible .cu-front, .cu-card:hover .cu-front { box-shadow: 0 0 0 2px #000, 0 0 26px 4px var(--glow), 6px 6px 0 #000; }
 .cu-inner { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform .55s cubic-bezier(.3,.7,.3,1); }
@@ -181,7 +184,7 @@
 /* ---------- Mobil: korten blir rader ---------- */
 @media (max-width: 720px) {
   .cu-screen { padding: 14px 10px; }
-  .cu-cards { flex-direction: column; flex-wrap: nowrap; width: 100%; max-width: 460px; gap: 12px; --cw: 100%; }
+  .cu-cards, .cu-cards.extra { flex-direction: column; flex-wrap: nowrap; width: 100%; max-width: 460px; gap: 12px; --cw: 100%; align-items: stretch; }
   .cu-card { width: 100%; aspect-ratio: auto; font-size: 8px; perspective: 700px; min-height: 108px; }
   .cu-card:hover, .cu-card:focus-visible { transform: none; }
   .cu-inner { height: auto; min-height: 108px; }
@@ -224,3 +227,112 @@
 #cardui .cu-row { display: flex; align-items: center; justify-content: space-between; gap: 1em; font-size: .75em; color: #e8d9b0; }
 #cardui .cu-row select, #cardui .cu-row input[type=range] { font: inherit; font-size: .9em; background: #1b1410; color: #e8d9b0; border: 2px solid #8a7550; padding: .3em; max-width: 50%; }
 #cardui .cu-row input[type=checkbox] { width: 1.4em; height: 1.4em; accent-color: #d8a24a; }
+
+/* ---------- Tal i effekttexter: fördelar gröna, nackdelar röda ---------- */
+#cardui .cu-fx .cu-n.pos { color: #7ee07a; }
+#cardui .cu-fx .cu-n.neg { color: #ff6a50; }
+#cardui .cu-mods { display: flex; flex-direction: column; gap: 2px; font-size: 8px; line-height: 1.7; }
+#cardui .cu-mods .pos { color: #7ee07a; }
+#cardui .cu-mods .neg { color: #ff6a50; }
+
+/* ---------- Draft: NY, synergi, förvisa, nya kort ---------- */
+.cu-new {
+  position: absolute; top: -9px; right: -9px; z-index: 3; pointer-events: none;
+  font-size: 8px; padding: 4px 6px; color: #1b1410; background: var(--gold); border: 2px solid #000;
+  box-shadow: 2px 2px 0 #000; transform: rotate(8deg); transition: opacity .3s .35s;
+}
+.cu-card.down .cu-new { opacity: 0; transition: none; }
+.cu-extra { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; align-items: center; transition: opacity .3s .3s; }
+.cu-slot.down .cu-extra { opacity: 0; visibility: hidden; transition: none; }
+.cu-slot.done .cu-extra { opacity: .15; }
+.cu-syn {
+  flex: 1 1 100%; font-size: 7px; line-height: 1.6; padding: 5px 6px; text-align: center; overflow-wrap: anywhere;
+  color: #c8f5b8; background: #14260f; border: 2px solid #4f9a43; box-shadow: 2px 2px 0 #000, 0 0 10px rgba(111,194,106,.35);
+}
+.cu-ban {
+  font: inherit; font-size: 7px; padding: 6px 9px; cursor: pointer; flex: none;
+  color: var(--muted); background: #1b1410; border: 2px solid var(--edge); box-shadow: 2px 2px 0 #000;
+}
+.cu-ban:hover:not(:disabled), .cu-ban:focus-visible { color: #ffd8c0; border-color: #e05030; background: #3a1208; outline: none; }
+.cu-ban:disabled { opacity: .35; cursor: default; }
+.cu-gold.small { font-size: 9px; padding: 8px 10px; }
+.cu-reroll.poor { filter: grayscale(.8) brightness(.75); }
+.cu-reroll.shake { animation: cu-shake .3s; }
+.cu-draft .cu-msg { min-height: 1.6em; }
+
+/* ---------- Kortlek: sortering, grupper och set ---------- */
+.cu-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-start; width: 100%; }
+.cu-barl { font-size: 7px; color: var(--dim); }
+.cu-seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.cu-sb {
+  font: inherit; font-size: 7px; padding: 7px 9px; cursor: pointer;
+  color: var(--muted); background: #1b1410; border: 2px solid var(--edge); box-shadow: 2px 2px 0 #000;
+}
+.cu-sb:hover, .cu-sb:focus-visible { color: var(--ink); background: #2a1d12; outline: 2px solid #ffe9a8; outline-offset: 1px; }
+.cu-sb.on { color: #1b1410; background: #d8a24a; border-color: #ffe9a8; }
+.cu-ghead { grid-column: 1 / -1; text-align: left; font-size: 8px; color: var(--gold); padding: 6px 0 0; border-bottom: 2px solid var(--edge); }
+.cu-sets { width: 100%; display: flex; flex-direction: column; gap: 8px; text-align: left; }
+.cu-sh { font-size: 9px; color: var(--gold); }
+.cu-setlist { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr)); gap: 8px; }
+.cu-set { padding: 8px 10px; background: var(--panel); border: 2px solid var(--edge); font-size: 7px; line-height: 1.7; }
+.cu-set.dim { opacity: .5; }
+.cu-set.on { border-color: var(--gold); box-shadow: 0 0 12px rgba(255,210,74,.35); }
+.cu-settop { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.cu-setname { font-size: 8px; color: var(--ink); }
+.cu-set.on .cu-setname { color: var(--gold); }
+.cu-pips { display: flex; align-items: center; gap: 3px; flex: none; }
+.cu-pips i { width: 9px; height: 9px; border: 2px solid var(--dim); background: #000; display: inline-block; }
+.cu-pips i.f { background: #7ee07a; border-color: #c8f5b8; }
+.cu-set.on .cu-pips i.f { background: var(--gold); border-color: #fff0b0; }
+.cu-setn { margin-left: 4px; color: var(--muted); }
+.cu-set.on .cu-setn { color: var(--gold); }
+.cu-setfx { color: #7ee07a; margin-top: 4px; }
+.cu-set.dim .cu-setfx { color: var(--muted); }
+.cu-setcards { margin-top: 4px; color: var(--dim); display: flex; flex-wrap: wrap; gap: 2px 8px; }
+.cu-setcards .own { color: var(--ink); }
+
+/* ---------- Kortarkiv ---------- */
+.cu-scroll { width: 100%; max-height: 52vh; overflow-y: auto; padding: 4px; border: 2px solid var(--edge); background: rgba(8,5,3,.6); scrollbar-color: #5a4630 #120d09; }
+.cu-codex .cu-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+.cu-tile.unseen { --bc: #2a2018; --glow: transparent; background: #0e0a07; color: var(--dim); }
+.cu-sil {
+  width: 100%; height: 100%; background: #6a5236;
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-mode: luminance; mask-mode: luminance; filter: contrast(1.4); opacity: .55;
+}
+.cu-tile.unseen .cu-art { background: radial-gradient(circle, #241a12 0%, #0b0806 85%); }
+.cu-tile .cu-mark { position: absolute; top: 4px; left: 4px; font-size: 6px; padding: 2px 3px; background: #000; color: var(--muted); border: 1px solid var(--edge); }
+.cu-tile .cu-mark.own { color: #7ee07a; border-color: #4f9a43; }
+
+/* ---------- Legendariska glänser, förbannade pulserar rött ---------- */
+.cu-tile.legend, .cu-item.legend { overflow: hidden; }
+.cu-tile.legend::after, .cu-item.legend::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(115deg, transparent 35%, rgba(255,236,160,.22) 50%, transparent 65%);
+  background-size: 250% 100%; animation: cu-shine 3.6s linear infinite;
+}
+.cu-card.curse .cu-front { animation: cu-curse 2.2s ease-in-out infinite, cu-curse-edge 2.2s ease-in-out infinite; }
+.cu-tile.curse, .cu-item.curse { animation: cu-curse-edge 2.2s ease-in-out infinite; }
+@keyframes cu-curse-edge { 0%, 100% { border-color: var(--curse); } 50% { border-color: #e0402a; } }
+
+/* ---------- Mobil (smal skärm) för de nya delarna ---------- */
+@media (max-width: 720px) {
+  .cu-slot { width: 100%; gap: 5px; }
+  .cu-extra { flex-wrap: nowrap; justify-content: flex-end; }
+  .cu-extra .cu-syn { flex: 1 1 auto; text-align: left; }
+  .cu-new { top: -5px; right: -5px; }
+  .cu-bar { justify-content: center; }
+  .cu-scroll { max-height: 46vh; }
+  .cu-codex .cu-grid { grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); }
+  .cu-tile { padding: 8px 3px; }
+  .cu-tile .cu-tn { font-size: 6px; }
+  .cu-setlist { grid-template-columns: 1fr; }
+}
+#cardui .cu-li.img { display: grid; grid-template-columns: 40px 1fr; column-gap: .7em; align-items: center; }
+#cardui .cu-li.img .cu-ll, #cardui .cu-li.img .cu-lt { grid-column: 2; }
+#cardui .cu-limg { grid-row: 1 / span 2; width: 40px; height: 40px; image-rendering: pixelated; object-fit: contain; }
+#cardui .cu-li.btn { cursor: pointer; }
+#cardui .cu-li.btn:hover, #cardui .cu-li.btn:focus-visible { border-color: #d8a24a; outline: none; }
+#cardui .cu-sec { margin-top: 1em; padding-top: .6em; border-top: 2px solid #4a3a28; font-size: .8em; color: #ffd24a; letter-spacing: 1px; }
+#cardui .cu-pbody > .cu-btn { margin-top: .5em; align-self: flex-start; }
+#cardui .cu-row .cu-btn { font-size: .85em; padding: .4em .7em; }

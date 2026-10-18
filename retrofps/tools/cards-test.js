@@ -23,8 +23,38 @@ function makeRng(seed) {
 const { ALL, RARITY, MOD_KEYS } = Cards;
 const keys = Object.keys(MOD_KEYS);
 const BASE = ALL.filter(c => !c.pact && !c.weapon);
-ok(BASE.length >= 40 && BASE.length <= 50, 'antal vanliga kort ' + BASE.length + ' ska vara 40-50');
-ok(keys.length === 41, 'MOD_KEYS ska ha 41 nycklar, har ' + keys.length);
+ok(BASE.length === 100, 'antal vanliga kort ' + BASE.length + ' ska vara 100 (50 gamla + 50 nya)');
+ok(keys.length === 68, 'MOD_KEYS ska ha 68 nycklar, har ' + keys.length);
+// de 27 nya mod-nycklarna
+const NEW_KEYS = ['grenades', 'grenadeDmg', 'stamina', 'dashCd', 'airDmg', 'backstab', 'comboGold', 'trapResist', 'freezeChance', 'poisonChance',
+  'shockChance', 'interest', 'floorHeal', 'killExplode', 'reloadNova', 'eliteGold', 'trapSense', 'enemySense', 'critHeal', 'dashDmg',
+  'shieldOnKill', 'ammoRegen', 'knockback', 'chestChoice', 'freeReroll', 'hazardImmune', 'doubleJump'];
+for (const k of NEW_KEYS) ok(keys.includes(k) && /[a-zåäö]/i.test(MOD_KEYS[k]), 'ny mod-nyckel saknas eller saknar beskrivning: ' + k);
+// de 50 nya korten: ordning i DEFS efter OUROBOROS och före pakterna
+const NEW_IDS = ['fyllbulten', 'fyrfoten', 'hornstenen', 'agget', 'benflojt', 'hangande_lappen', 'gronskan', 'att_gora', 'grodan', 'halvmane',
+  'dominobrickan', 'sollinsen', 'glasogat', 'akrobaten', 'urtidsrunan', 'fyrkanten', 'idolen', 'moln_nio', 'askstav', 'feltrycket',
+  'spakvinnan', 'kristallkronan', 'tankestormen', 'inbrottstjuven', 'snedsteget', 'spakortet', 'avtrycket', 'tomrummet', 'trubaduren',
+  'lyckokatten', 'sigillbrevet', 'rotknuta', 'schablonen', 'maskerna', 'baronen', 'vandringsstaven', 'bryggan', 'kubtornet', 'spadomskulan',
+  'glad_trefot', 'pirathatten', 'horisonten', 'runsten', 'eremiten', 'snedkronet', 'prismakronan', 'gryningen', 'travstaven', 'brokiga', 'ansiktslos'];
+ok(NEW_IDS.length === 50 && new Set(NEW_IDS).size === 50, 'listan över nya kort ska ha 50 unika id');
+const NEW = NEW_IDS.map(id => Cards.byId(id));
+ok(NEW.every(Boolean), 'nya kort saknas: ' + NEW_IDS.filter(id => !Cards.byId(id)).join(','));
+const newRar = {};
+for (const c of NEW.filter(Boolean)) {
+  newRar[c.rarity] = (newRar[c.rarity] || 0) + 1;
+  ok(!c.pact && !c.weapon, c.id + ': nytt kort ska inte vara pakt eller uppgradering');
+  ok(fs.existsSync(path.join(root, c.icon)), c.id + ': bild saknas');
+  ok(c.text === c.text.toUpperCase(), c.id + ': texten ska vara versaler');
+  ok(c.name === c.name.toUpperCase(), c.id + ': namnet ska vara versaler');
+  ok(/\d/.test(c.text) || Object.values(c.mods).every(v => v === 1), c.id + ': texten ska ange talen');
+  if (fs.existsSync(path.join(root, c.icon))) {
+    const b = fs.readFileSync(path.join(root, c.icon));
+    ok(b.readUInt32BE(16) === 96 && b.readUInt32BE(20) === 96, c.id + ': bilden ska vara 96x96');
+  }
+}
+ok(newRar.vanlig === 20 && newRar.ovanlig === 15 && newRar.sallsynt === 10 && newRar.legendarisk === 5, 'nya kort per sällsynthet ' + JSON.stringify(newRar));
+ok(NEW.filter(c => c && c.curse).length === 4, '4 nya förbannade kort');
+ok(NEW_KEYS.every(k => NEW.some(c => c && k in c.mods)), 'alla nya mod-nycklar ska användas av nya kort');
 const ids = new Set(), used = new Set(), perRarity = {};
 for (const c of ALL) {
   ok(!ids.has(c.id), 'dubblett-id ' + c.id); ids.add(c.id);
@@ -113,6 +143,70 @@ const sp = ALL.find(c => c.rarity === 'vanlig');
 ok(Cards.price(sp, 3, 0) > Cards.price(sp, 0, 0), 'pris ska öka med djup');
 ok(Cards.price(sp, 2, 0.5) < Cards.price(sp, 2, 0), 'pris ska sjunka med rabatt');
 
+// ---------- set ----------
+const SETS = Cards.SETS;
+ok(SETS && Object.keys(SETS).length === 6, '6 set');
+for (const sid in SETS) {
+  const st = SETS[sid], members = ALL.filter(c => c.set === sid);
+  ok(st.name && st.text && st.mods && Object.keys(st.mods).length, sid + ': name/text/mods');
+  for (const k in st.mods) ok(keys.includes(k), sid + ': okänd mod-nyckel ' + k);
+  ok(members.length >= 4 && members.length <= 6, sid + ': ' + members.length + ' kort, ska vara 4-6');
+  ok(members.every(c => !c.pact && !c.weapon), sid + ': pakter/uppgraderingar ska inte ingå i set');
+  // computeMods: 3 olika kort ger bonusen, 2 gör det inte, dubbletter räknas inte
+  const three = members.slice(0, 3).map(c => c.id), two = three.slice(0, 2);
+  const base3 = {}; for (const id of three) for (const k in Cards.byId(id).mods) base3[k] = (base3[k] || 0) + Cards.byId(id).mods[k];
+  const m3 = Cards.computeMods(three), m2 = Cards.computeMods(two.concat([two[0], two[0]]));
+  for (const k in st.mods) ok(Math.abs(m3[k] - ((base3[k] || 0) + st.mods[k])) < 1e-6, sid + ': computeMods med 3 setkort ska ge bonusen ' + k + ' (' + m3[k] + ')');
+  const base2 = {}; for (const id of two.concat([two[0], two[0]])) for (const k in Cards.byId(id).mods) base2[k] = (base2[k] || 0) + Cards.byId(id).mods[k];
+  for (const k in st.mods) ok(Math.abs(m2[k] - (base2[k] || 0)) < 1e-6, sid + ': 2 olika setkort ska inte ge bonusen (' + k + ')');
+  // setProgress
+  const sp = Cards.setProgress(three).find(x => x.id === sid);
+  ok(sp && sp.active && sp.have === 3 && sp.need === 3 && sp.name === st.name && sp.text === st.text, sid + ': setProgress aktiv');
+  const sp1 = Cards.setProgress(three.slice(0, 1)).find(x => x.id === sid);
+  ok(sp1 && !sp1.active && sp1.have === 1, sid + ': setProgress 1/3');
+  // synergy: kort som fortsätter ett påbörjat set
+  const s1 = Cards.synergy(Cards.byId(three[1]), [three[0]]);
+  ok(typeof s1 === 'string' && s1.includes(st.name), sid + ': synergy ska nämna setet: "' + s1 + '"');
+  const s2 = Cards.synergy(Cards.byId(three[2]), two);
+  ok(/^FULLBORDAR /.test(s2), sid + ': synergy ska säga FULLBORDAR: "' + s2 + '"');
+}
+ok(Cards.setProgress([]).length === 6 && Cards.setProgress([]).every(x => x.have === 0 && !x.active), 'setProgress([])');
+// synergy: syn-taggar och tomma fall
+ok(Cards.synergy(Cards.byId('grodan'), ['spakvinnan']).includes('GIFT'), 'gift + gift ska vara synergi');
+ok(Cards.synergy(Cards.byId('offerkniven'), ['solkonungen']).includes('KRIT'), 'krit + kritskada ska vara synergi');
+ok(Cards.synergy(Cards.byId('agget'), ['bronda_runan']) !== '', 'eld + explosion ska vara synergi');
+ok(Cards.synergy(Cards.byId('slipstenen'), ['glodkol', 'grodan']) === '', 'kort utan set/syn ska ge tom sträng');
+ok(Cards.synergy(Cards.byId('grodan'), []) === '', 'inga ägda kort ska ge tom sträng');
+ok(Cards.synergy(Cards.byId('grodan'), ['grodan']) === '', 'kortet själv räknas inte som synergi');
+for (const c of ALL) { const r = Cards.synergy(c, ['glodkol', 'korsriddaren', 'grodan', 'halvmane', 'fyrfoten', 'guldbaggen', 'manesilver']); ok(typeof r === 'string' && r === r.toUpperCase() && r.length <= 40, c.id + ': synergy-sträng ' + r); }
+ok(ALL.filter(c => c.syn && c.syn.length).length >= 30, 'minst 30 kort med syn-taggar');
+// modLines: tal med rätt tecken
+const ml = Cards.modLines(Cards.byId('ansiktslos'));
+ok(ml.length === 5 && ml.find(l => l.key === 'maxHp').text === '-30 MAX HP' && !ml.find(l => l.key === 'maxHp').good && ml.find(l => l.key === 'dmg').text === '+20 % SKADA', 'modLines ' + JSON.stringify(ml));
+ok(Cards.modLines({ damageTaken: 0.25 })[0].good === false && Cards.modLines({ damageTaken: -0.2 })[0].good === true, 'modLines damageTaken är omvänd');
+for (const c of ALL) for (const l of Cards.modLines(c)) ok(l.text && l.text === l.text.toUpperCase(), c.id + ': modLines-text');
+// draw med nya kort: owned/unlocked/pakt-reglerna gäller fortfarande
+for (let seed = 1; seed <= 400; seed++) {
+  const rng = makeRng(seed * 7 + 1), pact = seed % 3 ? null : 'shotgun';
+  const owned = NEW_IDS.filter((_, i) => (i + seed) % 4 === 0).flatMap(id => Array(Cards.byId(id).max).fill(id));
+  const unlocked = new Set(NEW.filter((c, i) => c.unlock && (i + seed) % 2).map(c => c.id));
+  const got = Cards.draw(rng, 5, { owned, depth: seed % 6, luck: (seed % 4) / 10, unlocked, pact });
+  ok(got.length === 5, 'draw med nya kort gav ' + got.length);
+  for (const c of got) {
+    ok(!owned.includes(c.id), 'draw gav maxat nytt kort ' + c.id);
+    ok(!c.unlock || unlocked.has(c.id), 'draw gav låst kort ' + c.id);
+    ok(!(pact && c.pact), 'draw gav en andra pakt');
+    ok(!c.weapon || c.weapon === pact, 'draw gav uppgradering ' + c.id + ' utan pakt');
+  }
+}
+{ // nya kort dras över huvud taget
+  const rng = makeRng(42), hit = new Set();
+  for (let i = 0; i < 3000; i++) for (const c of Cards.draw(rng, 3, { unlocked: unlockedAll, depth: i % 6 })) hit.add(c.id);
+  ok(NEW_IDS.every(id => hit.has(id)), 'alla nya kort ska kunna dras: saknas ' + NEW_IDS.filter(id => !hit.has(id)).join(','));
+}
+ok(Cards.describe(Cards.byId('glodkol')).includes('SET: ASKANS ORDEN'), 'describe nämner setet');
+
+console.log('Set: ' + Object.keys(SETS).map(k => k + '(' + ALL.filter(c => c.set === k).length + ')').join(' '));
 console.log('Kort: ' + ALL.length + ' ' + JSON.stringify(perRarity) + ', låsta ' + locked + ', förbannade ' + ALL.filter(c => c.curse).length);
 console.log('Slumpad sällsynthet djup0 ' + lo.toFixed(2) + ' -> djup4+luck ' + hi.toFixed(2) + ', förbannade ' + (100 * curses / tot).toFixed(1) + ' %');
 if (fails) { console.log(fails + ' fel'); process.exit(1); }

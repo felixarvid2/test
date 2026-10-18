@@ -1,12 +1,12 @@
 # KRYPTA – roguelike-FPS
 
-Ett raycaster-FPS i Doom/Quake 1-stil som är en roguelike: varje runda är fem slumpade våningar och
-en boss längst ner. Öppna `index.html` via en lokal webbserver (`python3 -m http.server` i den här
+Ett raycaster-FPS i Doom/Quake 1-stil som är en roguelike: varje runda är fem slumpade våningar i sex biomer och
+en boss längst ner. Tangenterna går att byta, och handkontroll och mobil stöds. Öppna `index.html` via en lokal webbserver (`python3 -m http.server` i den här
 mappen) och klicka **NY RUNDA**.
 
 **Kontroller:** WASD gå · mus sikta · vänsterklick skjut · högerklick sikta med vapnet · R ladda om ·
-E öppna dörr, kista, hemlig vägg eller handla · Shift spring · 1–8/Q/mushjul byt vapen · C dina kort ·
-M/Tab karta · V spark · P/Esc paus (I inställningar, G ge upp) · Enter ny runda · `[` `]` muskänslighet · `,` `.` synfält · `-` `+` volym · N ljud av · O helskärm.
+E öppna dörr, kista, hemlig vägg, använd föremål eller handla · Shift spring · 1–8/Q/mushjul byt vapen · C dina kort ·
+M/Tab karta · V spark · Space hopp · Ctrl ducka · Z rusa · F granat · X inspektera · B kartmarkör · K fotoläge · F9 skärmbild · P/Esc paus (I inställningar, G ge upp, M karta) · Enter ny runda · `[` `]` muskänslighet · `,` `.` synfält · `-` `+` volym · N ljud av · O helskärm.
 
 **Mobil:** vänster tumme styr en flytande joystick (dra långt för att springa), höger tumme drar för att vrida, och ett snabbt tryck i bilden skjuter. Den stora knappen skjuter så länge man håller den, och man kan dra på den för att sikta samtidigt. Liggande läge ger störst bild. I stående läge ligger bilden överst, och hela bilden är vrid- och skjutyta. Joysticken och knapparna ligger under bilden. Texter som "R = LADDA OM" och "E: HANDLA" byts mot pekvarianter. Knapparna vid sidan av bilden siktar, laddar om, använder, byter vapen och öppnar karta, kort och paus. Helskärmsknappen finns både på startskärmen och i spelet (också i pausen), och på Android vrids skärmen till liggande läge. Där webbläsaren eller appen inte tillåter helskärm, till exempel på iPhone, visas ett meddelande om det. Knapparna kommer från Kenneys *Mobile Controls* (CC0, `assets/touch/`).
 
@@ -21,7 +21,7 @@ M/Tab karta · V spark · P/Esc paus (I inställningar, G ge upp) · Enter ny ru
   - Gemensamt för alla: utgången hamnar längst bort från starten (räknat i gångavstånd), stora öppna ytor bryts upp med skydd, och varje föremål som blockerar kontrolleras så att det aldrig stänger av en väg. Generatorn tar 3–6 ms per våning.
   - Valet av metod bygger på en genomgång av rot.js, cellautomater, Brogue-liknande rumspåbyggnad, BSP, Wave Function Collapse, slumpvandring, brus/Voronoi och Herringbone Wang tiles. Egna algoritmer per biom passar en rutnätsraycaster bäst; rot.js hade gett ett extra beroende och en andra slumpgenerator utan utomhusbiomer.
 - **Frö och dagens runda**: samma frö ger samma våningar. Fröet visas i pausen och efter rundan, och kan skrivas in på startskärmen. *Dagens runda* har samma frö för alla under dagen.
-- **Kort** (`js/cards.js`, `js/cardui.js`): 50 vanliga kort i fyra sällsyntheter (vanlig, ovanlig, sällsynt, legendarisk). Korten ger permanenta bonusar under rundan, till exempel skada, eldhastighet, krit, genomslag, explosioner, brand, livsstöld, sköld, extraliv, magnet och rabatt. Fem förbannade kort ger en stark fördel med en nackdel. Det finns synergier, som eld + explosion och krit + kritskada.
+- **Kort** (`js/cards.js`, `js/cardui.js`): 100 vanliga kort (50 nya i version 4) i fyra sällsyntheter (vanlig, ovanlig, sällsynt, legendarisk). Korten ger permanenta bonusar under rundan, till exempel skada, eldhastighet, krit, genomslag, explosioner, brand, livsstöld, sköld, extraliv, magnet och rabatt. Fem förbannade kort ger en stark fördel med en nackdel. Det finns synergier, som eld + explosion och krit + kritskada.
 - **Åtta vapen**: pistol, hagelgevär, gevär och kpist, samt
   - *dubbelbössa*: två pipor med tio hagel var och snabb omladdning av båda,
   - *armborst*: tyst (väcker inga fiender) och bulten går igenom alla,
@@ -287,6 +287,335 @@ Varje biom har också egna föremål i rummen, till exempel kistor och kandelabr
 99. Väktarens skatt: ett kortval.
 100. Väktarrummets dörrar förseglas tills väktaren är besegrad, och sedan öppnas portalen.
 
+## Version 4: 350 förbättringar
+
+Den här versionen lägger till 350 förbättringar. Grafiken för de nya fienderna och föremålen ritas med `tools/props2/make.py`, ljuden och musiken byggs med `tools/sounds/make2.sh`, korten med `tools/card-art/make.py`, och bangeneratorn har en ny biom (Träsket) och nya rumstyper.
+
+**Rörelse (1–15)**
+1. Hopp (Space), E = använd
+2. Ducka (Ctrl): lägre kamera, tystare steg och mindre mål för eldklot
+3. Rusning (Z eller dubbeltryck på riktning) med kort osårbarhet
+4. Uthållighet: spring och rusning drar uthållighet, mätare i HUD
+5. Glidning: ducka under spring = glid
+6. Kameran lutar vid sidosteg (inställning)
+7. Explosioner knuffar spelaren
+8. Halt på is
+9. Långsammare i vatten och lera
+10. Spindelnät saktar ned
+11. Hoppa över spikfällor och lava
+12. Synfältet vidgas när man springer
+13. Kameran skakar till vid landning
+14. Vapnet sänks när man springer
+15. Hoppa över låga anfall (ogerns stenring, lavavågen, rullande stockar)
+
+**Strid och vapen (16–50)**
+16. Granater (F): kastas i båge, studsar och sprängs
+17. Granater på våningarna, i krukor och i butiken
+18. Håll F längre för att kasta längre
+19. Kulhål i väggarna
+20. Gnistor där kulor träffar väggar och dörrar
+21. Spårljus för gevär och prickskyttegevär
+22. Mynningsrök
+23. Lik sprängs i bitar av explosioner
+24. Överdöd sprängs i bitar
+25. Blodstänk på väggar bakom träffade fiender
+26. Bakhåll: +50 % skada på fiender som inte sett dig
+27. Vapeninspektion (X)
+28. Upplockad ammo, hälsa, rustning, guld och granater visas som flytande text
+29. Byt automatiskt till ett nyss upplockat vapen (inställning)
+30. Vapnet laddas om automatiskt efter en stund utan skott (inställning)
+31. Kolvslag när allt ammo är slut
+32. Smedjan: uppgradera vapnets skada (3 nivåer)
+33. Vapennivån syns i HUD
+34. Kritiska träffar har eget ljud
+35. Fiender som träffas mitt i språnget snubblar
+36. Explosioner lämnar sotfläckar
+37. Signalpistolens bloss lämnar brinnande mark
+38. Frusna fiender splittras när de dör
+39. Kombomätare: snabba dödanden i följd ger mer guld
+40. Slow motion när sista fienden på våningen dör
+41. Ammolådor i tre storlekar
+42. Hagelspridningen syns i siktet
+43. Reservammon blinkar rött när den är slut
+44. Låg HP: bilden gråas och ljudet dämpas
+45. Frysning som ny statuseffekt (kort och fiender)
+46. Gift som statuseffekt även från kort
+47. Blixt som kedjar mellan fiender (kort)
+48. Granater skadar inte dig själv på lätt
+49. Granaten piper innan den smäller
+50. Kulor genom krukor och lådor fortsätter (genomslag)
+
+**Fiender (51–85)**
+51. Spindel: snabb, skjuter nät som saktar ned
+52. Fladdermussvärm: små och snabba, flyger i flock
+53. Helvetshund: jagar i flock och hoppar
+54. Bombskelett: springer fram och sprängs
+55. Sköldbärare: blockerar skott framifrån
+56. Svampman: släpper giftmoln
+57. Levande rustning: rustningsställningar som vaknar
+58. Patrullerande fiender
+59. Sovande fiender (Zzz) som går att smyga förbi
+60. Fiender hör dina fotsteg när du springer (gå eller ducka för att smyga)
+61. Explosioner väcker sovande fiender
+62. Vissa fiender viker undan när du siktar på dem
+63. Skyttar siktar framför dig när du springer
+64. Fiender flyr när de har lite HP kvar
+65. Fiender springer från granater
+66. Fiender saktas ned av vatten och nät (utom spindlar och fladdermöss)
+67. Fiender undviker spikfällor, lava och eld
+68. Fiender knuffas av explosioner
+69. Champions: sällsynta gyllene fiender med mycket guld
+70. Ny elitegenskap: delande
+71. Ny elitegenskap: giftig (förgiftar dig vid träff)
+72. Ny elitegenskap: frostaura
+73. Ny elitegenskap: flimrande (svår att se)
+74. Eliter har en glödande aura
+75. Veteraner: fiender i djupare varv får färg och mer HP
+76. Brända fiender blir aska
+77. Fiender letar där de senast såg dig ("?")
+78. Fiender som tappat dig ger upp efter ett tag
+79. Fiendeskott glöder tydligare
+80. Röd varningspil när en fiende anfaller bakifrån
+81. Bombskelettens explosioner skadar även andra fiender
+82. Fiendernas livmätare färgas av frysning, gift och brand
+83. Bestiariet visar fiendens bild
+84. Bestiariet visar fiendens HP, skada och fart
+85. Fiender ger ifrån sig ljud när de är nära (andning, fotsteg)
+
+**Bossar och väktare (86–105)**
+86. Bendemonen: meteorregn
+87. Bendemonen: dykanfall
+88. Helvetesbesten: lavavåg som man hoppar över
+89. Helvetesbesten: studsande magmabollar
+90. Mardrömmen: skuggkloner
+91. Mardrömmen: mörkret – ljuset slocknar en stund
+92. Ogern: stenar faller från taket med skuggor som varning
+93. Ogern: rullande stockar
+94. Vålnaden: spegelbilder
+95. Vålnaden: jagande dödskallar
+96. Bossar blir yra (stagger) efter många träffar i följd
+97. Bossens livmätare visar fasgränser
+98. Bossen hånar dig
+99. Väktaren tappar en relik med mycket bättre kortval från varv 2
+100. Bossens livmätare visar skadan i en fördröjd stapel
+101. Bossarenan mörknar och tänds i fas 3
+102. Bossmusiken växer i intensitet med fasen
+103. Ilskemätare: bossen blir snabbare om striden drar ut
+104. Bossrush-läge från startskärmen (alla fem i rad)
+105. Tid för bosstriden visas och sparas som rekord
+
+**Kort (106–165)**
+106–155. 50 nya kort (20 vanliga, 15 ovanliga, 10 sällsynta, 5 legendariska, varav 4 förbannade), bland annat Drakägget, Frostmolnet, Åskstaven, Gryningskorset och Den ansiktslöse.
+156. Kortset: tre kort ur samma set ger en bonus (6 set)
+157. Setbonusen syns i kortleken
+158. Synergimärke i kortvalet när kortet passar dina kort
+159. Förvisa: ta bort ett kort ur poolen i kortvalet (en gång per våning)
+160. Nya kort för guld i kortvalet
+161. Kortarkiv: alla kort du sett, med låsta kort som skuggor
+162. Kortleken går att sortera (sällsynthet, namn, typ)
+163. "NY" på kort du aldrig sett
+164. Legendariska kort skimrar
+165. Kort visar sina siffror tydligt med färgade plus och minus
+
+**Föremål och interaktion (166–195)**
+166. Smedjan (skada på vapnet)
+167. Spåaltaret: en slumpad välsignelse eller förbannelse
+168. Fångar i bur: befria för en belöning
+169. Utmaningsaltaret: överlev tre vågor för en skatt
+170. Spakar som öppnar järngaller
+171. Låsta dörrar och nycklar
+172. Spruckna väggar som sprängs upp
+173. Pilfällor (tryckplattor)
+174. Gasventiler
+175. Offerskålen: betala HP för ett kort
+176. Lava (bränner)
+177. Vatten (saktar ned, plaskar)
+178. Is (halt)
+179. Spindelnät (saktar ned, brinner upp)
+180. Skattkarta som visar hela våningen
+181. Krutfat kan sparkas iväg
+182. Ljus kan skjutas sönder (mörkare rum)
+183. Kistor kan vara låsta (kräver en nyckel)
+184. Brunnen lyser rött på kartan tills den är använd
+185. Dörrar kan sparkas upp (V)
+186. Bokhyllor kan innehålla ett gömt kort
+187. Statyer kan ha guld i sockeln (sparka)
+188. Kistor skakar och glittrar när de innehåller något sällsynt
+189. Föremål som går att använda visar "E" och vad de gör när man står nära
+190. Guld dras till dig när du rusar förbi
+191. Föremål som fiender tappar studsar ut ur dem
+192. Krukor kan innehålla granater och nycklar
+193. Brinnande nät och eld sprider sig till nät intill
+194. Lavan lyser upp rummet
+195. Vatten speglar ljuset (blänk)
+
+**Banor och biomer (196–230)**
+196. Ny biom: Träsket (utomhus, vatten, dimma, ruttna träd)
+197. Träskets väggar och golv
+198. Träskets ljud och musik (grodor, droppar, egen musikslinga)
+199. Träskets väder: dimma och eldflugor
+200. Träskets rum: hyddor på pålar, bryggor, ödehus
+201. Lavarum i grottorna
+202. Frusna rum i kryptan
+203. Översvämmade rum
+204. Spindelrum med nät
+205. Fällgångar med pilfällor
+206. Gasrum
+207. Hemliga rum bakom spruckna väggar
+208. Låsta skattrum med nyckel någon annanstans på våningen
+209. Spakrum: spak öppnar galler till en skatt
+210. Smedjerum
+211. Spåaltare
+212. Fångrum
+213. Utmaningsrum
+214. Offerskålar
+215. Nya fiender placeras efter biom (spindlar i grottor, fladdermöss, hundar i skogen …)
+216. Fiender sover eller patrullerar när våningen börjar
+217. Granater och skattkartor placeras ut
+218. Fler rumsformer: dubbelrum med valv, pelarsalar
+219. Bossarena: Träsket (ny arena)
+220. Blodmåne: sällsynt våning med röd himmel, starkare fiender och dubbelt guld
+221. Dimnatt: tät dimma men fler skatter
+222. Jordbävning: stenar faller ibland från taket
+223. Mörk våning: bara facklor lyser
+224. Guldregn: mer guld men fler fällor
+225. Våningens händelse visas på titelkortet
+226. Himmel med moln som rör sig
+227. Stjärnfall på utomhusvåningar
+228. Månen syns på himlen
+229. Facklorna fladdrar i vinden utomhus
+230. Väggar i mörka hörn får spindelväv (dekaler)
+
+**Händelser och utmaningar (231–250)**
+231. Vågor i utmaningsrummet med räknare
+232. Tidsutmaning: hinn till portalen på tid för en bonus
+233. Jakt: döda den märkta eliten för en belöning
+234. Vandrande köpman som dyker upp ibland
+235. Tärningsspel hos dödgrävaren: satsa 30 guld
+236. Spöket som ber om sina ben (hitta benhögen)
+237. Förbannad kista: öppna och möt en fälla eller skatt
+238. Hemlig nivå: guldkammaren (sällsynt portal)
+239. Varvets bonusuppdrag visas i pausen
+240. Belöning för att döda alla fiender på en våning
+241. Belöning för att hitta alla kistor
+242. Belöning för att inte använda hälsa
+243. Dagens runda har en egen topplista
+244. Veckans utmaning: samma frö hela veckan och två förbannelser
+245. Förbannade våningar: ta en förbannelse för 60 guld
+246. Portalen visar vart den leder (nästa biom eller bossen)
+247. Mimic-jakt: hitta och döda mimicen
+248. Befriade fångar ger dig granater, guld och ibland en nyckel
+249. Spöklika ekon av din förra död (där du dog senast)
+250. Händelselogg i pausen
+
+**Ljud och musik (251–270)**
+251. Musik per biom (loopar)
+252. Musiken blir intensivare i strid
+253. Eget eko (reverb) i grottor och kryptor
+254. Separata volymer för musik, effekter och miljöljud
+255. Ljud för hopp och landning
+256. Ljud för rusning
+257. Ljud för granater (kast, studs, pip)
+258. Ljud för spakar, lås och nycklar
+259. Smedjans klang
+260. Lavans fräsande
+261. Fladdermöss, hundar och spindlar har egna ljud
+262. Bombskelettets stubin
+263. Sköldklang när skott studsar
+264. Gongen när en utmaning börjar
+265. Menyljud vid hovring och klick
+266. Kulor som träffar väggar låter
+267. Fanfar när rundan vinns
+268. Dödsklang när man dör
+269. Ljud dämpas när du är under vatten eller har låg HP
+270. Upprepade ljud varierar i tonhöjd
+
+**Skärm och grafik (271–300)**
+271. Uthållighetsmätare
+272. Granaträknare i HUD
+273. Nyckelikon i HUD
+274. Pilar vid kanten som visar väktare och eliter utanför bilden
+275. Mål-text ("BESEGRA VÄKTAREN", "HITTA PORTALEN")
+276. Skadeindikatorn färgas efter typ av anfall
+277. Valfri timer för våningen
+278. Livmätaren visar förlorad hälsa i en fördröjd stapel
+279. Rustningen spricker synligt när den tar slut
+280. Guld som plockas upp visas som +siffror
+281. Kortbanderoll när du får ett kort
+282. Aktiva tidsbegränsade effekter visar nedräkning
+283. Undertexter för ljud ("[MORRANDE TILL VÄNSTER]")
+284. Bilden får frost- eller giftkanter när du är saktad eller förgiftad
+285. Fotoläge (K): göm allt och frys bilden
+286. Skärmbild med F12/knapp sparas som PNG
+287. Kartmarkör (högerklick på stora kartan eller B)
+288. Stora kartan har teckenförklaring
+289. Kartan ramar in specialrum (butik, väktare, brunn, skatt)
+290. Kartan roterar med spelaren (inställning)
+291. Krutfat och fällor syns på kartan när de setts
+292. Interaktiva föremål blinkar på kartan
+293. Fiendernas livmätare kan stängas av
+294. Skadesiffror kan stängas av
+295. Vattnet och lavan är animerade
+296. Ljuskällor (ljus, kristaller, svampar, altare) har en glöd
+297. Fiender kastar en mörk skugga på golvet
+298. Föremål på golvet glänser
+299. Portalen drar in partiklar
+300. Dödsskärmen visar vad som dödade dig
+
+**Menyer och meta (301–330)**
+301. Klasser: Krigaren, Prickskytten, Alkemisten, Plundraren (olika start)
+302. Klasser låses upp med själar eller prestationer
+303. Uppstigning: MARDRÖM 1–5 med växande förbannelser
+304. Fem nya uppgraderingar i själaaltaret
+305. 30 nya prestationer
+306. Prestationer visar framsteg (12/100)
+307. Statistik per fiende i bestiariet
+308. Statistik per vapen i profilen
+309. Rekord per biom
+310. Snabbaste seger sparas
+311. Övningsläge: välj biom och boss
+312. Poängmultiplikator efter varv 3 (oändligt djup)
+313. Rundans graf över HP och guld per våning
+314. Startskärmen har egen musik
+315. Senaste fröet kan kopieras
+316. Spela igen med samma frö
+317. M i pausen visar hela kartan
+318. Profilen kan exporteras och importeras
+319. Nyheter i spelet (vad som är nytt) på startskärmen
+320. Handbok: hur allt fungerar, i spelet
+321. Kontrollschema i pausen
+322. Bekräftelse innan en ny runda skriver över en pågående
+323. Varvskartan visar biomernas namn
+324. Topplista för dagens runda
+325. Själar visas med animation efter rundan
+326. Kortarkivet nås från startskärmen
+327. Rundsammanfattning visar kort du hade
+328. Klassens färg syns i HUD
+329. Uppstigningsnivå syns i pausen
+330. Tips anpassas efter vad du dog av
+
+**Inställningar och tillgänglighet (331–350)**
+331. Handkontroll (gamepad): gå, sikta, skjut, alla knappar
+332. Vibration i handkontrollen
+333. Byt tangenter
+334. Håll eller växla spring
+335. Siktstöd på mobil och handkontroll
+336. Automatiskt skott när siktet ligger på en fiende (mobil, valfritt)
+337. Gyro-sikte på mobil
+338. Färgblindlägen (3)
+339. Minskade blixtar
+340. Textstorlek
+341. Mjuk eller pixlig uppskalning
+342. Effekterna minskas automatiskt vid låg FPS
+343. Fast eller flytande joystick
+344. Knapparnas genomskinlighet
+345. Skärmen släcks inte under spel (Wake Lock)
+346. Undertexter av/på
+347. Ljudsignaler för fiender bakom dig (tillgänglighet)
+348. Musik av/på
+349. Kartans storlek
+350. Återställ alla inställningar
+
 ## Assets som används
 
 | Vad | Källa |
@@ -317,6 +646,9 @@ Varje biom har också egna föremål i rummen, till exempel kistor och kandelabr
 | Föremål (kandelabrar, kistor, bokhyllor, brunnar, altare, spikfällor, krutfat, lådor m.m.), mimic, partiklar och väktar-/bossrummens väggar och golv | ritade med `tools/props/make.py`. Mimicen bygger på kistan ur *2D Pixel Dungeon*, kristallen på Gothicvania *Rocky Pass* (CC0), dimman på Kenney *Particle Pack* (CC0). Texturerna har ytstruktur från Kenney *retro-textures-fantasy* och *Classic64* (CC0) |
 | Nya ljud (biomljud, fotsteg, bossmusik, klockor, hjärtslag m.m.) | `assets/audio/400 Sounds Pack` och `Horror.SFX.Free.zip`, konverterade med `tools/sounds/make.sh` |
 | Kugghjul och utgång (mobil) | Kenney *Game Icons* (CC0) |
+| Version 4: sju nya fiender (spindel, fladdermus, helveteshund, bombskelett, sköldbärare, svampman, levande rustning), nya föremål, partiklar, måne, moln och Träskets texturer | `tools/props2/make.py`. Helveteshunden och svampmannen ur Gothicvania (Ansimuz, CC0), bombskelettet och sköldbäraren bygger på *Pixel Crawler* (Anokolisa), resten ritas i skriptet. Ytor från Kenney *retro-textures-fantasy* och *Classic64* (CC0) |
+| Musik per biom, eko och 35 nya ljud | `js/music.js` och `tools/sounds/make2.sh`: Abstraction *Music Loop Bundle* (CC0), Kenney *impact-sounds*, *rpg-audio*, *ui-audio*, *digital-audio* (CC0), 400 Sounds Pack och Horror SFX Free. Skogens, borggårdens och startskärmens musik är syntetiserad i skriptet |
+| 50 nya kortbilder | `tools/card-art/make.py` ur `assets/rune-ai/flux/relics` |
 | Typsnitt | Press Start 2P (OFL) |
 
 Se licensfilerna i respektive källpaket.

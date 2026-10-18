@@ -2,7 +2,7 @@
 // Procedurell bangenerator för KRYPTA: fem biomer som delar ett rutnäts-API, en flood fill-pass (connectRegions)
 // och en gemensam innehållspass (content: rumstyper, rekvisita, föremål, fiendegrupper, vaktarens sal).
 //   Gen.floor(seed, depth, opts)  -> banobjekt (kartsträngar + tema) för djup 1-5
-//   Gen.boss(seed, opts)          -> bossarena (opts.arena: 'hall' | 'graveyard' | 'cave' | 'forest', opts.boss: vaktar-id)
+//   Gen.boss(seed, opts)          -> bossarena (opts.arena: 'hall' | 'graveyard' | 'cave' | 'forest' | 'swamp', opts.boss: vaktar-id)
 //   Gen.validate(level)           -> lista med felsträngar (tom = OK)
 //   Gen.THEMES                    -> fängelsehålans teman (väggtecken, golv/tak, dimma, namn)
 //   Gen.BIOMES                    -> biomer (id, namn, utomhus, vikt, djup)
@@ -12,12 +12,14 @@
 //   guardian: 'demon' | 'beast' | 'nightmare' | 'ogre' | 'ghost' (annars väljs den ur seeden) }
 //
 // Biomer: dungeon (rum i olika former + korridorer), caves (cellautomat), graveyard (öppet fält med prefabs),
-//   forest (brusmask + slingrande stig), courtyard (borggård omgiven av byggnadslängor)
+//   forest (brusmask + slingrande stig), courtyard (borggård omgiven av byggnadslängor), swamp (vatten, mossöar, spänger, pålhyddor)
 // Varje vanlig våning har en vaktares sal (rumstyp 'guardian') med Z i mitten, väggar i vaktarens väggtecken och
 //   golv i vaktarens golvtextur. Fält utöver kartan: biome, guardian (vaktar-id), sky (null inomhus, annars '1' öppen
 //   himmel / '0' tak per ruta), floors (golvtexturer, [0] = floor, högst 10) + floorMask ('0'-'9' per ruta = index i floors),
 //   ceil (tak där sky är '0'), roomMask ('-' utanför rum, annars tecknet 48 + index i rooms), rooms ({x, y, w, h, type,
-//   arch, tag?, guardian?}; type: start exit normal elite treasure shop shrine secret guardian)
+//   arch, tag?, shape?, guardian?, lock?}; type: start exit normal elite treasure shop shrine secret guardian special vault),
+//   features (antal nya saker, se nedan). Rumsformer i fängelsehålan: rect round block L cross pillars (två pelarrader)
+//   ring vault (två rum förbundna av en valvbåge); vaktarens sal: hall
 //
 // Tecken:
 //  1-5 vägg   6 skogsbryn   7 kyrkogårdsmur   8 grottberg   9 timmervägg
@@ -32,6 +34,19 @@
 //  w helande brunn (B, högst 1)  y förbannat altare (B, högst 1)  z spikfälla (skadar periodvis, högst 6)
 //  e explosiv tunna (B, kan skjutas, 1-4)  i glödande kristall (ljus)  F lysande svamp (ljus)
 //  H rustningsställ/vapenställ (B)  J bord (B)  T trälåda (B, går att slå sönder)
+// Version 4:
+//  0 träskvägg (vass/dött snår, vägg)
+//  Nya fiender (gångbara, räknas som fiender): U spindel  X fladdermus  Y helveteshund  ! bombskelett  @ sköldbärare
+//    ^ svampman  + levande rustning (vilande, ser ut som ett rustningsställ). Biomer/djup: se BIOME_ENEMIES / NEW_ENEMIES.
+//  Farliga golv (gångbara): _ lava  - vatten (saktar)  : is (halt)  " spindelväv (saktar)
+//  Interaktiva (blockerar, högst 1 av varje): ( städ/smedja  ) spåaltare  [ fångbur  ? utmaningsaltare  ; offerskål  / spak
+//  Grindar och lås: | järngrind (stängd dörr tills spaken / dras)  ] låst dörr (öppnas med nyckeln })  { sprucken vägg
+//    (kan sprängas, alternativ ingång till hemliga rum). Allt utom valven (rooms[i].type 'vault', lock 'lever'|'key')
+//    och hemliga rum nås med | ] { stängda.
+//  Fällor (gångbara): < pilplatta (högst 4, vägg inom 6 rutor i rak linje)  > gasventil (högst 3)
+//  Föremål (gångbara): , granatknippe (1-5)  ' skattkarta (0-1)  } nyckel
+//  level.features: antal { anvil, fortune, prisoner, challenge, offering, lever, locked, cracked, arrows, gas, lava, water, ice, webs }
+//  Specialrum utan fiender: type 'special' (arch fortune | challenge | offering | smithy) och type 'vault' (arch levervault | lockedvault)
 (function () {
   // vapen på kartan: g hagelgevär, r gevär, m kpist, d dubbelbössa, b armborst, s signalpistol, p prickskyttegevär
   const WEAPON_CHARS = 'grmdbsp';
@@ -42,16 +57,20 @@
   const RX = [0, 1, 1, 1, 0, -1, -1, -1], RY = [-1, -1, 0, 1, 1, 1, 0, -1]; // ringen runt en ruta: N NÖ Ö SÖ S SV V NV
 
   // teckentabeller (snabbare än strängsökning i de heta looparna)
-  const BLOCK_PROPS = 'tnkquvwyeHJT'; // rekvisita som blockerar spelaren
-  const PROP_CHARS = 'ckjquvwyzeiFHJT'; // ny rekvisita (räknas som rummets dekor)
+  const INTERACT = '()[?;/'; // städ, spåaltare, fångbur, utmaningsaltare, offerskål, spak (blockerar)
+  const BLOCK_PROPS = 'tnkquvwyeHJT' + INTERACT; // rekvisita som blockerar spelaren
+  const PROP_CHARS = 'ckjquvwyzeiFHJT' + INTERACT; // ny rekvisita (räknas som rummets dekor)
+  const GATES = '|]{'; // järngrind, låst dörr, sprucken vägg: blockerar tills de öppnas
+  const WALLS = '0123456789#%~&=';
   const T_WALL = new Uint8Array(128), T_BLOCK = new Uint8Array(128), T_GEN = new Uint8Array(128);
-  for (const c of '123456789#%~&=') T_WALL[c.charCodeAt(0)] = 1;
-  for (const c of '123456789#%~&=fM' + BLOCK_PROPS) T_BLOCK[c.charCodeAt(0)] = 1;
-  for (const c of '123456789#%~&=fMo' + BLOCK_PROPS) T_GEN[c.charCodeAt(0)] = 1;
+  for (const c of WALLS) T_WALL[c.charCodeAt(0)] = 1;
+  for (const c of WALLS + 'fM' + BLOCK_PROPS + GATES) T_BLOCK[c.charCodeAt(0)] = 1;
+  for (const c of WALLS + 'fMo_z' + BLOCK_PROPS + GATES) T_GEN[c.charCodeAt(0)] = 1; // lava och spikar ska alltid gå att gå runt
   const isWall = c => T_WALL[c.charCodeAt(0)] === 1;
   const isBlock = c => T_BLOCK[c.charCodeAt(0)] === 1; // blockerar spelaren
-  const genBlk = c => T_GEN[c.charCodeAt(0)] === 1; // generatorn räknar även krukor som hinder
-  const isDoorCh = c => c === 'D' || c === 'G' || c === '*';
+  const genBlk = c => T_GEN[c.charCodeAt(0)] === 1; // generatorn räknar även krukor, lava och spikar som hinder
+  const isDoorCh = c => c === 'D' || c === 'G' || c === '*' || c === '|' || c === ']' || c === '{';
+  const HAZARD = '_-:"z<>'; // farliga golv och fällor: aldrig på eller intill P och x
   const cheb = (ax, ay, bx, by) => Math.max(Math.abs(ax - bx), Math.abs(ay - by));
 
   // ---------- Biomer ----------
@@ -61,6 +80,7 @@
     { id: 'graveyard', name: 'KYRKOGÅRD', outdoor: true, weight: 15, depth: [1, 5] },
     { id: 'forest', name: 'SKOG', outdoor: true, weight: 12, depth: [1, 4] },
     { id: 'courtyard', name: 'BORGGÅRD', outdoor: true, weight: 13, depth: [2, 5] }, // delvis utomhus: gården har himmel
+    { id: 'swamp', name: 'TRÄSKET', outdoor: true, weight: 12, depth: [1, 4] }, // vattenkanaler, mossöar, spänger och pålhyddor
   ];
 
   // ---------- Vaktare/bossar: väggtecken, golvtextur, ljuskälla och dekor runt salens kanter ----------
@@ -97,6 +117,7 @@
   ];
   // övriga biomers utseende (byggfunktionerna läggs in längre ned)
   const NIGHT_FOG = rng => [rng.int(10, 14), rng.int(12, 16), rng.int(22, 26)]; // mörkblå natt
+  const SWAMP_FOG = rng => [rng.int(12, 16), rng.int(19, 24), rng.int(11, 15)]; // grön, grumlig träskdimma
   const LOOKS = {
     caves: { wall: '8', floors: ['floor_cave', 'floor_mud'], ceil: 'ceil_cave', ambient: [0.12, 0.17],
       fog: rng => rng.pick([[12, 10, 9], [8, 10, 14], [10, 12, 10], [14, 10, 12]]),
@@ -107,6 +128,9 @@
       fog: NIGHT_FOG, names: ['DÖDSKOGEN', 'HÄXSKOGEN', 'DIMSKOGEN', 'VARGSKOGEN', 'DE HÄNGDAS LUND'] },
     courtyard: { wall: '1', floors: ['floor_gravel', 'floor_ground_grass', 'floor_stone', 'floor_wood_planks'], ceil: 'floor_wood_planks', ambient: [0.24, 0.3],
       fog: NIGHT_FOG, names: ['BORGGÅRDEN', 'RUINBORGEN', 'KLOSTERGÅRDEN', 'SLOTTSGÅRDEN'] },
+    // träsket: floors[0] mossa, [1] spänger (plankor), [2] lera, [3] vissnat gräs; vattnet är tecknet '-' (spelets egen textur)
+    swamp: { wall: '0', floors: ['floor_swamp', 'floor_wood_planks', 'floor_mud', 'floor_grass_dead'], ceil: 'floor_wood_planks', ambient: [0.21, 0.27],
+      fog: SWAMP_FOG, names: ['TRÄSKET', 'DE DRUNKNADES MOSSE', 'DIMKÄRRET', 'HÄXKÄRRET', 'GUNGFLYET', 'RUTTENMYREN'] },
   };
 
   const roundAmb = (rng, a) => Math.max(a[0], Math.min(a[1], Math.round(rng.range(a[0], a[1]) * 100) / 100));
@@ -144,9 +168,16 @@
 
   // ---------- Fiender (delas av alla biomer) ----------
   // vikter per våning: nya sorter dyker upp ju djupare man kommer
-  const enemyTypes = depth => [['S', Math.max(4, 10 - depth)], ['K', 3 + 1.2 * depth], ['V', depth >= 2 ? 1.5 + 1.5 * (depth - 1) : 0],
+  // nya sorter (version 4): [första djup, vikt(djup)], och vilka biomer de hör hemma i
+  const NEW_ENEMIES = {
+    U: [1, d => 1.6 + 0.4 * d], X: [1, d => 1.5 + 0.3 * d], Y: [2, d => 0.8 + 0.5 * d], '^': [2, d => 1 + 0.5 * d],
+    '+': [2, d => 0.5 + 0.3 * d], '!': [3, d => 0.4 + 0.5 * d], '@': [3, d => 0.4 + 0.5 * d],
+  };
+  const BIOME_ENEMIES = { caves: 'UX', forest: 'YUX', graveyard: 'X!^', dungeon: '@!U+', courtyard: '@Y!', swamp: '^UYX' };
+  const enemyTypes = (depth, biome) => [['S', Math.max(4, 10 - depth)], ['K', 3 + 1.2 * depth], ['V', depth >= 2 ? 1.5 + 1.5 * (depth - 1) : 0],
     ['L', 2 + 0.5 * depth], ['I', depth >= 2 ? 1 + depth : 0], ['O', depth >= 2 ? 0.8 + 0.4 * depth : 0],
-    ['N', depth >= 3 ? 0.5 + 0.5 * depth : 0], ['R', depth >= 3 ? 1 + 0.5 * depth : 0], ['W', depth >= 3 ? 0.6 + 0.6 * depth : 0]];
+    ['N', depth >= 3 ? 0.5 + 0.5 * depth : 0], ['R', depth >= 3 ? 1 + 0.5 * depth : 0], ['W', depth >= 3 ? 0.6 + 0.6 * depth : 0]]
+    .concat([...(BIOME_ENEMIES[biome] || '')].map(c => [c, depth >= NEW_ENEMIES[c][0] ? NEW_ENEMIES[c][1](depth) : 0]));
 
   // ---------- Rumstyper (arketyper) ----------
   // mix: fiendesorter som trivs här (vikt x3), floor: golvtextur inomhus (paint: även utomhus/i grottan),
@@ -203,6 +234,25 @@
       F.place(r, 'j', F.int(1, 2), {});
       F.chest(r, 0.2);
     } },
+    frozen: { mix: 'SKN', floor: 'floor_tiles_blue', min: 12, fill(r, F) { // frusen sal/krypta: isgolv
+      F.place(r, 'u', F.int(1, 2), { wall: true, spread: 3 });
+      F.place(r, 'k', F.int(0, 2), { wall: true, spread: 2 });
+      F.place(r, 'c', 1, { wall: true });
+    }, hazard(r, Z) { Z.blob(r, ':', Z.range(0.6, 0.9)); } },
+    flooded: { mix: 'LSU', floor: 'floor_stone', min: 12, fill(r, F) { // översvämmad sal
+      F.place(r, 'T', F.int(1, 2), { corner: true, spread: 2 });
+      F.place(r, 'j', F.int(1, 2), {});
+    }, hazard(r, Z) { Z.blob(r, '-', Z.range(0.5, 0.8)); } },
+    trap: { mix: 'SKR', min: 9, fits: r => Math.min(r.box.w, r.box.h) <= 5 || Math.max(r.box.w, r.box.h) >= 1.6 * Math.min(r.box.w, r.box.h),
+      fill(r, F) { // fällgång: pilplattor, statyer som skjuter
+        F.place(r, 'u', F.int(1, 2), { wall: true, spread: 3 });
+        F.place(r, 'j', F.int(1, 3), { spread: 2 });
+      }, hazard(r, Z) { Z.traps(r, '<', Z.int(2, 3)); } },
+    gas: { mix: 'L!K', min: 12, fill(r, F) { // gaskammare med ventiler i golvet
+      F.place(r, 'T', F.int(1, 2), { corner: true });
+      F.place(r, 'j', F.int(1, 2), {});
+      F.place(r, 'v', F.int(0, 1), { wall: true });
+    }, hazard(r, Z) { Z.traps(r, '>', Z.int(2, 3)); } },
     // --- grottor ---
     grotto: { mix: 'ILK', min: 12, fill(r, F) { // kristallgrotta: kluster av glödande kristaller längs väggarna
       for (let k = F.int(2, 3); k > 0; k--) {
@@ -224,7 +274,15 @@
     mudflat: { mix: 'LS', floor: 'floor_mud', paint: true, min: 10, fill(r, F) { // översvämmad lerslätt
       F.place(r, 'j', F.int(1, 2), {});
       F.place(r, 'F', F.int(1, 2), { wall: true, spread: 3 });
-    } },
+    }, hazard(r, Z) { Z.blob(r, '-', Z.range(0.1, 0.22)); } },
+    lava: { mix: 'IKX', min: 20, fill(r, F) { // lavaflod/-göl med en bro av golv (lavan går alltid att gå runt)
+      F.place(r, 'i', F.int(1, 2), { wall: true, spread: 3 });
+      F.place(r, 'j', F.int(1, 2), {});
+    }, hazard(r, Z) { Z.river(r, '_'); Z.pool(r, '_', Z.range(1.5, 2.6)); if (Z.chance(0.5)) Z.pool(r, '_', Z.range(1.2, 2)); } },
+    nest: { mix: 'UUX', force: 'U', min: 12, fill(r, F) { // spindelbo: väv i hörnen och längs väggarna, spindlar
+      F.place(r, 'j', F.int(2, 4), { spread: 2 });
+      F.place(r, 'v', F.int(0, 1), { wall: true });
+    }, hazard(r, Z) { Z.blob(r, '"', Z.range(0.18, 0.3), { walls: true, max: Z.int(8, 14) }); } },
     camp: { mix: 'ROW', min: 12, fill(r, F) { // jägar-/orchläger kring en lägereld
       const f = F.place(r, 'f', 1, { open: true, center: true, jit: 3 })[0];
       F.place(r, 'T', F.int(2, 3), f ? { near: [f[0], f[1], 3.5], spread: 2 } : { wall: true });
@@ -285,7 +343,43 @@
       F.putAt(r.cx, r.cy, 'u');
       for (const [dx, dy] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) F.putAt(r.cx + dx, r.cy + dy, 'c');
     } },
+    // --- träsk ---
+    bog: { mix: '^LS', min: 12, fill(r, F) { // gungfly: mest vatten, svampar på tuvorna
+      for (let k = F.int(1, 2); k > 0; k--) {
+        const s = F.place(r, 'F', 1, { avoid: ['F', 3] })[0];
+        if (s) F.place(r, 'F', F.int(1, 2), { near: [s[0], s[1], 1.6] });
+      }
+      F.place(r, 'j', F.int(1, 2), {});
+    }, hazard(r, Z) { Z.blob(r, '-', Z.range(0.35, 0.55)); } },
+    sunkenshrine: { mix: 'V^N', min: 14, fill(r, F) { // sjunken helgedom: staty på en ö med ljus, vatten runt om
+      const f = F.place(r, 'u', 1, { open: true, center: true, jit: 1.5 })[0];
+      if (f) { F.place(r, 'c', F.int(2, 4), { near: [f[0], f[1], 2.2], spread: 1 }); r.focus = f; } else F.place(r, 'c', 2, { spread: 3 });
+      F.place(r, 'k', F.int(0, 1), {});
+    }, hazard(r, Z) { if (r.focus) Z.ringAt(r, '-', r.focus, 2.4, 3.6); Z.blob(r, '-', 0.12); } },
     // --- specialrum (inga fiender) ---
+    smithy: { floor: 'floor_stone', fill(r, F) { // smedja: städ, essja och lådor
+      if (!F.place(r, '(', 1, { open: true, center: true, jit: 2 }).length && !F.place(r, '(', 1, { center: true }).length) F.place(r, '(', 1, {});
+      F.place(r, 'f', 1, { wall: true });
+      F.place(r, 'T', F.int(2, 3), { corner: true, spread: 2 });
+      F.place(r, 'H', F.int(0, 1), { wall: true });
+    } },
+    fortune: { floor: 'floor_tiles_blue', fill(r, F) { // spåaltare
+      const p = F.place(r, ')', 1, { wall: true, center: true, jit: 2 })[0] || F.place(r, ')', 1, { center: true })[0] || F.place(r, ')', 1, {})[0];
+      F.place(r, 'c', F.int(2, 3), p ? { near: [p[0], p[1], 2.5] } : { spread: 2 });
+      F.place(r, 'u', F.int(0, 1), { wall: true });
+    } },
+    challenge: { floor: 'floor_stone_pattern', fill(r, F) { // utmaningsaltare mitt i en öppen sal, facklor runt om (spelet skickar vågor)
+      if (!F.place(r, '?', 1, { open: true, center: true, jit: 0.5 }).length && !F.place(r, '?', 1, { center: true }).length) F.place(r, '?', 1, {});
+      F.place(r, 'f', F.int(2, 4), { wall: true, spread: 4 });
+      F.place(r, 'c', F.int(0, 1), { wall: true });
+    } },
+    offering: { fill(r, F) { // offerskål bland levande ljus
+      const p = F.place(r, ';', 1, { center: true, jit: 1.5 })[0] || F.place(r, ';', 1, {})[0];
+      F.place(r, 'c', F.int(3, 4), p ? { near: [p[0], p[1], 2.5], spread: 1 } : { wall: true, spread: 2 });
+      F.place(r, 'j', F.int(0, 2), {});
+    } },
+    levervault: { fill(r, F) { F.vault(r); } }, // spakvalv: bara järngrindar (|) in, spaken (/) i ett annat rum
+    lockedvault: { fill(r, F) { F.vault(r); } }, // låst valv: bara en låst dörr (]) in, nyckeln (}) någon annanstans
     shop: { fill(r, F) {
       F.place(r, 'c', F.int(1, 2), { wall: true, spread: 3 });
       if (F.shopAt) F.place(r, 'J', 1, { near: [F.shopAt[0], F.shopAt[1], 2.5] });
@@ -308,12 +402,14 @@
   };
   // rumstyper per biom och områdestagg [id, vikt]
   const ARCH_BY = {
-    dungeon: { room: [['library', 3], ['storeroom', 3], ['ossuary', 3], ['prison', 2], ['chapel', 2.5], ['dining', 2.5], ['armory', 2.5], ['torture', 2], ['crypt', 3]] },
-    caves: { open: [['grotto', 3], ['mushroom', 3], ['boneden', 2], ['mudflat', 2], ['camp', 1.5]] },
-    graveyard: { open: [['graves', 3], ['statues', 2], ['candles', 3], ['bonefield', 2]], chapel: [['chapel', 1]], crypt: [['crypt', 1]] },
-    forest: { open: [['thicket', 3], ['boneclear', 1], ['mushring', 1]], clearing: [['mushring', 3], ['boneclear', 2], ['camp', 3], ['cages', 2]], hut: [['hut', 1]] },
+    dungeon: { room: [['library', 3], ['storeroom', 3], ['ossuary', 3], ['prison', 2], ['chapel', 2.5], ['dining', 2.5], ['armory', 2.5], ['torture', 2], ['crypt', 3],
+      ['frozen', 1.4], ['flooded', 1.4], ['trap', 1.6], ['gas', 1.2]] },
+    caves: { open: [['grotto', 3], ['mushroom', 3], ['boneden', 2], ['mudflat', 2], ['camp', 1.5], ['lava', 2.2], ['nest', 1.6]] },
+    graveyard: { open: [['graves', 3], ['statues', 2], ['candles', 3], ['bonefield', 2]], chapel: [['chapel', 1]], crypt: [['crypt', 1], ['frozen', 0.8]], tomb: [['crypt', 1], ['frozen', 1]] },
+    forest: { open: [['thicket', 3], ['boneclear', 1], ['mushring', 1], ['nest', 0.6]], clearing: [['mushring', 3], ['boneclear', 2], ['camp', 3], ['cages', 2], ['nest', 1.2]], hut: [['hut', 1]] },
     courtyard: { room: [['library', 2], ['storeroom', 3], ['dining', 3], ['armory', 3], ['chapel', 1.5], ['prison', 1.5], ['crypt', 1]],
       fountain: [['fountain', 1]], open: [['market', 3], ['drill', 2]] },
+    swamp: { open: [['bog', 3], ['nest', 2], ['sunkenshrine', 1.6], ['mushroom', 1.4], ['boneclear', 1], ['thicket', 1]], hut: [['hut', 1]] },
   };
 
   // ---------- Bana ----------
@@ -350,12 +446,22 @@
         ceil: theme.ceil, sky: null, secretWall: theme.wall, fog: theme.fog.slice(), ambient,
         map: lv.map, depth, seed, rooms: lv.rooms, roomMask: lv.roomMask, theme: theme.id, guardian: gid,
       };
+      level.features = features(level.map);
       if (validate(level).length) { floor.stats.retries++; continue; }
       return level;
     }
     throw new Error('Gen.floor: kunde inte bygga en giltig bana (seed ' + seed + ', djup ' + depth + ')');
   }
   floor.stats = { retries: 0 };
+
+  // level.features: antal av varje ny sak på kartan (tester och spelets HUD)
+  const FEATURE_CH = { anvil: '(', fortune: ')', prisoner: '[', challenge: '?', offering: ';', lever: '/', locked: ']', cracked: '{',
+    arrows: '<', gas: '>', lava: '_', water: '-', ice: ':', webs: '"' };
+  function features(map) {
+    const n = {}; for (const row of map) for (const c of row) n[c] = (n[c] || 0) + 1;
+    const out = {}; for (const k in FEATURE_CH) out[k] = n[FEATURE_CH[k]] || 0;
+    return out;
+  }
 
   function biomeFloor(root, seed, depth, opts, biome, gid) {
     const look = LOOKS[biome.id], lrng = root.fork('look');
@@ -370,6 +476,7 @@
         ceil: look.ceil, sky: biome.outdoor ? rowsOf(G.W, G.H, G.sky) : null, secretWall: look.wall, fog, ambient,
         map: G.g.map(r => r.join('')), depth, seed, rooms: res.rooms, roomMask: res.roomMask, theme: biome.id, guardian: gid,
       };
+      level.features = features(level.map);
       if (validate(level).length) { floor.stats.retries++; continue; }
       return level;
     }
@@ -396,6 +503,10 @@
       const gs = () => rng.int(9, Math.min(11, 9 + (depth >> 1)));
       const w = gs(), h = gs();
       rooms.push(mk(rng.int(2, W - 2 - w), rng.int(2, H - 2 - h), w, h, 'guardian'));
+    }
+    if (rng.chance(0.4)) for (let t = 0; t < 60; t++) { // ibland en stor öppen sal (plats för ett utmaningsaltare)
+      const w = rng.int(7, 9), h = rng.int(7, 9), r = mk(rng.int(2, W - 2 - w), rng.int(2, H - 2 - h), w, h, 'normal');
+      if (rooms.every(o => gapOK(o, r, 3))) { r.big = true; rooms.push(r); break; }
     }
     for (let tries = 0; rooms.length < target && tries < 900; tries++) {
       const cap = tries > 450 ? 5 : tries > 150 ? 7 : 9;
@@ -427,7 +538,8 @@
         if (w >= 6 && h >= 6) sh.push(['cross', 2]);
         if ((w >= 7 && h >= 5) || (h >= 7 && w >= 5)) sh.push(['pillars', 2]);
         if (w >= 9 && h >= 9) sh.push(['ring', 3]);
-        r.shape = rng.weighted(sh, s => s[1])[0];
+        if ((w >= 8 && h >= 5) || (h >= 8 && w >= 5)) sh.push(['vault', 1.5]); // två rum förbundna av en valvbåge
+        r.shape = rng.weighted(r.big ? [['rect', 2], ['round', 1], ['pillars', 1.5]] : sh, s => s[1])[0];
         if (r.shape === 'cross') { const cw = Math.floor(w / 3), ch = Math.floor(h / 3); fillW(x, y, cw, ch); fillW(x + w - cw, y, cw, ch); fillW(x, y + h - ch, cw, ch); fillW(x + w - cw, y + h - ch, cw, ch); }
         else if (r.shape === 'L') { const qw = w >> 1, qh = h >> 1, c = rng.int(0, 3); fillW(c & 1 ? x + w - qw : x, c & 2 ? y + h - qh : y, qw, qh); }
         else if (r.shape === 'round') {
@@ -438,6 +550,9 @@
           const x0 = x + 2, y0 = y + 2, x1 = x + w - 3, y1 = y + h - 3, hz = rng.chance(0.5);
           for (let yy = y0; yy <= y1; yy++) for (let xx = x0; xx <= x1; xx++) if (xx === x0 || xx === x1 || yy === y0 || yy === y1) g[yy][xx] = wc;
           if (hz) { g[(y0 + y1) >> 1][x0] = '.'; g[(y0 + y1 + 1) >> 1][x1] = '.'; } else { g[y0][(x0 + x1) >> 1] = '.'; g[y1][(x0 + x1 + 1) >> 1] = '.'; }
+        } else if (r.shape === 'vault') { // tvärvägg mitt i rummet med en valvbåge (1-2 rutor) i mitten
+          const hz = w >= 8 && (w >= h || h < 8), L = hz ? h : w, gap = L >= 6 ? 2 : 1, a0 = (L - gap) >> 1;
+          for (let k = 0; k < L; k++) if (k < a0 || k >= a0 + gap) { if (hz) g[y + k][x + (w >> 1)] = wc; else g[y + (h >> 1)][x + k] = wc; }
         }
       }
       // representativ golvruta (närmast mitten)
@@ -663,7 +778,7 @@
     for (let i = 0; i < W * H; i++) if (corr[i] && rid[i] < 0 && g[(i / W) | 0][i % W] === '.') corridors.push([i % W, (i / W) | 0]);
     const res = content(G, rng, depth, opts, {
       biome: 'dungeon', P, X, rooms: recs, rid, corridors, floors: [theme.floor, K.floor], gid: K.id, guardian: { center: [gr.cx, gr.cy] },
-      secret: srec, spikes: rng.int(2, 4), cfg: { barrels: { p: 0.55, min: 2 }, deadEnd: true },
+      secret: srec, spikes: rng.int(2, 4), vaultWall: wc, cfg: { barrels: { p: 0.55, min: 2 }, deadEnd: true },
     });
     if (!res) return null;
     return { map: g.map(row => row.join('')), rooms: res.rooms, roomMask: res.roomMask, floors: res.floors, fm: G.fm, W, H };
@@ -1003,20 +1118,24 @@
   // för specialrummen (shop, shrine, treasure, secret, guardian), föremål/interaktiva saker i stället.
   function content(G, rng, depth, opts, L) {
     const { W, g, lock, fm } = G, { P, X, rooms, rid } = L, cfg = L.cfg || {};
-    const cnt = {}, CAP = { o: 8, e: 4, z: 6, w: 1, y: 1 };
+    const cnt = {}, CAP = { o: 8, e: 4, z: 6, w: 1, y: 1, '(': 1, ')': 1, '[': 1, '?': 1, ';': 1, '/': 1, '}': 1, "'": 1, '<': 4, '>': 3, ',': 5 };
     const can = ch => CAP[ch] === undefined || (cnt[ch] || 0) < CAP[ch];
-    const set = (x, y, ch) => { g[y][x] = ch; cnt[ch] = (cnt[ch] || 0) + 1; };
+    const set = (x, y, ch) => {
+      g[y][x] = ch; cnt[ch] = (cnt[ch] || 0) + 1;
+      if (INTERACT.includes(ch)) for (let d = 0; d < 4; d++) G.lockMin(x + DX[d], y + DY[d], 1); // altare/städ/bur/spak: fri framsida
+    };
     const size = r => r.cells.length;
-    const farFromP = (x, y) => Math.hypot(x - P[0], y - P[1]) >= 7;
+    const farFromP = (x, y) => (x - P[0]) * (x - P[0]) + (y - P[1]) * (y - P[1]) >= 49;
     const nWall = (x, y) => (isWall(g[y - 1][x]) ? 1 : 0) + (isWall(g[y + 1][x]) ? 1 : 0) + (isWall(g[y][x - 1]) ? 1 : 0) + (isWall(g[y][x + 1]) ? 1 : 0);
     const nearCh = (x, y, ch, d) => { for (let yy = y - d; yy <= y + d; yy++) for (let xx = x - d; xx <= x + d; xx++) if (G.at(xx, yy) === ch) return true; return false; };
     // kandidatrutor i rummet, sorterade (o.near/o.center: närmast först, annars slumpordning)
     // o: block (hinder: kräver olåst ruta), strict (olåst även för icke-hinder), wall, corner, open, far, pred, avoid: [tecken, avstånd], jit
+    const resv = new Uint8Array(W * G.H); // fiendernas reserverade rutor (stridsrummen får alltid plats med en grupp)
     function cands(r, o) {
       const out = [], lim = o.block || o.strict ? 0 : 1;
       for (const p of r.cells) {
         const x = p[0], y = p[1];
-        if (g[y][x] !== '.' || lock[y * W + x] > lim) continue;
+        if (g[y][x] !== '.' || lock[y * W + x] > lim || (resv[y * W + x] && !o.enemy)) continue;
         if (o.wall || o.corner || o.open) { const nw = nWall(x, y); if ((o.wall && !nw) || (o.corner && nw < 2) || (o.open && nw)) continue; }
         if (o.far && !farFromP(x, y)) continue;
         if (o.pred && !o.pred(x, y)) continue;
@@ -1125,15 +1244,197 @@
     function chest(r, p) { if (rng.chance(p)) { const c = place(r, 'C', 1, { wall: true, far: true })[0]; if (c) extraChests.push(c); } }
     const floorIdx = name => { let k = L.floors.indexOf(name); if (k < 0 && L.floors.length < 10) { L.floors.push(name); k = L.floors.length - 1; } return k; };
     function paint(r, name) { const k = floorIdx(name); if (k >= 0) for (const [x, y] of r.cells) if (!isWall(g[y][x])) fm[y * W + x] = k; }
-    const F = { int: (a, b) => rng.int(a, b), chance: p => rng.chance(p), place, putAt, shelves, row, grid, ring, stalls, focal, chest,
+    // valvets skatt: kista (oftast) i mitten, en rustning eller hälsa/ammo, ibland granater, ett ljus i ett hörn
+    function vault(r) {
+      const loot = [rng.chance(r.lock === 'key' ? 0.85 : 0.6) ? 'C' : 'A', rng.pick(['A', 'h', 'a']), rng.chance(0.5) ? ',' : rng.pick(['h', 'a'])];
+      if (!putAt(r.cx, r.cy, loot[0])) place(r, loot[0], 1, { center: true });
+      for (const ch of loot.slice(1)) place(r, ch, 1, {});
+      if (!place(r, 'c', 1, { corner: true }).length) place(r, 'j', 1, {});
+    }
+    const F = { int: (a, b) => rng.int(a, b), chance: p => rng.chance(p), place, putAt, shelves, row, grid, ring, stalls, focal, chest, vault,
       nextTo: ch => (x, y) => g[y - 1][x] === ch || g[y + 1][x] === ch || g[y][x - 1] === ch || g[y][x + 1] === ch };
+
+    // ----- farliga golv och fällor (körs sist, när fiender och föremål redan står på plats) -----
+    // aldrig på/intill P och x (is/vatten/väv får ligga i dörrpassager, fällor och lava aldrig); lava sätts bara där den inte stänger av något (localOK räknar lava som hinder)
+    const nearPX = (x, y) => cheb(x, y, P[0], P[1]) <= 1 || cheb(x, y, X[0], X[1]) <= 1;
+    const hzFree = r => r.cells.filter(([x, y]) => g[y][x] === '.' && !nearPX(x, y));
+    const wallInLine = (x, y) => { // pilplatta: en vägg inom 6 rutor i rak linje (fri sikt)
+      for (let d = 0; d < 4; d++) for (let k = 1; k <= 6; k++) { const c = G.at(x + DX[d] * k, y + DY[d] * k); if (isWall(c)) return true; if (isBlock(c)) break; }
+      return false;
+    };
+    const trapOK = (x, y) => g[y][x] === '.' && !lock[y * W + x] && !nearPX(x, y) && ![0, 1, 2, 3].some(d => isDoorCh(g[y + DY[d]][x + DX[d]]));
+    const Z = {
+      int: (a, b) => rng.int(a, b), range: (a, b) => rng.range(a, b), chance: p => rng.chance(p),
+      // fläck som växer från en slumpad ruta (walls: hellre längs väggarna och i hörnen)
+      blob(r, ch, frac, o) {
+        const fc = hzFree(r); if (!fc.length) return 0;
+        const s = rng.pick(fc), n = Math.min(o && o.max || 1e9, Math.max(1, Math.round(fc.length * frac)));
+        const key = ([x, y]) => (o && o.walls ? 3 - 1.5 * nWall(x, y) : Math.hypot(x - s[0], y - s[1])) + rng.next() * 2.2;
+        const ord = fc.map(p => [p[0], p[1], key(p)]).sort((a, b) => a[2] - b[2]);
+        for (let k = 0; k < n; k++) set(ord[k][0], ord[k][1], ch);
+        return n;
+      },
+      ringAt(r, ch, c, r0, r1) {
+        let n = 0;
+        for (const [x, y] of hzFree(r)) { const d = Math.hypot(x - c[0], y - c[1]); if (d >= r0 && d <= r1) { set(x, y, ch); n++; } }
+        return n;
+      },
+      // lavaflod tvärs över rummet (slingrar, 1-2 bred); rutor som skulle stänga av något blir broar
+      river(r, ch) {
+        const b = r.box, vert = b.w >= b.h, L = vert ? b.h : b.w, A0 = vert ? b.y : b.x;
+        let c = (vert ? r.cx : r.cy) + rng.int(-1, 1), n = 0;
+        const wide = rng.chance(0.75);
+        for (let k = 0; k < L; k++) {
+          if (rng.chance(0.4)) c += rng.chance(0.5) ? 1 : -1;
+          for (let t = 0; t < (wide ? 2 : 1); t++) {
+            const x = vert ? c + t : A0 + k, y = vert ? A0 + k : c + t;
+            if (!G.inb(x, y) || rid[y * W + x] !== r.id || g[y][x] !== '.' || lock[y * W + x] || nearPX(x, y) || !localOK(G, x, y)) continue;
+            set(x, y, ch); n++;
+          }
+        }
+        return n;
+      },
+      pool(r, ch, rad) {
+        const fc = hzFree(r); if (!fc.length) return 0;
+        const s = rng.pick(fc); let n = 0;
+        for (const [x, y] of fc.filter(([x, y]) => Math.hypot(x - s[0], y - s[1]) <= rad).sort((a, b) => Math.hypot(a[0] - s[0], a[1] - s[1]) - Math.hypot(b[0] - s[0], b[1] - s[1]))) {
+          if (g[y][x] !== '.' || lock[y * W + x] || !localOK(G, x, y)) continue;
+          set(x, y, ch); n++;
+        }
+        return n;
+      },
+      traps(r, ch, n) {
+        let k = 0;
+        for (const [x, y] of rng.shuffle(r.cells.slice())) {
+          if (k >= n || !can(ch)) break;
+          if (!trapOK(x, y) || (ch === '<' && !wallInLine(x, y)) || nearCh(x, y, ch, 1)) continue;
+          set(x, y, ch); k++;
+        }
+        return k;
+      },
+    };
 
     const normal = () => rooms.filter(r => r.type === 'normal');
     const isCombat = r => r.type === 'normal' || r.type === 'exit' || r.type === 'elite';
     for (const r of rooms) { r.far = 0; for (const [x, y] of r.cells) if (g[y][x] === '.' && lock[y * W + x] < 2 && farFromP(x, y)) r.far++; }
     const maxD = Math.max(1, ...rooms.map(r => r.d || 0));
     L.altar = rng.chance(0.35);
+    // ----- kapacitet: ett rum får bara bli valv/specialrum om stridsrummen ändå rymmer våningens fiender -----
+    const capOf = q => (q.far >= 4 ? Math.min(5, Math.max(2, Math.floor(q.far / 4))) : 0);
+    const needCap = 3 * depth + 9;
+    const spareRoom = (q, extra) => q.far < 4 || rooms.reduce((n, a) => n + (isCombat(a) && a !== q ? capOf(a) : 0), 0) >= needCap + (extra || 0);
+    // ----- specialrum utan fiender: spåaltare, offerskål, utmaningsaltare (öppen sal >= 7x7) och smedja (väljs före de andra rollerna) -----
+    const wantAnvil = rng.chance(0.4);
+    let anvilArmory = wantAnvil && (L.biome === 'dungeon' || L.biome === 'courtyard') && rng.chance(0.5);
+    {
+      const openShape = q => !q.shape || q.shape === 'rect' || q.shape === 'round' || q.shape === 'pillars' || q.shape === 'L';
+      const dots = q => q.cells.reduce((n, [x, y]) => n + (g[y][x] === '.' ? 1 : 0), 0);
+      let spot = q => q.cells.filter(([x, y]) => g[y][x] === '.' && !lock[y * W + x] && localOK(G, x, y)).length >= 3; // plats för altaret/städet
+      const spotMemo = new Map(), spot0 = spot;
+      spot = q => { if (!spotMemo.has(q)) spotMemo.set(q, spot0(q)); return spotMemo.get(q); };
+      const SP = [['fortune', 0.36, q => size(q) >= 9], ['offering', 0.36, q => size(q) >= 9],
+        ['challenge', L.biome === 'dungeon' ? 0.7 : 0.3, q => q.box.w >= 7 && q.box.h >= 7 && openShape(q) && dots(q) >= 30], ['smithy', wantAnvil && !anvilArmory ? 1 : 0, q => size(q) >= 12]];
+      for (const [id, p, fits] of rng.shuffle(SP)) {
+        if (!rng.chance(p)) continue;
+        const c = rng.shuffle(normal().filter(q => fits(q) && spot(q) && spareRoom(q, 4 + (opts.shop ? 3 : 0)))).sort((a, b) => (a.far < 4 ? 0 : 1) - (b.far < 4 ? 0 : 1));
+        if (c.length) { c[0].type = 'special'; c[0].special = id; } else if (id === 'smithy') anvilArmory = true;
+      }
+    }
 
+    // ----- valv: spakvalv (bara järngrindar | in, spaken / i ett annat rum) och låst valv (låst dörr ], nyckeln } någon annanstans) -----
+    // antingen förseglas ett återvändsrum vars enda utgång är en dörr/öppning med väggar på båda sidor, eller så huggs en
+    // 3x3-kammare ut ur massiv vägg (L.vaultWall) bredvid ett rum
+    {
+      // rummets utgångar (högst maxEx), om alla är dörrar/öppningar med väggar på båda sidor; med flera utgångar får
+      // förseglingen inte stänga av något annat rum
+      const gateable = (q, maxEx) => {
+        const ex = [];
+        for (const [x, y] of q.cells) for (let d = 0; d < 4; d++) {
+          const nx = x + DX[d], ny = y + DY[d], ni = ny * W + nx;
+          if (rid[ni] === q.id || isWall(g[ny][nx]) || ex.includes(ni)) continue;
+          if (ex.length >= maxEx) return null;
+          ex.push(ni);
+        }
+        if (!ex.length) return null;
+        const out = [];
+        for (const i of ex) { const gt = gateCell(q, i); if (!gt) return null; out.push(gt); }
+        if (out.length > 1) {
+          const seen = new Uint8Array(W * G.H), st = [P[1] * W + P[0]];
+          for (const [x, y] of q.cells) seen[y * W + x] = 2;
+          for (const gt of out) seen[gt.y * W + gt.x] = 2;
+          seen[st[0]] = 1;
+          while (st.length) { const c = st.pop(); for (let d = 0; d < 4; d++) { const ni = c + DX[d] + DY[d] * W; if (!seen[ni] && !genBlk(g[(ni / W) | 0][ni % W])) { seen[ni] = 1; st.push(ni); } } }
+          for (const a of rooms) if (a !== q && a.type !== 'secret' && a.cells.some(([x, y]) => !seen[y * W + x] && !genBlk(g[y][x]))) return null;
+        }
+        return out;
+      };
+      const gateCell = (q, ex) => {
+        if (rid[ex] >= 0) return null;
+        const x = ex % W, y = (ex / W) | 0, c = g[y][x];
+        if (c !== 'D' && c !== 'G' && c !== '.') return null;
+        const ew = isWall(g[y][x - 1]) && isWall(g[y][x + 1]), ns = isWall(g[y - 1][x]) && isWall(g[y + 1][x]);
+        if (ew === ns) return null;
+        let inn = ew ? [x, y - 1] : [x - 1, y], out = ew ? [x, y + 1] : [x + 1, y];
+        if (rid[inn[1] * W + inn[0]] !== q.id) [inn, out] = [out, inn];
+        if (rid[inn[1] * W + inn[0]] !== q.id || rid[out[1] * W + out[0]] === q.id || isBlock(g[inn[1]][inn[0]]) || isBlock(g[out[1]][out[0]])) return null;
+        return { x, y, inn, out };
+      };
+      const seal = (q, gts, kind) => {
+        for (const gt of gts) {
+          g[gt.y][gt.x] = kind === 'lever' ? '|' : ']';
+          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) G.lockMin(gt.x + dx, gt.y + dy, 1);
+          G.lockMin(gt.inn[0], gt.inn[1], 2); G.lockMin(gt.out[0], gt.out[1], 2);
+        }
+        q.type = 'vault'; q.lock = kind; q.door = [gts[0].x, gts[0].y];
+        return q;
+      };
+      const pocket = kind => {
+        const wc = L.vaultWall; if (!wc) return null;
+        const src = [];
+        for (const q of rooms) if (q.type !== 'guardian' && q.type !== 'secret' && q.type !== 'vault') for (const [x, y] of q.cells) {
+          const i = y * W + x;
+          if (g[y][x] !== '.' || lock[i] || G.res[i] || cheb(x, y, P[0], P[1]) < 3) continue;
+          for (let d = 0; d < 4; d++) if (G.inb(x + DX[d], y + DY[d]) && g[y + DY[d]][x + DX[d]] === wc) src.push([x, y, d, q]);
+        }
+        rng.shuffle(src);
+        for (let t = 0; t < 3 * src.length && t < 600; t++) {
+          const [x, y, d, q] = src[(t / 3) | 0], i = y * W + x, ox = x + DX[d], oy = y + DY[d], k = t % 3;
+          let ix, iy;
+          if (d === 0) { ix = ox + 1; iy = y - k; } else if (d === 2) { ix = ox - 3; iy = y - k; }
+          else if (d === 1) { iy = oy + 1; ix = x - k; } else { iy = oy - 3; ix = x - k; }
+          if (ix < 1 || iy < 1 || ix + 3 > W - 1 || iy + 3 > G.H - 1) continue;
+          let ok = true;
+          for (let yy = iy - 1; ok && yy <= iy + 3; yy++) for (let xx = ix - 1; xx <= ix + 3; xx++) if (g[yy][xx] !== wc) { ok = false; break; }
+          if (!ok) continue;
+          const skyV = G.sky[i], cells = [], id = rooms.length;
+          for (let yy = iy; yy < iy + 3; yy++) for (let xx = ix; xx < ix + 3; xx++) {
+            const j = yy * W + xx;
+            g[yy][xx] = '.'; fm[j] = fm[i]; G.sky[j] = skyV; G.solid[j] = 0; G.lockMin(xx, yy, 1); rid[j] = id; cells.push([xx, yy]);
+          }
+          g[oy][ox] = kind === 'lever' ? '|' : ']'; G.sky[oy * W + ox] = skyV;
+          markDoor(G, ox, oy, x, y, ox + DX[d], oy + DY[d]);
+          const rec = { id, type: 'vault', tag: 'vault', lock: kind, cells, cx: ix + 1, cy: iy + 1, box: { x: ix, y: iy, w: 3, h: 3 }, d: q.d || 0, indoor: !skyV, door: [ox, oy], far: 0 };
+          rooms.push(rec);
+          return rec;
+        }
+        return null;
+      };
+      for (const kind of ['lever', 'key']) {
+        if (!rng.chance(L.biome === 'dungeon' ? 0.31 : 0.38)) continue;
+        let v = null;
+        if (rng.chance(L.biome === 'dungeon' ? 0.65 : 1)) {
+          const c = rng.shuffle(rooms.filter(q => q.type === 'normal' && size(q) <= (L.biome === 'courtyard' ? 70 : 45) && spareRoom(q, 4 + (opts.shop ? 3 : 0)))).sort((a, b) => (a.far < 4 ? 0 : 1) - (b.far < 4 ? 0 : 1));
+          for (const q of c) { const gt = gateable(q, kind === 'lever' ? 2 : 1); if (gt) { v = seal(q, gt, kind); break; } }
+        }
+        if (!v) v = pocket(kind);
+        if (!v) continue;
+        // spaken (vid en vägg) eller nyckeln (långt från P) i ett annat rum som nås med alla grindar stängda
+        const ch = kind === 'lever' ? '/' : '}';
+        const others = rng.shuffle(rooms.filter(q => q !== v && q.type !== 'vault' && q.type !== 'secret' && q.type !== 'guardian'))
+          .sort((a, b) => (a.type === 'start' ? 1 : 0) - (b.type === 'start' ? 1 : 0));
+        if (!others.some(q => place(q, ch, 1, kind === 'lever' ? { wall: true } : { far: true }).length || (kind === 'key' && place(q, ch, 1, {}).length))) return null;
+      }
+    }
     // ----- vaktarens sal: Z i mitten med fri 5x5, ljuskällor och tematisk dekor längs kanterna -----
     const gRoom = rooms.find(r => r.type === 'guardian');
     {
@@ -1205,15 +1506,40 @@
     const used = {};
     const SPECIAL_ARCH = { start: 'start', guardian: 'guardian', shop: 'shop', shrine: 'shrine', treasure: 'vault', secret: 'secret' };
     for (const r of rooms) {
+      if (r.type === 'special') { r.arch = r.special; continue; }
+      if (r.type === 'vault') { r.arch = r.lock === 'lever' ? 'levervault' : 'lockedvault'; continue; }
       if (SPECIAL_ARCH[r.type]) { r.arch = r.tag === 'hut' && r.type === 'treasure' ? 'hut' : SPECIAL_ARCH[r.type]; continue; }
-      const by = ARCH_BY[L.biome], list = (by[r.tag] || by.open || by.room).filter(([id]) => size(r) >= (ARCH[id].min || 0));
+      const by = ARCH_BY[L.biome], list = (by[r.tag] || by.open || by.room).filter(([id]) => size(r) >= (ARCH[id].min || 0) && (!ARCH[id].fits || ARCH[id].fits(r)));
       r.arch = list.length ? rng.weighted(list, ([id, w]) => w / (1 + 2 * (used[id] || 0)))[0] : (by[r.tag] || by.open || by.room)[0][0];
       used[r.arch] = (used[r.arch] || 0) + 1;
     }
+    // fångburen hamnar i ett fängelse (eller burrum/tortyrkammare); städet utan smedja i en vapenkammare (eller ett läger)
+    const wantCage = rng.chance(0.3), CAGE_ARCH = ['prison', 'cages', 'torture'], ANVIL_ARCH = ['armory', 'camp', 'drill', 'storeroom'];
+    const forceArch = (id, ok, pred) => {
+      if (rooms.some(r => isCombat(r) && ok.includes(r.arch))) return;
+      const c = rng.shuffle(rooms.filter(r => isCombat(r) && size(r) >= (ARCH[id].min || 0) && pred(r)));
+      if (c.length) c[0].arch = id;
+    };
+    if (wantCage) forceArch('prison', CAGE_ARCH, () => true);
+    if (anvilArmory && (L.biome === 'dungeon' || L.biome === 'courtyard')) forceArch('armory', ANVIL_ARCH, r => r.indoor);
     for (const r of rooms) {
       const A = ARCH[r.arch];
       if (A.floor && (A.paint || (r.indoor && (L.biome === 'dungeon' || L.biome === 'courtyard')))) paint(r, A.floor);
       A.fill(r, F);
+    }
+    if (wantCage) for (const r of rng.shuffle(rooms.filter(isCombat)).sort((a, b) => (CAGE_ARCH.includes(b.arch) ? 1 : 0) - (CAGE_ARCH.includes(a.arch) ? 1 : 0)))
+      if (place(r, '[', 1, { wall: true }).length || place(r, '[', 1, {}).length) break;
+    if (anvilArmory && !cnt['(']) for (const r of rng.shuffle(rooms.filter(r => isCombat(r) && ANVIL_ARCH.includes(r.arch)))) if (place(r, '(', 1, { wall: true }).length) break;
+    // två (elit: tre) rutor långt från P reserveras för fiendegruppen i varje stridsrum
+    for (const r of rooms.filter(isCombat)) {
+      const c = cands(r, { far: true }), got = [];
+      for (const sp of [2, 1]) for (const [x, y] of c) { if (got.length >= (r.type === 'elite' ? 3 : 2)) break; if (!resv[y * W + x] && !got.some(p => cheb(p[0], p[1], x, y) < sp)) { resv[y * W + x] = 1; got.push([x, y]); } }
+    }
+    // specialrummen och valven måste ha fått sitt innehåll
+    const SP_CH = { fortune: ')', challenge: '?', offering: ';', smithy: '(' };
+    for (const r of rooms) {
+      if (r.type === 'special' && !r.cells.some(([x, y]) => g[y][x] === SP_CH[r.special])) return null;
+      if (r.type === 'vault' && !r.cells.some(([x, y]) => 'CAha$,'.includes(g[y][x]))) return null;
     }
     // altaret hamnar i ett kapell; finns inget får ett annat stort rum det
     if (L.altar && !cnt.y) {
@@ -1236,7 +1562,7 @@
     {
       const bc = cfg.barrels || { p: 0.5, min: 2 }, placed = [];
       const ok = (x, y) => cheb(x, y, P[0], P[1]) >= 2 && cheb(x, y, X[0], X[1]) >= 2 && placed.every(p => cheb(p[0], p[1], x, y) >= 4);
-      const lit = rooms.filter(a => a.type !== 'guardian' && a.type !== 'secret');
+      const lit = rooms.filter(a => a.type !== 'guardian' && a.type !== 'secret' && a.type !== 'vault');
       for (const a of rng.shuffle(lit.slice())) {
         const want = (rng.chance(bc.p) ? 1 : 0) + (bc.tags && bc.tags.includes(a.tag) ? 1 : 0);
         for (let k = 0; k < want; k++) { const c = place(a, 'f', 1, { wall: true, pred: ok })[0]; if (c) placed.push(c); }
@@ -1245,7 +1571,7 @@
       if (!placed.length) return null;
     }
     // ----- hälsa, ammo, rustning, guld, krukor -----
-    const lootRooms = rooms.filter(a => a.type !== 'shop' && a.type !== 'guardian' && a.type !== 'secret');
+    const lootRooms = rooms.filter(a => a.type !== 'shop' && a.type !== 'guardian' && a.type !== 'secret' && a.type !== 'vault');
     const scatter = (count, ch, list) => {
       for (let i = 0; i < count; i++) for (let t = 0; t < 8; t++) { const a = rng.weighted(list, size); if (a && place(a, ch, 1, {}).length) break; }
     };
@@ -1257,6 +1583,11 @@
     const gold = rng.int(3, 8), secretGold = L.secret ? Math.min(2, gold - 2) : 0;
     scatter(gold - secretGold, '$', lootRooms);
     for (let i = rng.int(2, 5); i > 0; i--) for (let t = 0; t < 8; t++) { const a = rng.weighted(lootRooms, size); if (a && place(a, 'o', 1, { pred: (x, y) => nWall(x, y) > 0 || rng.chance(0.25) }).length) break; }
+    // granatknippen (1-3, fler i förråd och vapenkammare) och ibland en skattkarta
+    scatter(rng.int(1, 3), ',', lootRooms.filter(a => a.type !== 'start'));
+    for (const a of rooms) if ((a.arch === 'storeroom' || a.arch === 'armory') && rng.chance(0.6)) place(a, ',', 1, { wall: true });
+    if (!cnt[','] && !lootRooms.some(a => place(a, ',', 1, {}).length)) return null;
+    if (rng.chance(0.3)) rng.shuffle(rooms.filter(a => isCombat(a) || a.type === 'treasure')).some(a => place(a, "'", 1, { far: true }).length);
     // hemligt rum: en kandelaber/benhög i hörnet längst från ingången, sedan belöningarna
     if (L.secret) {
       const s = L.secret, d = s.door;
@@ -1266,7 +1597,7 @@
     }
 
     // ----- fiender: grupper om 2-5 per stridsrum (elitrummen har E i gruppen), aldrig en ensam fiende -----
-    const eTypes = enemyTypes(depth);
+    const eTypes = enemyTypes(depth, L.biome);
     const pickEnemy = mix => rng.weighted(eTypes, t => t[1] * (mix && mix.includes(t[0]) ? 3 : 1))[0];
     const fight = rooms.filter(isCombat);
     const want = new Map(fight.map(r => [r, 2]));
@@ -1281,24 +1612,29 @@
     }
     if (left > 4) return null; // för få/små stridsrum för våningens fiender: bygg om
     for (const r of fight) {
-      const c = cands(r, { far: true });
+      const c = cands(r, { far: true, enemy: true });
       if (c.length < 2) return null;
-      const c0 = c[0], mix = ARCH[r.arch].mix, placed = [];
+      const c0 = c[0], A = ARCH[r.arch], mix = A.mix, placed = [], nForce = r.type === 'elite' ? 3 : 2;
       const order = c.map(p => [p[0], p[1], Math.hypot(p[0] - c0[0], p[1] - c0[1]) + rng.next() * 1.5]).sort((a, b) => a[2] - b[2]);
       for (const sp of [2, 1]) for (const [x, y] of order) {
         if (placed.length >= want.get(r)) break;
         if (g[y][x] !== '.' || placed.some(p => cheb(p[0], p[1], x, y) < sp)) continue;
-        set(x, y, r.type === 'elite' && !placed.length ? 'E' : pickEnemy(mix)); placed.push([x, y]);
+        set(x, y, r.type === 'elite' && !placed.length ? 'E' : A.force && placed.length < nForce ? A.force : pickEnemy(mix)); placed.push([x, y]);
       }
       if (placed.length < 2) return null;
       r.group = c0; r.en = placed.length;
+    }
+    // ----- levande rustningar: några rustningsställ i fängelsehålans stridsrum vaknar (räknas som fiender) -----
+    if (L.biome === 'dungeon' && depth >= 2) {
+      let n = rng.int(0, 2);
+      for (const r of rng.shuffle(fight.slice())) for (const [x, y] of r.cells) if (n > 0 && g[y][x] === 'H' && farFromP(x, y) && rng.chance(0.4)) { g[y][x] = '+'; n--; }
     }
     // ----- explosiva tunnor nära fiendegrupperna (1-4) -----
     for (let k = rng.int(1, 4); k > 0; k--) {
       const r = rng.weighted(fight, q => (q.en >= 3 ? 2 : 1));
       if (!r || !(place(r, 'e', 1, { near: [r.group[0], r.group[1], 3.5] }).length || place(r, 'e', 1, {}).length)) break;
     }
-    if (!cnt.e) for (const r of rng.shuffle(rooms.filter(q => q.type !== 'guardian' && q.type !== 'start'))) if (place(r, 'e', 1, {}).length) break;
+    if (!cnt.e) for (const r of rng.shuffle(rooms.filter(q => q.type !== 'guardian' && q.type !== 'start' && q.type !== 'vault'))) if (place(r, 'e', 1, {}).length) break;
     if (!cnt.e) return null;
     // ----- spikfällor: i korridorer (fängelsehålan) och stridsrum, aldrig vid dörrar, P eller x -----
     {
@@ -1306,13 +1642,27 @@
       let inCor = 0;
       for (const [x, y] of cor) {
         if ((cnt.z || 0) >= goal || inCor >= 2) break;
-        if (g[y][x] === '.' && !lock[y * W + x] && !nearCh(x, y, 'z', 3)) { set(x, y, 'z'); inCor++; }
+        if (g[y][x] === '.' && !lock[y * W + x] && !nearCh(x, y, 'z', 3) && localOK(G, x, y)) { set(x, y, 'z'); inCor++; }
       }
       for (const r of rng.shuffle(fight.slice())) { if ((cnt.z || 0) >= goal) break; place(r, 'z', 1, { strict: true, avoid: ['z', 2] }); }
     }
     // ----- mimics: ~15 % av de extra kistorna (den garanterade kortkistan är alltid äkta) -----
     for (const [x, y] of extraChests) if (g[y][x] === 'C' && farFromP(x, y) && rng.chance(0.15)) g[y][x] = 'Q';
 
+    // ----- fällor och farliga golv: rumstypernas egna, pilplattor i korridorer, gasventiler i grottor/träsk, väv i hörn -----
+    {
+      let k = rng.chance(0.5) ? 1 : 0;
+      for (const [x, y] of L.corridors ? rng.shuffle(L.corridors.slice()) : []) { if (k <= 0) break; if (trapOK(x, y) && wallInLine(x, y) && can('<')) { set(x, y, '<'); k--; } }
+      for (const r of rooms) if (ARCH[r.arch].hazard) ARCH[r.arch].hazard(r, Z);
+      if (rng.chance(0.3)) Z.traps(rng.pick(fight), '<', rng.int(1, 2));
+      if ((L.biome === 'caves' || L.biome === 'swamp') && rng.chance(0.3)) Z.traps(rng.pick(fight), '>', 1);
+      for (const r of rooms) if ((isCombat(r) || r.type === 'treasure') && r.arch !== 'nest' && rng.chance(0.12)) {
+        let n = rng.int(1, 2);
+        for (const [x, y] of rng.shuffle(hzFree(r))) { if (n <= 0) break; if (nWall(x, y) >= 2) { set(x, y, '"'); n--; } }
+      }
+    }
+    // ----- sprucken vägg i stället för hemlig vägg (40 %): räknas som vägg tills den sprängs -----
+    if (L.secret && rng.chance(0.4)) { const [dx, dy] = L.secret.door; if (g[dy][dx] === '*') g[dy][dx] = '{'; }
     // ----- rekvisita i alla rum utom start (säkerhetsnät om rumstypen inte fick plats med något) -----
     for (const r of rooms) {
       if (r.type === 'start' || r.cells.some(([x, y]) => PROP_CHARS.includes(g[y][x]))) continue;
@@ -1329,6 +1679,7 @@
       if (r.tag && r.tag !== 'room') o.tag = r.tag;
       if (r.shape) o.shape = r.shape;
       if (r.type === 'guardian') o.guardian = L.gid;
+      if (r.lock) o.lock = r.lock;
       return o;
     });
     const mask = new Array(W * G.H);
@@ -1354,7 +1705,7 @@
     // ----- start långt från vaktarens sal, utgången långt från start -----
     let P = cfg.P;
     if (!P) P = farthest(bfsG(G, gr.doors), 0.85);
-    if (!P || g[P[1]][P[0]] !== '.' || inG[P[1] * W + P[0]]) return null;
+    if (!P || g[P[1]][P[0]] !== '.' || inG[P[1] * W + P[0]] || Math.hypot(P[0] - gr.center[0], P[1] - gr.center[1]) < 8) return null;
     g[P[1]][P[0]] = 'P';
     const dS = bfsG(G, [P]);
     const X = cfg.X || farthest(dS, 0.92);
@@ -1402,7 +1753,7 @@
       for (let j = 0; j < rest.length; j++) { const v = md[j] + rng.next() * 2; if (v > bv) { bv = v; best = j; } }
       const i = rest[best], sx = i % W, sy = (i / W) | 0;
       claim(newArea('open'), i); q.push(i);
-      for (let j = 0; j < rest.length; j++) { const d = Math.hypot(rest[j] % W - sx, ((rest[j] / W) | 0) - sy); if (d < md[j]) md[j] = d; }
+      for (let j = 0; j < rest.length; j++) { const ex = rest[j] % W - sx, ey = ((rest[j] / W) | 0) - sy, d = Math.sqrt(ex * ex + ey * ey); if (d < md[j]) md[j] = d; }
     }
     const grow = q => {
       for (let qh = 0; qh < q.length; qh++) {
@@ -1470,7 +1821,7 @@
       keep.push(srec);
     }
     const res = content(G, rng, depth, opts, { biome: cfg.biome, P, X, rooms: keep, rid: aid, floors: cfg.floors, gid: cfg.gid,
-      guardian: { center: gr.center }, secret: srec, spikes: cfg.spikes || 0, cfg });
+      guardian: { center: gr.center }, secret: srec, spikes: cfg.spikes || 0, vaultWall: cfg.vaultWall, cfg });
     if (!res) return null;
     return { G, rooms: res.rooms, roomMask: res.roomMask, floors: res.floors };
   }
@@ -1531,7 +1882,7 @@
     const M = fbm(rng, W, H, 5);
     for (let i = 0; i < N; i++) if (M[i] < 0.3 && !G.res[i]) G.fm[i] = 1;
     return populate(G, rng, depth, opts, { biome: 'caves', gid: K.id, floors: K.floors, guardian: { cells: lair.cells, center: [gx, gy], doors: gaps.map(c => c.out) },
-      areaCells: 75, barrels: { p: 0.45, min: 3 }, secretWall: wc, secretChance: 0.55, spikes: rng.int(1, 3) });
+      areaCells: 75, barrels: { p: 0.45, min: 3 }, secretWall: wc, secretChance: 0.55, spikes: rng.int(1, 3), vaultWall: wc });
   }
 
   // ---------- Kyrkogård: öppet fält, kapell, kryptor, gravkvarter, vaktarens inhägnad ----------
@@ -1626,6 +1977,9 @@
       for (let t = 0; t < 4 && !r; t++) r = t < 3 ? place(rng.int(6, 11 - 2 * t), rng.int(5, 8 - t), 2) : place(5, 4, 2); // krymper om det är trångt
       if (r) plots.push(Object.assign(stampPlot(G, rng, r, rng.chance(0.55)), { outer: r }));
     }
+    // ett litet gravkor med en dörr (kan bli ett valv), efter gravkvarteren så att det inte tränger undan dem
+    const tombs = [];
+    for (const p of [0.8, 0.4]) if (rng.chance(p)) { const r = place(5, 5, 2), c = r && stampBuilding(G, rng, r, rng.chance(0.5) ? '4' : '1', 2, 1); if (c) tombs.push(c); }
     const inPlot = new Uint8Array(N);
     for (const p of plots) for (let y = p.outer.y; y < p.outer.y + p.outer.h; y++) for (let x = p.outer.x; x < p.outer.x + p.outer.w; x++) inPlot[y * W + x] = 1;
     // levande ljus vid gravarna i en del kvarter
@@ -1651,7 +2005,7 @@
     };
     onPath[P[1] * W + P[0]] = 1;
     const pois = chapel.doors.map(d => d.out).concat(gb.doors.map(d => d.out));
-    for (const c of crypts) pois.push(c.doors[0].out);
+    for (const c of crypts.concat(tombs)) pois.push(c.doors[0].out);
     for (const p of plots) for (const gt of p.gates) if (G.inb(gt[0], gt[1]) && g[gt[1]][gt[0]] === '.') pois.push(gt);
     let avenue = null;
     for (let k = 0; k < pois.length; k++) {
@@ -1689,10 +2043,12 @@
       for (const k of [-2, 0, 2]) plant(G, x + (h ? k : 0), y + (h ? 0 : k), 'n');
     });
     if (!connectRegions(G, rng, { mainAt: P, width: 1 })) return null; // säkerhetsnät, ska inte behöva gräva
+    { let nn = 0; for (const row of g) for (const c of row) if (c === 'n') nn++; if (nn < 16) return null; } // gravfältet ska ha gravar
     const seeds = [{ x: chapel.cx, y: chapel.cy, tag: 'chapel', box: chapel }];
     for (const c of crypts) seeds.push({ x: c.cx, y: c.cy, tag: 'crypt', box: c });
+    for (const c of tombs) seeds.push({ x: c.cx, y: c.cy, tag: 'tomb', box: c });
     return populate(G, rng, depth, opts, { biome: 'graveyard', gid: K.id, floors: K.floors, guardian: { cells: gcells, center: [gb.cx, gb.cy], doors: gb.doors.map(d => d.out) },
-      P, seeds, areaCells: 120, treasureTags: ['crypt'], extraChest: 0.5, eliteTags: ['chapel', 'open'], barrels: { p: 0.25, min: 2, tags: ['chapel', 'crypt'] } });
+      P, seeds, areaCells: 120, treasureTags: ['crypt'], extraChest: 0.5, eliteTags: ['chapel', 'open'], barrels: { p: 0.25, min: 2, tags: ['chapel', 'crypt'] }, vaultWall: look.wall });
   }
 
   // ---------- Skog: brusmask, slingrande huvudstig, slinga, gläntor och vaktarens palissad ----------
@@ -1832,11 +2188,12 @@
     }
     breakOpen(G, rng, 6, (x, y) => { plantNear(G, rng, x, y, 't', 1); if (rng.chance(0.5)) plantNear(G, rng, x + rng.int(-1, 1), y + rng.int(-1, 1), 't', 1); });
     for (let i = 0; i < N; i++) if (fm[i] === 0 && M[i] < 0.22) fm[i] = 2; // lerpölar
+    if (!farEnough(G, S, E, [gx, gy])) return null;
     const seeds = clearings.filter(c => c !== hutC).map(c => ({ x: c.x, y: c.y, tag: 'clearing', cells: c.cells.filter(([x, y]) => g[y][x] !== wc) }));
     if (hut) seeds.unshift({ x: hut.cx, y: hut.cy, tag: 'hut', box: hut });
     return populate(G, rng, depth, opts, { biome: 'forest', gid: K.id, floors: K.floors, guardian: { cells: lair.cells, center: [gx, gy], doors: gaps.map(c => c.out) },
       P: S, X: E, seeds, areaCells: 80, treasureTags: ['hut', 'clearing'], eliteTags: ['clearing'],
-      barrels: { p: 0.2, min: 2, tags: ['clearing', 'hut'] }, secretWall: wc, secretChance: 0.4 });
+      barrels: { p: 0.2, min: 2, tags: ['clearing', 'hut'] }, secretWall: wc, secretChance: 0.4, vaultWall: wc });
   }
 
   // ---------- Borggård: öppen gård omgiven av byggnadslängor; vaktarens hall och en fontän på gården ----------
@@ -1921,6 +2278,24 @@
     if (rooms.some(r => find(r.id) !== find(rooms.length))) return null;
     for (const L of links) if (yardDoors.length < 3 && !L.b && !L.used) addDoor(L);
     if (yardDoors.length && rng.chance(0.5)) { const c = rng.pick(yardDoors); g[c[1]][c[0]] = 'G'; } // en järngrind
+    // ett förråd i änden av en sal: tvärvägg med en dörr (ett rum med en enda dörr, kan bli ett valv)
+    if (rng.chance(0.75)) for (const r of rng.shuffle(rooms.slice())) {
+      const alongX = r.side % 2 === 0, len = alongX ? r.w : r.h, dep = alongX ? r.h : r.w, k = 3, end = rng.chance(0.5);
+      if (len < 9 || dep < 3) continue;
+      const a0 = end ? len - k : 0, wl = end ? len - k - 1 : k, P2 = (a, b) => (alongX ? [r.x + a, r.y + b] : [r.x + b, r.y + a]);
+      let ok = true;
+      for (let a = end ? wl : -1; ok && a <= (end ? len : k); a++) for (let b = -1; b <= dep; b++) { const [x, y] = P2(a, b); if (isDoorCh(G.at(x, y))) { ok = false; break; } }
+      if (!ok) continue;
+      for (let b = 0; b < dep; b++) { const [x, y] = P2(wl, b); g[y][x] = mat[r.side]; G.solid[y * W + x] = 1; }
+      const [dx, dy] = P2(wl, dep >> 1), [ix, iy] = P2(end ? wl + 1 : wl - 1, dep >> 1), [ox, oy] = P2(end ? wl - 1 : wl + 1, dep >> 1);
+      g[dy][dx] = 'D'; markDoor(G, dx, dy, ox, oy, ix, iy);
+      const [cx0, cy0] = P2(a0, 0), cl = alongX ? { x: cx0, y: cy0, w: k, h: dep } : { x: cx0, y: cy0, w: dep, h: k };
+      if (alongX) { if (!end) r.x += k + 1; r.w -= k + 1; } else { if (!end) r.y += k + 1; r.h -= k + 1; }
+      r.cx = r.x + (r.w >> 1); r.cy = r.y + (r.h >> 1);
+      Object.assign(cl, { side: r.side, id: rooms.length, cx: cl.x + (cl.w >> 1), cy: cl.y + (cl.h >> 1) });
+      rooms.push(cl); strips[r.side].push(cl);
+      break;
+    }
     // vaktarens hall i ett av gårdens hörn (två rutor gång mot längorna), dörrar mot gårdens mitt
     const cwid = cx1 - cx0 + 1, chei = cy1 - cy0 + 1;
     const hw = Math.min(13, cwid - 4, rng.int(11, 13)), hh = Math.min(13, chei - 4, rng.int(11, 13));
@@ -1969,13 +2344,157 @@
     for (let y = cy0; y <= cy1; y++) for (let x = cx0; x <= cx1; x++) if (fm[y * W + x] === 1 && rng.chance(0.06)) plant(G, x, y, 't');
     breakOpen(G, rng, 5, (x, y) => { if (fm[y * W + x] === 1 && rng.chance(0.6)) plantNear(G, rng, x, y, 't', 1); else plantNear(G, rng, x, y, '4', 1); });
     if (!connectRegions(G, rng, { width: 1 })) return null;
+    { let nd = 0; for (const row of g) for (const c of row) if (c === 'D' || c === 'G') nd++; if (nd < 6) return null; } // längorna ska ha dörrar
     for (let y = hy - 1; y <= hy + hh; y++) for (let x = hx - 1; x <= hx + hw; x++) if (!(x >= hall.x && y >= hall.y && x < hall.x + hall.w && y < hall.y + hall.h)) G.res[y * W + x] = 0;
     const seeds = rooms.map(r => ({ x: r.cx, y: r.cy, tag: 'room', box: r }));
     if (fountain) seeds.push({ x: fountain.cx, y: fountain.cy, tag: 'fountain', box: fountain });
     return populate(G, rng, depth, opts, { biome: 'courtyard', gid: K.id, floors: K.floors, guardian: { cells: gcells, center: [hall.cx, hall.cy], doors: hall.doors.map(d => d.out) },
-      seeds, areaCells: 110, minOpen: depth <= 2 ? 1 : 2, treasureTags: ['room'], eliteTags: ['open', 'room'], shrineTags: ['fountain'], barrels: { p: 0.4, min: 3 }, spikes: rng.int(1, 3) });
+      seeds, areaCells: 110, minOpen: depth <= 2 ? 1 : 2, treasureTags: ['room'], eliteTags: ['open', 'room'], shrineTags: ['fountain'], barrels: { p: 0.4, min: 3 }, spikes: rng.int(1, 3), vaultWall: look.wall });
   }
 
+  // gångavstånd: utgången E minst 0.82 x kartans största mått från start S, vaktarens mitt Z minst 0.33 av längsta vägen från S
+  function farEnough(G, S, E, Z) {
+    const d = bfsG(G, [S]); let mx = 0;
+    for (let i = 0; i < d.length; i++) if (d[i] > mx) mx = d[i];
+    return d[E[1] * G.W + E[0]] >= 0.82 * Math.max(G.W, G.H) && d[Z[1] * G.W + Z[0]] >= 0.33 * mx;
+  }
+  // ---------- Träsk: vatten (-) med mossöar, spänger, pålhyddor, döda träd och vaktarens palissad ----------
+  // floors: 0 mossa, 1 spänger (plankor), 2 lera, 3 vissnat gräs, 4 vaktarens golv
+  function buildSwamp(rng, depth, opts, look, K) {
+    const [W, H] = mapSize(rng, depth), N = W * H, wc = look.wall;
+    const G = Grid(W, H, '.', wc), { g, fm, lock } = G;
+    G.sky.fill(1);
+    const D = fbm(rng, W, H, rng.range(4.5, 6.5)), T = fbm(rng, W, H, 4), M = fbm(rng, W, H, 5);
+    const nz = new Float32Array(N); for (let i = 0; i < N; i++) nz[i] = rng.next();
+    // tjockt, ojämnt snår längs kanten och några täta dungar; vatten i sänkorna, mossa (ibland lera/gräs) på tuvorna
+    const wet = [];
+    for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+      const i = y * W + x, e = Math.min(x, y, W - 1 - x, H - 1 - y);
+      if (e + (T[i] - 0.5) * 6 < 2.6 || (D[i] > 0.9 && T[i] < 0.45)) g[y][x] = wc; else wet.push(D[i]);
+    }
+    const WT = wet.sort((a, b) => a - b)[Math.floor(wet.length * rng.range(0.48, 0.56))]; // andelen vatten (innan spänger och hyddor)
+    for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+      const i = y * W + x;
+      if (g[y][x] === wc) continue;
+      if (D[i] < WT) g[y][x] = '-'; else fm[i] = M[i] < 0.22 ? 2 : M[i] > 0.84 ? 3 : 0;
+    }
+    // spänger: huvudstig från kant till kant (slingrar) och en slinga; över vatten och snår blir stigen plankor
+    const pid = new Int16Array(N);
+    const base = new Float32Array(N);
+    for (let i = 0; i < N; i++) { const c = g[(i / W) | 0][i % W]; base[i] = (c === wc ? 5 : c === '-' ? 1.7 : 1) + 0.6 * nz[i]; }
+    const cost = own => own ? (i => G.solid[i] || G.res[i] ? Infinity : base[i] + (own(i) ? 6 : 0)) : (i => G.solid[i] || G.res[i] ? Infinity : base[i]);
+    const carve = (path, w, id) => {
+      for (const i of path) {
+        const x = i % W, y = (i / W) | 0;
+        for (let dy = 0; dy < w; dy++) for (let dx = 0; dx < w; dx++) {
+          const xx = x + dx, yy = y + dy, j = yy * W + xx;
+          if (!G.inb(xx, yy) || G.solid[j] || G.res[j]) continue;
+          if (g[yy][xx] !== '.') { g[yy][xx] = '.'; fm[j] = 1; base[j] = 1 + 0.6 * nz[j]; } else if (!pid[j] && fm[j] !== 1) fm[j] = 2;
+          G.lockMin(xx, yy, 1); if (!pid[j]) pid[j] = id;
+        }
+      }
+    };
+    const route = (pts, own) => {
+      let out = [];
+      for (let k = 0; k + 1 < pts.length; k++) {
+        const b = pts[k + 1], p = dijkstra(G, [pts[k]], i => i === b, cost(own));
+        if (!p) return null;
+        out = out.concat(k ? p.slice(1) : p);
+      }
+      return out;
+    };
+    const horiz = rng.chance(W >= H ? 0.8 : 0.2), L = horiz ? W : H, S2 = horiz ? H : W;
+    const at = (a, b) => horiz ? b * W + a : a * W + b;
+    const aS = rng.int(2, 3), aE = L - 1 - rng.int(2, 3), nW = L >= 36 ? 3 : 2, up = rng.chance(0.5);
+    const pts = [at(aS, rng.int(5, S2 - 6))];
+    for (let k = 1; k <= nW; k++) {
+      const a = Math.round(aS + (aE - aS) * k / (nW + 1)) + rng.int(-2, 2);
+      pts.push(at(a, ((k & 1) === 1) === up ? rng.int(5, Math.floor(S2 * 0.38)) : rng.int(Math.ceil(S2 * 0.62), S2 - 6)));
+    }
+    pts.push(at(aE, rng.int(5, S2 - 6)));
+    if (rng.chance(0.5)) pts.reverse();
+    const main = route(pts);
+    if (!main) return null;
+    carve(main, 2, 1);
+    {
+      const A = main[Math.floor(main.length * rng.range(0.15, 0.3))], B = main[Math.floor(main.length * rng.range(0.65, 0.85))];
+      const ab = i => horiz ? [i % W, (i / W) | 0] : [(i / W) | 0, i % W];
+      const [a1, b1] = ab(A), [a2, b2] = ab(B), bm = (b1 + b2) / 2;
+      const bw = Math.max(5, Math.min(S2 - 6, Math.round(bm + (bm < S2 / 2 ? 1 : -1) * rng.int(6, 9))));
+      const near = new Uint8Array(N);
+      for (const i of main) { const x = i % W, y = (i / W) | 0; for (let dy = -2; dy <= 3; dy++) for (let dx = -2; dx <= 3; dx++) if (G.inb(x + dx, y + dy)) near[(y + dy) * W + x + dx] = 1; }
+      const alt = route([A, at(Math.round((a1 + a2) / 2), bw), B], i => near[i] === 1);
+      if (!alt) return null;
+      carve(alt, 1, 2);
+    }
+    const pd = new Int16Array(N).fill(-1), qq = [];
+    for (let i = 0; i < N; i++) if (pid[i]) { pd[i] = 0; qq.push(i); }
+    for (let qh = 0; qh < qq.length; qh++) {
+      const cur = qq[qh], x = cur % W, y = (cur / W) | 0;
+      for (let d = 0; d < 4; d++) { const nx = x + DX[d], ny = y + DY[d], ni = ny * W + nx; if (G.inb(nx, ny) && pd[ni] < 0) { pd[ni] = pd[cur] + 1; qq.push(ni); } }
+    }
+    const S = [main[0] % W, (main[0] / W) | 0], E = [main[main.length - 1] % W, (main[main.length - 1] / W) | 0];
+    // vaktarens palissad: rund ö en bit från spången, i bortre delen av träsket
+    const rad = rng.int(4, 5);
+    let gc = [];
+    for (const [pmax, sf, pmin] of [[rad + 8, 0.45, rad + 2], [rad + 14, 0.3, rad + 2], [rad + 30, 0.25, rad + 1]]) {
+      for (let y = rad + 3; y <= H - rad - 4; y++) for (let x = rad + 3; x <= W - rad - 4; x++) {
+        const i = y * W + x;
+        if (pd[i] < pmin || pd[i] > pmax || cheb(x, y, S[0], S[1]) < Math.max(W, H) * sf || cheb(x, y, E[0], E[1]) < rad + 4) continue;
+        gc.push([x, y]);
+      }
+      if (gc.length) break;
+    }
+    if (!gc.length) return null;
+    gc.sort((a, b) => cheb(b[0], b[1], S[0], S[1]) - cheb(a[0], a[1], S[0], S[1])); // helst långt från start
+    const [gx, gy] = gc[rng.int(0, Math.max(0, Math.ceil(gc.length * 0.25) - 1))];
+    const lair = stampLair(G, rng, gx, gy, rad, K.wall, K.bossIdx, 1);
+    const gaps = lairGaps(G, rng, lair, rng.chance(0.4) ? 2 : 1, (x, y) => pd[y * W + x] < 0 ? 99 : pd[y * W + x]);
+    if (!gaps.length) return null;
+    for (const gp of gaps) {
+      const b = dijkstra(G, [gp.out[1] * W + gp.out[0]], i => pid[i] > 0, cost());
+      if (!b) return null;
+      carve(b, rng.chance(0.5) ? 2 : 1, 90);
+    }
+    // pålhyddor (timmer eller snår) med en dörr, en brygga runt om och en spång till stigen
+    const huts = [];
+    const nHut = rng.int(2, 3);
+    for (let t = 0; t < 200 && huts.length < nHut; t++) {
+      const w = rng.int(5, 6), h = rng.int(5, 6), x = rng.int(3, W - 4 - w), y = rng.int(3, H - 4 - h);
+      const cx = x + (w >> 1), cy = y + (h >> 1), ci = cy * W + cx;
+      if (pd[ci] < 3 || pd[ci] > 10 || cheb(cx, cy, S[0], S[1]) < 7 || cheb(cx, cy, E[0], E[1]) < 7 || cheb(cx, cy, gx, gy) < rad + 6 || huts.some(o => cheb(o.cx, o.cy, cx, cy) < 8)) continue;
+      let ok = true;
+      for (let yy = y - 1; ok && yy <= y + h; yy++) for (let xx = x - 1; xx <= x + w; xx++) { const j = yy * W + xx; if (!G.inb(xx, yy) || G.solid[j] || G.res[j] || pid[j]) { ok = false; break; } }
+      if (!ok) continue;
+      for (let yy = y - 1; yy <= y + h; yy++) for (let xx = x - 1; xx <= x + w; xx++) { g[yy][xx] = '.'; fm[yy * W + xx] = 1; G.lockMin(xx, yy, 1); }
+      const b = stampBuilding(G, rng, { x, y, w, h }, rng.chance(0.6) ? '9' : wc, 1, 1);
+      if (!b) return null;
+      huts.push(b);
+      const p = dijkstra(G, [b.doors[0].out[1] * W + b.doors[0].out[0]], i => pid[i] > 0, cost());
+      if (p) carve(p, 1, 50 + huts.length);
+    }
+    // döda träd på tuvorna och ute i vattnet, tätare där det är öppet
+    const plantS = (x, y) => {
+      const i = y * W + x;
+      if (!G.inb(x, y) || lock[i] || G.res[i] || (g[y][x] !== '.' && g[y][x] !== '-') || !localOK(G, x, y)) return false;
+      g[y][x] = 't'; return true;
+    };
+    const cells = []; for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) cells.push([x, y]);
+    for (const [x, y] of rng.shuffle(cells)) if (rng.chance(g[y][x] === '.' ? 0.06 : g[y][x] === '-' ? 0.025 : 0)) plantS(x, y);
+    breakOpen(G, rng, 6, (x, y) => { for (let k = 0; k < 6; k++) if (plantS(x + rng.int(-1, 1), y + rng.int(-1, 1))) break; });
+    if (!connectRegions(G, rng, { minSize: 12, fillCh: wc, width: 2, mainAt: S })) return null;
+    // torrt kring start och mål
+    for (const [px, py] of [S, E]) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (g[py + dy][px + dx] === '-') { g[py + dy][px + dx] = '.'; fm[(py + dy) * W + px + dx] = 1; }
+    // mest vatten, utgången långt bort och vaktaren inte nära start (gångavstånd), annars nytt försök
+    if (!farEnough(G, S, E, [gx, gy])) return null;
+    { let wet = 0, walk = 0; for (let i = 0; i < N; i++) { const c = g[(i / W) | 0][i % W]; if (!genBlk(c)) { walk++; if (c === '-') wet++; } } if (wet < walk * 0.24) return null; }
+    const seeds = huts.map(b => ({ x: b.cx, y: b.cy, tag: 'hut', box: b }));
+    return populate(G, rng, depth, opts, { biome: 'swamp', gid: K.id, floors: K.floors, guardian: { cells: lair.cells, center: [gx, gy], doors: gaps.map(c => c.out) },
+      P: S, X: E, seeds, areaCells: 85, treasureTags: ['hut'], eliteTags: ['open'], barrels: { p: 0.2, min: 2, tags: ['hut'] },
+      secretWall: wc, secretChance: 0.4, vaultWall: wc, spikes: 0 });
+  }
+
+  LOOKS.swamp.build = buildSwamp;
   LOOKS.caves.build = buildCaves;
   LOOKS.graveyard.build = buildGraveyard;
   LOOKS.forest.build = buildForest;
@@ -1989,6 +2508,8 @@
       fog: rng => rng.pick([[16, 8, 8], [10, 12, 14]]), names: ['DRAKENS HÅLA', 'DET DJUPA SVALGET', 'BESTENS LYA'] },
     forest: { biome: 'forest', wall: '6', floors: ['floor_ground_grass', 'floor_ground_dirt', 'floor_grass_dead'], ceil: 'floor_wood_planks', outdoor: true, ambient: [0.25, 0.32],
       fog: NIGHT_FOG, names: ['DEN SVARTA GLÄNTAN', 'HÄXANS RING', 'DE HÄNGDAS EK'] },
+    swamp: { biome: 'swamp', wall: '0', floors: ['floor_swamp', 'floor_wood_planks', 'floor_mud'], ceil: 'floor_wood_planks', outdoor: true, ambient: [0.21, 0.27],
+      fog: SWAMP_FOG, names: ['DET SJUNKNA ALTARET', 'TRÄSKHÄXANS KÄRR', 'DE DRUNKNADES DJUP'] },
   };
   // bossens dekor runt arenans kanter (bossen, P, grinden och mitten hålls fria); A: arenans mått
   function bossDecor(G, rng, gid, A) {
@@ -2064,6 +2585,7 @@
       rooms: [{ x: AX0, y: AY0, w: AX1 - AX0 + 1, h: AY1 - AY0 + 1, type: 'boss' }, { x: cx - 1, y: 1, w: 3, h: 2, type: 'exit' }],
     };
     if (gid) level.boss = gid;
+    level.features = features(level.map);
     return level;
   }
 
@@ -2080,7 +2602,7 @@
       const rng = root.fork('a' + attempt);
       const G = Grid(W, H, wc), { g, fm } = G;
       for (let y = AY0; y <= AY1; y++) for (let x = AX0; x <= AX1; x++) { g[y][x] = '.'; G.sky[y * W + x] = A.outdoor ? 1 : 0; }
-      for (let y = 1; y <= 2; y++) for (let x = cx - 1; x <= cx + 1; x++) { g[y][x] = '.'; G.sky[y * W + x] = arena === 'forest' ? 1 : 0; }
+      for (let y = 1; y <= 2; y++) for (let x = cx - 1; x <= cx + 1; x++) { g[y][x] = '.'; G.sky[y * W + x] = arena === 'forest' || arena === 'swamp' ? 1 : 0; }
       g[1][cx] = 'x'; g[3][cx] = 'G';
       markDoor(G, cx, 3, cx, 4, cx, 2);
       for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) G.lockMin(BX + dx, BY + dy, 1); // bossen är stor
@@ -2103,13 +2625,14 @@
         const kind = rng.next();
         const cellsK = arena === 'graveyard' ? (kind < 0.45 ? [[0, 0, 'n'], [2, 0, 'n'], [4, 0, 'n']] : kind < 0.75 ? [[0, 0, 't']] : [[0, 0, ic], [1, 0, ic]])
           : arena === 'cave' ? (kind < 0.6 ? [[0, 0, ic], [1, 0, ic], [0, 1, ic], [1, 1, ic]].filter(() => rng.chance(0.85)) : [[0, 0, ic]])
-            : (kind < 0.5 ? [[0, 0, 't'], [1, 1, 't']] : kind < 0.8 ? [[0, 0, 't']] : [[0, 0, ic], [1, 0, ic], [0, 1, ic], [1, 1, ic]]);
+            : arena === 'swamp' ? (kind < 0.5 ? [[0, 0, 't']] : kind < 0.8 ? [[0, 0, 't'], [1, 1, 't']] : [[0, 0, ic], [1, 0, ic]]) // döda träd och vasstuvor
+              : (kind < 0.5 ? [[0, 0, 't'], [1, 1, 't']] : kind < 0.8 ? [[0, 0, 't']] : [[0, 0, ic], [1, 0, ic], [0, 1, ic], [1, 1, ic]]);
         let n = 0;
         for (const [dx, dy, ch] of cellsK) for (const xx of [x + dx, W - 1 - x - dx]) if (plant(G, xx, y + dy, ch)) n++;
         if (n) covers.push([x, y]);
       }
       // strödda gravstenar / träd / droppstenar
-      const loose = arena === 'graveyard' ? 'n' : arena === 'forest' ? 't' : ic;
+      const loose = arena === 'graveyard' ? 'n' : arena === 'forest' || arena === 'swamp' ? 't' : ic;
       for (let k = rng.int(5, 9); k > 0; k--) { const x = rng.int(2, 22), y = rng.int(6, 23); if (!mid(x, y)) plant(G, x, y, loose); }
       // eldfat runt kanterna
       const jit = () => rng.int(-1, 1), spots = [];
@@ -2127,6 +2650,14 @@
       // golv: grus-/jordstig från start till grinden, annars lera eller vissnat gräs i fläckar
       for (let y = 2; y <= AY1; y++) for (let x = cx - 1; x <= cx + 1; x++) if (arena !== 'cave' && (x === cx || N2[y * W + x] > 0.4)) fm[y * W + x] = 1;
       for (let i = 0; i < W * H; i++) if (!fm[i] && N2[i] < 0.3) fm[i] = arena === 'cave' ? 1 : 2;
+      if (arena === 'swamp') { // vattenkanaler och gölar runt öarna; spången i mitten, P, bossen och grinden står torrt
+        const N3 = fbm(rng, W, H, 5);
+        for (let y = AY0; y <= AY1; y++) for (let x = AX0; x <= AX1; x++) {
+          const i = y * W + x, v = N3[i];
+          if (g[y][x] !== '.' || G.lock[i] > 1 || x === cx || cheb(x, y, PX, PY) <= 1 || cheb(x, y, BX, BY) <= 2 || y <= AY0) continue;
+          if (Math.abs(v - 0.5) < 0.07 || v < 0.16) { g[y][x] = '-'; fm[i] = 0; }
+        }
+      }
       const floors = A.floors.slice();
       if (gid) {
         // bossens golv i en cirkel kring arenans mitt (hela grottan), bakväggen i bossens väggtecken, dekor längs kanterna
@@ -2142,14 +2673,15 @@
         rooms: [{ x: AX0, y: AY0, w: AX1 - AX0 + 1, h: AY1 - AY0 + 1, type: 'boss' }, { x: cx - 1, y: 1, w: 3, h: 2, type: 'exit' }],
       };
       if (gid) level.boss = gid;
+      level.features = features(level.map);
       if (!validate(level).length) return level;
     }
     throw new Error('Gen.boss: kunde inte bygga arenan ' + arena + ' (seed ' + seed + ')');
   }
 
   // ---------- Validering ----------
-  const ENEMY_CHARS = 'SKVILNORWE';
-  const VALID = new Set(('123456789#%~&=DG*xPBhaA$CMfotn.QZ' + ENEMY_CHARS + PROP_CHARS + WEAPON_CHARS).split(''));
+  const ENEMY_CHARS = 'SKVILNORWE' + Object.keys(NEW_ENEMIES).join('');
+  const VALID = new Set((WALLS + 'DG*xPBhaA$CMfotn.QZ' + ENEMY_CHARS + PROP_CHARS + WEAPON_CHARS + GATES + HAZARD + ",'}").split(''));
   function validate(level) {
     const errs = [];
     const map = level && level.map;
@@ -2172,7 +2704,11 @@
     }
     if (nP !== 1) errs.push('förväntade exakt ett P, hittade ' + nP);
     if (nX < 1) errs.push('utgång x saknas');
-    for (const [c, lim, what] of [['Z', 1, 'vaktare Z'], ['w', 1, 'brunnar w'], ['y', 1, 'altare y'], ['z', 6, 'spikfällor z']]) if ((nCh[c] || 0) > lim) errs.push('för många ' + what + ': ' + nCh[c]);
+    for (const [c, lim, what] of [['Z', 1, 'vaktare Z'], ['w', 1, 'brunnar w'], ['y', 1, 'altare y'], ['z', 6, 'spikfällor z'], ['(', 1, 'städ'], [')', 1, 'spåaltare'],
+      ['[', 1, 'fångburar'], ['?', 1, 'utmaningsaltare'], [';', 1, 'offerskålar'], ['/', 1, 'spakar'], ['}', 1, 'nycklar'], ["'", 1, 'skattkartor'], ['<', 4, 'pilplattor'], ['>', 3, 'gasventiler']])
+      if ((nCh[c] || 0) > lim) errs.push('för många ' + what + ': ' + nCh[c]);
+    if (!!nCh['|'] !== !!nCh['/']) errs.push('järngrind utan spak eller spak utan järngrind');
+    if (!!nCh[']'] !== !!nCh['}']) errs.push('låst dörr utan nyckel eller nyckel utan låst dörr');
     // dörrar, eldfat och spikfällor
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
       const c = map[y][x];
@@ -2186,31 +2722,64 @@
         }
         for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (at(x + dx, y + dy) === 'f') errs.push('eldfat intill ' + c + ' vid ' + x + ',' + y);
       }
+      if (HAZARD.includes(c) && c !== 'z') {
+        if (nP === 1 && cheb(x, y, px, py) <= 1) errs.push('farligt golv/fälla ' + c + ' intill P vid ' + x + ',' + y);
+        if (exits.some(e => cheb(x, y, e[0], e[1]) <= 1)) errs.push('farligt golv/fälla ' + c + ' intill utgången vid ' + x + ',' + y);
+      }
+      if (c === '<') { // pilplatta: en vägg inom 6 rutor i rak linje, aldrig i en dörröppning
+        let ok = false;
+        for (let d = 0; d < 4 && !ok; d++) for (let k = 1; k <= 6; k++) { const a = at(x + DX[d] * k, y + DY[d] * k); if (isWall(a)) { ok = true; break; } if (isBlock(a)) break; }
+        if (!ok) errs.push('pilplatta utan vägg inom 6 rutor vid ' + x + ',' + y);
+        for (let d = 0; d < 4; d++) if (isDoorCh(at(x + DX[d], y + DY[d]))) errs.push('pilplatta i dörröppning vid ' + x + ',' + y);
+      }
       if (c === 'z') {
         if (nP === 1 && cheb(x, y, px, py) <= 1) errs.push('spikfälla intill P vid ' + x + ',' + y);
         if (exits.some(e => cheb(x, y, e[0], e[1]) <= 1)) errs.push('spikfälla intill utgången vid ' + x + ',' + y);
         for (let d = 0; d < 4; d++) if (isDoorCh(at(x + DX[d], y + DY[d]))) errs.push('spikfälla i dörröppning vid ' + x + ',' + y);
       }
     }
-    // nåbarhet från P (4-grannskap; väggar, eldfat, köpman och blockerande rekvisita blockerar)
+    // nåbarhet från P (4-grannskap; väggar, eldfat, köpman, blockerande rekvisita och stängda grindar | ] { blockerar):
+    //  - allt gångbart nås (grindarna öppna), och allt utom lava/spikar nås utan att gå på lava eller spikar
+    //  - med grindarna stängda nås allt utom valven (type 'vault') och hemliga rum; spak, nyckel och interaktiva saker nås då
+    const rooms = level.rooms || [];
     if (nP === 1) {
-      const seen = new Uint8Array(W * H), st = [py * W + px]; seen[st[0]] = 1;
-      while (st.length) {
-        const cur = st.pop(), x = cur % W, y = (cur / W) | 0;
-        for (let d = 0; d < 4; d++) {
-          const nx = x + DX[d], ny = y + DY[d];
-          if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
-          const ni = ny * W + nx;
-          if (seen[ni] || isBlock(map[ny][nx])) continue;
-          seen[ni] = 1; st.push(ni);
+      const N = W * H, isGate = c => GATES.includes(c), haz = c => c === '_' || c === 'z';
+      // per ruta: 1 gångbar, 2 grind (| ] {), 4 lava/spikar
+      const cls = new Uint8Array(N);
+      for (let y = 0; y < H; y++) { const row = map[y]; for (let x = 0; x < W; x++) { const c = row[x]; cls[y * W + x] = isBlock(c) ? (isGate(c) ? 2 : 0) : (haz(c) ? 5 : 1); } }
+      const stack = new Int32Array(N);
+      const flood = (ok, no) => { // ok: tillåtna bitar, no: förbjudna bitar
+        const seen = new Uint8Array(N); let sp = 0;
+        stack[sp++] = py * W + px; seen[py * W + px] = 1;
+        while (sp) {
+          const cur = stack[--sp], x = cur % W;
+          if (x > 0 && !seen[cur - 1] && (cls[cur - 1] & ok) && !(cls[cur - 1] & no)) { seen[cur - 1] = 1; stack[sp++] = cur - 1; }
+          if (x < W - 1 && !seen[cur + 1] && (cls[cur + 1] & ok) && !(cls[cur + 1] & no)) { seen[cur + 1] = 1; stack[sp++] = cur + 1; }
+          if (cur >= W && !seen[cur - W] && (cls[cur - W] & ok) && !(cls[cur - W] & no)) { seen[cur - W] = 1; stack[sp++] = cur - W; }
+          if (cur < N - W && !seen[cur + W] && (cls[cur + W] & ok) && !(cls[cur + W] & no)) { seen[cur + W] = 1; stack[sp++] = cur + W; }
         }
-      }
+        return seen;
+      };
+      const sAll = flood(3, 0), sSafe = flood(3, 4), sClosed = flood(1, 4);
+      const rm = Array.isArray(level.roomMask) && level.roomMask.length === H ? level.roomMask : null;
+      const optional = (x, y) => { if (!rm || !rm[y]) return false; const r = rooms[rm[y].charCodeAt(x) - 48]; return !!r && (r.type === 'vault' || r.type === 'secret'); };
+      const near = (s, x, y) => { for (let d = 0; d < 4; d++) { const nx = x + DX[d], ny = y + DY[d]; if (nx >= 0 && ny >= 0 && nx < W && ny < H && s[ny * W + nx]) return true; } return false; };
       let shown = 0;
-      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (!isBlock(map[y][x]) && !seen[y * W + x] && shown++ < 5) errs.push('onåbar ruta "' + map[y][x] + '" vid ' + x + ',' + y);
-      if (shown > 5) errs.push('... totalt ' + shown + ' onåbara rutor');
+      const bad = msg => { if (shown++ < 5) errs.push(msg); };
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const i = y * W + x;
+        if (cls[i] === 0 && !INTERACT.includes(map[y][x])) continue;
+        const c = map[y][x];
+        if (isGate(c) || (INTERACT.includes(c))) { if (!near(sClosed, x, y) && (c === '/' || !optional(x, y))) bad(c + ' nås inte från någon sida vid ' + x + ',' + y); continue; }
+        if (isBlock(c)) continue;
+        if (!sAll[i]) bad('onåbar ruta "' + c + '" vid ' + x + ',' + y);
+        else if (!haz(c) && !sSafe[i]) bad('ruta "' + c + '" nås bara över lava/spikar vid ' + x + ',' + y);
+        else if (!haz(c) && !sClosed[i] && !optional(x, y)) bad('ruta "' + c + '" nås bara genom en grind/låst dörr vid ' + x + ',' + y);
+        else if (c === '}' && !sClosed[i]) bad('nyckeln ligger bakom en grind/låst dörr vid ' + x + ',' + y);
+      }
+      if (shown > 5) errs.push('... totalt ' + shown + ' nåbarhetsfel');
     }
     // fiender: inte i startrummet / nära P
-    const rooms = level.rooms || [];
     const startRoom = rooms.find(r => r.type === 'start');
     const inRoom = (r, x, y) => x >= r.x && y >= r.y && x < r.x + r.w && y < r.y + r.h;
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
