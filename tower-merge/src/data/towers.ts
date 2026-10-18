@@ -60,7 +60,7 @@ export const TOWERS: Record<TowerId, TowerDef> = {
   },
   lightning: {
     id: 'lightning', name: 'Lightning Tower', role: 'Instant bolts that chain between enemies. Great against crowds.',
-    attack: 'chain', damage: 14.5, fireRate: 1.0, range: 170, splashRadius: 0, projectileSpeed: 0,
+    attack: 'chain', damage: 18, fireRate: 1.0, range: 170, splashRadius: 0, projectileSpeed: 0,
     critChance: 0.05, critMult: 2, statusPower: 1, statusDuration: 1.5, chainCount: 2, chainRange: 110, armorPen: 0,
     hitsAir: true, baseEffects: [], color: 0xf6e05e, unlock: { kind: 'gems', cost: 150 }, buyWeight: 16,
     levels: [

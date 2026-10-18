@@ -10,7 +10,7 @@ import { FULL_POOL, START_POOL } from './presets';
 import type { MetaPreset } from './presets';
 import { runJobs } from './jobs';
 import type { JobSpec, Progress } from './jobs';
-import { fmt, mean, signed, stdErr, table } from './stats';
+import { fmt, mean, median, percentile, signed, stdErr, table } from './stats';
 
 interface Variant { label: string; spec: Omit<JobSpec, 'seed'>; base: string }
 
@@ -125,4 +125,51 @@ export async function towerProbe(o: ProbeOptions): Promise<ProbeRow[]> {
     // removing a tower: the delta is the negative of its value
     return { label: r.label, baseWave: mean(b.wave), delta: -d.d, se: d.se, deltaMin: -d.dm };
   });
+}
+
+export interface LoadoutRow { towers: TowerId[]; waves: number[]; mean: number; median: number }
+
+/** Every loadout of `size` towers out of the eight (the player owns all of them), same seeds and meta bonuses for all. */
+export async function loadoutProbe(o: ProbeOptions, size = 4): Promise<LoadoutRow[]> {
+  const seeds = Array.from({ length: o.runs }, (_, i) => i + 1);
+  const combos: TowerId[][] = [];
+  const rec = (start: number, cur: TowerId[]): void => {
+    if (cur.length === size) { combos.push([...cur]); return; }
+    for (let i = start; i < FULL_POOL.length; i++) { cur.push(FULL_POOL[i]); rec(i + 1, cur); cur.pop(); }
+  };
+  rec(0, []);
+  const variants: Variant[] = combos.map((c) => ({
+    label: c.join('+'), base: '', spec: { policy: 'greedy', meta: o.meta, pool: c, poolLabel: c.join('+') },
+  }));
+  // the start trio as reference
+  variants.push({ label: START_POOL.join('+'), base: '', spec: { policy: 'greedy', meta: o.meta, pool: START_POOL, poolLabel: 'start' } });
+  const res = await runVariants(variants, seeds, o.workers, o.seedBase, o.onProgress, o.set);
+  return variants.map((v) => {
+    const w = res.get(v.label)!.wave;
+    return { towers: v.spec.pool, waves: w, mean: mean(w), median: median(w) };
+  });
+}
+
+export function loadoutReport(rows: LoadoutRow[]): string {
+  const startKey = START_POOL.join('+');
+  const start = rows.find((r) => r.towers.join('+') === startKey && r.towers.length === START_POOL.length);
+  const all = rows;
+  const sorted = [...all].sort((a, b) => b.mean - a.mean);
+  const line = (r: LoadoutRow, i: number): (string | number)[] => [i + 1, r.towers.join(' + '), fmt(r.median), fmt(r.mean), fmt(percentile(r.waves, 0.1), 0) + '-' + fmt(percentile(r.waves, 0.9), 0)];
+  const head = ['rank', 'loadout', 'median', 'mean', 'p10-p90'];
+  const top = sorted.slice(0, 10).map(line);
+  const bottom = sorted.slice(-8).map((r) => line(r, sorted.indexOf(r)));
+  const means = sorted.map((r) => r.mean);
+  const q = percentile(means, 0.75);
+  const towers = [...new Set(rows.flatMap((r) => r.towers))];
+  const trows = towers.map((t) => {
+    const withT = rows.filter((r) => r.towers.includes(t) && r !== start);
+    const best = withT.reduce((a, b) => (b.mean > a.mean ? b : a));
+    const inTop = withT.filter((r) => r.mean >= q).length;
+    const without = rows.filter((r) => !r.towers.includes(t) && r !== start);
+    return [t, fmt(mean(withT.map((r) => r.mean))), fmt(mean(without.map((r) => r.mean))), `${sorted.indexOf(best) + 1}`, fmt(best.mean), `${inTop}/${withT.length}`];
+  });
+  return `${table(head, top)}\n...\n${table(head, bottom)}\n\nStart trio (arrow + cannon + frost): median ${fmt(start?.median ?? NaN)}, mean ${fmt(start?.mean ?? NaN)}, rank ${start ? sorted.indexOf(start) + 1 : '-'} of ${sorted.length}\n`
+    + `Spread: best ${fmt(sorted[0].mean)}, median loadout ${fmt(percentile(means, 0.5))}, worst ${fmt(sorted[sorted.length - 1].mean)}\n\n`
+    + `Per tower (mean wave of the loadouts with / without it, rank and mean of its best loadout, share of its loadouts in the top quartile)\n${table(['tower', 'mean with', 'mean without', 'best rank', 'best mean', 'in top quartile'], trows)}`;
 }

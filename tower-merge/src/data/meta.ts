@@ -16,11 +16,11 @@ export const META_UPGRADES: MetaUpgradeDef[] = [
   },
   {
     id: 'metaDamage', name: 'Sharpened Steel', description: 'Towers deal +{value} damage.', icon: 'damage',
-    stat: 'damagePct', valuePerLevel: 0.12, maxLevel: 10, baseCost: 30, costGrowth: 1.35,
+    stat: 'damagePct', valuePerLevel: 0.09, maxLevel: 10, baseCost: 30, costGrowth: 1.35,
   },
   {
     id: 'metaFireRate', name: 'Well-Oiled Gears', description: 'Towers attack +{value} faster.', icon: 'speed',
-    stat: 'fireRatePct', valuePerLevel: 0.1, maxLevel: 10, baseCost: 30, costGrowth: 1.35,
+    stat: 'fireRatePct', valuePerLevel: 0.07, maxLevel: 10, baseCost: 30, costGrowth: 1.35,
   },
   {
     id: 'metaDiscount', name: 'Bulk Orders', description: 'Towers cost {value} less to buy.', icon: 'merchant',

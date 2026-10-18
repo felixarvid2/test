@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { BotPolicy } from '../../src/sim/bot';
 import { runBot } from '../../src/sim/bot';
-import { buildOptions, towersForMeta } from '../../tools/balance/presets';
+import { LOADOUT_SIZE } from '../../src/core/meta';
+import { repairLoadout } from '../../src/save/SaveManager';
+import { buildOptions, randomLoadout, towersForMeta, unlockedFor } from '../../tools/balance/presets';
+import { Rng } from '../../src/sim/rng';
 import type { MetaPreset } from '../../tools/balance/presets';
 
 /** Fast guards for the balance targets documented in docs/BALANCE.md (run `npm run sim` for the full picture). */
@@ -70,5 +73,29 @@ describe('balance regression', () => {
       expect(r.durationSeconds).toBeGreaterThan(30);
       expect(r.stats.coinsEarned).toBeGreaterThan(0);
     }
+  }, SLOW);
+
+  it('every pool the tools simulate is a legal loadout (3-4 unlocked towers, one hits air)', () => {
+    for (const meta of ['fresh', 'mid', 'late', 'max'] as MetaPreset[]) {
+      const unlocked = unlockedFor(meta);
+      const pools = [towersForMeta(meta, 'mixed'), towersForMeta(meta, 'start'), ...[1, 2, 3, 4, 5].map((s) => towersForMeta(meta, 'loadout4', s))];
+      for (const pool of pools) {
+        expect(pool.length).toBeLessThanOrEqual(LOADOUT_SIZE);
+        expect(pool.every((t) => unlocked.includes(t))).toBe(true);
+        expect(repairLoadout(pool, unlocked, 3)).toEqual(pool);
+      }
+    }
+    expect(randomLoadout(new Rng(3), unlockedFor('late'), 4)).toHaveLength(4);
+  });
+
+  it('unlocking more towers is not a trap: the best 4-tower loadout of all 8 is not worse than the start trio at mid meta', () => {
+    const seeds = [1, 2, 3, 4, 5, 6];
+    const avg = (pool: Parameters<typeof buildOptions>[0]['pool']): number =>
+      mean(seeds.map((seed) => runBot(buildOptions({ seed, meta: 'mid', pool }), 'greedy', 40).waveReached));
+    const trio = avg(['arrow', 'cannon', 'frost']);
+    const best4 = avg(['arrow', 'poison', 'sniper', 'magic']);
+    // eslint-disable-next-line no-console
+    console.log(`mid meta: start trio ${trio.toFixed(1)}, arrow+poison+sniper+magic ${best4.toFixed(1)}`);
+    expect(best4).toBeGreaterThanOrEqual(trio - 1.5);
   }, SLOW);
 });

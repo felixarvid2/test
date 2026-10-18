@@ -38,8 +38,8 @@ export const BALANCE = {
     budgetPerWave: 4.2,
     budgetExp: 1.12,
     /** Enemy hp multiplier at wave n = hpScale * hpGrowth ^ (n - 1) * (1 + hpLinear * (n - 1)). */
-    hpScale: 3.7,
-    hpGrowth: 1.2,
+    hpScale: 3,
+    hpGrowth: 1.23,
     hpLinear: 0.02,
     /** Extra hp growth per wave beyond hpLateStart: the wall that ends most runs. */
     hpLateStart: 7,

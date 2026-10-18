@@ -45,7 +45,7 @@ export function spendMeta(gems: number): Record<string, number> {
 
 /** Gems a preset has spent on unlocking its natural towers; the rest went into meta upgrades. */
 function naturalTowerGems(preset: MetaPreset): number {
-  return towersForMeta(preset, 'mixed').reduce((n, id) => n + (TOWERS[id].unlock.kind === 'gems' ? TOWERS[id].unlock.cost : 0), 0);
+  return unlockedFor(preset).reduce((n, id) => n + (TOWERS[id].unlock.kind === 'gems' ? TOWERS[id].unlock.cost : 0), 0);
 }
 
 /**
@@ -58,6 +58,7 @@ function fakeSave(preset: MetaPreset, unlocked: TowerId[]): SaveData {
     gems: 0,
     metaLevels: spendMeta(Math.max(0, META_GEMS[preset] - naturalTowerGems(preset))),
     unlockedTowers: unlocked,
+    loadout: unlocked.slice(0, 4),
     stats: { bestWave: 15 },
   } as unknown as SaveData;
 }
@@ -70,11 +71,41 @@ export interface BuildConfig {
   abilities?: AbilityId[];
 }
 
-export function towersForMeta(meta: MetaPreset, pool: 'start' | 'full' | 'mixed' | TowerId[]): TowerId[] {
+/** Towers a preset has unlocked (mid: Lightning and Fire on top of the start trio). */
+export function unlockedFor(meta: MetaPreset): TowerId[] {
+  return meta === 'fresh' ? START_POOL : meta === 'mid' ? MID_TOWERS : FULL_POOL;
+}
+
+/**
+ * The loadout (buy pool, at most 4 towers) a preset plays with by default: the start trio on a fresh
+ * save, and the loadout `--probe loadout` found strongest among the unlocked towers for mid and late.
+ */
+export const BEST_LOADOUT: Record<MetaPreset, TowerId[]> = {
+  fresh: START_POOL,
+  mid: ['arrow', 'cannon', 'frost', 'lightning'],
+  late: ['arrow', 'cannon', 'frost', 'lightning'],
+  max: ['arrow', 'cannon', 'frost', 'lightning'],
+};
+
+/**
+ * Tower pool of a scenario. 'mixed' = the preset's default loadout, 'start' = the start trio,
+ * 'full' = ALL unlocked towers as the pool (the game no longer allows this: loadouts hold at most 4),
+ * 'loadout4' = a random valid 4-tower loadout from the unlocked set (needs a seed).
+ */
+export function towersForMeta(meta: MetaPreset, pool: 'start' | 'full' | 'mixed' | 'loadout4' | TowerId[], seed = 0): TowerId[] {
   if (Array.isArray(pool)) return pool;
   if (pool === 'start') return START_POOL;
-  if (pool === 'full') return FULL_POOL;
-  return meta === 'fresh' ? START_POOL : meta === 'mid' ? MID_TOWERS : FULL_POOL;
+  if (pool === 'full') return unlockedFor(meta);
+  if (pool === 'loadout4') return randomLoadout(new Rng(seed * 17 + 3), unlockedFor(meta), 4);
+  return BEST_LOADOUT[meta];
+}
+
+/** A random loadout of `size` distinct unlocked towers (every tower except Cannon hits air, so one always does). */
+export function randomLoadout(rng: Rng, unlocked: readonly TowerId[], size: number): TowerId[] {
+  const ids = [...unlocked];
+  const out: TowerId[] = [];
+  while (out.length < Math.min(size, ids.length)) out.push(ids.splice(rng.int(ids.length), 1)[0]);
+  return out;
 }
 
 export function buildOptions(c: BuildConfig, overrides: Partial<RunOptions> = {}): RunOptions {
@@ -82,18 +113,14 @@ export function buildOptions(c: BuildConfig, overrides: Partial<RunOptions> = {}
   return { ...o, towerPool: [...c.pool], abilities: c.abilities ?? ALL_ABILITIES, ...overrides };
 }
 
-/** A random subset of 3-5 distinct towers. */
+/** A random legal loadout of 3 or 4 towers out of all eight (the "random loadout" scenario). */
 export function randomSubset(rng: Rng): TowerId[] {
-  const n = 3 + rng.int(3);
-  const ids = [...TOWER_IDS];
-  const out: TowerId[] = [];
-  while (out.length < n) out.push(ids.splice(rng.int(ids.length), 1)[0]);
-  return out;
+  return randomLoadout(rng, TOWER_IDS, 3 + rng.int(2));
 }
 
 /** Human readable summary of what a meta preset grants. */
 export function describePreset(meta: MetaPreset): string {
-  const save = fakeSave(meta, meta === 'fresh' ? START_POOL : meta === 'mid' ? MID_TOWERS : FULL_POOL);
+  const save = fakeSave(meta, unlockedFor(meta));
   const t = (s: Parameters<typeof metaTotal>[1]): number => metaTotal(save, s);
   return `${meta}: hp +${t('castleHp')}, coins +${t('startCoins')}, dmg +${Math.round(t('damagePct') * 100)}%, ` +
     `rate +${Math.round(t('fireRatePct') * 100)}%, cost -${Math.round(t('discountPct') * 100)}%, ` +

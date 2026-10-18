@@ -5,10 +5,10 @@
  *   npm run sim                                  quick sweep (policy x meta, 10 runs per cell)
  *   npm run sim -- --runs 30 --pool all          the full report (slow: minutes)
  *   npm run sim -- --policy greedy --meta late   one cell
- *   npm run sim -- --probe synergy|upgrade|pool|towers|economy|all
+ *   npm run sim -- --probe synergy|upgrade|pool|loadout|towers|economy|all
  *
  * Flags: --runs N, --policy greedy|churn|random|noUpgrades|mergeHeavy|spreadOut|all, --meta fresh|mid|late|max|all,
- *        --pool natural|start|full|subset|all (or a comma list), --seed BASE, --maxwaves N, --workers N, --probe KIND,
+ *        --pool natural|start|loadout4|subset|full|all (or a comma list; natural = the preset's default loadout, loadout4 = random 4 of the unlocked towers, subset = random 3-4 of all 8, full = legacy: every unlocked tower in the pool), --seed BASE, --maxwaves N, --workers N, --probe KIND,
  *        --probe-runs N, --probe-meta META, --set path=value,... (what-if overrides), --abilities meteor,repair,..., --json FILE (raw run records), --sections a,b,c, --quiet.
  */
 import { cpus } from 'node:os';
@@ -26,7 +26,7 @@ import type { JobSpec } from './balance/jobs';
 import { META_GEMS, describePreset, randomSubset, towersForMeta } from './balance/presets';
 import type { MetaPreset } from './balance/presets';
 import { applyOverrides, parseSet } from './balance/overrides';
-import { probeReport, synergyProbe, towerProbe, upgradeProbe } from './balance/probes';
+import { loadoutProbe, loadoutReport, probeReport, synergyProbe, towerProbe, upgradeProbe } from './balance/probes';
 import { benchReport, runBench } from './balance/towerBench';
 
 const POLICIES: (BotPolicy | 'churn')[] = ['greedy', 'churn', 'mergeHeavy', 'spreadOut', 'random', 'noUpgrades'];
@@ -75,14 +75,14 @@ async function sweep(): Promise<void> {
   const maxWaves = num('maxwaves', 40);
   const jobs: JobSpec[] = [];
   for (const meta of metas) {
-    const modes = poolMode === 'all' ? ['start', 'full', 'subset'] : poolMode.split(',');
+    const modes = poolMode === 'all' ? ['start', 'natural', 'loadout4', 'subset'] : poolMode.split(',');
     for (const mode of modes) {
       for (const policy of policies) {
         for (let i = 0; i < runs; i++) {
           const seed = base + i;
           const pool: TowerId[] = mode === 'subset'
             ? randomSubset(new Rng(seed * 31 + 7))
-            : towersForMeta(meta, mode === 'natural' ? 'mixed' : (mode as 'start' | 'full'));
+            : towersForMeta(meta, mode === 'natural' ? 'mixed' : (mode as 'start' | 'full' | 'loadout4'), seed);
           jobs.push({ seed, policy, meta, pool, poolLabel: mode, maxWaves, ...(overrides ? { set: overrides } : {}), ...(abilities ? { abilities } : {}) });
         }
       }
@@ -137,6 +137,12 @@ async function probes(kind: string): Promise<void> {
     log(`synergy probe: ${runs} paired seeds, greedy, ${meta}`);
     heading(`Synergy probe (greedy, ${meta}, ${runs} paired seeds): waves gained vs no synergies`);
     console.log(probeReport('', await synergyProbe(o)));
+  }
+  if (kind === 'loadout') {
+    const size = num('loadout-size', 4);
+    log(`loadout probe: all ${size}-tower loadouts of the 8 towers, ${runs} paired seeds, greedy, ${meta}`);
+    heading(`Loadouts (greedy, ${meta} meta, all 8 towers unlocked, ${runs} paired seeds)`);
+    console.log(loadoutReport(await loadoutProbe(o, size)));
   }
   if (kind === 'pool' || kind === 'all') {
     log(`tower value probe: ${runs} paired seeds, greedy, ${meta}`);
