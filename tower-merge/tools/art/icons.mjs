@@ -247,10 +247,10 @@ icons.repair = () => {
 
 icons.frenzy = () => {
   const A = I('fy');
-  A.cel('M64 4C72 30 108 46 108 84C108 106 90 122 64 122C38 122 20 106 20 84C20 46 56 30 64 4Z', '#ff5a36');
-  A.cel('M64 40C70 58 90 66 88 92C86 108 76 114 64 114C52 114 42 108 40 92C38 66 58 58 64 40Z', '#ffb03b', { sw: 3 });
-  sword(A, 45, 64, 70, STEEL);
-  sword(A, -45, 64, 70, '#dfe3f2');
+  A.cel('M64 2C74 30 118 44 116 88C114 112 92 124 64 124C36 124 14 112 12 88C10 44 54 30 64 2Z', '#ff5a36');
+  A.cel('M64 34C72 54 100 62 98 92C96 110 82 118 64 118C46 118 32 110 30 92C28 62 56 54 64 34Z', '#ffb03b', { sw: 3 });
+  sword(A, 45, 64, 72, STEEL);
+  sword(A, -45, 64, 72, '#dfe3f2');
   return A;
 };
 
@@ -287,11 +287,10 @@ icons.clock = () => {
 
 icons.merge = () => {
   const A = I('mr');
-  const G = '#6fcf4e';
-  A.cel('M6 44H46V28L84 64L46 100V84H6Z'.replace('M6 44H46V28L84 64L46 100V84H6Z', 'M6 46H34V30L62 64L34 98V82H6Z'), G);
-  A.cel('M122 46H94V30L66 64L94 98V82H122Z', '#4fb34a');
-  A.glow(64, 64, 34, '#fff6a8', 0.9);
-  sparkle(A, 64, 64, 22, '#fff6a8');
+  A.cel('M4 46H32V22L62 64L32 106V82H4Z', '#6fcf4e');
+  A.cel('M124 46H96V22L66 64L96 106V82H124Z', '#4fb34a');
+  A.glow(64, 64, 36, '#fff6a8', 0.9);
+  sparkle(A, 64, 64, 24, '#fff6a8');
   return A;
 };
 

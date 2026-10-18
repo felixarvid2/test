@@ -148,6 +148,7 @@ function board() {
     `<radialGradient id="vg" cx=".5" cy=".5" r=".75"><stop offset=".6" stop-color="#10281a" stop-opacity="0"/><stop offset="1" stop-color="#10281a" stop-opacity=".35"/></radialGradient>` +
     symbols() + `</defs>` +
     `<rect width="${W}" height="${H}" fill="${G.base}"/>${patches.join('')}` +
+    Array.from({ length: 9 }, (_, i) => `<rect y="${110 + i * 120}" width="${W}" height="60" fill="#fff" opacity=".05"/>`).join('') +
     items.map((i) => i.s).join('') +
     `<rect y="0" width="${W}" height="150" fill="url(#tp)"/><rect y="990" width="${W}" height="290" fill="url(#bt)"/>` +
     `<rect y="0" width="${W}" height="110" fill="#16381f" opacity=".2"/><rect width="${W}" height="${H}" fill="url(#vg)"/></svg>\n`;
@@ -186,8 +187,8 @@ function menu() {
     `<circle cx="${cx + 20}" cy="590" r="330" fill="url(#sg)"/><circle cx="${cx + 20}" cy="600" r="64" fill="#fff0b4"/>` + clouds +
     `<path d="${ridge(700, 150, 70, 11, 1.3)}" fill="url(#m1)"/><path d="${ridge(730, 140, 60, 22, 1.1)}" fill="url(#m2)"/>` +
     `<path d="M-20 ${H}L-20 760Q150 700 300 730T${W + 20} 680V${H}Z" fill="url(#m3)"/>` +
-    `<path d="M300 ${H}L300 700Q430 640 ${cx + 30} 596Q640 580 ${W + 20} 600V${H}Z" fill="url(#hl)"/>` +
-    `<path d="M300 700Q430 640 ${cx + 30} 596Q640 580 ${W + 20} 600" fill="none" stroke="#ffb066" stroke-width="3" opacity=".55"/>` +
+    `<path d="M60 ${H}Q150 960 260 800Q380 650 ${cx - 40} 612Q${cx + 30} 580 640 590Q690 592 ${W + 20} 600V${H}Z" fill="url(#hl)"/>` +
+    `<path d="M260 800Q380 650 ${cx - 40} 612Q${cx + 30} 580 640 590Q690 592 ${W + 20} 600" fill="none" stroke="#ffb066" stroke-width="3" opacity=".5"/>` +
     castle +
     `<path d="M-20 ${H}V860Q200 800 420 850T${W + 20} 820V${H}Z" fill="url(#fg)"/>` +
     `<path d="M-20 ${H}V990Q240 930 460 975T${W + 20} 950V${H}Z" fill="#0a081f" opacity=".85"/>` +
