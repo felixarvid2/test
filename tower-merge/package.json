@@ -12,7 +12,8 @@
     "test": "vitest run",
     "sim": "tsx tools/simulate.ts",
     "smoke": "node tools/smoke.mjs",
-    "package": "npm run build && node tools/package.mjs"
+    "package": "npm run build && node tools/package.mjs",
+    "perf": "node --expose-gc --import tsx tools/perf.ts"
   },
   "dependencies": {
     "phaser": "3.90.0"

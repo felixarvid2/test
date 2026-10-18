@@ -12,6 +12,7 @@ export const TEX = {
   dot: 'play_dot',
   flame: 'play_flame',
   plus: 'play_plus',
+  tri: 'play_tri',
 } as const;
 
 function radial(scene: Phaser.Scene, key: string, w: number, h: number, stops: Array<[number, string]>, ellipse = false): void {
@@ -79,6 +80,11 @@ export function ensurePlayTextures(scene: Phaser.Scene): void {
   gfxTexture(scene, TEX.plus, 48, 48, (g) => {
     g.fillStyle(PALETTE.outline, 1).fillRoundedRect(15, 2, 18, 44, 6).fillRoundedRect(2, 15, 44, 18, 6);
     g.fillStyle(0xffffff, 1).fillRoundedRect(19, 6, 10, 36, 4).fillRoundedRect(6, 19, 36, 10, 4);
+  });
+
+  gfxTexture(scene, TEX.tri, 64, 64, (g) => {
+    g.fillStyle(PALETTE.outline, 1).fillTriangle(8, 4, 8, 60, 60, 32);
+    g.fillStyle(0xffffff, 1).fillTriangle(15, 14, 15, 50, 48, 32);
   });
 
   // green "merge here" arrow pointing down
