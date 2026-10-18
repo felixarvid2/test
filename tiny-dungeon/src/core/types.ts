@@ -113,6 +113,8 @@ export interface UpgradeDef {
   requiresWeapon?: WeaponId;  // only offered while that weapon is owned
   grantsWeapon?: WeaponId;    // picking it adds the weapon (weapon cards)
   unlock?: string;            // meta unlock id required before it can appear
+  /** Instant effect when picked (Healing Potion, Gold Pouch). Such cards are only offered as filler. */
+  onPick?: { healFraction?: number; gold?: number };
 }
 
 export interface SynergyDef {
@@ -293,6 +295,12 @@ export interface RunState {
   meta: Record<string, number>; // permanent upgrade levels captured at run start
   buffs: ActiveBuff[];          // temporary buffs / companions (Mystery Egg, shrines)
   levelBonuses: number;         // level-ups applied (each adds balance.levelUpEffects)
+  // --- optional additions (core/run.ts fills them; absent on states built elsewhere) ---
+  unlocks?: string[];            // unlock ids captured at run start (gates upgrade offers)
+  modifiers?: StatEffect[];      // run-wide modifiers (daily challenge)
+  damageThisRoom?: number;       // damage taken since the current room started
+  nextChoice?: { minRarity?: Rarity };  // set by shrines; shapes the next upgrade offer, cleared by applyUpgrade
+  curseRooms?: number;           // rooms left with +enemy HP (Cursed Chest)
 }
 
 export interface BuffDef {
