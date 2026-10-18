@@ -1,9 +1,12 @@
 /**
- * Every tunable number of the simulation lives here. Edit values, run `npm run sim` / the bot tests
- * and look at wave reached and run length. Targets (greedy bot, no meta bonuses): death around
- * waves 9-14, runs of about 3-6 simulated minutes; the 'noUpgrades' policy dies noticeably earlier.
- * Last measured (24 seeds, default RunOptions, real upgrade/synergy/event data): greedy avg wave 11.0
- * (8-15) in 334 s, noUpgrades 9.9 in 289 s, random 10.6, mergeHeavy 9.5, spreadOut 6.5.
+ * Every tunable number of the simulation lives here. Edit values, run `npm run sim` (see
+ * docs/BALANCE.md) and look at wave reached and run length. Targets (greedy bot from
+ * src/sim/bot.ts): fresh save (start towers, no meta) dies around wave 11 (9-13) after 3-6 simulated
+ * minutes; mid meta (~1500 gems spent) waves 13-16; late meta (~5000 gems) beats the Dragon (wave 15)
+ * and dies in the endless loop around waves 19-23; the 'noUpgrades' policy dies about 2 waves earlier
+ * than greedy and 'spreadOut' (never merges) around wave 6.
+ * Last measured (40 seeds, default pools): greedy fresh median 11 (7-14) in 5.6 min, mid 16 (14-19) in
+ * 8.1 min, late 20.5 (17-22) in 9.5 min; all upgrades maxed ('max' preset) 23.
  */
 export const BALANCE = {
   castle: {

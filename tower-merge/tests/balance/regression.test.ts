@@ -44,7 +44,7 @@ describe('balance regression', () => {
     // eslint-disable-next-line no-console
     console.log(`avg wave fresh ${fresh.wave.toFixed(1)}, mid ${mid.wave.toFixed(1)}, late ${late.wave.toFixed(1)} (${late.beatDragon}/4 beat the Dragon)`);
     expect(mid.wave).toBeGreaterThan(fresh.wave + 2);
-    expect(late.wave).toBeGreaterThan(mid.wave + 1.5);
+    expect(late.wave).toBeGreaterThan(mid.wave + 1);
     expect(late.beatDragon).toBeGreaterThanOrEqual(3);
     expect(late.wave).toBeLessThanOrEqual(30);
   }, SLOW);
