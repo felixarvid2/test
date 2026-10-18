@@ -771,6 +771,62 @@ body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 ::selection{background:rgba(245,197,66,.35);color:#fff}
 /* 225 Tunna scrollisten i temats färger */
 html{scrollbar-width:thin;scrollbar-color:rgba(140,110,200,.6) #120d1c}
+/* ---- omgång 2: 226-250 tärningar, tärningsbricka, kombinationsrubrik, poängvisning ---- */
+/* 226 Glansfläck uppe till vänster på varje tärning */
+.die::before{content:'';position:absolute;left:8%;top:6%;width:42%;height:30%;border-radius:50%;
+  background:radial-gradient(ellipse at 40% 40%,rgba(255,255,255,.75),transparent 70%);pointer-events:none}
+/* 227 Prickar lite större och ovanför glansen */
+.die .pip{width:13px;height:13px;position:relative;z-index:1}
+/* 228 Fas runt tärningens kant */
+.die{border:1px solid rgba(255,255,255,.55)}
+/* 229 Tärningar ljusnar vid hover */
+.die:hover{filter:brightness(1.07) drop-shadow(0 6px 8px rgba(0,0,0,.35))}
+/* 230 Sparade tärningar får en ring i sin färg */
+.die.held{outline:2px solid var(--dc);outline-offset:3px}
+/* 231 Större nål på sparade tärningar */
+.die.held::after{font-size:22px;top:-16px}
+/* 232 Mjuk övergång när övriga tärningar dämpas */
+.die{transition:transform var(--tr-med),box-shadow var(--tr-fast),filter .25s ease,outline-color .2s}
+/* 233 Tärningsbrickan som inlagd yta */
+#dice-area{box-shadow:inset 0 0 40px rgba(0,0,0,.55),inset 0 3px 10px rgba(0,0,0,.5),0 6px 18px rgba(0,0,0,.4)}
+/* 234 Filtstruktur i botten av brickan */
+#dice-area{background-image:
+  repeating-linear-gradient(0deg,rgba(255,255,255,.02) 0 1px,transparent 1px 4px),
+  radial-gradient(ellipse at 50% 100%,rgba(90,40,150,.25),transparent 70%)}
+/* 235 Luft mellan tärningarna anpassas efter bredden */
+#dice-area{gap:clamp(8px,2vw,16px)}
+/* 236 Tärningsstorlek som följer skärmbredden */
+.die{width:clamp(64px,15vw,84px);height:auto;aspect-ratio:1/1}
+/* 237 Modifierarmärket tydligare */
+.die .mod-badge{width:28px;height:28px;font-size:15px;border-width:2px}
+/* 238 Rullande tärningar får lätt rörelseoskärpa */
+.die.rolling{filter:blur(.5px) brightness(1.1)}
+/* 239 Poängsatt tärning får guldglöd */
+.die.scored{box-shadow:0 0 28px rgba(245,197,66,.9),0 0 8px #fff inset}
+/* 240 Tärningar syns skarpare på brickan med lätt kontur */
+.die{box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 -6px 12px rgba(120,100,160,.35) inset,0 4px 0 #6a5a8a,0 8px 16px rgba(0,0,0,.55),0 0 0 1px rgba(26,19,38,.6)}
+/* 241 Kombinationsnamnet större med pixelkontur */
+#combo-name{font-size:clamp(28px,6vw,42px);paint-order:stroke fill;-webkit-text-stroke:1px rgba(26,19,38,.55)}
+/* 242 Kombinationsundertext med tunn guldkant */
+#combo-sub{border-color:rgba(245,197,66,.35);font-family:var(--font-pixel);letter-spacing:.5px}
+/* 243 Guldlinje under starka kombinationer */
+#combo-banner::after{content:'';display:block;height:2px;width:0;margin:6px auto 0;background:linear-gradient(90deg,transparent,var(--gold),transparent);transition:width .4s ease}
+#combo-banner.tier-3::after,#combo-banner.tier-4::after,#combo-banner.tier-5::after{width:min(260px,70%)}
+/* 244 Tomt läge blir dämpat och mindre */
+#combo-banner.none #combo-name{font-size:20px;letter-spacing:2px;opacity:.7}
+/* 245 Poängraden som egen panel */
+#score-display{background:linear-gradient(180deg,rgba(40,28,62,.85),rgba(20,14,31,.9));border:1px solid rgba(160,130,220,.35);
+  border-radius:var(--r-lg);padding:8px 22px;box-shadow:0 6px 18px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.08)}
+/* 246 Likhetstecken dämpade */
+#score-display .eq{opacity:.55}
+/* 247 Totalen störst */
+#score-display .total{font-size:1.25em;min-width:2.2ch;text-align:left}
+/* 248 Chips och mult som markerade värden */
+#score-display .chips,#score-display .mult{min-width:1.8ch;text-align:center}
+/* 249 Flytande poäng med pixelkontur */
+.popup-score{font-family:var(--font-pixel);-webkit-text-stroke:2px rgba(26,19,38,.85);paint-order:stroke fill;letter-spacing:2px}
+/* 250 Loggen nere i hörnet i pixelstil med guldkant */
+.popup-log{font-family:var(--font-pixel);border-left:3px solid var(--gold);letter-spacing:.3px}
 </style>
 </head>
 <body>
