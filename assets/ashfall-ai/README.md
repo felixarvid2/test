@@ -1,9 +1,10 @@
 # Ashfall – AI-generated assets
 
-Everything generated through an API for [Ashfall](../../ashfall): 3D models and icons from
-[Meshy](https://www.meshy.ai), and 2D art from FLUX.2 Turbo on [fal.ai](https://fal.ai). The theme is
-dark industrial sci-fi. Each source folder has a `prompts.json` with the prompt that made each file.
-Run `npm run assets:export` in `ashfall/` to rebuild this folder from the game's files.
+Everything generated through an API for [Ashfall](https://github.com/felixarvid2/Ashfall): 3D models
+and icons from [Meshy](https://www.meshy.ai), and 2D art from FLUX.2 Turbo on
+[fal.ai](https://fal.ai). The theme is dark industrial sci-fi. Each source folder has a `prompts.json` with the prompt that made each file.
+Run `npm run assets:export` in the [Ashfall repo](https://github.com/felixarvid2/Ashfall) to rebuild this
+folder from the game's files.
 
 ## `meshy/` – Meshy (text/image to 3D, text to image)
 
