@@ -1,8 +1,8 @@
 import { BALANCE, gemsFor } from '../data/balance';
-import { CASTLE, SLOTS } from '../data/map';
+import { TOWERS } from '../data/towers';
 import type { EnemyId, TowerId } from '../data/types';
 import { FL } from './modifiers';
-import { applyBurn, applyFreeze, applyPoison, applySlow, applyStun, applyVulnerability, spreadBurn } from './statuses';
+import { applyBurn, applyFreeze, applyPoison, applySlow, applyStun, applyVulnerability } from './statuses';
 import { spawnEnemy } from './enemies';
 import type { DeathRec, Enemy, FireZone, Projectile, SimState, TowerInst } from './state';
 
@@ -125,9 +125,7 @@ export function killEnemy(s: SimState, e: Enemy, tower: TowerInst | null, silent
   if (silent) return;
 
   if (e.isBoss && e.bossDef) {
-    const loop = Math.floor((s.stats.bossesKilled.length) / 3);
-    const gems = Math.round(e.bossDef.gems * Math.pow(BALANCE.boss.loopGemMult, Math.floor((s.wave / BALANCE.waves.bossEveryNWaves - 1) / 3)));
-    void loop;
+    const gems = Math.round(e.bossDef.gems * Math.pow(BALANCE.boss.loopGemMult, e.bossLoop));
     s.stats.bossesKilled.push(e.bossDef.id);
     s.bossGems += gems;
     updateGems(s);
@@ -580,14 +578,15 @@ export function spawnShards(s: SimState, t: TowerInst, x: number, y: number, dmg
       if (idx < 0) continue;
       const v = s.enemies[idx];
       if (!v.active || v.id === skipId) continue;
-      if (v.flying && !t.stats.projSpeed) continue;
+      if (v.flying && !TOWERS[t.type].hitsAir) continue;
       const dx = v.x - x;
       const dy = v.y - y;
       const d = dx * dx + dy * dy;
       if (d < bestD) { bestD = d; bestI = i; }
     }
     if (bestI < 0) break;
-    const v = s.enemies[buf[bestI]];
+    const vIdx = buf[bestI];
+    const v = s.enemies[vIdx];
     buf[bestI] = -1;
     const p = acquireProjectile(s);
     if (!p) break;
@@ -601,7 +600,7 @@ export function spawnShards(s: SimState, t: TowerInst, x: number, y: number, dmg
     p.y = y;
     p.sx = x;
     p.sy = y;
-    p.targetIdx = bestI >= 0 ? (s.enemies.indexOf(v)) : -1;
+    p.targetIdx = vIdx;
     p.targetId = v.id;
     p.dmg = dmg;
     p.splash = 0;
@@ -640,13 +639,4 @@ export function scatterBomblets(s: SimState, t: TowerInst, x: number, y: number,
     p.splash = radius;
     p.armorPen = t.stats.armorPen;
   }
-}
-
-/** Castle position helper for thorns/revive. */
-export function castlePoint(): { x: number; y: number } {
-  return { x: CASTLE.x, y: CASTLE.y };
-}
-
-export function slotPos(slot: number): { x: number; y: number } {
-  return SLOTS[slot];
 }

@@ -120,6 +120,7 @@ export class Enemy implements EnemyState {
   chargeTime = 0;
   chargeMult = 1;
   spawnMilestone = 0;
+  bossLoop = 0;
   /** Escort/summoned/split-spawned: true for enemies that did not come from the wave plan. */
   summoned = false;
 }

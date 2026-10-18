@@ -38,7 +38,7 @@ export const REWARD_CONFIG: {
     revive: { scope: 'run', dailyCap: 6, gemCost: 60, rewardId: 'tm_revive' },
     rareTower: { scope: 'boss', dailyCap: 8, gemCost: 40, rewardId: 'tm_rare_tower' },
     reroll: { scope: 'upgrade', dailyCap: 10, gemCost: 15, rewardId: 'tm_reroll' },
-    doubleGems: { scope: 'run', dailyCap: 6, gemCost: 30, rewardId: 'tm_double_gems' },
+    doubleGems: { scope: 'run', dailyCap: 6, gemCost: null, rewardId: 'tm_double_gems' },
     emergencyPower: { scope: 'run', dailyCap: 6, gemCost: 30, rewardId: 'tm_emergency_power' },
   },
 };
