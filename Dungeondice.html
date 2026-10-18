@@ -188,11 +188,6 @@ header.boss-header{border-color:rgba(255,77,94,0.55);animation:bossHeaderPulse 2
   0%,100%{box-shadow:0 0 16px rgba(245,197,66,0.75),inset 0 0 10px rgba(245,197,66,0.25)}
   50%{box-shadow:0 0 28px rgba(245,197,66,1),inset 0 0 16px rgba(245,197,66,0.4)}
 }
-/* 43 Negative red pulse */
-.relic.negative{border-color:#ff4d5e;background:linear-gradient(145deg,rgba(74,16,32,0.9),rgba(42,8,16,0.95));
-  animation:negPulse 1.6s ease-in-out infinite}
-@keyframes negPulse{0%,100%{box-shadow:0 0 10px rgba(255,77,94,0.5)}
-  50%{box-shadow:0 0 18px rgba(255,77,94,0.9)}}
 /* 44 Holo sweep on hover */
 .relic:hover::after{content:'';position:absolute;inset:0;
   background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,0.35) 50%,transparent 70%);
@@ -696,7 +691,6 @@ header::after,.modal::after,.shop-item::after,#dice-area::after{
 .shop-item .icon .rico .spr{width:1.2em;height:1.2em}
 .rico-uncommon .spr{filter:drop-shadow(0 0 3px #4d9fff)}
 .rico-rare .spr{filter:drop-shadow(0 0 4px #c44dff)}
-.rico-negative .spr{filter:drop-shadow(0 0 4px #ff4d5e)}
 .rico-legendary .spr{filter:drop-shadow(0 0 5px #f5c542)}
 </style>
 </head>
@@ -1120,7 +1114,7 @@ function spr(k){return SPRITES[k]?'<span class="spr" style="background-image:url
 const ICON_MAP={"🛡️": "o_37_3", "🗡️": "o_33_7", "🔪": "o_33_6", "🔨": "o_37_7", "🍷": "o_33_14", "⚗️": "o_34_13", "🔮": "potionB", "🎒": "o_47_4", "👝": "o_45_4", "📦": "chest", "☠️": "o_38_11", "💀": "o_38_11", "🕸️": "o_2_15", "🦂": "scorpion", "🐍": "o_28_8", "🎩": "o_44_2", "🏹": "o_38_5", "🎯": "gi_target", "🗑️": "gi_trashcan", "🛒": "gi_cart", "🧤": "o_42_1", "🥾": "o_40_1", "👞": "o_39_1", "🪙": "o_22_4", "💰": "o_41_4", "👑": "o_43_2", "🔑": "o_33_11", "🎲": "o_45_15", "🧪": "o_33_13", "⏳": "o_39_12", "⌛": "o_39_12", "🏆": "o_40_16", "🎵": "o_39_16", "🍎": "o_33_18", "🥒": "o_34_18", "🐱": "o_30_7", "🐈": "o_30_7", "🐺": "o_31_7", "🐙": "o_25_8", "🐦": "o_26_7", "🦅": "o_26_7", "🐪": "o_28_7", "⚔️": "o_34_8", "📖": "o_44_5", "💎": "o_23_4", "🔥": "o_15_10", "🪔": "o_4_15", "🕯️": "o_5_15", "🦇": "o_26_8", "💍": "o_43_6", "📿": "o_43_7", "🪓": "o_41_7", "📜": "o_33_15", "🐢": "o_31_8", "🐻": "o_30_8", "🦎": "o_29_8", "🐲": "o_29_8", "🗿": "o_30_6", "🌙": "o_25_11", "💥": "o_45_9", "🪶": "o_29_11", "✨": "o_29_12", "❄️": "o_28_12", "6️⃣": "o_47_15", "5️⃣": "o_46_15", "3️⃣": "o_44_15", "🔩": "o_42_15", "🏰": "o_43_20", "🩸": "o_39_10", "😈": "o_40_21", "🌲": "o_0_1", "🗺️": "o_32_15", "🃏": "o_20_19"};
 function ico(e){const k=ICON_MAP[e];return k?spr(k):e}
 /* Enhetliga reliktikoner: Kenney-sprite där det finns en bra match, annars genererad pixelrun, alltid i samma ram */
-const RICO_PAL={common:['#cfd2dc','#6c7186'],uncommon:['#8cc4ff','#2f6fc4'],rare:['#e2a0ff','#8a2fc4'],legendary:['#ffe58a','#c48a14'],negative:['#ff9aa5','#b0243a']};
+const RICO_PAL={common:['#cfd2dc','#6c7186'],uncommon:['#8cc4ff','#2f6fc4'],rare:['#e2a0ff','#8a2fc4'],legendary:['#ffe58a','#c48a14']};
 const _ricoCache={};
 function ricoURL(r){
   const key=r.id||r.name.en;
@@ -1397,12 +1391,8 @@ const RELIC_POOL = (()=>{
   A('cursed','Den Förbannade','The Cursed','💀','rare','×3 mult.','×3 mult.',c=>c.mult*=3);
   A('dice_lover','Tärningsälskaren','Dice Lover','🎲','uncommon','+3 chips per tärningsvärde.','+3 chips per die value.',c=>c.dice.forEach(d=>c.chips+=3*d.value));
   A('echo','Ekot','The Echo','📢','rare','×1.5 mult.','×1.5 mult.',c=>c.mult*=1.5);
-  A('neg_bleed','Blödande','Bleeding','🩸','negative','−2 guld per hand.','−2 gold per hand.',null,{passive:1,negative:1});
-  A('neg_curse','Förbannelsen','The Curse','☠️','negative','−1 mult per tärning.','−1 mult per die.',c=>c.mult=Math.max(1,c.mult-c.dice.length),{negative:1});
-  A('neg_heavy','Tung','Heavy','⚓','negative','−1 kast per hand.','−1 roll per hand.',null,{passive:1,negative:1});
-  A('neg_blind','Förblindad','Blinded','🌑','negative','Ser ej nästa kast.','Cannot see next roll.',null,{passive:1,negative:1});
   // Priser
-  R.forEach(r=>r.price={common:4,uncommon:6,rare:9,legendary:15,negative:2}[r.r]||4);
+  R.forEach(r=>r.price={common:4,uncommon:6,rare:9,legendary:15}[r.r]||4);
   return R;
 })();
 
@@ -1691,7 +1681,6 @@ function startBlind(){
     if(r.id==='kopparmynt'){state.money+=2;log('🟠 +2💰')}
     if(r.id==='skattkista'){state.money+=3;log('💰 +3💰')}
     if(r.id==='fickur'){state.rolls+=1}
-    if(r.id==='neg_bleed'){state.money=Math.max(0,state.money-2)}
   });
   render();
   document.getElementById('score-display').style.display='none';
@@ -1719,7 +1708,6 @@ function refreshHandSize(){
       case 'pappersflygplan':mr+=1;break;
       case 'eviglopp':mr+=1;break;
       case 'sjundesinnet':mr+=1;break;
-      case 'neg_heavy':mr-=1;break;
       case 'hemligficka':md+=1;break;
       case 'kortspelvana':md+=2;break;
       case 'tidsklocka':md-=1;break;
@@ -1815,7 +1803,6 @@ function scoreHand(){
   const noMult=state.boss&&state.boss.desc.sv.includes('Mult-reliker');
   state.relics.forEach(r=>{
     if(!r.ef) return;
-    if(r.negative){try{r.ef(ctx)}catch(e){};return;}
     if(noMult&&r.desc.sv.includes('mult')) return;
     try{r.ef(ctx)}catch(e){}
   });
