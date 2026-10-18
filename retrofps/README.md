@@ -43,7 +43,12 @@ M/Tab karta · P/Esc paus · `[` `]` muskänslighet · `,` `.` synfält · `-` `
 - **Djupare varv**: efter Bendemonen öppnas en portal där man väljer att *gå djupare*, *avsluta rundan* som segrare eller *stanna kvar* och plocka upp guldet. Varv 2 är våning 7–12 med tuffare fiender och en Bendemon med 60 % mer hälsa, och så vidare. Djupare våningar ger fler själar.
 - **Guld och butik**: fiender, krukor och guldhögar ger guld. Dödgrävaren på våning 2 och 4 i varje varv säljer kort, hälsa, rustning, ammunition och nya kort.
 - **Elitfiender**: större, färgade fiender med livmätare och en egenskap (snabb, seg, blodtörstig, explosiv eller brutal). De tappar mer guld.
-- **Bossen Bendemonen** på våning 6 har tre faser. Den sprutar eldfläktar och slår med vingarna. Från fas 2 kallar den på skelett och skjuter en ring av eldklot efter slaget, och fas 3 är snabbare. Den har en livmätare och en dödsanimation, och grinden till utgången öppnas när den dör.
+- **Fem bossar** med olika beteenden, en per varv i slumpad ordning (våning 6, 12 osv.). Alla har tre faser (under 2/3 och 1/3 hälsa), livmätare och dödsanimation, och var och en har en egen arena.
+  - *Bendemonen* (tronsal): eldfläktar och vingslag. Kallar på skelett och skjuter eldringar från fas 2.
+  - *Helvetesbesten* (grotta): eldklot och eldpelare som slår upp under spelaren efter en varning. Från fas 2 sjunker den ned i marken och dyker upp någon annanstans.
+  - *Mardrömmen* (kyrkogård): cirklar och skjuter blå eld, stampar och stormar sedan fram med ett spår av blå eld. Krockar den i en vägg blir den yr. Två stormningar i rad från fas 2.
+  - *Ogern* (skogsglänta): krossar marken så att en ring av stenar flyger ut och kastar block på håll. Kallar på orkkrigare i fas 2 och blir rasande i fas 3.
+  - *Vålnaden* (kyrkogård): halvgenomskinlig och svävande, skjuter sökande klot, försvinner (och går då inte att skada) och dyker upp nära spelaren med ett skrik som saktar ned. Väcker skelett i fas 2.
 - **Permadöd**: döden avslutar rundan och den sparade rundan raderas. *Fortsätt* finns bara för en runda som pågår och laddar början av den senaste våningen.
 - **Själar och upplåsningar**: varje runda ger själar efter hur långt man kom, och mer på svår nivå. Med dem låser man upp 17 kort på startskärmen. Profilen sparar rundor, segrar, bästa våning och rekord.
 - **Spelkänsla**: skadesiffror (gula vid krit), träffmarkör, brinnande och slöade fiender syns i färg, och fiender kan explodera i kedja.
@@ -132,6 +137,10 @@ Spelare och gränssnitt
 | Förstapersonsvapen (pistol, hagelgevär, gevär, kpist) med skjutanimationer | release `assets-large-v1` → `RetroWeaponPack_V1.zip`, renderade med `tools/weapon-frames` |
 | Dubbelbössa, armborst, signalpistol, prickskyttegevär | `assets/3d-models/PSXShotgunPack[FIXED]`, `Low Poly Weapon Pack with Image Texture - by Kickin It Studios` och `Guns&Explosives`, renderade med `tools/weapon-frames/render-static.mjs` |
 | Portal | ritad med `tools/portal/make.py` |
+| Bossar: Helvetesbesten, Mardrömmen, Ogern, Vålnaden | `assets/2d-pixel/Legacy Collection/.../Gothicvania/Characters` (Ansimuz, CC0), bildremsor med `tools/boss-sprites/prep.py` |
+| Utomhus: skogsvägg, kyrkogårdsmur, grottvägg, korsvirkeshus, gräs, grus, lera, grottgolv och -tak | Kenney *retro-textures-fantasy* (CC0), *Classic64 Asset Pack* (CC0), byggda med `tools/biome-textures/make.py` |
+| Natthimmel | Kenney *Skyboxes* (CC0) |
+| Träd och gravstenar | träden ur Gothicvania *HauntedForest* (CC0), gravstenarna ritade i `tools/biome-textures/make.py` |
 | Mynningsflamma | `RetroWeaponPack_V1.zip` → `FX/Textures/MuzzleFlash.png` |
 | Väggar, dörrar, golv, tak | `assets/textures/retro-textures-fantasy` (Kenney, CC0) |
 | Skelett, eldskelett, vampyr | `assets/2d-pixel/Enemy_Animations_Set` |
