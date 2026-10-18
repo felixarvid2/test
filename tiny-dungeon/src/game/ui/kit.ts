@@ -48,7 +48,7 @@ export function drawBox(
   g.fillStyle(COLORS.outline, 1).fillRoundedRect(x - 4, y - 4, w + 8, h + 8, r + 3);
   g.fillStyle(border, 1).fillRoundedRect(x, y, w, h, r);
   g.fillStyle(fill, 1).fillRoundedRect(x + 4, y + 4, w - 8, h - 8, r - 3);
-  g.fillStyle(0xffffff, 0.08).fillRoundedRect(x + 8, y + 7, w - 16, Math.max(4, h * 0.22), 6);
+  g.fillStyle(0xffffff, 0.08).fillRoundedRect(x + 8, y + 7, w - 16, Math.min(44, Math.max(4, h * 0.22)), 6);
   g.fillStyle(0x000000, 0.18).fillRect(x + 8, y + h - 12, w - 16, 5);
 }
 
@@ -69,6 +69,10 @@ export interface ButtonOptions {
   fontSize?: number;
   icon?: { key: string; frame: string | number; scale?: number };
   sound?: boolean;
+  /** Use the chunky title font (PLAY, big headings). */
+  title?: boolean;
+  /** Smaller second line under the main text (needs a button height of ~110). */
+  subText?: string;
 }
 
 /**
@@ -78,6 +82,7 @@ export interface ButtonOptions {
 export class Button extends Phaser.GameObjects.Container {
   private bg: Phaser.GameObjects.Graphics;
   private txt: Phaser.GameObjects.Text;
+  private sub?: Phaser.GameObjects.Text;
   private icon?: Phaser.GameObjects.Image;
   private enabled = true;
   private pressed = false;
@@ -91,8 +96,14 @@ export class Button extends Phaser.GameObjects.Container {
     this.h = Math.max(MIN_TOUCH, opts.height ?? 96);
     this.color = opts.color ?? 0x3d6e70;
     this.bg = scene.add.graphics();
-    this.txt = scene.add.text(0, -2, text, textStyle(opts.fontSize ?? 40, opts.textColor ?? COLORS.text)).setOrigin(0.5);
+    const size = opts.fontSize ?? 40;
+    const style = opts.title ? titleStyle(size, opts.textColor ?? COLORS.text) : textStyle(size, opts.textColor ?? COLORS.text);
+    this.txt = scene.add.text(0, opts.subText ? -16 : -2, text, style).setOrigin(0.5);
     this.add([this.bg, this.txt]);
+    if (opts.subText) {
+      this.sub = scene.add.text(0, 26, opts.subText, textStyle(28, COLORS.text, { color: '#d8cfe0' })).setOrigin(0.5);
+      this.add(this.sub);
+    }
     if (opts.icon) {
       this.icon = scene.add.image(0, 0, opts.icon.key, opts.icon.frame).setScale(opts.icon.scale ?? 3);
       this.add(this.icon);
@@ -104,8 +115,9 @@ export class Button extends Phaser.GameObjects.Container {
     this.on('pointerdown', () => { if (this.enabled) { this.pressed = true; this.setScale(0.95); } });
     this.on('pointerout', () => { this.pressed = false; this.setScale(1); this.redraw(); });
     this.on('pointerover', () => { if (this.enabled) this.redraw(true); });
-    this.on('pointerup', () => {
-      const fire = this.pressed && this.enabled;
+    this.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+      // A drag that started on the button (scrolling a list) is not a tap.
+      const fire = this.pressed && this.enabled && pointer.getDistance() < 24;
       this.pressed = false;
       this.setScale(1);
       if (fire) {
@@ -119,6 +131,15 @@ export class Button extends Phaser.GameObjects.Container {
   private layoutIcon(): void {
     if (!this.icon) return;
     const iconW = this.icon.displayWidth;
+    if (this.sub) {
+      // Two text lines: icon at the left edge, the lines centred in the space that is left.
+      const left = -this.w / 2 + 26 + iconW;
+      const cx = (left + 14 + this.w / 2 - 16) / 2;
+      this.icon.setX(-this.w / 2 + 26 + iconW / 2);
+      this.txt.setX(cx);
+      this.sub.setX(cx);
+      return;
+    }
     const total = iconW + 12 + this.txt.width;
     this.icon.setX(-total / 2 + iconW / 2);
     this.txt.setX(-total / 2 + iconW + 12 + this.txt.width / 2);
@@ -130,6 +151,7 @@ export class Button extends Phaser.GameObjects.Container {
     this.bg.clear();
     drawBox(this.bg, -this.w / 2, -this.h / 2, this.w, this.h, body, border);
     this.txt.setAlpha(this.enabled ? 1 : 0.5);
+    this.sub?.setAlpha(this.enabled ? 1 : 0.5);
     this.icon?.setAlpha(this.enabled ? 1 : 0.5);
   }
 
@@ -142,6 +164,11 @@ export class Button extends Phaser.GameObjects.Container {
   setText(text: string): this {
     this.txt.setText(text);
     this.layoutIcon();
+    return this;
+  }
+
+  setSubText(text: string): this {
+    this.sub?.setText(text);
     return this;
   }
 
