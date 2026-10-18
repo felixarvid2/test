@@ -888,6 +888,75 @@ button.small{min-width:92px}
 main{padding-bottom:18px}
 /* 275 Mörkare marginaler på stora skärmar för fokus på spelytan */
 @media (min-width:1200px){#app{max-width:1000px}}
+/* ---- omgång 4: 277-300 modaler, butik, blindkort, meny, flikar, aviseringar, telefon, rörelse ---- */
+/* 277 Modalbakgrund med mörk vinjett */
+#overlay{background:radial-gradient(ellipse at 50% 45%,rgba(18,10,32,.82),rgba(3,2,8,.94))}
+/* 278 Modalytan med fin diagonal struktur */
+.modal{background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.012) 0 2px,transparent 2px 7px),linear-gradient(160deg,rgba(50,35,75,.95),rgba(20,14,31,.98))}
+/* 279 Modalrubriker med pixelskugga */
+.modal h2{text-shadow:0 2px 0 #5a3d0a,0 0 20px rgba(245,197,66,.5)}
+/* 280 Löptext i modaler med bekväm radlängd */
+.modal p{max-width:58ch;margin-inline:auto}
+/* 281 Modalknappar lika breda */
+.modal .buttons button{min-width:120px}
+/* 282 Reliknamn i butiken i sällsynthetsfärg */
+.shop-item.rare .name{color:#d9a3ff}
+.shop-item.legendary .name{color:var(--gold)}
+/* 283 Pris som pill med myntsprite */
+.shop-item .price{background:rgba(0,0,0,.4);border:1px solid rgba(245,197,66,.3);border-radius:var(--r-full);padding:2px 12px;display:inline-flex;align-items:center;gap:4px}
+.shop-item .price .spr{width:16px;height:16px}
+/* 284 Butikskort lyfter vid hover */
+.shop-item:hover:not(.sold){transform:translateY(-4px)}
+/* 285 Sålda varor med streckat pris */
+.shop-item.sold .price{text-decoration:line-through}
+/* 286 Mer luft i butiksgallret */
+.shop-grid{gap:14px}
+/* 287 Mycket svaga skanlinjer över hela spelet för retrokänsla */
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:600;opacity:.05;
+  background:repeating-linear-gradient(0deg,#000 0 1px,transparent 1px 3px)}
+/* 288 Vouchers med streckad kant */
+.shop-item.voucher{border-style:dashed}
+/* 289 Blindkort lyfter och får guldkant vid hover */
+.blind-card:hover{transform:translateY(-3px);border-color:rgba(245,197,66,.7)}
+/* 290 Blindikon på en rund platta */
+.blind-card .icon{display:flex;align-items:center;justify-content:center;width:72px;height:72px;border-radius:50%;
+  background:radial-gradient(circle at 50% 40%,rgba(255,255,255,.12),rgba(0,0,0,.4));border:1px solid rgba(160,130,220,.3)}
+/* 291 Målpoäng i pixelstil med glöd */
+.blind-card .target{font-family:var(--font-pixel);text-shadow:0 0 12px rgba(255,107,138,.6),0 2px 0 rgba(0,0,0,.5)}
+/* 292 Bossmärket i pixelstil */
+.blind-card .boss-tag{font-family:var(--font-pixel);letter-spacing:1.5px}
+/* 293 Seed-fältet i pixelstil med guldfokus */
+.seed-input{font-family:var(--font-pixel);letter-spacing:1px}
+.seed-input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(245,197,66,.2)}
+/* 294 Svårighetsväljaren i temat */
+.modal select{background:#120d1c;color:var(--text);border:1.5px solid rgba(160,130,220,.4);border-radius:var(--r-sm);
+  padding:4px 10px;font-family:var(--font-pixel)}
+/* 295 Flikar med guldlinje under den aktiva */
+.tab{letter-spacing:1px}
+.tab.active{box-shadow:inset 0 -3px 0 var(--gold)}
+/* 296 Toast i pixelstil med guldkant */
+.toast{font-family:var(--font-pixel);border-left:4px solid var(--gold);letter-spacing:.5px}
+/* 297 Achievement-popup med guldram och glöd */
+.ach-popup{border:2px solid var(--gold);box-shadow:0 8px 24px rgba(0,0,0,.6),0 0 18px rgba(245,197,66,.3);font-family:var(--font-pixel)}
+/* 298 Upplåsta achievements med guldglöd */
+.ach-item.unlocked{border-color:rgba(245,197,66,.5);box-shadow:0 0 12px rgba(245,197,66,.18)}
+/* 299 Respekterar inställningen för minskad rörelse */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
+  #bg-layers *{animation:none!important}
+}
+/* 300 Telefonlayout: kompakt header, relikfält, modaler och butik */
+@media (max-width:480px){
+  header{gap:4px;padding:6px}
+  .hbtns{width:100%;justify-content:center}
+  .modal{padding:16px}
+  .relic,.relic-slot{width:40px;height:40px}
+  .shop-grid{grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
+  .blind-card{gap:10px;padding:12px}
+  .blind-card .icon{width:56px;height:56px}
+  #controls{padding:8px}
+  button{padding:10px 14px}
+}
 </style>
 </head>
 <body>
@@ -1742,7 +1811,7 @@ function render(){
     const tip=document.createElement('div');
     tip.className='tip';
     const sellPrice=Math.floor((r.price||4)/2);
-    tip.innerHTML=`<b>${r.name[LANG]}</b>${r.desc[LANG]}<span class="sell">${t('sell_for')}: 💰${sellPrice}</span>`;
+    tip.innerHTML=`<b>${r.name[LANG]}</b>${r.desc[LANG]}<span class="sell">${t('sell_for')}: ${ico('💰')}${sellPrice}</span>`;
     el.appendChild(tip);
     el.onclick=()=>sellRelic(i);
     rb.appendChild(el);
@@ -2187,7 +2256,7 @@ function renderShop(){
       <div class="icon">${it.type==='relic'?relicIco(it.data):ico(it.data.icon)}</div>
       <div class="name">${it.data.name[LANG]}</div>
       <div class="desc">${it.data.desc[LANG]}</div>
-      <div class="price">💰 ${it.price}</div>
+      <div class="price">${ico('💰')} ${it.price}</div>
     </div>`;
   }).join('');
   ov.innerHTML=`<div class="modal wide">
