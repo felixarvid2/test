@@ -30,6 +30,33 @@ function keepDistance(e: Enemy, nx: number, ny: number, dist: number, range: num
   }
 }
 
+const EGG_GREEN = 0x9be04a;
+
+/** The sac cracks open: its young scatter, the shell bursts. Same path whatever the egg's `summon` is. */
+function hatchEgg(w: World, e: Enemy, def: EnemyDef): void {
+  const kid = def.summon ? ENEMY_BY_ID[def.summon] : undefined;
+  const n = def.summonCount ?? 2;
+  w.tele.cancelOwned(e.tele, e);
+  e.tele = null;
+  w.fx.ring(e.x, e.y, 10, 70, 0.32, EGG_GREEN);
+  w.fx.emit('puff', e.x, e.y - 6, 7, 0, TAU, 40, 160, 0.3, 0.55, 1.6, 0.4, EGG_GREEN, 0, false, 0.9);
+  w.fx.emit('spark', e.x, e.y - 6, 10, 0, TAU, 90, 280, 0.25, 0.5, 1.3, 0.1, 0xf4f0c8, 160, true);
+  w.fx.shake(0.1);
+  if (kid) {
+    const a0 = Math.random() * TAU;
+    for (let i = 0; i < n; i++) {
+      const a = a0 + (i / n) * TAU;
+      const k = w.enemies.spawnNow(kid, e.x + Math.cos(a) * 14, e.y + Math.sin(a) * 14, false, true);
+      if (k) {
+        k.kvx = Math.cos(a) * 700;
+        k.kvy = Math.sin(a) * 700;
+        k.squash = 1;
+      }
+    }
+  }
+  e.release();
+}
+
 /** Behaviour of one regular enemy for one frame (movement and attack state machines). */
 export function updateEnemyAI(w: World, e: Enemy, dt: number): void {
   if (e.spawnT < 0.25) return;
@@ -137,6 +164,28 @@ export function updateEnemyAI(w: World, e: Enemy, dt: number): void {
           }
         }
       }
+      break;
+    }
+    case 'egg': {
+      // Never moves. A green ring fills as it nears hatching; the sac wobbles faster and flashes.
+      const hatch = def.windup ?? 4.5;
+      if (!e.tele || e.tele.owner !== e || !e.tele.on) {
+        const tele = w.tele.circle(e.x, e.y + e.radius * 0.3, e.radius + 34, hatch, EGG_GREEN, null, 0.3);
+        tele.owner = e;
+        tele.tick = (tt) => {
+          tt.x = e.x;
+          tt.y = e.y + e.radius * 0.3;
+          tt.t = Math.min(tt.dur, e.t);
+        };
+        e.tele = tele;
+      }
+      e.t += dt;
+      const k = Math.min(1, e.t / hatch);
+      const wob = Math.sin(t * (6 + 30 * k * k) + e.phase);
+      e.shake = 0.5 + 5 * k * k;
+      e.squash = 0.04 + (0.08 + 0.2 * k) * (0.5 + 0.5 * wob);
+      if (k > 0.55 && wob > 0.94) e.flash = 0.05;
+      if (e.t >= hatch) hatchEgg(w, e, def);
       break;
     }
     case 'summoner': {

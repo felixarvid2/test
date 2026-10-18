@@ -23,12 +23,16 @@ export class Player {
   facing = 1;
   readonly sprite: Phaser.GameObjects.Image;
   readonly shadow: Phaser.GameObjects.Image;
+  /** Seconds the slow (webs, frost) still lasts and how much of the walk speed it takes (0..1). */
+  slowTime = 0;
+  slowAmt = 0;
   private flash = 0;
   private walkT = 0;
   private breathe = 0;
   private dying = false;
   private readonly baseTint: number;
   private lastFill = false;
+  private lastSlowed = false;
 
   constructor(private readonly scene: Phaser.Scene, private readonly w: World) {
     const hero = HEROES[w.run.hero];
@@ -55,7 +59,7 @@ export class Player {
     const mag = Math.sqrt(dirX * dirX + dirY * dirY);
     this.moving = mag > 0.05;
     if (this.moving) {
-      const speed = run.stats.moveSpeed * speedScale * Math.min(1, mag);
+      const speed = run.stats.moveSpeed * speedScale * Math.min(1, mag) * (this.slowTime > 0 ? 1 - this.slowAmt : 1);
       this.x += (dirX / mag) * speed * dt;
       this.y += (dirY / mag) * speed * dt;
       if (Math.abs(dirX) > 0.15) this.facing = dirX < 0 ? -1 : 1;
@@ -66,6 +70,7 @@ export class Player {
     if (run.stats.regen > 0 && run.hp > 0) healPlayer(run, run.stats.regen * dt);
     if (this.invuln > 0) this.invuln -= dt;
     if (this.flash > 0) this.flash -= dt;
+    if (this.slowTime > 0) this.slowTime -= dt;
     this.breathe += dt;
     this.syncSprite();
   }
@@ -82,13 +87,23 @@ export class Player {
       const blinkOff = this.invuln > 0 && (((this.breathe * 18) | 0) & 1) === 0;
       this.sprite.setAlpha(blinkOff ? 0.35 : 1);
       const fill = this.flash > 0;
-      if (fill !== this.lastFill) {
+      const slowed = this.slowTime > 0;
+      if (fill !== this.lastFill || slowed !== this.lastSlowed) {
         this.lastFill = fill;
+        this.lastSlowed = slowed;
         if (fill) this.sprite.setTintFill(0xffffff);
+        else if (slowed) this.sprite.setTint(0x93bfff);
         else if (this.baseTint !== 0xffffff) this.sprite.setTint(this.baseTint);
         else this.sprite.clearTint();
       }
     }
+  }
+
+  /** Slows the walk by `amount` (0..1) for at least `seconds` (webs, frost); the stronger slow wins. */
+  slow(amount: number, seconds: number): void {
+    if (this.dead || this.dying) return;
+    if (this.slowTime <= 0 || amount > this.slowAmt) this.slowAmt = amount;
+    this.slowTime = Math.max(this.slowTime, seconds);
   }
 
   /** Returns true when the hit landed (not dodged, not during invulnerability). */
@@ -138,6 +153,7 @@ export class Player {
     if (this.baseTint !== 0xffffff) this.sprite.setTint(this.baseTint);
     else this.sprite.clearTint();
     this.lastFill = false;
+    this.slowTime = 0;
     this.invuln = 3;
     this.syncSprite();
   }

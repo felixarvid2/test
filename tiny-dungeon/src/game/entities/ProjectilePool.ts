@@ -23,6 +23,8 @@ export class Projectile {
   spin = 0;
   trail = 0;                  // tint of the particle trail (0 = none)
   trailT = 0;
+  /** Enemy shots only: called with the end point when the shot expires or hits a wall (not when it hits the hero). */
+  land: ((x: number, y: number) => void) | null = null;
   tint = 0xffffff;
   hit = new Int32Array(12);
   hitN = 0;
@@ -70,6 +72,7 @@ export class ProjectilePool {
     p.vy = Math.sin(angle) * speed;
     p.hitN = 0;
     p.trailT = 0;
+    p.land = null;
     p.spin = spin;
     p.sprite.setTexture(key, frame).setPosition(x, y).setScale(scale).setRotation(spin ? 0 : angle).setVisible(true).setAlpha(1);
     if (!this.friendly) {
@@ -89,6 +92,13 @@ export class ProjectilePool {
     if (puff) this.w.fx.emit('spark', p.x, p.y, 3, 0, 6.28, 30, 110, 0.15, 0.3, 0.9, 0.1, p.tint);
   }
 
+  private land(p: Projectile): void {
+    const cb = p.land;
+    if (!cb) return;
+    p.land = null;
+    cb(p.x, p.y);
+  }
+
   clear(): void {
     for (let i = 0; i < this.pool.length; i++) this.kill(this.pool[i], false);
   }
@@ -100,7 +110,7 @@ export class ProjectilePool {
       const p = this.pool[i];
       if (!p.on) continue;
       p.life -= dt;
-      if (p.life <= 0) { this.kill(p, !this.friendly); continue; }
+      if (p.life <= 0) { this.land(p); this.kill(p, !this.friendly); continue; }
 
       if (p.homing) this.steer(p, dt);
       const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
@@ -111,6 +121,7 @@ export class ProjectilePool {
         p.x += p.vx * sdt;
         p.y += p.vy * sdt;
         if (p.x < PLAY.left - 6 || p.x > PLAY.right + 6 || p.y < PLAY.top - 20 || p.y > PLAY.bottom + 6) {
+          this.land(p);
           dead = true;
           break;
         }

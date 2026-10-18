@@ -57,6 +57,8 @@ export class Enemy {
   orbitCd = 0;
   lift = 0;                   // vertical offset (boss jump)
   shake = 0;                  // sprite jitter during a windup
+  alpha = 1;                  // sprite opacity (the Lich fades while it blinks)
+  untargetable = false;       // left out of the spatial grid and contact damage (the Lich while it is gone)
   bossCtrl: BossController | null = null;
   tele: Tele | null = null;   // this enemy's telegraph (archer aim line)
 
@@ -102,6 +104,7 @@ export class Enemy {
     this.poisonTime = 0; this.poisonDps = 0; this.poisonTick = 0;
     this.slowTime = 0; this.slowAmt = 0; this.freezeTime = 0;
     this.flash = 0; this.squash = 0; this.orbitCd = 0; this.lift = 0; this.shake = 0;
+    this.alpha = 1; this.untargetable = false;
     this.bossCtrl = null;
     this.tele = null;
     this.bobFreq = isBoss ? 5 : ed.behavior === 'chase' ? 4.5 : ed.behavior === 'erratic' ? 15 : ed.behavior === 'tank' ? 6 : 9;
@@ -176,7 +179,8 @@ export class Enemy {
     this.sprite.setScale(sx, sy);
     if (Math.abs(playerX - this.x) > 4) this.sprite.setFlipX(playerX < this.x);
     this.sprite.setDepth(100 + feetY * 0.1);
-    this.shadow.setPosition(this.x, feetY + this.radius * 0.45).setAlpha(Math.max(0.2, 0.55 - this.lift * 0.002));
+    this.sprite.setAlpha(this.alpha);
+    this.shadow.setPosition(this.x, feetY + this.radius * 0.45).setAlpha(Math.max(0.2, 0.55 - this.lift * 0.002) * this.alpha);
     this.shadow.setScale(this.shadowW * (1 - Math.min(0.5, this.lift * 0.002)) * popS, this.shadowW * popS);
 
     if (this.flash > 0) this.setLook(0xffffff, true);

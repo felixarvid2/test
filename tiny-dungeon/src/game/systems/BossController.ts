@@ -2,6 +2,7 @@ import { BALANCE, type BossAttackTuning } from '../../config/balance';
 import type { BossAttackId, BossDef } from '../../core/types';
 import { COLORS, EXTRA_KEY } from '../assets';
 import type { Enemy } from '../entities/Enemy';
+import type { Projectile } from '../entities/ProjectilePool';
 import { angleDiff, clamp } from './layout';
 import type { World } from './World';
 
@@ -22,6 +23,10 @@ export interface BossModule {
   attacks: Partial<Record<BossAttackId, AttackFn>>;
   /** Idle movement between attacks. Defaults to walking toward the hero. */
   move?(c: BossController, dt: number): void;
+  /** Runs every combat frame while the boss lives, busy or not (floor hazards, bobbing, glow). */
+  update?(c: BossController, dt: number): void;
+  /** Called the moment the boss is killed, before its corpse leaves: clear whatever it left in the room. */
+  onStop?(c: BossController): void;
   onDeath?(c: BossController): void;
 }
 
@@ -52,6 +57,7 @@ export class BossController {
   private last: BossAttackId | null = null;
   private readonly timers: Timed[] = [];
   private readonly processes: Process[] = [];
+  private readonly owned = new Set<{ destroy(): void }>();
   private readonly info = { name: '', title: '', hp: 0, maxHp: 1 };
 
   constructor(readonly w: World, readonly def: BossDef, private readonly mod: BossModule, boss: Enemy) {
@@ -85,6 +91,18 @@ export class BossController {
   /** Runs `step(progress 0..1, dt)` for `dur` seconds, then `end`. */
   run(dur: number, step: (p: number, dt: number) => void, end: (() => void) | null = null): void {
     this.processes.push({ t: 0, dur, step, end });
+  }
+
+  /** Registers a scene object (lobbed sprite, floor patch, glow) that is destroyed when the boss dies. */
+  track<T extends { destroy(): void }>(o: T): T {
+    this.owned.add(o);
+    return o;
+  }
+
+  /** Destroys a tracked object now. */
+  release(o: { destroy(): void }): void {
+    this.owned.delete(o);
+    o.destroy();
   }
 
   /** True while the boss should stand still (attacking). */
@@ -130,16 +148,17 @@ export class BossController {
   }
 
   /** Enemy projectile with the boss's outline treatment. */
-  shoot(x: number, y: number, angle: number, speed: number, dmg: number, key: string, frame: string | number, scale: number, glow: number, radius: number, spin = 0): void {
+  shoot(x: number, y: number, angle: number, speed: number, dmg: number, key: string, frame: string | number, scale: number, glow: number, radius: number, spin = 0): Projectile | null {
     const w = this.w;
     const p = w.enemyShots.acquire();
-    if (!p) return;
+    if (!p) return null;
     w.enemyShots.launch(p, x, y, angle, speed * (1 + 0.06 * this.phaseIdx), key, frame, scale, glow, spin);
     p.damage = dmg;
     p.radius = radius;
     p.life = 4;
     p.tint = glow >= 0 ? glow : 0xff6040;
     p.trail = 0;
+    return p;
   }
 
   fireball(x: number, y: number, angle: number, speed: number, dmg: number): void {
@@ -173,6 +192,7 @@ export class BossController {
   update(dt: number): void {
     const b = this.boss;
     if (b.dying) return;
+    this.mod.update?.(this, dt);
     // timeline
     for (let i = this.timers.length - 1; i >= 0; i--) {
       const t = this.timers[i];
@@ -251,6 +271,9 @@ export class BossController {
     this.w.tele.clear();
     this.boss.setMark(false);
     this.boss.shake = 0;
+    this.mod.onStop?.(this);
+    for (const o of this.owned) o.destroy();
+    this.owned.clear();
   }
 
   onDeath(): void {

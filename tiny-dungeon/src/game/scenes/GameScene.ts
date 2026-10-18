@@ -25,6 +25,7 @@ import { canOfferReward, offerReward } from '../ui/rewardPrompt';
 import { AbilitySystem } from '../systems/AbilitySystem';
 import { BossController } from '../systems/BossController';
 import { BOSS_MODULES } from '../systems/bosses';
+import { MIMIC_TRIGGER_DIST, type MimicChest, burstChest, destroyChests, placeMimicChests, popDecoy, rattleChests } from '../systems/bosses/MimicIntro';
 import { CombatSystem } from '../systems/CombatSystem';
 import { DamageNumbers } from '../systems/DamageNumbers';
 import { Effects } from '../systems/Effects';
@@ -83,6 +84,7 @@ export class GameScene extends Phaser.Scene {
   private bossCtrl: BossController | null = null;
   private bossHud: BossHud | null = null;
   private bossDeathDone = true;
+  private mimicChests: MimicChest[] = [];
   private chest: Phaser.GameObjects.Image | null = null;
   private chestOpened = false;
   private statue: Phaser.GameObjects.Image[] = [];
@@ -299,6 +301,7 @@ export class GameScene extends Phaser.Scene {
     this.statue = [];
     this.statueUsed = false;
     this.picked = null;
+    destroyChests(this.mimicChests);
     this.doorHint?.destroy();
     this.doorHint = null;
     this.timeScale = 1;
@@ -322,6 +325,7 @@ export class GameScene extends Phaser.Scene {
     this.spawnQ.sort((a, b) => a.at - b.at);
 
     services.audio.playMusic(plan.type === 'boss' ? 'music_boss' : 'music_dungeon');
+    if (plan.bossId === 'mimic_king') this.mimicChests = placeMimicChests(this);
     if (plan.type === 'treasure') this.chest = this.rooms.addChest(360, 560);
     if (plan.type === 'shrine') this.statue = this.rooms.addStatue(360, 560);
 
@@ -834,6 +838,7 @@ export class GameScene extends Phaser.Scene {
 
   private bossDrop(def: BossDef): void {
     const w = this.w;
+    if (def.id === 'mimic_king' && this.mimicChests.length > 0) { this.mimicReveal(def); return; }
     const boss = w.enemies.spawnBoss(def, W / 2, 400);
     const ctrl = new BossController(w, def, BOSS_MODULES[def.id], boss);
     this.bossCtrl = ctrl;
@@ -845,16 +850,7 @@ export class GameScene extends Phaser.Scene {
       ctrl.slam(boss.x, boss.y, 200, 0.85);
       w.fx.flash(0xffffff, 0.35, 0.25);
       services.audio.play('explosion');
-      this.showBossBanner(def.name, def.title);
-      this.time.delayedCall(1500, () => {
-        this.dim?.destroy();
-        this.dim = null;
-        this.state = 'fight';
-        this.stateT = 0;
-        w.player.invuln = 1;
-        this.bossHud = ctrl.hudInfo();
-        this.registry.set('boss', this.bossHud);
-      });
+      this.beginBossFight(def, ctrl);
     };
     if (services.save.data.settings.reducedMotion) {
       land();
@@ -866,6 +862,67 @@ export class GameScene extends Phaser.Scene {
         onComplete: land,
       });
     }
+  }
+
+  /** Name banner, then the fight starts and the HP bar appears. */
+  private beginBossFight(def: BossDef, ctrl: BossController): void {
+    const w = this.w;
+    this.showBossBanner(def.name, def.title);
+    this.time.delayedCall(1500, () => {
+      this.dim?.destroy();
+      this.dim = null;
+      this.state = 'fight';
+      this.stateT = 0;
+      w.player.invuln = 1;
+      this.bossHud = ctrl.hudInfo();
+      this.registry.set('boss', this.bossHud);
+    });
+  }
+
+  /**
+   * Mimic King: the room holds three identical chests. They rattle for a beat (or until the hero walks up to
+   * one), then one bursts open into the boss and the other two spring into regular mimics.
+   */
+  private mimicReveal(def: BossDef): void {
+    const w = this.w;
+    const reduced = services.save.data.settings.reducedMotion;
+    rattleChests(this, this.mimicChests, reduced);
+    services.audio.play('chest', { volume: 0.6 });
+    let waited = 0;
+    let burst = false;
+    const watch = this.time.addEvent({
+      delay: 80, loop: true,
+      callback: () => {
+        if (burst) return;   // a slow frame can run a looping timer more than once
+        waited += 0.08;
+        const near = waited > 0.5 && this.mimicChests.some((c) => Math.hypot(w.player.x - c.x, w.player.y - c.y) < MIMIC_TRIGGER_DIST);
+        if (waited < 1.7 && !near) return;
+        burst = true;
+        watch.remove();
+        this.mimicBurst(def);
+      },
+    });
+  }
+
+  private mimicBurst(def: BossDef): void {
+    const w = this.w;
+    const chests = this.mimicChests;
+    const real = chests[Math.floor(w.rng.next() * chests.length)];
+    const boss = w.enemies.spawnBoss(def, real.x, real.y);
+    const ctrl = new BossController(w, def, BOSS_MODULES[def.id], boss);
+    this.bossCtrl = ctrl;
+    w.boss = ctrl;
+    boss.squash = 1;
+    boss.flash = 0.25;
+    services.audio.play('explosion');
+    services.audio.play('chest');
+    burstChest(w, real);
+    this.mimicChests = chests.filter((c) => c !== real);
+    this.time.delayedCall(260, () => {
+      for (const c of this.mimicChests) popDecoy(w, c);
+      this.mimicChests = [];
+    });
+    this.beginBossFight(def, ctrl);
   }
 
   private showBossBanner(name: string, title: string): void {

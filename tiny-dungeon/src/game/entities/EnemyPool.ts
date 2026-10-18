@@ -172,7 +172,7 @@ export class EnemyPool {
     w.grid.clear();
     for (let i = 0; i < this.all.length; i++) {
       const e = this.all[i];
-      if (e.active && !e.dying) w.grid.insert(e);
+      if (e.active && !e.dying && !e.untargetable) w.grid.insert(e);
     }
 
     // soft separation
@@ -206,9 +206,9 @@ export class EnemyPool {
     if (active && !pl.dead) {
       for (let i = 0; i < this.all.length; i++) {
         const e = this.all[i];
-        if (!e.active || e.dying || e.contactCd > 0 || e.spawnT < 0.25 || e.lift > 4) continue;
+        if (!e.active || e.dying || e.untargetable || e.contactCd > 0 || e.spawnT < 0.25 || e.lift > 4) continue;
         const beh = (e.def as EnemyDef).behavior;
-        if (beh === 'ranged' || beh === 'summoner') continue;
+        if (beh === 'ranged' || beh === 'summoner' || beh === 'egg') continue;
         const dx = pl.x - e.x;
         const dy = pl.y - e.y;
         const rr = pl.radius + e.radius * 0.85;

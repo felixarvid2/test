@@ -1,6 +1,6 @@
 // Headless smoke test: builds the game, serves it with `vite preview`, plays it in Chromium (phone viewport)
 // with simulated keys / pointer drags, takes screenshots into docs/screens/ and fails on any console error.
-// Usage: node tools/smoke.mjs [scenario ...]   (scenarios: run boss king dragon rooms pause death; default: all)
+// Usage: node tools/smoke.mjs [scenario ...]   (scenarios: run boss king dragon newbosses rooms combat doors crowd telegraphs pause death; default: all)
 import { spawn } from 'node:child_process';
 import { mkdirSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -247,6 +247,58 @@ const scenarios = {
     await s.shot('fight2');
     await s.page.close();
   },
+  // The three later bosses: fight each for ~20 s in god mode (phase changes forced via HP), then kill it and
+  // walk through the death sequence to the upgrade overlay. Logs the attacks the boss launched.
+  async newbosses(browser) {
+    const fights = [
+      ['spider', 20, [0.45]],
+      ['lich', 25, [0.6, 0.3]],
+      ['mimic', 30, [0.45]],
+    ];
+    for (const [name, room, hpSteps] of fights) {
+      const s = await open(browser, `fight-${name}`, `&room=${room}&god=1&up=blade_orbit,quick_hands,sharp_blade`);
+      await startRun(s);
+      await s.waitState((st) => st.st === 'bossIntro', 30000, 80);
+      await sleep(900);
+      await s.shot('intro');
+      await s.waitState((st) => st.enemies.some((e) => e.boss), 15000, 40);
+      await sleep(500);
+      await s.shot('reveal');
+      await s.waitState((st) => st.st === 'fight', 10000);
+      await s.eval(() => {
+        const c = window.__game.world.boss;
+        window.__attacks = [];
+        const orig = c.launchAttack.bind(c);
+        c.launchAttack = (id) => { window.__attacks.push(id); orig(id); };
+      });
+      const frac = async (f) => s.eval((x) => { const b = window.__game.world.boss.boss; b.hp = Math.max(1, b.maxHp * x); }, f);
+      await s.playFor(9000, async () => {});
+      await s.shot('fight');
+      for (const f of hpSteps) {
+        await frac(f);
+        await s.playFor(7000, async () => {});
+        await s.shot(`phase-${Math.round(f * 100)}`);
+      }
+      const attacks = await s.eval(() => window.__attacks);
+      console.log(`  ${name} attacks:`, [...new Set(attacks)].join(', '), `(${attacks.length} launched)`);
+      if (new Set(attacks).size < 3) errors.push(`[fight-${name}] fewer than 3 distinct attacks in the fight: ${attacks.join(',')}`);
+      const bad = await s.eval(() => {
+        const w = window.__game.world;
+        const b = w.boss?.boss;
+        return b && (!Number.isFinite(b.x) || !Number.isFinite(b.y) || b.alpha < 0.99 && !b.untargetable && w.boss.busy <= 0) ? `${b.x},${b.y},${b.alpha}` : '';
+      });
+      if (bad) errors.push(`[fight-${name}] boss in a bad state: ${bad}`);
+      await s.eval(() => window.__game.killAll());
+      await s.waitState((st) => st.st === 'bossDying', 20000, 60);
+      await sleep(250);
+      await s.shot('death');
+      const up = await s.waitState((st) => st.overlay === 'Upgrade', 60000);
+      if (!up) errors.push(`[fight-${name}] never reached the upgrade overlay after the boss died`);
+      await sleep(700);
+      await s.shot('upgrade');
+      await s.page.close();
+    }
+  },
   // special rooms: treasure (chest + egg offer), shrine, elite
   async rooms(browser) {
     for (const type of ['treasure', 'shrine', 'elite']) {
@@ -319,19 +371,24 @@ const scenarios = {
       ['slime', 5, ['slimeJump', 'slimeBurst', 'slimeSplit']],
       ['king', 10, ['kingSweep', 'kingSummon', 'kingCharge']],
       ['dragon', 15, ['dragonBreath', 'dragonTailSwipe', 'dragonMeteors', 'dragonRing']],
+      ['spider', 20, ['spiderWeb', 'spiderEggs', 'spiderPounce', 'spiderVenom']],
+      ['lich', 25, ['lichBlink', 'lichSpiral', 'lichNova', 'lichRaise']],
+      ['mimic', 30, ['mimicChomp', 'mimicCoins', 'mimicTongue', 'mimicDecoys']],
     ];
+    const only = (process.env.BOSS ?? '').split(',').filter(Boolean);
     for (const [name, room, attacks] of bosses) {
+      if (only.length && !only.includes(name)) continue;
       const s = await open(browser, `tele-${name}`, `&room=${room}&god=1`);
       await startRun(s);
       await s.waitState((st) => st.st === 'fight' && st.enemies.some((e) => e.boss), 40000, 100);
       for (const atk of attacks) {
-        await s.eval((a) => window.__game.attack(a), atk);
+        await s.eval((a) => { window.__game.world.boss.cooldown = 99; window.__game.attack(a); }, atk);
         const end = Date.now() + 6000;
         let got = false;
         while (Date.now() < end && !got) {
           got = await s.eval(() => {
             const g = window.__game;
-            const t = g.world.tele.pool.find((x) => x.on && x.t / x.dur > 0.72);
+            const t = g.world.tele.pool.find((x) => x.on && x.dur < 3 && x.t / x.dur > 0.72);
             const shots = g.world.enemyShots.pool.filter((p) => p.on).length;
             if (t || shots > 6) { window.__td.game.scene.pause('Game'); return true; }
             return false;
@@ -339,7 +396,34 @@ const scenarios = {
           if (!got) await sleep(40);
         }
         await s.shot(atk);
-        await s.eval(() => window.__td.game.scene.resume('Game'));
+        if (atk !== 'lichBlink') await s.eval(() => window.__td.game.scene.resume('Game'));
+        // second look at attacks with a later stage (the Lich's arrival marker)
+        if (atk === 'lichBlink') {
+          // a page-side frame hook pauses at the right frame (polling from here is too slow for a 0.6 s marker)
+          await s.eval(() => {
+            window.__armed = true;
+            window.__seen = false;
+            const f = () => {
+              if (!window.__armed) return;
+              const t = window.__game.world.tele.pool.find((x) => x.on && x.color === 0x6ae8ff && x.t / x.dur > 0.4);
+              if (t) { window.__td.game.scene.pause('Game'); window.__seen = true; return; }
+              requestAnimationFrame(f);
+            };
+            requestAnimationFrame(f);
+            window.__td.game.scene.resume('Game');
+          });
+          let seen = false;
+          for (let i = 0; i < 60 && !seen; i++) { seen = await s.eval(() => window.__seen); if (!seen) await sleep(50); }
+          await s.eval(() => { window.__armed = false; });
+          if (seen) { await s.shot(`${atk}-arrival`); await s.eval(() => window.__td.game.scene.resume('Game')); }
+          else errors.push('[tele-lich] lichBlink arrival marker never appeared');
+        }
+        // let the attack play out (stale timers would leak into the next screenshot), then reset
+        for (let i = 0; i < 80; i++) {
+          const idle = await s.eval(() => { const b = window.__game.world.boss; return b.timers.length === 0 && b.processes.length === 0; });
+          if (idle) break;
+          await sleep(100);
+        }
         await s.eval(() => { const g = window.__game.world; g.tele.clear(); g.enemyShots.clear(); g.boss.busy = 0; g.boss.cooldown = 99; });
         await sleep(300);
       }
