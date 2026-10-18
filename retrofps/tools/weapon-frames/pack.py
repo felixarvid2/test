@@ -1,11 +1,13 @@
 # Packar raka vapenbilder (utan händer) till bildremsor för 320x166-vyn, Doom/Quake-stil.
 import json, sys
 from PIL import Image
-src=sys.argv[1] if len(sys.argv)>1 else 'qframes'
+srcs=(sys.argv[1] if len(sys.argv)>1 else 'qframes,xframes').split(',')  # qframes: RetroWeaponPack, xframes: statiska modeller
 OUT=sys.argv[2] if len(sys.argv)>2 else '../../'
 VW,VH=320,166
-TARGET={'pistol':(84,178,24),'shotgun':(112,196,40),'rifle':(112,184,42),'smg':(98,178,32)}  # höjd i px, mittpunkt x, hur mycket som skärs av nedtill
-d=json.load(open(src+'/meta.json'))
+TARGET={'pistol':(84,178,24),'shotgun':(112,196,40),'rifle':(112,184,42),'smg':(98,178,32),
+        'dbshotgun':(110,194,40),'crossbow':(66,166,14),'flaregun':(80,180,22),'sniper':(118,186,46)}  # höjd i px, mittpunkt x, hur mycket som skärs av nedtill
+d={}
+for src in srcs: d.update(json.load(open(src+'/meta.json')))
 out={}
 for w,st in d.items():
     files=[]; states={}

@@ -425,6 +425,36 @@ function deck(ownedIds, onClose) {
   });
 }
 
+// ---------- Val (t.ex. portalen efter bossen) ----------
+// opts: { title, subtitle, options: [{ label, text }], cancel: index som Esc väljer (valfritt) }
+function choice(opts, onPick) {
+  const node = el('div', 'cu-screen cu-deck cu-choice');
+  const box = el('div', 'cu-deckbox');
+  const wrap = el('div', 'cu-wrap'); wrap.appendChild(box); node.appendChild(wrap);
+  box.appendChild(el('h2', 'cu-title', opts.title));
+  if (opts.subtitle) box.appendChild(el('p', 'cu-sub', opts.subtitle));
+  const list = el('div', 'cu-choices'), btns = [];
+  let done = false;
+  const finish = i => { if (done) return; done = true; sfx('pick'); close(true); onPick(i); };
+  opts.options.forEach((o, i) => {
+    const b = el('button', 'cu-btn cu-opt'); b.type = 'button';
+    b.appendChild(el('div', 'cu-ol', (touchUI() ? '' : '[' + (i + 1) + '] ') + o.label));
+    if (o.text) b.appendChild(el('div', 'cu-ot', o.text));
+    b.addEventListener('click', ev => { ev.stopPropagation(); finish(i); });
+    list.appendChild(b); btns.push(b);
+  });
+  box.appendChild(list);
+  open('choice', node, e => {
+    const n = e.code.startsWith('Digit') ? +e.code.slice(5) - 1 : -1;
+    if (n >= 0 && n < btns.length) { finish(n); return true; }
+    if (e.code === 'Escape' && opts.cancel != null) { finish(opts.cancel); return true; }
+    if (e.code === 'ArrowUp' || e.code === 'ArrowLeft') { moveFocus(btns, -1); return true; }
+    if (e.code === 'ArrowDown' || e.code === 'ArrowRight') { moveFocus(btns, 1); return true; }
+    return activate(e);
+  });
+  if (cur) cur.timers.push(setTimeout(() => { try { btns[0].focus({ preventScroll: true }); } catch (e) { /* ingen fokus */ } }, 60));
+}
+
 // ---------- Toast ----------
 function toast(card, label) {
   ensureRoot();
@@ -442,7 +472,7 @@ function toast(card, label) {
   sfx('toast');
 }
 
-Object.assign(api, { draft, shop, deck, toast, close: () => close(), isOpen: () => !!cur });
+Object.assign(api, { draft, shop, deck, toast, choice, close: () => close(), isOpen: () => !!cur });
 window.CardUI = api;
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ensureRoot); else if (document.body) ensureRoot();
 })();

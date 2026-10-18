@@ -15,7 +15,8 @@ OUT = ROOT + '/retrofps/assets/cards/'
 RELICS = ROOT + '/assets/rune-ai/flux/relics/'
 S = 96
 
-PACTS = {'pakt_pistol': 'pistol', 'pakt_hagel': 'shotgun', 'pakt_gevar': 'rifle', 'pakt_kpist': 'smg'}
+PACTS = {'pakt_pistol': 'pistol', 'pakt_hagel': 'shotgun', 'pakt_gevar': 'rifle', 'pakt_kpist': 'smg',
+         'pakt_dubbel': 'dbshotgun', 'pakt_armborst': 'crossbow', 'pakt_signal': 'flaregun', 'pakt_prick': 'sniper'}
 UPGRADES = {  # kort-id: (vapen, relikbild)
     'studskulan': ('pistol', 'ekokammaren'), 'hanen': ('pistol', 'smedjan'), 'sista_kulan': ('pistol', 'raketen'),
     'duellanten': ('pistol', 'ensamvargen'), 'tomhylsan': ('pistol', 'fordrojd'),
@@ -25,6 +26,14 @@ UPGRADES = {  # kort-id: (vapen, relikbild)
     'skarpskytten': ('rifle', 'astrologen'),
     'spinnpipan': ('smg', 'superposition'), 'rikoschetten': ('smg', 'tidvattnet'), 'dodsmarket': ('smg', 'visitkortet'),
     'blybaltet': ('smg', 'kedjelanken'),
+    'blodskorden': ('dbshotgun', 'hacket'), 'dubbeldoden': ('dbshotgun', 'dubbelhelixen'), 'kedjekulan': ('dbshotgun', 'tegelstenen'),
+    'stormsteget': ('dbshotgun', 'lavinen'),
+    'sprangspetsen': ('crossbow', 'katalysatorn'), 'giftspetsen': ('crossbow', 'alkemisten'), 'pilsamlaren': ('crossbow', 'samlarsten'),
+    'treskottet': ('crossbow', 'jonglaren'),
+    'fyrverkeriet': ('flaregun', 'himlavalvet'), 'solblosset': ('flaregun', 'fyrtornet'), 'ekoblosset': ('flaregun', 'kaskaden'),
+    'lopelden': ('flaregun', 'skymningen'),
+    'huvudjagaren': ('sniper', 'skuggspelaren'), 'genomborraren': ('sniper', 'linjalen'), 'tidsstoppet': ('sniper', 'tidparla'),
+    'sprangkulan': ('sniper', 'solsten'),
 }
 
 

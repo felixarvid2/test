@@ -1,0 +1,53 @@
+<!doctype html><body style="margin:0;background:transparent">
+<script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script>
+<script type="module">
+// Rak förstapersonsbild av en statisk vapenmodell (ingen armrigg): pipan längs +X, kameran snett bakom och ovanför.
+import * as THREE from 'three';
+import {FBXLoader} from 'three/addons/loaders/FBXLoader.js';
+import {OBJLoader} from 'three/addons/loaders/OBJLoader.js';
+const W=960,H=498;
+const r=new THREE.WebGLRenderer({alpha:true,antialias:true,preserveDrawingBuffer:true});r.setSize(W,H);r.setClearColor(0,0);r.outputColorSpace=THREE.SRGBColorSpace;document.body.appendChild(r.domElement);
+const sc=new THREE.Scene();sc.add(new THREE.HemisphereLight(0xfff0e0,0x403028,2.1));const dl=new THREE.DirectionalLight(0xffe8d0,1.7);dl.position.set(-1,3,2);sc.add(dl);
+const cam=new THREE.PerspectiveCamera(40,W/H,0.01,5000);
+const cache={};
+async function model(p){
+  const key=p.model+'|'+p.tex;if(cache[key])return cache[key];
+  const obj=p.model.endsWith('.obj')?await new OBJLoader().loadAsync(p.model):await new FBXLoader().loadAsync(p.model);
+  const t=await new THREE.TextureLoader().loadAsync(p.tex);t.colorSpace=THREE.SRGBColorSpace;t.magFilter=THREE.NearestFilter;
+  const m=new THREE.MeshLambertMaterial({map:t,side:THREE.DoubleSide});
+  obj.traverse(o=>{if(o.isMesh){o.material=Array.isArray(o.material)?o.material.map(()=>m):m;o.frustumCulled=false;}});
+  if(p.hide)obj.traverse(o=>{if(o.isMesh&&new RegExp(p.hide,'i').test(o.name))o.visible=false});
+  const inner=new THREE.Group();inner.add(obj);const pv=new THREE.Group();pv.add(inner);sc.add(pv);
+  return cache[key]={pv,obj,inner};
+}
+window.renderFrame=async(p)=>{
+  for(const k in cache)cache[k].pv.visible=false;
+  const {pv,obj,inner}=await model(p);pv.visible=true;
+  // delar som är modellerade i ett annat läge (t.ex. en uppfälld pipa) rättas med meshRot {namn:[x,y,z]}
+  for(const [nm,rr] of Object.entries(p.meshRot||{}))obj.traverse(o=>{if(o.name===nm)o.rotation.set(...rr.map(x=>x*Math.PI/180))});
+  // orientering: rot (grader) vrider modellen så att pipan pekar längs +X och ovansidan uppåt, tilt lutar den runt Z
+  obj.rotation.set(...(p.rot||[0,0,0]).map(x=>x*Math.PI/180));obj.position.set(0,0,0);
+  pv.position.set(0,0,0);pv.rotation.set(0,0,0);inner.rotation.set(0,0,(p.tilt||0)*Math.PI/180);inner.position.set(0,0,0);pv.updateMatrixWorld(true);
+  const box=new THREE.Box3().setFromObject(obj);const c=box.getCenter(new THREE.Vector3());inner.position.sub(c);
+  const len=box.max.x-box.min.x;
+  // rekyl: bakåt längs -X och nosen uppåt
+  const k=p.kick||0;pv.position.set(-k*(p.back||0.08)*len,0,0);pv.rotation.set(0,0,k*(p.pitch||6)*Math.PI/180);
+  pv.updateMatrixWorld(true);
+  const b=new THREE.Box3().setFromObject(obj);
+  const [mnx,mny,mnz]=b.min.toArray(),[mxx,mxy,mxz]=b.max.toArray(),cz=(mnz+mxz)/2;
+  // kameran räknas från vilobilden så att rekylen syns som rörelse
+  const L=p.len0||len,base=p.base||{mnx,mxx,mxy,cz};
+  if(p.view==='side'){const md=Math.max(...b.getSize(new THREE.Vector3()).toArray());cam.fov=30;cam.position.set(0,0,md*2.6);cam.lookAt(0,0,0);}
+  else{const [bk,up,sd,fw,dr]=p.cam;cam.fov=p.fov||40;cam.position.set(base.mnx-bk*L,base.mxy+up*L,base.cz+sd*L);cam.lookAt(base.mxx+fw*L,base.mxy+up*L-dr*L*fw,base.cz+sd*L);}
+  cam.near=L*0.01;cam.far=L*50;cam.updateProjectionMatrix();cam.updateMatrixWorld(true);
+  // mynningen: punkterna längst fram längs kamerans blickriktning
+  const look=new THREE.Vector3();cam.getWorldDirection(look);const pts=[],v=new THREE.Vector3();
+  obj.traverse(o=>{if(o.isMesh&&o.visible){const pos=o.geometry.attributes.position;for(let i=0;i<pos.count;i++){o.getVertexPosition(i,v).applyMatrix4(o.matrixWorld);pts.push(v.clone())}}});
+  let mx=-1e9;for(const q of pts){const d=q.clone().sub(cam.position).dot(look);if(d>mx)mx=d}
+  const front=pts.filter(q=>q.clone().sub(cam.position).dot(look)>mx-L*0.03);const mc=new THREE.Vector3();front.forEach(q=>mc.add(q));mc.divideScalar(front.length||1);
+  const ndc=mc.clone().project(cam);
+  r.render(sc,cam);
+  return {png:r.domElement.toDataURL('image/png'),muzzle:[(ndc.x+1)/2*W,(1-ndc.y)/2*H],len,base:{mnx,mxx,mxy,cz},size:b.getSize(new THREE.Vector3()).toArray()};
+};
+window.ready=true;
+</script>

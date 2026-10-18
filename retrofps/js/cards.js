@@ -137,6 +137,27 @@ const DEFS = [
   ['rikoschetten', 'RIKOSCHETTEN', 'ovanlig', {}, 1, 'KULOR STUDSAR MOT VÄGGAR\nOCH KAN TRÄFFA IGEN', { weapon: 'smg', wup: 'ricowall' }],
   ['dodsmarket', 'DÖDSMÄRKET', 'sallsynt', {}, 1, 'VAR ÅTTONDE TRÄFF PÅ SAMMA\nFIENDE DETONERAR MÄRKET', { weapon: 'smg', wup: 'marks' }],
   ['blybaltet', 'BLYBÄLTET', 'legendarisk', {}, 1, 'INGEN OMLADDNING: SKJUTER\nDIREKT UR RESERVEN\nSPRIDNINGEN VÄXER', { weapon: 'smg', wup: 'belt', bad: 1 }],
+  // ---- pakter och uppgraderingar för dubbelbössa, armborst, signalpistol och prickskyttegevär ----
+  ['pakt_dubbel', 'BÖDELNS ED', 'sallsynt', { dmg: 0.15 }, 1, '+15 % SKADA\nALL AMMO BLIR PATRONER\n4 UNIKA UPPGRADERINGAR\nBARA DUBBELBÖSSA RESTEN AV RUNDAN', { pact: 'dbshotgun', bad: 1 }],
+  ['pakt_armborst', 'JÄGARENS ED', 'sallsynt', { dmg: 0.15 }, 1, '+15 % SKADA\nALL AMMO BLIR PILAR\n4 UNIKA UPPGRADERINGAR\nBARA ARMBORST RESTEN AV RUNDAN', { pact: 'crossbow', bad: 1 }],
+  ['pakt_signal', 'FACKELBÄRARENS ED', 'sallsynt', { dmg: 0.15 }, 1, '+15 % SKADA\nALL AMMO BLIR BLOSS\n4 UNIKA UPPGRADERINGAR\nBARA SIGNALPISTOL RESTEN AV RUNDAN', { pact: 'flaregun', bad: 1 }],
+  ['pakt_prick', 'SKARPRÄTTARENS ED', 'sallsynt', { dmg: 0.15 }, 1, '+15 % SKADA\nALL AMMO BLIR 5.56\n4 UNIKA UPPGRADERINGAR\nBARA PRICKSKYTTEGEVÄR RESTEN AV RUNDAN', { pact: 'sniper', bad: 1 }],
+  ['blodskorden', 'BLODSKÖRDEN', 'ovanlig', {}, 1, 'VARJE DÖDAD FIENDE GER\n3 HP OCH EN PATRON TILLBAKA', { weapon: 'dbshotgun', wup: 'harvest' }],
+  ['dubbeldoden', 'DUBBELDÖDEN', 'sallsynt', {}, 1, 'DÖDAR ETT SKOTT TVÅ FIENDER\nLADDAS BÅDA PIPORNA DIREKT', { weapon: 'dbshotgun', wup: 'doublekill' }],
+  ['kedjekulan', 'KEDJEKULAN', 'sallsynt', {}, 1, 'TRE TUNGA KULOR I STÄLLET\nFÖR HAGEL: 3× SKADA VAR\nOCH GÅR IGENOM ALLA', { weapon: 'dbshotgun', wup: 'chainshot' }],
+  ['stormsteget', 'STORMSTEGET', 'ovanlig', {}, 1, 'SKOTTET KASTAR DIG BAKÅT\nOCH DU TAR INGEN SKADA\nUNDER 0,4 S', { weapon: 'dbshotgun', wup: 'stormstep' }],
+  ['sprangspetsen', 'SPRÄNGSPETSEN', 'sallsynt', {}, 1, 'PILAR FASTNAR I FIENDEN\nOCH SPRÄNGS EFTER 0,8 S', { weapon: 'crossbow', wup: 'blastbolt' }],
+  ['giftspetsen', 'GIFTSPETSEN', 'ovanlig', {}, 1, 'TRÄFFAR FÖRGIFTAR I 4 S\nGIFTET SPRIDS NÄR\nFIENDEN DÖR', { weapon: 'crossbow', wup: 'poison' }],
+  ['pilsamlaren', 'PILSAMLAREN', 'ovanlig', {}, 1, 'DÖDANDE PILAR KOMMER\nTILLBAKA OCH LÄGGS I DIREKT', { weapon: 'crossbow', wup: 'recover' }],
+  ['treskottet', 'TRESKOTTET', 'legendarisk', {}, 1, 'TRE PILAR I EN SOLFJÄDER\nFÖR PRISET AV EN', { weapon: 'crossbow', wup: 'triple' }],
+  ['fyrverkeriet', 'FYRVERKERIET', 'sallsynt', {}, 1, 'BLOSSET SPRICKER I FEM\nGNISTOR SOM OCKSÅ BRINNER', { weapon: 'flaregun', wup: 'cluster' }],
+  ['solblosset', 'SOLBLOSSET', 'ovanlig', {}, 1, 'BLOSSET BLÄNDAR FIENDER\nINOM 3 RUTOR I 2 S', { weapon: 'flaregun', wup: 'blind' }],
+  ['ekoblosset', 'EKOBLOSSET', 'ovanlig', {}, 1, 'BLOSSET STUDSAR MOT\nVÄGGAR TVÅ GÅNGER', { weapon: 'flaregun', wup: 'bounce' }],
+  ['lopelden', 'LÖPELDEN', 'sallsynt', {}, 1, 'BRINNANDE FIENDER SOM DÖR\nTÄNDER ELD PÅ GRANNARNA', { weapon: 'flaregun', wup: 'wildfire' }],
+  ['huvudjagaren', 'HUVUDJÄGAREN', 'sallsynt', {}, 1, 'ETT DÖDANDE SKOTT LADDAR\nOM DIREKT OCH NÄSTA\nSKOTT GÖR 2× SKADA', { weapon: 'sniper', wup: 'headhunter' }],
+  ['genomborraren', 'GENOMBORRAREN', 'sallsynt', {}, 1, 'KULAN GÅR IGENOM VÄGGAR\nUPP TILL 2 RUTOR TJOCKA', { weapon: 'sniper', wup: 'wallpierce' }],
+  ['tidsstoppet', 'TIDSSTOPPET', 'legendarisk', {}, 1, 'NÄR DU SIKTAR GÅR\nTIDEN I HALV FART', { weapon: 'sniper', wup: 'bullettime' }],
+  ['sprangkulan', 'SPRÄNGKULAN', 'ovanlig', {}, 1, 'VARJE TRÄFF EXPLODERAR', { weapon: 'sniper', wup: 'explosive' }],
   ['tomhetsstenen', 'TOMHETSSTENEN', 'legendarisk', { dmg: 0.6, fireRate: 0.25, maxHp: -40, damageTaken: 0.35 }, 1, '+60 % SKADA\n+25 % ELDHASTIGHET\n-40 MAX HP\n+35 % SKADA DU TAR', { curse: true, bad: 2, unlock: 40 }],
 ];
 
@@ -162,7 +183,7 @@ function computeMods(ownedIds) {
 // ---------- Dragning ----------
 // Vikten skiftar mot sällsyntare med djup (våning, 0..) och luck (summan av luck-modden, 0.1 per kort).
 const CURSE_WEIGHT = 0.8; // förbannade kort dyker upp ibland
-const PACT_WEIGHT = 2.5, UPGRADE_WEIGHT = 6; // en pakt syns i ungefär var femte dragning; efter pakten kommer uppgraderingarna tätt
+const PACT_WEIGHT = 1.3, UPGRADE_WEIGHT = 6; // åtta pakter: en pakt syns i ungefär var fjärde dragning; efter pakten kommer uppgraderingarna tätt
 function rarityWeight(rarity, depth, luck) {
   const t = Math.max(0, (depth || 0) * 0.25 + (luck || 0) * 2.5); // 0 = början av rundan
   const base = RARITY[rarity].weight;
@@ -207,7 +228,7 @@ function price(card, depth, discount) {
   return Math.max(5, Math.round(p / 5) * 5);
 }
 
-const WEAPON_NAME = { pistol: 'PISTOL', shotgun: 'HAGELGEVÄR', rifle: 'GEVÄR', smg: 'KPIST' };
+const WEAPON_NAME = { pistol: 'PISTOL', shotgun: 'HAGELGEVÄR', rifle: 'GEVÄR', smg: 'KPIST', dbshotgun: 'DUBBELBÖSSA', crossbow: 'ARMBORST', flaregun: 'SIGNALPISTOL', sniper: 'PRICKSKYTTE' };
 // etikett ovanför kortets namn: förbannelse, pakt eller vilket vapen uppgraderingen hör till
 function tag(card) {
   return card.curse ? 'FÖRBANNAD' : card.pact ? 'PAKT' : card.weapon ? WEAPON_NAME[card.weapon] : '';

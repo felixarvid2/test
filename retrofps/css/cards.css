@@ -204,3 +204,9 @@
 
 /* pekskärm: inga sifferknappar */
 @media (pointer: coarse) { #cardui .cu-key, #cardui .cu-num { display: none; } }
+
+/* val: portalen efter bossen */
+#cardui .cu-choices { display: flex; flex-direction: column; gap: .9em; margin: 1.2em 0 .4em; }
+#cardui .cu-opt { text-align: left; padding: 1em 1.2em; }
+#cardui .cu-ol { font-size: 1em; }
+#cardui .cu-ot { font-size: .8em; opacity: .8; margin-top: .6em; line-height: 1.7; }

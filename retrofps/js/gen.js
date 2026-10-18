@@ -4,12 +4,14 @@
 //   Gen.boss(seed, opts)          -> bossarena
 //   Gen.validate(level)           -> lista med felsträngar (tom = OK)
 //   Gen.THEMES                    -> teman (väggtecken, golv/tak, dimma, namn)
-// opts för floor: { shop: bool, weapon: 'g'|'r'|'m', theme: id|index }
+// opts för floor: { shop: bool, weapon: ett tecken ur WEAPON_CHARS, theme: id|index }
 //
 // Tecken (utöver väggar 1-5, D G * x P S K V h a A g r m f o):  $ guld   C kortkista   M köpman (blockerar)   E elitfiende   B boss
 //  1-5 vägg   D dörr   G grind   * hemlig vägg   x utgång   P start   S K V E B fiender
-//  h a A $ g r m C föremål   f eldfat (blockerar)   o kruka   . golv
+//  h a A $ C föremål, g r m d b s p vapen (se WEAPON_CHARS)   f eldfat (blockerar)   o kruka   . golv
 (function () {
+  // vapen på kartan: g hagelgevär, r gevär, m kpist, d dubbelbössa, b armborst, s signalpistol, p prickskyttegevär
+  const WEAPON_CHARS = 'grmdbsp';
   'use strict';
 
   const RNG = window.RNG;
@@ -417,7 +419,7 @@
     }
 
     // vapen: ett rum mitt i banan
-    if (opts.weapon === 'g' || opts.weapon === 'r' || opts.weapon === 'm') {
+    if (opts.weapon && WEAPON_CHARS.includes(opts.weapon)) {
       const ds = main.map(r => r.d).sort((a, b) => a - b), med = ds[ds.length >> 1];
       let pool = main.filter(r => r.type === 'normal'); if (!pool.length) pool = main.filter(r => r.type !== 'start' && r.type !== 'exit' && r.type !== 'shop');
       pool.sort((a, b) => Math.abs(a.d - med) - Math.abs(b.d - med));
@@ -545,7 +547,7 @@
 
   // ---------- Validering ----------
   const ENEMY_CHARS = 'SKVILNORWE';
-  const VALID = new Set(('12345DG*xPBhaA$grmCMfo.' + ENEMY_CHARS).split(''));
+  const VALID = new Set(('12345DG*xPBhaA$CMfo.' + ENEMY_CHARS + WEAPON_CHARS).split(''));
   function validate(level) {
     const errs = [];
     const map = level && level.map;

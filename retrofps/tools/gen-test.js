@@ -29,13 +29,13 @@ const count = (map, ch) => map.reduce((n, r) => n + r.split(ch).length - 1, 0);
   if (typeof RNG.randomSeed() !== 'number') fail('RNG.randomSeed');
 }
 
-const weaponOpts = [undefined, 'g', 'r', 'm'];
+const weaponOpts = [undefined, 'g', 'r', 'm', 'd', 'b', 's', 'p'];
 const stats = { n: 0, ms: 0, maxMs: 0, secret: 0, rooms: 0, maxRoomsSeen: 0, minRooms: 99, enemies: 0, retries0: Gen.floor.stats.retries, bydepth: {} };
 const samples = {};
 const TOTAL = 300;
 for (let i = 0; i < TOTAL; i++) {
   const depth = 1 + (i % 5), seed = (i % 3 === 0) ? 'seed-' + i : 1000 + i * 7919;
-  const opts = { shop: i % 2 === 0, weapon: weaponOpts[(i >> 1) % 4] };
+  const opts = { shop: i % 2 === 0, weapon: weaponOpts[(i >> 1) % weaponOpts.length] };
   const t0 = process.hrtime.bigint();
   const lv = Gen.floor(seed, depth, opts);
   const ms = Number(process.hrtime.bigint() - t0) / 1e6;
@@ -56,7 +56,7 @@ for (let i = 0; i < TOTAL; i++) {
   if (count(m, 'M') !== (opts.shop ? 1 : 0)) fail(tag + ' antal M ' + count(m, 'M'));
   if (count(m, 'C') < 1) fail(tag + ' kortkista saknas');
   if (types.secret) { stats.secret++; if (count(m, '*') !== 1) fail(tag + ' hemlig vägg ' + count(m, '*')); } else if (count(m, '*') !== 0) fail(tag + ' * utan hemligt rum');
-  for (const w of 'grm') if (count(m, w) !== (opts.weapon === w ? 1 : 0)) fail(tag + ` vapen ${w}: ${count(m, w)}`);
+  for (const w of 'grmdbsp') if (count(m, w) !== (opts.weapon === w ? 1 : 0)) fail(tag + ` vapen ${w}: ${count(m, w)}`);
   const en = [...'SKVILNORW'].reduce((n, c) => n + count(m, c), 0), want = 6 + 3 * depth;
   if (en < want - 6 || en > want + 3) fail(tag + ` fiender ${en} (väntat ca ${want})`);
   if (depth === 1 && [...'VIONRW'].some(c => count(m, c) > 0)) fail(tag + ' för svår fiende på djup 1');

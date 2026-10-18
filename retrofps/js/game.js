@@ -6,7 +6,11 @@
 const W = 320, H = 200, HUD_H = 34, VH = H - HUD_H, HORIZON = VH >> 1;
 let BASE_PLANE = 0.75; // sätts från synfältet (FOV) i inställningarna
 const applyFov = () => { BASE_PLANE = Math.tan(clamp(settings.fov, 60, 100) * Math.PI / 360); };
-const FLOORS = 5; // vanliga våningar; våning FLOORS + 1 är bossen
+const FLOORS = 5; // vanliga våningar per varv; våning FLOORS + 1 är bossen
+// efter bossen kan man gå djupare: varv 2 är våning 7-12 med en starkare boss på 12, och så vidare
+const isBossDepth = d => d % (FLOORS + 1) === 0;
+const cycleOf = d => Math.floor((d - 1) / (FLOORS + 1));
+const cyclePos = d => (d - 1) % (FLOORS + 1) + 1;
 const canvas = document.getElementById('screen');
 const ctx = canvas.getContext('2d');
 canvas.width = W; canvas.height = H;
@@ -92,7 +96,7 @@ async function loadAll(setStatus) {
     breath: strip(await load(A + 'gfx/boss_breath.png'), 18, 0.5),
   };
   setStatus('Laddar vapen…');
-  for (const n of ['pistol', 'shotgun', 'rifle', 'smg']) {
+  for (const n of WEAPONS.map(w => w.id)) {
     wimg[n] = await load(`${A}gfx/fp_${n}.png`);
     spr['pick_' + n] = pixels(await load(`${A}gfx/pick_${n}.png`));
   }
@@ -110,6 +114,7 @@ async function loadAll(setStatus) {
   fx.chest = strip(await load(A + 'gfx/chest.png'), 4);
   fx.chestOpen = strip(await load(A + 'gfx/chest_open.png'), 4);
   fx.merchant = strip(await load(A + 'gfx/merchant.png'), 6);
+  fx.portal = strip(await load(A + 'gfx/portal.png'), 8);
   try { await document.fonts.load('8px "PressStart2P"'); } catch (e) { /* reservtypsnitt */ }
 }
 
@@ -149,14 +154,24 @@ const WEAPONS = [
   { id: 'shotgun', name: 'HAGELGEVÄR', short: 'HAGEL', ammo: 'shells', mag: 6, dmg: 1.7, pellets: 9, spread: 0.07, delay: 0.95, auto: false, sound: ['boom', 0.8, 0.9], flash: 1.4, kick: 2.2, shellReload: true, reload: 0, falloff: [3, 11, 0.35], recoil: [0.02] },
   { id: 'rifle', name: 'GEVÄR', short: 'GEVÄR', ammo: 'r556', mag: 24, dmg: 2.8, pellets: 1, spread: 0.014, delay: 0.13, auto: true, sound: ['shot', 0.82, 0.9], flash: 1.0, kick: 0.9, reload: 1.7, falloff: [12, 30, 0.6], recoil: [0.004, 0.006, -0.003, 0.007, -0.005, 0.004, -0.006] },
   { id: 'smg', name: 'KULSPRUTEPISTOL', short: 'KPIST', ammo: 'p9', mag: 32, dmg: 1.5, pellets: 1, spread: 0.035, delay: 0.085, auto: true, sound: ['shot', 1.45, 0.65], flash: 0.75, kick: 0.5, reload: 1.5, falloff: [6, 16, 0.45], recoil: [0.003, -0.004, 0.005, -0.002, 0.004, -0.005] },
+  // fyra vapen ur andra modellpaket (tools/weapon-frames/render-static.mjs)
+  { id: 'dbshotgun', name: 'DUBBELBÖSSA', short: 'DUBBEL', ammo: 'shells', mag: 2, dmg: 1.9, pellets: 10, spread: 0.08, delay: 0.25, auto: false, sound: ['boom', 0.7, 1.0], flash: 1.6, kick: 2.6, reload: 1.5, falloff: [3, 10, 0.3], recoil: [0.025, -0.02] },
+  { id: 'crossbow', name: 'ARMBORST', short: 'ARMBST', ammo: 'bolts', mag: 1, dmg: 10, pellets: 1, spread: 0.004, delay: 0.2, auto: false, sound: ['whoosh', 1.3, 0.8], flash: 0, kick: 0.5, reload: 0.85, falloff: [30, 40, 1], recoil: [0.004], silent: true, pierceAll: true },
+  { id: 'flaregun', name: 'SIGNALPISTOL', short: 'SIGNAL', ammo: 'flares', mag: 1, dmg: 4, pellets: 1, spread: 0.01, delay: 0.3, auto: false, sound: ['shot', 0.6, 0.7], flash: 1.2, kick: 1.0, reload: 1.1, falloff: [30, 40, 1], recoil: [0.01], proj: 'flare' },
+  { id: 'sniper', name: 'PRICKSKYTTEGEVÄR', short: 'PRICK', ammo: 'r556', mag: 5, dmg: 14, pellets: 1, spread: 0.002, delay: 1.0, auto: false, sound: ['boom', 1.25, 0.85], flash: 1.1, kick: 2.8, reload: 2.2, falloff: [40, 50, 1], recoil: [0.015, -0.01], pierce: 2, zoom: 0.5, hip: 0.05 },
 ];
-const AMMO = { p9: { name: '9MM', max: 200 }, r556: { name: '5.56', max: 150 }, shells: { name: 'PATRONER', max: 50 } };
+const AMMO = { p9: { name: '9MM', max: 200 }, r556: { name: '5.56', max: 150 }, shells: { name: 'PATRONER', max: 50 }, bolts: { name: 'PILAR', max: 40 }, flares: { name: 'BLOSS', max: 24 } };
+const NOAMMO = () => ({ p9: 36, r556: 0, shells: 0, bolts: 0, flares: 0 });
+const weaponIndex = id => WEAPONS.findIndex(w => w.id === id);
+// tecknet för vapnet på kartan (gen.js) -> vapnets id
+const WEAPON_CHAR = { g: 'shotgun', r: 'rifle', m: 'smg', d: 'dbshotgun', b: 'crossbow', s: 'flaregun', p: 'sniper' };
 const WF = window.WEAPON_FRAMES;
 
 // ---------- Spelstate ----------
-const P = { pitch: 0, ryaw: 0, burst: 0, burstT: 0, chainN: 0, x: 2, y: 2, a: 0, vx: 0, vy: 0, hp: 100, armor: 0, shield: 0, shieldT: 0, haste: 0, weapon: 0, has: [true, false, false, false],
-  ammo: { p9: 36, r556: 0, shells: 0 }, mags: [9, 0, 0, 0], flash: 0, bob: 0, bobAmp: 0, hurt: 0, pick: 0, shake: 0, camZ: 0.5, deadT: 0 };
-const WS = { state: 'draw', t: 0, aim: 0, next: -1, shot: 99, cd: 0, swayX: 0, swayY: 0, spread: 0, shellPhase: '', spin: 0, focus: 0 };
+const P = { pitch: 0, ryaw: 0, burst: 0, burstT: 0, chainN: 0, iframe: 0, x: 2, y: 2, a: 0, vx: 0, vy: 0, hp: 100, armor: 0, shield: 0, shieldT: 0, haste: 0, weapon: 0, has: [true, false, false, false, false, false, false, false],
+  ammo: { p9: 36, r556: 0, shells: 0, bolts: 0, flares: 0 }, mags: [9, 0, 0, 0, 0, 0, 0, 0], flash: 0, bob: 0, bobAmp: 0, hurt: 0, pick: 0, shake: 0, camZ: 0.5, deadT: 0 };
+const WS = { state: 'draw', t: 0, aim: 0, next: -1, shot: 99, cd: 0, swayX: 0, swayY: 0, spread: 0, shellPhase: '', spin: 0, focus: 0, hunt: false };
+let portals = []; // portaler: 'floor' leder till nästa våning, 'boss' låter en välja mellan djupare och att avsluta
 let map, mw, mh, doors, ents, items, pots, torches, chests, merchants, particles, projectiles, light, flow, flowCell = -1, seen;
 let lvl, totalEnemies, kills, secrets, totalSecrets, itemsTaken, totalItems, levelTime = 0, boss = null, bossBanner = 0;
 let state = 'title', tmr = 0, score = 0, showMap = false, hitMark = 0, hitKill = false, hitCrit = false, hurtDir = [], breathSnd = null, ambient = null, stepT = 0, fireHeld = false;
@@ -185,17 +200,18 @@ function newRun(seed, daily) {
   resetPlayer(); recomputeMods();
   profile.runs++; saveProfile();
 }
-function weaponFor(depth) { // ett nytt vapen på var och en av de första våningarna, i slumpad ordning per runda
-  const order = RNG(run.seed).fork('vapen').shuffle(['g', 'r', 'm']);
-  const want = order[depth - 1];
+function weaponFor(depth) { // ett nytt vapen per våning i slumpad ordning; de sista dyker upp i varv 2
+  const order = RNG(run.seed).fork('vapen').shuffle(Object.keys(WEAPON_CHAR));
+  const want = order[depth - 1 - cycleOf(depth)];
   if (!want) return null;
-  return P.has[{ g: 1, r: 2, m: 3 }[want]] ? null : want;
+  return P.has[weaponIndex(WEAPON_CHAR[want])] ? null : want;
 }
 function loadFloor(depth) {
   run.depth = depth;
-  const level = depth <= FLOORS
-    ? Gen.floor(RNG.hash(run.seed + ':' + depth), depth, { shop: depth === 2 || depth === 4, weapon: weaponFor(depth) })
-    : Gen.boss(RNG.hash(run.seed + ':boss'), {});
+  const c = cycleOf(depth), pos = cyclePos(depth);
+  const level = !isBossDepth(depth)
+    ? Gen.floor(RNG.hash(run.seed + ':' + depth), Math.min(5, pos + c), { shop: pos === 2 || pos === 4, weapon: weaponFor(depth) })
+    : Gen.boss(RNG.hash(run.seed + ':boss' + (c ? ':' + c : '')), {});
   startLevel(level);
   P.armor = Math.min(200, P.armor + mod('armorPerFloor'));
   saveRun();
@@ -206,21 +222,22 @@ function saveRun() { // ögonblicksbild vid våningens start, raderas vid död (
 function loadRunSave() {
   const s = store.get('run', null); if (!s) return false;
   run = Object.assign({}, s.run); run.cardRng = RNG(RNG.hash(run.seed + ':kort:' + run.depth));
-  Object.assign(P, { hp: s.p.hp, armor: s.p.armor, has: s.p.has.slice(), ammo: Object.assign({}, s.p.ammo), mags: s.p.mags.slice(), weapon: s.p.weapon });
+  const pad = (a, v) => WEAPONS.map((_, i) => a[i] ?? v); // äldre sparningar hade fyra vapen
+  Object.assign(P, { hp: s.p.hp, armor: s.p.armor, has: pad(s.p.has, false), ammo: Object.assign(NOAMMO(), s.p.ammo), mags: pad(s.p.mags, 0), weapon: s.p.weapon });
   score = s.score; settings.diff = run.diff; recomputeMods();
   return true;
 }
 function resetPlayer() {
-  P.has = [true, false, false, false]; P.weapon = 0; P.ammo = { p9: 36, r556: 0, shells: 0 }; P.mags = [9, 0, 0, 0]; P.hp = 100; P.armor = 0; P.shield = 0; score = 0;
+  P.has = WEAPONS.map((_, i) => i === 0); P.weapon = 0; P.ammo = NOAMMO(); P.mags = WEAPONS.map((_, i) => i === 0 ? 9 : 0); P.hp = 100; P.armor = 0; P.shield = 0; score = 0;
 }
 function startLevel(level) {
   lvl = level;
   map = lvl.map.map(r => r.split('')); mh = map.length; mw = map[0].length;
-  doors = {}; ents = []; items = []; pots = []; torches = []; chests = []; merchants = []; particles = []; projectiles = []; numbers.length = 0;
+  doors = {}; ents = []; items = []; pots = []; torches = []; chests = []; merchants = []; particles = []; projectiles = []; numbers.length = 0; fuses.length = 0; portals = [];
   kills = 0; totalEnemies = 0; secrets = 0; totalSecrets = 0; itemsTaken = 0; totalItems = 0; levelTime = 0; boss = null; bossBanner = 0;
   light = new Float32Array(mw * mh); seen = new Uint8Array(mw * mh); flow = new Int16Array(mw * mh).fill(-1); flowCell = -1;
   const lrng = RNG(RNG.hash(run.seed + ':spawn:' + run.depth));
-  const itemOf = { h: 'health', a: 'ammo', A: 'armor', g: 'shotgun', r: 'rifle', m: 'smg', $: 'goldpile' };
+  const itemOf = { h: 'health', a: 'ammo', A: 'armor', $: 'goldpile', ...WEAPON_CHAR };
   for (let y = 0; y < mh; y++) for (let x = 0; x < mw; x++) {
     const c = map[y][x], cx = x + 0.5, cy = y + 0.5;
     if (c === 'P') { P.x = cx; P.y = cy; P.a = startAngle(x, y); map[y][x] = '.'; }
@@ -241,7 +258,7 @@ function startLevel(level) {
   WS.state = 'draw'; WS.t = 0; WS.aim = 0; WS.shot = 99;
   hurtDir = []; msgs.length = 0;
   state = 'play';
-  say(boss ? `${lvl.name}` : `VÅNING ${run.depth}: ${lvl.name}`, 3);
+  say((cycleOf(run.depth) ? `VARV ${cycleOf(run.depth) + 1} · ` : '') + (boss ? `${lvl.name}` : `VÅNING ${run.depth}: ${lvl.name}`), 3);
   if (boss) { bossBanner = 3; play('stinger', 0.8); setTimeout(() => play('bossroar', 0.9, 0.8), 600); }
   if (!ambient) startAmbient();
 }
@@ -267,7 +284,7 @@ function makeElite(rng, x, y) {
   return e;
 }
 function makeBoss(x, y) {
-  const hp = BOSS_DEF.hp * diff().hp;
+  const hp = BOSS_DEF.hp * diff().hp * (1 + 0.6 * cycleOf(run.depth));
   return { type: 'B', boss: true, d: { ...BOSS_DEF, cd: 2 }, x, y, hp, maxHp: hp, state: 'idle', t: 0, cd: 2.5, alert: true, flip: false, dead: false, flash: 0, growlT: 6, phase: 1, summonT: 10, burn: 0, slow: 0, burnAcc: 0, dying: 0 };
 }
 
@@ -420,6 +437,7 @@ function render() {
   for (const m of merchants) list.push({ x: m.x, y: m.y, k: 'm', o: m });
   for (const p of particles) list.push({ x: p.x, y: p.y, k: 'x', o: p });
   for (const p of projectiles) list.push({ x: p.x, y: p.y, k: 'f', o: p });
+  for (const p of portals) list.push({ x: p.x, y: p.y, k: 'g', o: p });
   for (const s of list) s.d = (s.x - P.x) ** 2 + (s.y - P.y) ** 2;
   list.sort((p, q) => q.d - p.d);
   for (const s of list) {
@@ -428,7 +446,7 @@ function render() {
       if (o.boss) { if (!o.dead) drawSprite(bossFrame(o), o.x, o.y, o.d.size, o.dying ? -o.dying * 0.3 : 0, (o.x - P.x) * plX + (o.y - P.y) * plY > 0, null, o.flash > 0 ? o.flash : 0, 0.75, false, o.dying ? [255, 120, 60] : null); continue; }
       if (!o.dead && o.state === 'attack') o.flip = (o.x - P.x) * plX + (o.y - P.y) * plY > 0; // vänd mot mitten när den anfaller
       else if (!o.dead && (o.mvx || o.mvy)) o.flip = o.mvx * plX + o.mvy * plY < 0;
-      const tint = o.dead ? null : o.burn > 0 ? [255, 150, 70] : o.slow > 0 ? [120, 170, 255] : o.marks >= 4 ? [210, 110, 255] : o.haste > 0 ? [150, 255, 150] : o.elite ? o.elite.tint : null;
+      const tint = o.dead ? null : o.burn > 0 ? [255, 150, 70] : o.slow > 0 ? [120, 170, 255] : o.marks >= 4 ? [210, 110, 255] : o.poison > 0 ? [140, 255, 100] : o.haste > 0 ? [150, 255, 150] : o.elite ? o.elite.tint : null;
       drawSprite(enemyFrame(o), o.x, o.y, o.d.size * 1.15, 0, o.flip, null, o.flash > 0 ? o.flash : 0, o.elite ? 0.3 : 0, false, tint, o.dead ? 0 : o.ghost || 0);
     } else if (s.k === 'i') {
       if (o.type === 'gold' || o.type === 'goldpile') { drawSprite(fx.coin[Math.floor(tmr * 8 + o.x * 3) % 4], o.x, o.y, o.type === 'goldpile' ? 0.24 : 0.16, 0.05 + 0.03 * Math.sin(tmr * 4 + o.y), false, null, 0, 0.6); continue; }
@@ -439,7 +457,8 @@ function render() {
     else if (s.k === 't') drawSprite(fx.fire[Math.floor(tmr * 14 + o.ph * 5) % 16], o.x, o.y, 0.85, 0, false, 2.2, 0, 0, true);
     else if (s.k === 'c') drawSprite(o.open ? fx.chestOpen[Math.min(3, Math.floor(o.t * 10))] : fx.chest[Math.floor(tmr * 3) % 4], o.x, o.y, 0.5, 0, false, null, 0, 0.6);
     else if (s.k === 'm') drawSprite(fx.merchant[Math.floor(tmr * 5) % 6], o.x, o.y, 1.05, 0, (o.x - P.x) * plX + (o.y - P.y) * plY > 0, null, 0, 0.55);
-    else if (s.k === 'f') drawSprite(fx.fireball[Math.floor(tmr * 16) % 8], o.x, o.y, o.big ? 0.5 : o.kind === 'gren' ? 0.18 : 0.3, o.z - 0.15, false, 2.4, 0, 0, true, PROJ_TINT[o.kind] || null);
+    else if (s.k === 'g') drawSprite(fx.portal[Math.floor(tmr * 10) % 8], o.x, o.y, Math.min(1.25, o.t * 3), 0.02, false, 2.4, 0, 0, true, o.kind === 'boss' ? [255, 170, 120] : null);
+    else if (s.k === 'f') drawSprite(fx.fireball[Math.floor(tmr * 16) % 8], o.x, o.y, o.big ? 0.5 : o.kind === 'gren' || o.kind === 'spark' ? 0.18 : o.kind === 'flare' ? 0.26 : 0.3, o.z - 0.15, false, 2.4, 0, 0, true, PROJ_TINT[o.kind] || null);
     else drawSprite(o.img, o.x, o.y, o.size, o.z, false, o.add ? 2 : null, 0, 0, o.add, o.tint || null);
   }
   ctx.putImageData(frame, 0, 0);
@@ -587,6 +606,7 @@ function drawHUD() {
   }
   if (P.hurt > 0) { g.fillStyle = `rgba(190,0,0,${Math.min(0.45, P.hurt * 0.6)})`; g.fillRect(0, 0, W, VH); }
   if (P.pick > 0) { g.fillStyle = `rgba(255,230,120,${P.pick * 0.22})`; g.fillRect(0, 0, W, VH); }
+  if (state === 'play' && up('bullettime') && WS.aim > 0.8) { g.fillStyle = 'rgba(90,140,255,0.13)'; g.fillRect(0, 0, W, VH); } // tidsstoppet
   if (P.hp < maxHp() * 0.3 && state === 'play') {
     const p = 0.25 + 0.2 * Math.sin(tmr * 6);
     const gr = g.createRadialGradient(W / 2, HORIZON, VH * 0.35, W / 2, HORIZON, W * 0.62);
@@ -631,7 +651,7 @@ function drawHUD() {
   txt('/' + res, 122 + String(mag).length * 16, y0 + 22, '#a89070');
   txt(wp.short, 208, y0 + 5, '#c9a87a');
   if (run.pact) txt('EDEN', 208, y0 + 15, '#ff7050', 1, false);
-  else for (let i = 0; i < 4; i++) txt(String(i + 1), 208 + i * 13, y0 + 15, P.has[i] ? (i === P.weapon ? '#ffd24a' : '#8a7550') : '#3a2c1e', 1, false);
+  else for (let i = 0; i < WEAPONS.length; i++) { g.fillStyle = P.has[i] ? (i === P.weapon ? '#ffd24a' : '#8a7550') : '#3a2c1e'; g.fillRect(208 + i * 7, y0 + 16, 5, 6); }
   txt(`${kills}/${totalEnemies}`, 208, y0 + 25, '#e8d9b0');
   txt(boss ? 'BOSS' : `VÅN ${run.depth}`, 270, y0 + 5, '#c9a87a');
   txt(`${run.gold}G`, 270, y0 + 15, '#ffd24a');
@@ -661,6 +681,7 @@ function drawMap() { // automap: bara rutor man har sett
   }
   for (const it of items) if (!it.taken && seen[(it.y | 0) * mw + (it.x | 0)]) { ctx.fillStyle = it.type.startsWith('gold') ? '#ffd24a' : '#e8d9b0'; ctx.fillRect(ox + it.x * s - 1, oy + it.y * s - 1, 2, 2); }
   for (const c of chests) if (seen[(c.y | 0) * mw + (c.x | 0)]) { ctx.fillStyle = c.open ? '#6a5030' : '#ffb030'; ctx.fillRect(ox + c.x * s - 1, oy + c.y * s - 1, 3, 3); }
+  for (const p of portals) { ctx.fillStyle = tmr % 0.6 < 0.3 ? '#c080ff' : '#7040d0'; ctx.fillRect(ox + p.x * s - 2, oy + p.y * s - 2, 4, 4); }
   ctx.fillStyle = '#4dff7a'; ctx.fillRect(ox + P.x * s - 1, oy + P.y * s - 1, 3, 3);
   ctx.fillRect(ox + (P.x + Math.cos(P.a) * 1.4) * s, oy + (P.y + Math.sin(P.a) * 1.4) * s, 1, 1);
 }
@@ -696,6 +717,7 @@ function fire() {
   const slug = up('slug') && WS.aim > 0.5;
   const dbl = up('double') && !slug && P.mags[P.weapon] >= 2;
   const focus = up('focus') && WS.focus >= 1;
+  const chain = up('chainshot'), triple = up('triple'), hunt = WS.hunt && up('headhunter');
   const fan = up('fan') && fireHeld; // hanefläkten: skotten efter det första i svepet
   if (Math.random() >= mod('ammoSave')) P.mags[P.weapon]--;
   if (dbl) P.mags[P.weapon]--;
@@ -712,13 +734,15 @@ function fire() {
   play(wp.sound[0], wp.sound[2], wp.sound[1] * rnd(0.96, 1.04) * (1 + WS.spin * 0.08));
   if (wp.id === 'shotgun') { play('boom', 0.45, 0.55); setTimeout(() => play('reload', 0.45, 1.4), 420 / (1 + mod('fireRate'))); }
   if (dbl || slug || focus) play('boom', 0.6, slug ? 0.4 : 0.5);
+  if (wp.id === 'dbshotgun') play('boom', 0.5, 0.45);
+  if (wp.id === 'crossbow') play('click', 0.5, 0.7);
   // duellanten: vilka som inte hade märkt något när skottet gick
   const unaware = up('duel') ? new Set(ents.filter(e => !e.dead && !e.alert)) : null;
-  // ljudet väcker fiender som kan nå dig inom ~15 rutor
-  for (const e of ents) if (!e.dead && pathDist(e) < 15) alertEnemy(e, false);
+  // ljudet väcker fiender som kan nå dig inom ~15 rutor (armborsten är tyst)
+  for (const e of ents) if (!e.dead && pathDist(e) < (wp.silent ? 2 : 15)) alertEnemy(e, false);
   let anyHit = false, killed = false, crit = false, boomAt = null;
   const hitSet = new Set(), killSet = new Set();
-  const spread = slug ? 0 : (wp.spread + WS.spread * 0.5) * (1 - WS.aim * 0.6) / (1 + mod('accuracy'))
+  const spread = slug ? 0 : (wp.spread + WS.spread * 0.5 + (wp.hip || 0) * (1 - WS.aim)) * (1 - WS.aim * 0.6) / (1 + mod('accuracy'))
     * (fan ? 3 : 1) * (up('belt') ? 1 + Math.min(P.burst, 30) / 20 : 1);
   let base = wp.dmg * (1 + mod('dmg'));
   if (firstShot) base *= 1 + mod('firstShot');
@@ -726,18 +750,22 @@ function fire() {
   if (lastRound) base *= 3;
   if (slug) base *= 7;
   if (focus) base *= 4;
-  const pellets = slug ? 1 : (wp.pellets + Math.round(mod('extraPellets'))) * (dbl ? 2 : 1);
+  if (chain) base *= 3;
+  if (hunt) { base *= 2; WS.hunt = false; }
+  const pellets = slug ? 1 : chain || triple ? 3 : (wp.pellets + Math.round(mod('extraPellets'))) * (dbl ? 2 : 1);
   for (let p = 0; p < pellets; p++) {
-    let a = P.a + (P.burst > 1 || pellets > 1 ? rnd(-1, 1) * spread : 0); // första skottet går där siktet är
+    let a = triple ? P.a + (p - 1) * 0.09 : P.a + (P.burst > 1 || pellets > 1 || wp.hip ? rnd(-1, 1) * spread : 0); // första skottet går där siktet är
     if (p === 0 && touch.active) a = aimAssist(a);
+    if (wp.proj) { shootFlare(a, base); continue; } // signalpistolen skjuter ett bloss, ingen stråle
     const dx = Math.cos(a), dy = Math.sin(a);
     const wall = cast(P.x, P.y, dx, dy);
+    const wallDist = up('wallpierce') ? throughWall(dx, dy, wall.dist) : wall.dist; // genomborraren
     // allt som kulan kan träffa längs strålen, närmast först
     const hits = [];
     for (const e of ents) {
       if (e.dead) continue;
       const rx = e.x - P.x, ry = e.y - P.y, along = rx * dx + ry * dy;
-      if (along <= 0.1 || along >= wall.dist) continue;
+      if (along <= 0.1 || along >= wallDist) continue;
       if (Math.abs(rx * dy - ry * dx) < 0.3 * e.d.size * (e.boss ? 1.8 : 1)) hits.push({ o: e, d: along, k: 'e' });
     }
     for (const pt of pots) {
@@ -747,7 +775,7 @@ function fire() {
       if (Math.abs(rx * dy - ry * dx) < 0.22) hits.push({ o: pt, d: along, k: 'p' });
     }
     hits.sort((u, v) => u.d - v.d);
-    let left = slug || focus ? 99 : 1 + Math.round(mod('pierce')), stopped = false;
+    let left = slug || focus || chain || wp.pierceAll ? 99 : 1 + (wp.pierce || 0) + Math.round(mod('pierce')), stopped = false;
     for (const h of hits) {
       if (left <= 0) { stopped = true; break; }
       if (h.k === 'p') { breakPot(h.o); left--; continue; }
@@ -766,8 +794,8 @@ function fire() {
       afterHit(h.o, dmg, hx, hy, p);
       left--;
     }
-    if (!stopped && left > 0 && wall.dist < 30) { // kulnedslag på väggen
-      const hx = P.x + dx * (wall.dist - 0.04), hy = P.y + dy * (wall.dist - 0.04);
+    if (!stopped && left > 0 && wallDist < 30) { // kulnedslag på väggen
+      const hx = P.x + dx * (wallDist - 0.04), hy = P.y + dy * (wallDist - 0.04);
       if (p < 3) spawnImpact(hx, hy, rnd(0.25, 0.7));
       if (p === 0 && Math.random() < 0.5) play('ricochet', 0.25, rnd(0.8, 1.3), { x: hx, y: hy });
       if (!boomAt) boomAt = { x: hx, y: hy };
@@ -777,6 +805,14 @@ function fire() {
   if (lastRound && boomAt) { explode(boomAt.x, boomAt.y, 5 * (1 + mod('dmg')), 1.7); play('bigboom', 0.6, 1.2); P.shake = Math.max(P.shake, 1.5); }
   if (up('knock')) for (const e of hitSet) knockBack(e);
   if (up('shrapnel')) for (const e of killSet) shrapnel(e, base);
+  // uppgraderingar för dubbelbössa, armborst och prickskyttegevär
+  if (up('harvest') && killSet.size) { heal(3 * killSet.size); P.ammo.shells = Math.min(AMMO.shells.max, P.ammo.shells + killSet.size); }
+  if (up('doublekill') && killSet.size >= 2) { finishReload(); say('DUBBELDÖD!', 1); play('reload', 0.6, 1.6); }
+  if (up('stormstep')) { for (let i = 0; i < 6; i++) tryMove(P, -Math.cos(P.a) * 0.2, -Math.sin(P.a) * 0.2, 0.25); P.iframe = 0.4; }
+  if (up('recover') && killSet.size) { P.ammo.bolts = Math.min(AMMO.bolts.max, P.ammo.bolts + killSet.size); finishReload(); }
+  if (up('blastbolt')) for (const e of [...hitSet, ...killSet]) fuses.push({ e, x: e.x, y: e.y, t: 0.8, dmg: 8 * (1 + mod('dmg')) });
+  if (up('poison')) for (const e of hitSet) e.poison = 4;
+  if (up('headhunter') && killSet.size) { WS.cd = 0.08; WS.hunt = true; say('HUVUDJÄGAREN', 0.8); }
   if (anyHit) { hitMark = 0.15; hitKill = killed; hitCrit = crit; }
   WS.spread = Math.min(0.06, WS.spread + wp.spread * 0.7 + (wp.id === 'shotgun' ? 0.02 : 0.004));
   if (P.mags[P.weapon] === 0 && P.ammo[wp.ammo] > 0) setTimeout(() => { if (WS.state === 'idle' && P.mags[P.weapon] === 0) startReload(); }, effDelay(wp) * 1000 + 120);
@@ -790,6 +826,7 @@ function zap(ax, ay, bx, by, tint) { // synlig stråle mellan två punkter (stud
   for (let i = 1; i <= 5; i++) { const t = i / 6; particles.push({ x: ax + (bx - ax) * t + rnd(-0.08, 0.08), y: ay + (by - ay) * t + rnd(-0.08, 0.08), z: 0.5 + rnd(-0.1, 0.1), vx: 0, vy: 0, vz: 0, life: 0.18, maxLife: 0.18, frames: fx.hit, img: fx.hit[0], size: 0.18, add: true, tint }); }
 }
 function afterHit(e, dmg, hx, hy, pellet) {
+  if (up('explosive')) explode(hx, hy, 5 * (1 + mod('dmg')), 1.5);
   if (up('ricochet') && pellet === 0) { // studskulan
     const o = nearestFoes(e, 6, 1)[0];
     if (o) { zap(e.x, e.y, o.x, o.y, [255, 230, 160]); play('ricochet', 0.45, rnd(1.2, 1.5), { x: o.x, y: o.y }); hurtEnemy(o, dmg * 0.8, o.x, o.y, { noProc: true }); }
@@ -830,6 +867,39 @@ function shrapnel(e, dmg) { // splitterhaglet: döda fiender sprängs och skadar
   for (let i = 0; i < 8; i++) { const a = rnd(0, TAU), sp = rnd(1.5, 3); particles.push({ x: e.x, y: e.y, z: 0.5, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rnd(0.5, 2), life: 0.5, img: fx.shards[(i * 5) % fx.shards.length], size: 0.12, grav: true }); }
   for (const o of nearestFoes(e, 2.6, 3)) hurtEnemy(o, dmg * 1.5, o.x, o.y, { noProc: true });
 }
+function throughWall(dx, dy, d) { // genomborraren: hitta väggens baksida (högst 2 rutor) och fortsätt därifrån
+  for (let t = d + 0.05; t < d + 2.2; t += 0.05) {
+    const x = P.x + dx * t, y = P.y + dy * t;
+    if (!solid(x, y)) return t + cast(x, y, dx, dy).dist;
+  }
+  return d;
+}
+const fuses = []; // sprängspetsen: pilar som smäller efter en stund
+function updateFuses(dt) {
+  for (const f of fuses) {
+    f.t -= dt; if (!f.e.dead) { f.x = f.e.x; f.y = f.e.y; }
+    if (f.t <= 0) { explode(f.x, f.y, f.dmg, 1.8); play('bigboom', 0.5, 1.3, { x: f.x, y: f.y }); }
+  }
+  for (let i = fuses.length - 1; i >= 0; i--) if (fuses[i].t <= 0) fuses.splice(i, 1);
+}
+function shootFlare(a, dmg) { // signalpistolens bloss: flyger, träffar, sprängs och tänder eld
+  projectiles.push({ x: P.x + Math.cos(a) * 0.4, y: P.y + Math.sin(a) * 0.4, z: 0.48, vx: Math.cos(a) * 13, vy: Math.sin(a) * 13, dmg, src: P, friendly: true, kind: 'flare', life: 2.5 });
+  play('whoosh', 0.6, 0.6);
+}
+function flareBurst(x, y, dmg, r = 1.7, spark = false) {
+  explode(x, y, dmg * 1.2, r);
+  if (!spark && up('cluster')) for (let i = 0; i < 5; i++) { // fyrverkeriet
+    const a = i / 5 * TAU + rnd(-0.3, 0.3);
+    projectiles.push({ x, y, z: 0.45, vx: Math.cos(a) * 6, vy: Math.sin(a) * 6, dmg: dmg * 0.5, src: P, friendly: true, kind: 'spark', life: 0.35 });
+  }
+  if (!spark && up('blind')) { // solblosset
+    for (const e of ents) if (!e.dead && !e.boss && Math.hypot(e.x - x, e.y - y) < 3.2) { e.stun = 2.2; e.charge = 0; }
+    particles.push({ x, y, z: 0.5, vx: 0, vy: 0, vz: 0, life: 0.3, maxLife: 0.3, frames: fx.hit, img: fx.hit[0], size: 1.6, add: true, tint: [255, 255, 220] });
+  }
+  for (const e of ents) if (!e.dead && Math.hypot(e.x - x, e.y - y) < r + 0.3) { e.burn = Math.max(e.burn, 4); }
+  for (let i = 0; i < 6; i++) particles.push({ x, y, z: 0.3, vx: rnd(-2, 2), vy: rnd(-2, 2), vz: rnd(1, 3), life: 0.8, maxLife: 0.8, frames: fx.fire, img: fx.fire[0], size: 0.35, grav: true, add: true });
+  play('fireburst', 0.7, 0.8, { x, y });
+}
 function throwMag() { // kastmagasinet: det gamla magasinet flyger iväg som en granat
   const a = P.a;
   projectiles.push({ x: P.x + Math.cos(a) * 0.4, y: P.y + Math.sin(a) * 0.4, z: 0.5, vx: Math.cos(a) * 8, vy: Math.sin(a) * 8, dmg: 9 * (1 + mod('dmg')), src: P, friendly: true, kind: 'gren', life: 0.9 });
@@ -853,7 +923,7 @@ function switchWeapon(n) {
   WS.next = n; WS.state = 'holster'; WS.t = 0; WS.aim = 0; play('weapon', 0.25, 1.6);
 }
 function autoSwitch() {
-  for (const i of [1, 2, 3, 0]) { const w = WEAPONS[i]; if (P.has[i] && i !== P.weapon && (P.mags[i] > 0 || P.ammo[w.ammo] > 0)) { switchWeapon(i); return; } }
+  for (const i of [...WEAPONS.keys()].slice(1).concat(0)) { const w = WEAPONS[i]; if (P.has[i] && i !== P.weapon && (P.mags[i] > 0 || P.ammo[w.ammo] > 0)) { switchWeapon(i); return; } }
 }
 // opt: { crit, noProc (ingen explosion/brand), source }
 function hurtEnemy(e, dmg, hx, hy, opt = {}) {
@@ -885,14 +955,20 @@ function killEnemy(e) {
   if (mod('speedOnKill')) P.haste = Math.max(P.haste, mod('speedOnKill'));
   if (e.boss) { bossDefeated(e); return; }
   if (e.d.ai === 'split') splitBlob(e);
+  if (e.poison > 0 && up('poison')) for (const o of nearestFoes(e, 3, 4)) o.poison = 4;
+  if (e.burn > 0 && up('wildfire')) for (const o of nearestFoes(e, 3, 4)) { o.burn = Math.max(o.burn, 4); zap(e.x, e.y, o.x, o.y, [255, 140, 60]); }
   if (e.elite) {
     for (let i = 0; i < 4; i++) dropItem('gold', e.x, e.y);
     dropItem(Math.random() < 0.5 ? 'health' : 'ammo', e.x, e.y);
-    if (e.elite.mod === 'explosive') explode(e.x, e.y, 18, 1.8, true);
+    if (e.elite.id === 'explosive') explode(e.x, e.y, 18, 1.8, true);
   } else {
     const r = Math.random();
     if (r < 0.22) dropItem('ammo', e.x, e.y); else if (r < 0.32) dropItem('health', e.x, e.y);
     if (Math.random() < 0.5) dropItem('gold', e.x, e.y);
+  }
+  // portal: när våningens sista elit dör, eller när alla fiender är döda
+  if (!boss && !portals.length && ((e.elite && !ents.some(o => o.elite && !o.dead)) || kills >= totalEnemies)) {
+    if (e.elite) spawnPortal(e.x, e.y, 'floor'); else spawnPortal(P.x + Math.cos(P.a) * 1.8, P.y + Math.sin(P.a) * 1.8, 'floor');
   }
 }
 // Explosion: skadar fiender (och spelaren om hurtsPlayer) inom radien
@@ -926,7 +1002,7 @@ const maxHp = () => 100 + mod('maxHp');
 function heal(n, silent) { const before = P.hp; P.hp = Math.min(maxHp(), P.hp + n); return P.hp - before; }
 // kind: 'melee' | 'proj' | undefined
 function hurtPlayer(d, fx0, fy0, kind) {
-  if (params.has('god') || state !== 'play') return;
+  if (params.has('god') || state !== 'play' || P.iframe > 0) return;
   if (Math.random() < mod('dodge')) { say('UNDVEK!', 0.8); play('whoosh', 0.4, 1.5); return; }
   d *= diff().dmg * Math.max(0.15, 1 + mod('damageTaken'));
   if (kind === 'proj') d *= Math.max(0, 1 - mod('projectileResist'));
@@ -1001,7 +1077,7 @@ function swearPact(id) { // vapenpakt: bara ett vapen resten av rundan, men det 
   run.pact = id;
   const i = WEAPONS.findIndex(w => w.id === id), wp = WEAPONS[i];
   if (!P.has[i]) { P.has[i] = true; P.mags[i] = effMag(i); }
-  P.ammo[wp.ammo] = Math.min(AMMO[wp.ammo].max, P.ammo[wp.ammo] + (wp.ammo === 'shells' ? 12 : 40));
+  P.ammo[wp.ammo] = Math.min(AMMO[wp.ammo].max, P.ammo[wp.ammo] + { p9: 40, r556: 40, shells: 12, bolts: 14, flares: 8 }[wp.ammo]);
   for (let k = 0; k < WEAPONS.length; k++) if (k !== i) P.has[k] = false;
   if (P.weapon !== i) { P.weapon = i; WS.state = 'draw'; WS.t = 0; WS.next = -1; }
   say('DU HAR SVURIT DIG TILL ' + wp.name, 3); play('secret', 0.7, 0.7);
@@ -1125,7 +1201,7 @@ function update(dt) {
   for (const m of merchants) if (Math.hypot(m.x - P.x, m.y - P.y) < 1.6) hint = isTouch() ? 'HANDEN: HANDLA' : 'E: HANDLA';
   if (lvl.exit && Math.floor(P.x) === lvl.exit.x && Math.floor(P.y) === lvl.exit.y) { floorDone(); return; }
   for (const e of ents) { if (e.boss) updateBoss(e, dt); else updateEnemy(e, dt); }
-  updateProjectiles(dt);
+  updateProjectiles(dt); updateFuses(dt); updatePortals(dt);
   if (P.hp < maxHp() * 0.3 && !breathSnd && actx) breathSnd = play('breath', 0.35, 1, { loop: true });
   if (P.hp >= maxHp() * 0.3 && breathSnd) { breathSnd.s.stop(); breathSnd = null; }
 }
@@ -1138,25 +1214,27 @@ function pickUp(it, bought) {
   if (it.type === 'health') { if (P.hp >= maxHp()) return false; const n = Math.round(30 * (1 + mod('healMul'))); heal(n); say(`+${n} HÄLSA`, 1.5); play('health', 0.7); }
   else if (it.type === 'armor') { if (P.armor >= 200) return false; P.armor = Math.min(200, P.armor + 50); say('+50 RUSTNING', 1.5); play('armor', 0.7); }
   else if (it.type === 'ammo' && run.pact) { // pakten: all ammo blir vapnets egen
-    const k = pactAmmo(), n = Math.round({ p9: 30, r556: 28, shells: 9 }[k] * am);
+    const k = pactAmmo(), n = Math.round({ p9: 30, r556: 28, shells: 9, bolts: 8, flares: 5 }[k] * am);
     if (P.ammo[k] >= AMMO[k].max && !bought) return false;
     P.ammo[k] = Math.min(AMMO[k].max, P.ammo[k] + n); say(`AMMO +${n} ${AMMO[k].name}`, 2); play('pickup', 0.7);
   } else if (it.type === 'ammo') {
     const full = Object.keys(AMMO).every(k => P.ammo[k] >= AMMO[k].max);
     if (full && !bought) return false;
-    const add = { p9: Math.round(18 * am), r556: Math.round((P.has[2] ? 20 : 8) * am), shells: Math.round((P.has[1] ? 6 : 3) * am) };
+    const has = id => P.has[weaponIndex(id)];
+    const add = { p9: Math.round(18 * am), r556: Math.round((has('rifle') || has('sniper') ? 20 : 8) * am), shells: Math.round((has('shotgun') || has('dbshotgun') ? 6 : 3) * am),
+      bolts: Math.round((has('crossbow') ? 5 : 0) * am), flares: Math.round((has('flaregun') ? 3 : 0) * am) };
     for (const k in add) P.ammo[k] = Math.min(AMMO[k].max, P.ammo[k] + add[k]);
-    say(`AMMO +${add.p9} 9MM +${add.r556} 5.56 +${add.shells} PATR`, 2); play('pickup', 0.7);
+    say('AMMO ' + Object.keys(add).filter(k => add[k] > 0).map(k => `+${add[k]} ${AMMO[k].name}`).join(' '), 2); play('pickup', 0.7);
   } else {
-    const i = { shotgun: 1, rifle: 2, smg: 3 }[it.type], w = WEAPONS[i];
+    const i = weaponIndex(it.type), w = WEAPONS[i];
     if (run.pact && w.id !== run.pact) { // pakten: andra vapen blir ammo och guld
-      const k = pactAmmo(); P.ammo[k] = Math.min(AMMO[k].max, P.ammo[k] + (k === 'shells' ? 8 : 30)); run.gold += 20;
+      const k = pactAmmo(); P.ammo[k] = Math.min(AMMO[k].max, P.ammo[k] + { p9: 30, r556: 30, shells: 8, bolts: 8, flares: 5 }[k]); run.gold += 20;
       say(`EDEN: ${w.name} BLIR AMMO OCH 20 GULD`, 2.5); play('coin', 0.7); return true;
     }
     const first = !P.has[i];
     P.has[i] = true;
     if (first) P.mags[i] = effMag(i);
-    P.ammo[w.ammo] = Math.min(AMMO[w.ammo].max, P.ammo[w.ammo] + (i === 1 ? 8 : 30));
+    P.ammo[w.ammo] = Math.min(AMMO[w.ammo].max, P.ammo[w.ammo] + { p9: 30, r556: 30, shells: 8, bolts: 10, flares: 6 }[w.ammo]);
     say('DU HITTADE: ' + w.name, 2.5); play('weapon', 0.8);
     if (first) switchWeapon(i);
   }
@@ -1171,7 +1249,7 @@ function updateWeapon(dt) {
   WS.swayX *= Math.pow(0.0001, dt); WS.swayY *= Math.pow(0.0001, dt);
   const wantAim = aimDown && (WS.state === 'idle') ? 1 : 0;
   WS.aim += (wantAim - WS.aim) * Math.min(1, dt * 10);
-  plane = BASE_PLANE * (1 - WS.aim * 0.22);
+  plane = BASE_PLANE * (1 - WS.aim * (wp.zoom || 0.22));
   if (WS.state === 'holster' && WS.t >= 0.22) { P.weapon = WS.next; WS.state = 'draw'; WS.t = 0; }
   else if (WS.state === 'draw' && WS.t >= drawTime()) { WS.state = 'idle'; WS.t = 0; }
   else if (WS.state === 'reload') {
@@ -1192,6 +1270,7 @@ function updateWeapon(dt) {
   }
   if (WS.state !== 'reload') WS.loaded = false;
   if (touch.tap > 0) touch.tap -= dt;
+  if (P.iframe > 0) P.iframe -= dt;
   const trig = mouseDown || keys.ControlLeft || keys.KeyF || touch.tap > 0;
   WS.spin = trig && up('spin') ? Math.min(2, WS.spin + dt) : Math.max(0, WS.spin - dt * 3);
   WS.focus = up('focus') && WS.aim > 0.8 && WS.state === 'idle' ? Math.min(1, WS.focus + dt) : 0;
@@ -1200,6 +1279,10 @@ function updateWeapon(dt) {
 }
 function statusTick(e, dt) { // brand och långsamhet
   e.slow = Math.max(0, e.slow - dt); e.haste = Math.max(0, (e.haste || 0) - dt);
+  if (e.poison > 0) { // giftspetsen
+    e.poison -= dt; e.poisonAcc = (e.poisonAcc || 0) + dt;
+    if (e.poisonAcc >= 0.5) { e.poisonAcc = 0; hurtEnemy(e, Math.min(e.maxHp * 0.05, 2.5) * (1 + mod('dmg')), e.x, e.y, { noProc: true, quiet: true }); if (e.dead) return; }
+  }
   if (e.burn > 0) {
     e.burn -= dt; e.burnAcc += dt;
     if (e.burnAcc >= 0.5) { e.burnAcc = 0; hurtEnemy(e, 0.8 * (1 + mod('dmg')), e.x, e.y, { noProc: true, quiet: true }); }
@@ -1214,6 +1297,7 @@ function updateEnemy(e, dt) {
   if (!e.alert && los && dist < 10) alertEnemy(e, true);
   if (!e.alert) { e.state = 'idle'; return; }
   e.growlT -= dt; if (e.growlT <= 0) { e.growlT = rnd(4, 9); play(e.d.growl, e.d.ai === 'stealth' ? 0.15 : 0.45, rnd(0.9, 1.2), { x: e.x, y: e.y }); }
+  if (e.stun > 0 && e.d.ai !== 'charge') { e.stun -= dt; e.state = 'pain'; e.t = Math.min(e.t, 0.25); return; } // bländad
   if (e.d.ai && ENEMY_AI[e.d.ai](e, dt, dist, los)) return;
   if (e.state === 'pain') { if (e.t > 5 / 14) { e.state = 'move'; e.t = 0; } return; }
   e.cd -= dt;
@@ -1352,7 +1436,7 @@ const ENEMY_AI = { // returnerar true när beteendet tar över hela uppdateringe
   },
 };
 // kind: undefined = eldklot, 'orb' = benmagikerns sökande klot, 'bolt' = shamanens gröna blixt
-const PROJ_TINT = { orb: [190, 100, 255], bolt: [110, 255, 110], gren: [230, 230, 200] };
+const PROJ_TINT = { orb: [190, 100, 255], bolt: [110, 255, 110], gren: [230, 230, 200], flare: [255, 110, 70], spark: [255, 200, 90] };
 function shootFireball(src, a, speed, dmg, big, kind) {
   const r = src.boss ? 1.1 : 0.4;
   projectiles.push({ x: src.x + Math.cos(a) * r, y: src.y + Math.sin(a) * r, z: src.boss ? 0.8 : 0.55, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, dmg, src, big, kind, life: kind === 'orb' ? 5 : 6 });
@@ -1366,9 +1450,20 @@ function updateProjectiles(dt) {
     }
     p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
     if (p.z > 0.55) p.z -= dt * 0.25;
-    if (p.friendly) { // spelarens granat: smäller vid fiende, vägg eller när tiden är ute
-      if (solid(p.x, p.y) || p.life <= 0 || ents.some(e => !e.dead && Math.hypot(e.x - p.x, e.y - p.y) < 0.5)) {
-        p.dead = true; explode(p.x - p.vx * 0.03, p.y - p.vy * 0.03, p.dmg, 2.0); play('bigboom', 0.6, 1.1, { x: p.x, y: p.y }); P.shake = Math.max(P.shake, 1);
+    if (p.friendly) { // spelarens granat och bloss: smäller vid fiende, vägg eller när tiden är ute
+      const hit = ents.find(e => !e.dead && !e.dying && Math.hypot(e.x - p.x, e.y - p.y) < (p.kind === 'gren' ? 0.5 : 0.45));
+      if (solid(p.x, p.y) && !hit && p.kind === 'flare' && up('bounce') && (p.bounces || 0) < 2) { // ekoblosset
+        const ox = p.x - p.vx * dt, oy = p.y - p.vy * dt;
+        if (solid(p.x, oy)) p.vx = -p.vx; if (solid(ox, p.y)) p.vy = -p.vy;
+        p.x = ox; p.y = oy; p.bounces = (p.bounces || 0) + 1; play('ricochet', 0.5, 0.8, { x: p.x, y: p.y });
+        continue;
+      }
+      if (solid(p.x, p.y) || p.life <= 0 || hit) {
+        p.dead = true;
+        const x = p.x - p.vx * 0.03, y = p.y - p.vy * 0.03;
+        if (p.kind === 'spark') { if (hit) hurtEnemy(hit, p.dmg, x, y, { noProc: true }); flareBurst(x, y, p.dmg, 1.0, true); }
+        else if (p.kind === 'flare') { if (hit) { hurtEnemy(hit, p.dmg, x, y); hitMark = 0.15; } flareBurst(x, y, p.dmg); }
+        else { explode(x, y, p.dmg, 2.0); play('bigboom', 0.6, 1.1, { x: p.x, y: p.y }); P.shake = Math.max(P.shake, 1); }
       }
       continue;
     }
@@ -1464,6 +1559,54 @@ function finishBoss(b) {
   say('BENDEMONEN ÄR BESEGRAD!', 4); say('GRINDEN ÖPPNAS', 4);
   for (let i = 0; i < 12; i++) dropItem('gold', b.x + rnd(-1, 1), b.y + rnd(-1, 1));
   for (const k in doors) if (doors[k].gate) { doors[k].target = 1; play('gate', 0.8, 1, { x: doors[k].x + 0.5, y: doors[k].y + 0.5 }); }
+  spawnPortal(b.x, b.y, 'boss');
+}
+function spawnPortal(x, y, kind) {
+  // närmaste fria plats (inte i en vägg)
+  let px = x, py = y;
+  if (!freeSpot(px, py, 0.35)) {
+    let best = null;
+    for (let r = 0.5; r < 4 && !best; r += 0.5) for (let a = 0; a < TAU; a += TAU / 12) { const tx = x + Math.cos(a) * r, ty = y + Math.sin(a) * r; if (freeSpot(tx, ty, 0.35)) { best = [tx, ty]; break; } }
+    if (best) [px, py] = best; else [px, py] = [P.x, P.y];
+  }
+  portals.push({ x: px, y: py, kind, t: 0, armed: Math.hypot(P.x - px, P.y - py) > 1 });
+  spawnPuff(px, py, 10); play('secret', 0.8, 0.7); play('gate', 0.5, 1.4, { x: px, y: py });
+  say(kind === 'boss' ? 'PORTALEN: DJUPARE ELLER HEM?' : 'PORTALEN TILL NÄSTA VÅNING ÄR ÖPPEN', 4);
+}
+function updatePortals(dt) {
+  for (const p of portals) {
+    p.t += dt;
+    const d = Math.hypot(P.x - p.x, P.y - p.y);
+    if (d > 1.1) p.armed = true; // man måste gå ur och in igen för att använda den på nytt
+    if (p.armed && d < 0.55 && p.t > 0.6) { p.armed = false; enterPortal(p); return; }
+    if (Math.random() < dt * 6) particles.push({ x: p.x + rnd(-0.3, 0.3), y: p.y + rnd(-0.3, 0.3), z: rnd(0.1, 1), vx: 0, vy: 0, vz: rnd(0.3, 0.8), life: 0.6, maxLife: 0.6, frames: fx.hit, img: fx.hit[0], size: 0.15, add: true, tint: [200, 150, 255] });
+  }
+  if (portals.length && state === 'play') { const p = portals[0], d = Math.hypot(P.x - p.x, P.y - p.y); if (d < 2.5 && !hint) hint = p.kind === 'boss' ? 'GÅ IN I PORTALEN FÖR ATT VÄLJA' : 'GÅ IN I PORTALEN: NÄSTA VÅNING'; }
+}
+function enterPortal(p) {
+  play('whoosh', 0.8, 0.5);
+  if (p.kind === 'floor') { floorDone(); return; }
+  const next = run.depth + 1;
+  openUI(() => CardUI.choice({
+    title: 'BENDEMONEN ÄR BESEGRAD', subtitle: `VARV ${cycleOf(run.depth) + 1} KLARAT. VART VILL DU GÅ?`, cancel: 2,
+    options: [
+      { label: 'GÅ DJUPARE', text: `VARV ${cycleOf(next) + 1}: FEM NYA VÅNINGAR OCH EN STARKARE BENDEMON. FIENDERNA BLIR TUFFARE, MEN SJÄLARNA FLER.` },
+      { label: 'AVSLUTA RUNDAN', text: 'GÅ HEM SOM SEGRARE OCH TA MED SJÄLARNA.' },
+      { label: 'STANNA KVAR', text: 'PLOCKA UPP GULDET FÖRST. PORTALEN FINNS KVAR.' },
+    ],
+  }, i => {
+    closeUI();
+    if (i === 0) goDeeper();
+    else if (i === 1) endRun(true);
+  }));
+}
+function goDeeper() {
+  run.loop = (run.loop || 0) + 1; run.gold += 50;
+  P.hp = maxHp(); play('bossroar', 0.7, 0.6);
+  openUI(() => CardUI.draft(drawCards(3, { luck: 0.3 }), { title: `VARV ${cycleOf(run.depth + 1) + 1}`, subtitle: 'DU STIGER NED DJUPARE. VÄLJ ETT KORT.', skipLabel: 'HOPPA ÖVER (+25 GULD)' }, card => {
+    if (card) gainCard(card); else run.gold += 25;
+    loadFloor(run.depth + 1); lockPointer();
+  }));
 }
 
 // ---------- Våningsslut, rundslut och själar ----------
@@ -1481,7 +1624,7 @@ function nextFloor() { // efter statistiken: välj ett kort, sedan nästa vånin
   if (state !== 'stats') return;
   stats = null;
   const depth = run.depth + 1;
-  openUI(() => CardUI.draft(drawCards(3), { title: `VÅNING ${run.depth} KLARAD`, subtitle: depth > FLOORS ? 'VÄLJ ETT KORT INFÖR BOSSEN' : 'VÄLJ ETT KORT', skipLabel: 'HOPPA ÖVER (+25 GULD)' }, card => {
+  openUI(() => CardUI.draft(drawCards(3), { title: `VÅNING ${run.depth} KLARAD`, subtitle: isBossDepth(depth) ? 'VÄLJ ETT KORT INFÖR BOSSEN' : 'VÄLJ ETT KORT', skipLabel: 'HOPPA ÖVER (+25 GULD)' }, card => {
     if (card) gainCard(card); else run.gold += 25;
     loadFloor(depth); lockPointer();
   }));
@@ -1492,7 +1635,7 @@ function endRun(win) {
   r.souls = souls; r.win = win;
   if (win) score += 5000 + r.gold * 5;
   profile.souls += souls; if (win) profile.wins++;
-  profile.bestDepth = Math.max(profile.bestDepth, win ? FLOORS + 1 : r.depth);
+  profile.bestDepth = Math.max(profile.bestDepth, r.depth);
   profile.bestScore = Math.max(profile.bestScore, score);
   profile.history.unshift({ seed: seedText(r.seed), depth: r.depth, win, score, kills: r.kills, cards: r.owned.length, time: Math.round(r.time), souls, daily: r.daily, d: Date.now() });
   profile.history.length = Math.min(profile.history.length, 20);
@@ -1506,6 +1649,7 @@ let last = 0;
 function loop(t) {
   const realDt = Math.min(0.05, (t - last) / 1000 || 0); last = t;
   let dt = realDt; if (hitStop > 0) { hitStop -= realDt; dt = realDt * 0.06; } // träffstopp: tiden står nästan still ett ögonblick
+  if (state === 'play' && run && up('bullettime') && WS.aim > 0.8) dt *= 0.5; // tidsstoppet
   if (map && state !== 'title') {
     if (state !== 'pause' && state !== 'ui') update(dt);
     updateLight(); render(); drawWeapon(); drawHUD();
@@ -1537,7 +1681,7 @@ function drawRunOver(win) {
   ctx.fillStyle = win ? '#0c1a0ce8' : '#1a0606e8'; ctx.fillRect(0, 0, W, VH);
   ctx.font = '16px "PressStart2P"'; const t1 = win ? 'SEGER!' : 'RUNDAN ÄR SLUT'; const w = ctx.measureText(plain(t1)).width;
   txt(t1, (W - w) / 2, 10, win ? '#9fe0a0' : '#ff5040', 2);
-  const rows = [['VÅNING', win ? 'BOSSEN BESEGRAD' : `${r.depth} AV ${FLOORS + 1}`], ['FIENDER', String(r.kills)], ['KORT', String(r.owned.length)], ['GULD', String(r.gold)], ['TID', fmtTime(r.time)], ['POÄNG', String(score)], ['SJÄLAR', `+${r.souls || 0}`], ['FRÖ', seedText(r.seed)]];
+  const rows = [['VÅNING', win ? (r.loop ? `VARV ${r.loop + 1} KLARAT` : 'BOSSEN BESEGRAD') : r.depth > FLOORS + 1 ? `${r.depth} (VARV ${cycleOf(r.depth) + 1})` : `${r.depth} AV ${FLOORS + 1}`], ['FIENDER', String(r.kills)], ['KORT', String(r.owned.length)], ['GULD', String(r.gold)], ['TID', fmtTime(r.time)], ['POÄNG', String(score)], ['SJÄLAR', `+${r.souls || 0}`], ['FRÖ', seedText(r.seed)]];
   rows.forEach(([k, v], i) => { const y = 34 + i * 13; txt(k, 50, y, '#c9a87a'); txt(v, 270 - textW(v), y, k === 'SJÄLAR' ? '#c0a0ff' : '#e8d9b0'); });
   const f = isTouch() ? 'TRYCK FÖR MENYN' : 'KLICKA FÖR MENYN'; if (tmr % 1 < 0.7) txt(f, (W - textW(f)) / 2, 145, '#ffe9a8');
 }
@@ -1565,7 +1709,7 @@ function begin(mode) { // mode: 'new' | 'daily' | 'continue'
   if (params.has('seed')) seed = RNG.hash(params.get('seed'));
   newRun(seed, mode === 'daily');
   const startDepth = params.get('floor') ? clamp(+params.get('floor'), 1, FLOORS + 1) : 1;
-  if (startDepth > 1) { for (let i = 1; i <= Math.min(3, startDepth - 1); i++) { P.has[i] = true; P.mags[i] = WEAPONS[i].mag; } P.ammo = { p9: 90, r556: 60, shells: 20 }; }
+  if (startDepth > 1) { for (let i = 1; i <= Math.min(3, startDepth - 1); i++) { P.has[i] = true; P.mags[i] = WEAPONS[i].mag; } P.ammo = Object.assign(NOAMMO(), { p9: 90, r556: 60, shells: 20 }); }
   loadFloor(startDepth);
   if (params.has('nocards')) { lockPointer(); return; }
   // startkort: välj ett av tre innan första våningen
@@ -1593,14 +1737,14 @@ addEventListener('keydown', e => {
     if (e.code === 'KeyR') startReload();
     if (e.code === 'KeyM' || e.code === 'Tab') showMap = !showMap;
     const n = e.code.startsWith('Digit') ? +e.code.slice(5) - 1 : -1;
-    if (n >= 0 && n < 4) switchWeapon(n);
+    if (n >= 0 && n < WEAPONS.length) switchWeapon(n);
     if (e.code === 'KeyQ') cycleWeapon(1);
   } else if (e.code === 'Enter' || e.code === 'Space') {
     if (state === 'stats') nextFloor(); else leaveRunScreen();
   }
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
-function cycleWeapon(d) { for (let i = 1; i <= 4; i++) { const n = ((WS.next >= 0 && WS.state === 'holster' ? WS.next : P.weapon) + d * i + 8) % 4; if (P.has[n]) { switchWeapon(n); break; } } }
+function cycleWeapon(d) { const N = WEAPONS.length; for (let i = 1; i <= N; i++) { const n = ((WS.next >= 0 && WS.state === 'holster' ? WS.next : P.weapon) + d * i + N * 2) % N; if (P.has[n]) { switchWeapon(n); break; } } }
 canvas.addEventListener('mousedown', e => {
   if (state === 'dead' || state === 'runover') return leaveRunScreen();
   if (state === 'stats') return nextFloor();
@@ -1763,7 +1907,7 @@ function openUnlocks() {
   window.__game = { P, WS, ents: () => ents, items: () => items, pots: () => pots, chests: () => chests, merchants: () => merchants, state: () => state, run: () => run, kills: () => kills, begin, doors: () => doors,
     fire, useKey, startReload, switchWeapon, floorDone, nextFloor, projectiles: () => projectiles, secrets: () => secrets, keys, setMouse: (d, aim) => { mouseDown = d; aimDown = !!aim; }, pause, resume, hurtPlayer,
     light: () => light, lvl: () => lvl, boss: () => boss, gainCard, mods: () => M, loadFloor, openShop, openChest, profile, showTitle, endRun, hurtEnemy,
-    spawnEnemy: (type, x, y) => { const e = makeEnemy(type, x, y); ents.push(e); totalEnemies++; return e; } };
+    spawnEnemy: (type, x, y) => { const e = makeEnemy(type, x, y); ents.push(e); totalEnemies++; return e; }, portals: () => portals, particles: () => particles };
   if (params.has('autostart')) begin('new');
 })();
 document.getElementById('start').addEventListener('click', () => begin('new'));

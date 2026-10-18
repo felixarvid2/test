@@ -1,0 +1,75 @@
+{
+ "dbshotgun": {
+  "model": "PSXShotgunPack[FIXED]/PSXShotgunPack[FIXED]/Files/DoubleBarrelShotgun/Fbx/DoubleBarrelShotgun.fbx",
+  "tex": "PSXShotgunPack[FIXED]/PSXShotgunPack[FIXED]/Files/DoubleBarrelShotgun/Textures/DBShotgunText.png",
+  "rot": [
+   0,
+   0,
+   0
+  ],
+  "cam": [
+   0.2,
+   0.2,
+   -0.12,
+   0.8,
+   0.3
+  ],
+  "hide": "shell"
+ },
+ "crossbow": {
+  "model": "Low Poly Weapon Pack with Image Texture - by Kickin It Studios/Weapons for Itch with image texture.fbx_Crossbow.fbx",
+  "tex": "Low Poly Weapon Pack with Image Texture - by Kickin It Studios/Low Poly Weapon Texture.png",
+  "rot": [
+   0,
+   -90,
+   0
+  ],
+  "cam": [
+   0.3,
+   0.2,
+   -0.1,
+   0.8,
+   0.32
+  ]
+ },
+ "flaregun": {
+  "model": "Guns&Explosives/Guns&Explosives/Flare_Gun/FlareGun.fbx",
+  "tex": "Guns&Explosives/Guns&Explosives/Flare_Gun/FlareGun_Base_Color.png",
+  "rot": [
+   0,
+   -90,
+   0
+  ],
+  "cam": [
+   0.85,
+   0.45,
+   -0.18,
+   1.0,
+   0.55
+  ],
+  "meshRot": {
+   "Barrel": [
+    0,
+    0,
+    0
+   ]
+  }
+ },
+ "sniper": {
+  "model": "Guns&Explosives/Guns&Explosives/Sniper/Sniper.fbx",
+  "tex": "Guns&Explosives/Guns&Explosives/Sniper/Sniper_Base_Color.png",
+  "rot": [
+   0,
+   -90,
+   0
+  ],
+  "cam": [
+   0.3,
+   0.2,
+   -0.1,
+   0.8,
+   0.32
+  ],
+  "tilt": -10
+ }
+}

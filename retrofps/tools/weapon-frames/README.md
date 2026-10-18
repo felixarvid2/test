@@ -10,8 +10,20 @@ cd retrofps/tools/weapon-frames
 npm i three playwright-core
 unzip RetroWeaponPack_V1.zip 'Assets/RetroWeaponsPack/*' -d guns   # zippen från releasen
 node render.mjs all qframes    # renderar 960x498-bildrutor + mynningspositioner
-python3 pack.py qframes        # skalar och placerar i 320x166-vyn, skriver assets/gfx/fp_*.png + js/weapons.js
+python3 pack.py qframes,xframes # skalar och placerar i 320x166-vyn, skriver assets/gfx/fp_*.png + js/weapons.js
 ```
 
-Kamerans placering per vapen står i `render.mjs` (`cam`), storlek och placering på skärmen i `pack.py` (`TARGET`).
+Dubbelbössan, armborsten, signalpistolen och prickskyttegeväret är statiska modeller ur `assets/3d-models`
+(PSX Shotgun Pack, Kickin It Studios Low Poly Weapon Pack och Guns&Explosives) utan armrigg. De renderas med
+`render-static.mjs` och `static.html`: `static-defs.json` anger modell, textur, vridning (`rot`, `tilt`, `meshRot` för delar
+som är modellerade i ett annat läge, som signalpistolens uppfällda pipa) och kamera. Rekylen ritas fram genom att vapnet
+knuffas bakåt och nosen lyfts.
+
+```bash
+node render-static.mjs side      # sidovyer side_<vapen>.png: pipan ska peka åt höger och ovansidan uppåt
+node render-static.mjs fp        # xframes/ med vilobild, sju rekylrutor och meta.json
+python3 pack.py qframes,xframes  # packar alla åtta vapnen
+```
+
+Kamerans placering per vapen står i `render.mjs` och `static-defs.json` (`cam`), storlek och placering på skärmen i `pack.py` (`TARGET`).
 `render.mjs` letar efter Chromium i `/opt/pw-browsers/chromium`; ändra `executablePath` om din ligger någon annanstans.
