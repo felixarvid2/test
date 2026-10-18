@@ -1,20 +1,23 @@
 import Phaser from 'phaser';
 import { services } from '../../services';
-import { canUnlockTower, isTowerUnlocked, towerUnlockCost, unlockTower } from '../../core/meta';
+import {
+  LOADOUT_SIZE, canToggleLoadout, canUnlockTower, getLoadout, isTowerUnlocked, toggleLoadout, towerUnlockCost, unlockTower,
+} from '../../core/meta';
 import { BOSS_IDS, ENEMY_IDS, MAX_TOWER_LEVEL, TOWER_IDS, type BossId, type EnemyId, type TowerId } from '../../data/types';
 import { BOSSES } from '../../data/bosses';
 import { ENEMIES } from '../../data/enemies';
 import { bossKey, enemyKey, iconKey, towerKey } from '../assetKeys';
 import { ScrollView } from '../menus/scroll';
 import {
-  bossKills, bossName, enemyName, firstSentence, formatStat, towerDef, towerName, towerStatsAt,
+  LOADOUT_HINT, bossKills, bossName, enemyName, firstSentence, formatStat, loadoutCount, loadoutReasonText, loadoutSlots, towerDef,
+  towerName, towerStatsAt,
 } from '../menus/logic';
 import {
   HEADER_H, burst, clampLines, createHeader, createTabs, flyIcons, menuBackground, silhouette, spriteFit, staggerIn, tickPill,
 } from '../menus/widgets';
 import {
   DEPTH, H, PALETTE, TOWER_COLORS, W, createButton, createIconButton, crispText, drawPanelBody, fadeIn, fitText, playSfx,
-  reducedMotion, showBanner, showToast, uiIcon, type UIPill,
+  reducedMotion, showBanner, showToast, uiIcon, type UIButton, type UIPill,
 } from '../ui';
 import { SceneKeys } from './keys';
 
@@ -27,6 +30,10 @@ const ROW_W = 664;
 type Tab = 'towers' | 'bestiary';
 type Sprite = Phaser.GameObjects.Image | Phaser.GameObjects.Arc;
 
+const LOADOUT_H = 290;
+const SLOT_W = 146;
+const SLOT_H = 140;
+
 /** Tower collection (unlock + details) and the bestiary of enemies and bosses. */
 export class CollectionScene extends Phaser.Scene {
   private view!: ScrollView;
@@ -35,6 +42,9 @@ export class CollectionScene extends Phaser.Scene {
   private detail?: Phaser.GameObjects.Container;
   private detailDim?: Phaser.GameObjects.Rectangle;
   private detailId?: TowerId;
+  private detailToggle?: UIButton;
+  /** Sprites of the filled loadout slots (fly-in targets), rebuilt with the grid. */
+  private slotSprites = new Map<TowerId, Sprite>();
 
   constructor() { super(SceneKeys.Collection); }
 
@@ -45,6 +55,8 @@ export class CollectionScene extends Phaser.Scene {
     this.detail = undefined;
     this.detailDim = undefined;
     this.detailId = undefined;
+    this.detailToggle = undefined;
+    this.slotSprites = new Map();
     const header = createHeader(this, 'TOWERS', { gems: true });
     this.pill = header.gemPill as UIPill;
     createTabs(this, HEADER_H + 62, ['TOWERS', 'BESTIARY'], (i) => {
@@ -71,24 +83,85 @@ export class CollectionScene extends Phaser.Scene {
     this.view.content.list.forEach(kill);
     this.view.content.removeAll(true);
     this.cards.clear();
+    this.slotSprites.clear();
   }
 
   // ---------- towers ----------
 
-  private buildTowers(): void {
+  private buildTowers(animate = true): void {
     const kids: Phaser.GameObjects.Container[] = [];
+    const panel = this.buildLoadoutPanel(16 + LOADOUT_H / 2);
+    this.view.content.add(panel);
+    kids.push(panel);
+    const gridTop = 16 + LOADOUT_H + 24;
     TOWER_IDS.forEach((id, i) => {
       const col = i % COLS, row = Math.floor(i / COLS);
       const x = W / 2 + (col - (COLS - 1) / 2) * (CARD_W + GAP);
-      const y = 16 + CARD_H / 2 + row * (CARD_H + GAP);
+      const y = gridTop + CARD_H / 2 + row * (CARD_H + GAP);
       const card = this.buildTowerCard(id, x, y);
       this.cards.set(id, card);
       kids.push(card);
       this.view.content.add(card);
     });
     const rows = Math.ceil(TOWER_IDS.length / COLS);
-    this.view.setContentHeight(16 + rows * (CARD_H + GAP) + 20);
-    staggerIn(this, kids, { step: 50 });
+    this.view.setContentHeight(gridTop + rows * (CARD_H + GAP) + 20);
+    if (animate) staggerIn(this, kids, { step: 50 });
+  }
+
+  /** "BATTLE LOADOUT 3/4": the towers Buy rolls from, with empty slots dashed. Tap a filled slot to remove it. */
+  private buildLoadoutPanel(y: number): Phaser.GameObjects.Container {
+    const loadout = getLoadout(services.save.data);
+    const c = this.add.container(W / 2, y);
+    const g = this.add.graphics();
+    drawPanelBody(g, ROW_W, LOADOUT_H, 0x232a52, PALETTE.gold, 28, true);
+    c.add(g);
+    c.add(crispText(this, -ROW_W / 2 + 32, -LOADOUT_H / 2 + 44, 'BATTLE LOADOUT', { preset: 'heading', size: 34, colorNum: PALETTE.goldLight }).setOrigin(0, 0.5));
+    const count = crispText(this, ROW_W / 2 - 32, -LOADOUT_H / 2 + 44, loadoutCount(loadout.length, LOADOUT_SIZE), { preset: 'number', size: 40, colorNum: PALETTE.gold }).setOrigin(1, 0.5);
+    c.add(count);
+    const slotY = -10;
+    const gap = 12;
+    loadoutSlots(loadout, LOADOUT_SIZE).forEach((id, i) => {
+      const sx = (i - (LOADOUT_SIZE - 1) / 2) * (SLOT_W + gap);
+      const slot = this.add.container(sx, slotY);
+      const sg = this.add.graphics();
+      const zone = this.add.zone(0, 0, SLOT_W, SLOT_H).setInteractive({ useHandCursor: true });
+      slot.add([sg, zone]);
+      if (id) {
+        const color = TOWER_COLORS[id] ?? PALETTE.gold;
+        sg.fillStyle(PALETTE.outline, 1).fillRoundedRect(-SLOT_W / 2 - 3, -SLOT_H / 2 - 3, SLOT_W + 6, SLOT_H + 6, 22);
+        sg.fillStyle(color, 1).fillRoundedRect(-SLOT_W / 2, -SLOT_H / 2, SLOT_W, SLOT_H, 20);
+        sg.fillStyle(PALETTE.panelDark, 1).fillRoundedRect(-SLOT_W / 2 + 5, -SLOT_H / 2 + 5, SLOT_W - 10, SLOT_H - 10, 16);
+        sg.fillStyle(color, 0.22).fillRoundedRect(-SLOT_W / 2 + 5, -SLOT_H / 2 + 5, SLOT_W - 10, SLOT_H - 10, 16);
+        const spr = spriteFit(this, 0, -16, towerKey(id, 1), 104);
+        slot.add(spr);
+        this.slotSprites.set(id, spr);
+        slot.add(fitText(crispText(this, 0, SLOT_H / 2 - 24, towerName(id).replace(/ Tower$/, ''), { preset: 'small', size: 20, colorNum: 0xffffff }), SLOT_W - 16));
+        zone.on('pointerup', () => { if (!this.view.dragged) { playSfx('click'); this.toggle(id); } });
+      } else {
+        this.dashedRect(sg, -SLOT_W / 2, -SLOT_H / 2, SLOT_W, SLOT_H, 0x6b76ad);
+        sg.lineStyle(8, 0x6b76ad, 1).beginPath().moveTo(-16, 0).lineTo(16, 0).moveTo(0, -16).lineTo(0, 16).strokePath();
+        zone.on('pointerup', () => { if (!this.view.dragged) { playSfx('click'); showToast(this, 'Tap ADD on an unlocked tower below', { kind: 'info' }); } });
+      }
+      c.add(slot);
+    });
+    const hint = crispText(this, 0, LOADOUT_H / 2 - 52, LOADOUT_HINT, { preset: 'small', size: 21, wordWrap: { width: ROW_W - 70 }, colorNum: 0xc5cdea });
+    c.add(hint);
+    return c;
+  }
+
+  private dashedRect(g: Phaser.GameObjects.Graphics, x: number, y: number, w: number, h: number, color: number): void {
+    g.lineStyle(4, color, 1);
+    const dash = 14, gap = 10;
+    const line = (x1: number, y1: number, x2: number, y2: number): void => {
+      const len = Math.hypot(x2 - x1, y2 - y1);
+      const ux = (x2 - x1) / len, uy = (y2 - y1) / len;
+      for (let d = 0; d < len; d += dash + gap) {
+        const e = Math.min(d + dash, len);
+        g.beginPath().moveTo(x1 + ux * d, y1 + uy * d).lineTo(x1 + ux * e, y1 + uy * e).strokePath();
+      }
+    };
+    line(x + 10, y, x + w - 10, y); line(x + w, y + 10, x + w, y + h - 10);
+    line(x + w - 10, y + h, x + 10, y + h); line(x, y + h - 10, x, y + 10);
   }
 
   private buildTowerCard(id: TowerId, x: number, y: number): Phaser.GameObjects.Container {
@@ -121,9 +194,18 @@ export class CollectionScene extends Phaser.Scene {
     card.add([name, role]);
 
     if (unlocked) {
-      const chip = this.chip(0, CARD_H / 2 - 56, discovered ? 'UNLOCKED' : 'NEW!', discovered ? PALETTE.successDark : PALETTE.danger);
-      card.add(chip);
-      if (!discovered && !reducedMotion()) this.tweens.add({ targets: chip, scale: 1.1, duration: 520, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+      const inLoadout = getLoadout(save).includes(id);
+      if (inLoadout) card.add(this.badgePill(-CARD_W / 2 + 94, -CARD_H / 2 + 38, 'IN LOADOUT', PALETTE.successDark, true));
+      if (!discovered) {
+        const n = this.badgePill(CARD_W / 2 - 52, -CARD_H / 2 + 38, 'NEW!', PALETTE.danger);
+        card.add(n);
+        if (!reducedMotion()) this.tweens.add({ targets: n, scale: 1.1, duration: 520, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+      }
+      const btn = createButton(this, 0, CARD_H / 2 - 62, {
+        label: inLoadout ? 'REMOVE' : 'ADD', width: CARD_W - 50, height: 84, fontSize: 34, style: inLoadout ? 'ghost' : 'success',
+        onClick: () => { if (!this.view.dragged) this.toggle(id); },
+      });
+      card.add(btn.container);
     } else {
       const cost = towerUnlockCost(id);
       const btn = createButton(this, 0, CARD_H / 2 - 62, {
@@ -136,17 +218,85 @@ export class CollectionScene extends Phaser.Scene {
     return card;
   }
 
-  /** Small rounded label (UNLOCKED, NEW!). */
-  private chip(x: number, y: number, text: string, fill: number): Phaser.GameObjects.Container {
+  /** Small rounded label (IN LOADOUT, NEW!), optionally with a check mark. */
+  private badgePill(x: number, y: number, text: string, fill: number, check = false): Phaser.GameObjects.Container {
     const c = this.add.container(x, y);
-    const t = crispText(this, 0, 0, text, { preset: 'body', size: 24, colorNum: 0xffffff });
-    const w = Math.max(150, t.width + 44);
+    const t = crispText(this, check ? 14 : 0, 0, text, { preset: 'body', size: 20, colorNum: 0xffffff });
+    const w = Math.max(90, t.width + (check ? 70 : 34));
     const g = this.add.graphics();
-    g.fillStyle(PALETTE.outline, 1).fillRoundedRect(-w / 2 - 3, -25, w + 6, 50, 25);
-    g.fillStyle(fill, 1).fillRoundedRect(-w / 2, -22, w, 44, 22);
-    g.fillStyle(0xffffff, 0.22).fillRoundedRect(-w / 2 + 8, -18, w - 16, 10, 5);
+    g.fillStyle(PALETTE.outline, 1).fillRoundedRect(-w / 2 - 3, -22, w + 6, 44, 22);
+    g.fillStyle(fill, 1).fillRoundedRect(-w / 2, -19, w, 38, 19);
+    g.fillStyle(0xffffff, 0.25).fillRoundedRect(-w / 2 + 8, -16, w - 16, 9, 4);
     c.add([g, t]);
+    if (check) {
+      const k = this.add.graphics();
+      k.lineStyle(6, 0xffffff, 1).beginPath().moveTo(-w / 2 + 16, 1).lineTo(-w / 2 + 24, 9).lineTo(-w / 2 + 40, -8).strokePath();
+      c.add(k);
+    }
     return c;
+  }
+
+  // ---------- loadout toggle ----------
+
+  private worldOf(o: Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.Transform): { x: number; y: number } {
+    const m = (o as unknown as Phaser.GameObjects.Image).getWorldTransformMatrix();
+    return { x: m.tx, y: m.ty };
+  }
+
+  /** Adds or removes a tower from the loadout, with a ghost sprite flying between the grid card and the slot. */
+  private toggle(id: TowerId): void {
+    const data = services.save.data;
+    const check = canToggleLoadout(data, id);
+    if (!check.ok) {
+      playSfx('invalid');
+      showToast(this, loadoutReasonText(check.reason), { kind: 'danger', y: 170 });
+      const card = this.cards.get(id);
+      if (card && !reducedMotion()) this.tweens.add({ targets: card, x: card.x + 10, duration: 50, yoyo: true, repeat: 3, onComplete: () => card.setX(card.x) });
+      return;
+    }
+    const wasIn = getLoadout(data).includes(id);
+    const oldSlot = this.slotSprites.get(id);
+    const from = wasIn && oldSlot ? this.worldOf(oldSlot) : undefined;
+    const oldCard = this.cards.get(id);
+    const cardFrom = oldCard ? this.worldOf(oldCard) : undefined;
+    toggleLoadout(services.save, id);
+    playSfx(wasIn ? 'sell' : 'place');
+    const scroll = this.view.scroll;
+    this.clearContent();
+    this.buildTowers(false);
+    this.view.scrollTo(scroll);
+    this.refreshDetailToggle();
+
+    const clampY = (y: number): number => Phaser.Math.Clamp(y, this.view.viewportTop + 30, H - 30);
+    const newSlot = this.slotSprites.get(id);
+    const newCard = this.cards.get(id);
+    const key = towerKey(id, 1);
+    const ghost = (sx: number, sy: number, ex: number, ey: number, done: () => void): void => {
+      if (reducedMotion() || !this.textures.exists(key)) { done(); return; }
+      const img = this.add.image(sx, sy, key).setDisplaySize(110, 110).setDepth(DEPTH.toast - 20);
+      this.tweens.add({ targets: img, x: ex, y: ey, displayWidth: wasIn ? 150 : 104, displayHeight: wasIn ? 150 : 104, alpha: wasIn ? 0.15 : 1, duration: 480, ease: 'Cubic.InOut', onComplete: () => { img.destroy(); done(); } });
+    };
+    if (!wasIn && newSlot && cardFrom) {
+      const to = this.worldOf(newSlot);
+      if (newSlot instanceof Phaser.GameObjects.Image) newSlot.setAlpha(0);
+      ghost(cardFrom.x, clampY(cardFrom.y - 118), to.x, clampY(to.y), () => {
+        newSlot.setAlpha(1);
+        burst(this, to.x, clampY(to.y), TOWER_COLORS[id] ?? PALETTE.gold, 10);
+        if (!reducedMotion()) { newSlot.setScale(newSlot.scale * 1.25); this.tweens.add({ targets: newSlot, scale: newSlot.scale / 1.25, duration: 260, ease: 'Back.Out' }); }
+      });
+    } else if (wasIn && from && newCard) {
+      const to = this.worldOf(newCard);
+      ghost(from.x, clampY(from.y), to.x, clampY(to.y - 118), () => undefined);
+    }
+  }
+
+  private refreshDetailToggle(): void {
+    const id = this.detailId;
+    const btn = this.detailToggle;
+    if (!id || !btn) return;
+    const inLoadout = getLoadout(services.save.data).includes(id);
+    btn.setLabel(inLoadout ? 'REMOVE FROM LOADOUT' : 'ADD TO LOADOUT');
+    btn.setStyle(inLoadout ? 'ghost' : 'success');
   }
 
   private unlock(id: TowerId): void {
@@ -175,7 +325,7 @@ export class CollectionScene extends Phaser.Scene {
       const fm = fresh.getWorldTransformMatrix();
       this.time.delayedCall(450, () => {
         burst(this, fm.tx, fm.ty - 100, TOWER_COLORS[id] ?? PALETTE.gold, 24);
-        showBanner(this, 'UNLOCKED!', { sub: towerName(id), color: PALETTE.successDark, y: 560, duration: 1500 });
+        showBanner(this, 'UNLOCKED!', { sub: getLoadout(services.save.data).includes(id) ? `${towerName(id)} - added to loadout` : towerName(id), color: PALETTE.successDark, y: 560, duration: 1500 });
         if (!reducedMotion()) this.tweens.add({ targets: fresh, scale: 1.06, duration: 160, yoyo: true, ease: 'Sine.Out' });
       });
     }
@@ -191,7 +341,7 @@ export class CollectionScene extends Phaser.Scene {
     const def = towerDef(id);
     const unlocked = isTowerUnlocked(save, id);
     const color = TOWER_COLORS[id] ?? PALETTE.gold;
-    const PH = unlocked ? 1120 : 1220;
+    const PH = 1220;
     const top = -PH / 2;
 
     const dim = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, reducedMotion() ? 0.72 : 0).setDepth(DEPTH.modalDim).setInteractive();
@@ -272,6 +422,14 @@ export class CollectionScene extends Phaser.Scene {
         enabled: canUnlockTower(save, id), onClick: () => this.unlock(id),
       });
       panel.add(btn.container);
+    } else {
+      const inLoadout = getLoadout(save).includes(id);
+      const btn = createButton(this, 0, PH / 2 - 62, {
+        label: inLoadout ? 'REMOVE FROM LOADOUT' : 'ADD TO LOADOUT', width: 560, height: 100, fontSize: 36, style: inLoadout ? 'ghost' : 'success',
+        onClick: () => this.toggle(id),
+      });
+      panel.add(btn.container);
+      this.detailToggle = btn;
     }
 
     if (!reducedMotion()) {
@@ -344,6 +502,7 @@ export class CollectionScene extends Phaser.Scene {
     this.detail = undefined;
     this.detailDim = undefined;
     this.detailId = undefined;
+    this.detailToggle = undefined;
     if (!panel) return;
     const done = (): void => { panel.destroy(); dim?.destroy(); };
     if (instant || reducedMotion()) { done(); return; }

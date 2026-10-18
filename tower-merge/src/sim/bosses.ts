@@ -1,3 +1,4 @@
+import { len } from './math';
 import { BALANCE } from '../data/balance';
 import { CASTLE, SLOTS } from '../data/map';
 import type { BossAbility, EnemyId } from '../data/types';
@@ -160,7 +161,7 @@ function fire(s: SimState, e: Enemy, ab: BossAbility): boolean {
 function towersInLine(s: SimState, x: number, y: number, tx: number, ty: number, length: number, width: number): number {
   const dx = tx - x;
   const dy = ty - y;
-  const dl = Math.hypot(dx, dy) || 1;
+  const dl = len(dx, dy) || 1;
   const ux = dx / dl;
   const uy = dy / dl;
   let count = 0;
@@ -189,7 +190,7 @@ function aimFireBreath(s: SimState, e: Enemy, length: number, width: number): vo
   }
   const dx = bx - e.x;
   const dy = by - e.y;
-  const dl = Math.hypot(dx, dy) || 1;
+  const dl = len(dx, dy) || 1;
   e.busyTx = e.x + (dx / dl) * length;
   e.busyTy = e.y + (dy / dl) * length;
 }
@@ -208,7 +209,7 @@ function finishBusy(s: SimState, e: Enemy): void {
     case 'fireBreath': {
       const dx = e.busyTx - e.x;
       const dy = e.busyTy - e.y;
-      const dl = Math.hypot(dx, dy) || 1;
+      const dl = len(dx, dy) || 1;
       const ux = dx / dl;
       const uy = dy / dl;
       for (const slot of s.slots) {

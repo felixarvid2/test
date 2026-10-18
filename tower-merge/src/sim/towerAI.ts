@@ -1,3 +1,4 @@
+import { len } from './math';
 import { BALANCE } from '../data/balance';
 import { SLOTS, WORLD_H, WORLD_W } from '../data/map';
 import { TOWERS } from '../data/towers';
@@ -18,14 +19,11 @@ const PROJ_KIND: Record<TowerId, ProjectileKind> = {
 };
 
 const targets = new Int32Array(16);
-const tmp = { progress: 0, seg: 0, lateral: 0, x: 0, y: 0, angle: 0 };
+const tmp = new Float64Array(4);
 
-/** Where an enemy will be in `time` seconds if it keeps walking its lane at the current speed. */
+/** Where an enemy will be in `time` seconds if it keeps walking its lane (result in `tmp`: x, y). */
 function predict(e: Enemy, time: number): void {
-  tmp.progress = e.progress + e.vel * time;
-  tmp.seg = e.seg;
-  tmp.lateral = e.lateral;
-  e.lane.place(tmp);
+  e.lane.locate(e.progress + e.vel * time, e.seg, e.lateral, tmp);
 }
 
 export function updateTowers(s: SimState, dt: number): void {
@@ -152,7 +150,7 @@ function fireBeam(s: SimState, t: TowerInst, target: Enemy, secondary: boolean):
   if (pierce > 0) {
     const dx = tx - pos.x;
     const dy = ty - pos.y;
-    const dl = Math.hypot(dx, dy) || 1;
+    const dl = len(dx, dy) || 1;
     const ux = dx / dl;
     const uy = dy / dl;
     const used = s.borrow();
@@ -253,11 +251,11 @@ function launchProjectile(
   p.angle = aimAng;
 
   if (def.attack === 'lobbed') {
-    const dist = Math.hypot(target.x - pos.x, target.y - pos.y);
+    const dist = len(target.x - pos.x, target.y - pos.y);
     const flight = Math.max(C.lobbedMinFlight, dist / p.speed);
     predict(target, flight);
-    let tx = tmp.x;
-    let ty = tmp.y;
+    let tx = tmp[0];
+    let ty = tmp[1];
     if (k > 0) {
       tx += (s.rngC.next() * 2 - 1) * Math.max(24, st.splash) * 0.6;
       ty += (s.rngC.next() * 2 - 1) * Math.max(24, st.splash) * 0.6;
@@ -273,11 +271,11 @@ function launchProjectile(
 
   const pierce = Math.min(8, Math.round(st.flags[FL.pierce]));
   if (pierce > 0) {
-    const dist = Math.hypot(target.x - pos.x, target.y - pos.y);
+    const dist = len(target.x - pos.x, target.y - pos.y);
     predict(target, dist / p.speed);
-    const dx = tmp.x - p.x;
-    const dy = tmp.y - p.y;
-    const dl = Math.hypot(dx, dy) || 1;
+    const dx = tmp[0] - p.x;
+    const dy = tmp[1] - p.y;
+    const dl = len(dx, dy) || 1;
     p.mode = 1;
     p.vx = (dx / dl) * p.speed;
     p.vy = (dy / dl) * p.speed;
@@ -328,7 +326,7 @@ function updateHoming(s: SimState, p: Projectile, dt: number): void {
   }
   const dx = target.x - p.x;
   const dy = target.y - p.y;
-  const dist = Math.hypot(dx, dy);
+  const dist = len(dx, dy);
   const step = p.speed * dt;
   if (dist <= step + target.radius * 0.6) {
     p.x = target.x;
@@ -431,7 +429,7 @@ function landLobbed(s: SimState, p: Projectile): void {
   for (let i = 0; i < n; i++) {
     const v = s.enemies[buf[i]];
     if (!v.active || (p.groundOnly && v.flying)) { buf[i] = -1; continue; }
-    const d = Math.hypot(v.x - p.tx, v.y - p.ty);
+    const d = len(v.x - p.tx, v.y - p.ty);
     if (d < bestD) { bestD = d; primary = v; }
   }
   if (primary) hitEvent(s, p, primary.x, primary.y);
@@ -441,7 +439,7 @@ function landLobbed(s: SimState, p: Projectile): void {
     if (buf[i] < 0) continue;
     const v = s.enemies[buf[i]];
     if (!v.active || v === primary) continue;
-    const d = Math.hypot(v.x - p.tx, v.y - p.ty);
+    const d = len(v.x - p.tx, v.y - p.ty);
     towerHit(s, t, v, p.dmg * edgeFalloff(d, p.splash), false, false, p.sx, p.sy);
   }
   s.release();

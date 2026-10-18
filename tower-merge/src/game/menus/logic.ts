@@ -12,6 +12,7 @@ import {
   BOSS_IDS, TOWER_IDS, type AchievementDef, type BossId, type DailyModifier, type IconKey, type LifetimeStats,
   type MetaStat, type MetaUpgradeDef, type TowerDef, type TowerId,
 } from '../../data/types';
+import type { LoadoutBlock } from '../../core/meta';
 import type { DailyRecord } from '../../save/schema';
 
 // ---------- names ----------
@@ -240,3 +241,29 @@ export function formatRunDate(key: string): string {
   if (!m) return '';
   return `${Number(m[3])} ${MONTHS[Number(m[2]) - 1] ?? ''} ${m[1]}`;
 }
+
+// ---------- loadout ----------
+
+const LOADOUT_REASONS: Record<LoadoutBlock, string> = {
+  locked: 'Unlock this tower first',
+  full: 'Loadout is full - remove a tower first',
+  minimum: 'Keep at least 3 towers in your loadout',
+  noAir: 'Keep a tower that can hit flying enemies',
+};
+
+/** Toast text for a blocked loadout toggle. */
+export function loadoutReasonText(reason: LoadoutBlock | undefined): string {
+  return reason ? LOADOUT_REASONS[reason] : 'Cannot change the loadout';
+}
+
+/** "3/4" */
+export function loadoutCount(count: number, size: number): string {
+  return `${Math.min(count, size)}/${size}`;
+}
+
+/** Loadout ids padded with `null` up to `size`, for drawing empty slots. */
+export function loadoutSlots<T>(ids: readonly T[], size: number): Array<T | null> {
+  return Array.from({ length: size }, (_, i) => ids[i] ?? null);
+}
+
+export const LOADOUT_HINT = 'Buy rolls only towers in your loadout - fewer types means more merges!';

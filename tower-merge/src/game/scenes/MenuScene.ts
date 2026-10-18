@@ -1,15 +1,15 @@
 import Phaser from 'phaser';
 import { services } from '../../services';
-import { canBuyMeta, canUnlockTower } from '../../core/meta';
+import { LOADOUT_SIZE, canBuyMeta, canUnlockTower, getLoadout } from '../../core/meta';
 import { dailyKey } from '../../core/daily';
 import { META_UPGRADES } from '../../data/meta';
 import { TOWER_IDS, type TowerId } from '../../data/types';
 import { iconKey, towerKey } from '../assetKeys';
-import { countUnlocked, dailyButtonStatus, dailyStatus } from '../menus/logic';
+import { countUnlocked, dailyButtonStatus, dailyStatus, loadoutSlots } from '../menus/logic';
 import { burst } from '../menus/widgets';
 import {
   DEPTH, H, PALETTE, TOWER_COLORS, W, createButton, createIconButton, createPill, crispText, fadeIn, fadeToScene, fitText,
-  floatText, reducedMotion, showToast, uiIcon,
+  floatText, playSfx, reducedMotion, showToast, uiIcon,
 } from '../ui';
 import { SceneKeys } from './keys';
 
@@ -43,7 +43,8 @@ export class MenuScene extends Phaser.Scene {
     this.createEmbers();
     this.createTitle();
     this.createCounters();
-    this.createAttract(W / 2, 668);
+    this.createAttract(W / 2, 622);
+    if (!firstTime) this.createLoadoutChips(756);
     this.createPlay(firstTime);
     this.createDaily(firstTime);
     this.createIconRow(firstTime);
@@ -173,7 +174,7 @@ export class MenuScene extends Phaser.Scene {
           const m = make(type, level + 1, cx).setScale(0.4);
           shadow.setAlpha(1);
           burst(this, cx, baseY - 100, TOWER_COLORS[type] ?? PALETTE.gold, 16, DEPTH.world + 5);
-          floatText(this, cx, baseY - 230, level >= 3 ? 'MAX!' : 'MERGE!', { color: PALETTE.goldLight, size: 46, depth: DEPTH.world + 6 });
+          floatText(this, cx, baseY - 205, level >= 3 ? 'MAX!' : 'MERGE!', { color: PALETTE.goldLight, size: 46, depth: DEPTH.world + 6 });
           this.tweens.add({ targets: m, scale: 1, duration: 520, ease: 'Back.Out', onComplete: () => idle(m, 0) });
           this.time.delayedCall(2300, () => {
             this.tweens.killTweensOf(m);
@@ -187,11 +188,46 @@ export class MenuScene extends Phaser.Scene {
 
   // ---------- buttons ----------
 
+  /** The run's tower loadout as small chips above PLAY; tapping them opens the collection. */
+  private createLoadoutChips(y: number): void {
+    const loadout = getLoadout(services.save.data);
+    const size = 78, gap = 12;
+    const row = this.add.container(W / 2, y).setDepth(DEPTH.hud);
+    const label = crispText(this, 0, -size / 2 - 22, 'BATTLE LOADOUT', { preset: 'small', size: 20, colorNum: PALETTE.goldLight });
+    const g = this.add.graphics();
+    const slots = loadoutSlots(loadout, LOADOUT_SIZE);
+    const total = slots.length * size + (slots.length - 1) * gap;
+    row.add([g, label]);
+    slots.forEach((id, i) => {
+      const x = -total / 2 + size / 2 + i * (size + gap);
+      if (id) {
+        const color = TOWER_COLORS[id] ?? PALETTE.gold;
+        g.fillStyle(PALETTE.shadow, 0.3).fillRoundedRect(x - size / 2, -size / 2 + 5, size, size, 18);
+        g.fillStyle(PALETTE.outline, 1).fillRoundedRect(x - size / 2 - 3, -size / 2 - 3, size + 6, size + 6, 20);
+        g.fillStyle(color, 1).fillRoundedRect(x - size / 2, -size / 2, size, size, 17);
+        g.fillStyle(PALETTE.panelDark, 1).fillRoundedRect(x - size / 2 + 4, -size / 2 + 4, size - 8, size - 8, 14);
+        g.fillStyle(color, 0.25).fillRoundedRect(x - size / 2 + 4, -size / 2 + 4, size - 8, size - 8, 14);
+        row.add(uiIcon(this, x, -2, towerKey(id, 1), size - 10));
+      } else {
+        g.lineStyle(4, 0x6b76ad, 0.9).strokeRoundedRect(x - size / 2, -size / 2, size, size, 17);
+        g.lineStyle(7, 0x6b76ad, 0.9).beginPath().moveTo(x - 13, 0).lineTo(x + 13, 0).moveTo(x, -13).lineTo(x, 13).strokePath();
+      }
+    });
+    // one big hit area over the whole row (the chips are < 88 px wide each)
+    const zone = this.add.zone(0, 0, total + 24, 104).setInteractive({ useHandCursor: true });
+    row.add(zone);
+    zone.on('pointerup', () => { playSfx('click'); fadeToScene(this, SceneKeys.Collection); });
+    if (!reducedMotion()) {
+      row.setAlpha(0);
+      this.tweens.add({ targets: row, alpha: 1, duration: 400, delay: 700 });
+    }
+  }
+
   private createPlay(firstTime: boolean): void {
     // The kit button owns its own scale (press squash), so the pulse runs on a holder around it.
-    const holder = this.add.container(W / 2, 838).setDepth(DEPTH.hud);
+    const holder = this.add.container(W / 2, 866).setDepth(DEPTH.hud);
     const play = createButton(this, 0, 0, {
-      label: 'PLAY', width: 500, height: 156, fontSize: 76, style: 'primary',
+      label: 'PLAY', width: 500, height: 140, fontSize: 72, style: 'primary',
       onClick: () => {
         if (this.scene.manager.keys[SceneKeys.Game]) fadeToScene(this, SceneKeys.Game, {});
         else showToast(this, 'Game scene not available yet', { kind: 'danger' });
@@ -211,7 +247,7 @@ export class MenuScene extends Phaser.Scene {
       });
     }
     if (firstTime) {
-      const hint = this.add.container(W / 2, 954).setDepth(DEPTH.hud);
+      const hint = this.add.container(W / 2, 962).setDepth(DEPTH.hud);
       const arrow = this.add.graphics();
       arrow.fillStyle(PALETTE.outline, 1).fillTriangle(-30, 18, 30, 18, 0, -22);
       arrow.fillStyle(PALETTE.goldLight, 1).fillTriangle(-22, 12, 22, 12, 0, -14);
@@ -228,7 +264,7 @@ export class MenuScene extends Phaser.Scene {
 
   private createDaily(firstTime: boolean): void {
     const status = dailyStatus(services.save.data.daily, dailyKey(new Date()));
-    const holder = this.add.container(W / 2, firstTime ? 1072 : 1008).setDepth(DEPTH.hud);
+    const holder = this.add.container(W / 2, firstTime ? 1080 : 1022).setDepth(DEPTH.hud);
     const btn = createButton(this, 0, 0, {
       label: 'DAILY CHALLENGE', icon: iconKey('clock'), width: 500, height: 104, fontSize: 34, style: 'secondary',
       onClick: () => fadeToScene(this, SceneKeys.Daily),
@@ -245,7 +281,7 @@ export class MenuScene extends Phaser.Scene {
     g.fillStyle(col, 1).fillRoundedRect(-cw / 2, -19, cw, 38, 19);
     g.fillStyle(0xffffff, 0.25).fillRoundedRect(-cw / 2 + 8, -16, cw - 16, 9, 4);
     chip.add([g, label]);
-    chip.setPosition(250 - cw / 2 + 6, -56);
+    chip.setPosition(250 - cw / 2 + 6, -58);
     holder.add(chip);
     if (!reducedMotion()) {
       holder.setScale(0);

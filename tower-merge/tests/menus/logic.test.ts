@@ -5,7 +5,7 @@ import type { AchievementDef, DailyModifier, TowerDef } from '../../src/data/typ
 import {
   achievementRows, bossKills, countUnlocked, dailyButtonStatus, dailyStatus, firstSentence, formatCountdown, formatDailyDate,
   formatMetaValue, formatRunDate, formatStat, metaDescription, metaGainText, metaTotalAt, modifierIcon, msUntilNextUtcDay,
-  prettyName, rankSynergies, rankTowerKills, sortAchievementRows, towerStatsAt,
+  loadoutCount, loadoutReasonText, loadoutSlots, prettyName, rankSynergies, rankTowerKills, sortAchievementRows, towerStatsAt,
 } from '../../src/game/menus/logic';
 
 const meta = (id: string) => {
@@ -158,5 +158,24 @@ describe('daily helpers', () => {
     expect(modifierIcon({ id: 'x', name: '', description: '', towerPool: ['frost', 'arrow', 'fire'] } as DailyModifier)).toBe('frost');
     expect(modifierIcon({ id: 'x', name: '', description: '', startCoins: 5 })).toBe('coin');
     expect(modifierIcon({ id: 'x', name: '', description: '' })).toBe('star');
+  });
+});
+
+describe('loadout helpers', () => {
+  it('words every block reason and has a fallback', () => {
+    expect(loadoutReasonText('full')).toBe('Loadout is full - remove a tower first');
+    expect(loadoutReasonText('minimum')).toContain('at least 3');
+    expect(loadoutReasonText('noAir')).toContain('flying');
+    expect(loadoutReasonText('locked')).toContain('Unlock');
+    expect(loadoutReasonText(undefined)).toBe('Cannot change the loadout');
+  });
+  it('formats the count and never exceeds the size', () => {
+    expect(loadoutCount(3, 4)).toBe('3/4');
+    expect(loadoutCount(6, 4)).toBe('4/4');
+  });
+  it('pads slots with null', () => {
+    expect(loadoutSlots(['arrow', 'frost'], 4)).toEqual(['arrow', 'frost', null, null]);
+    expect(loadoutSlots([], 2)).toEqual([null, null]);
+    expect(loadoutSlots(['a', 'b', 'c'], 2)).toEqual(['a', 'b']);
   });
 });

@@ -1,15 +1,18 @@
 import { ACHIEVEMENTS } from '../data/achievements';
 import { META_UPGRADES } from '../data/meta';
+import { TOWERS } from '../data/towers';
 import { TOWER_IDS, type LifetimeStats, type TowerId } from '../data/types';
 import { emptyLifetimeStats } from '../core/achievements';
 import type { Platform } from '../platform/Platform';
 import { REWARD_CONFIG } from '../rewards/config';
 import {
-  SAVE_VERSION, START_TOWERS,
+  LOADOUT_SIZE, SAVE_VERSION, START_TOWERS,
   type BestRun, type DailyRecord, type RewardLedger, type SaveData, type Settings,
 } from './schema';
 
 const DEBOUNCE_MS = 500;
+/** Smallest loadout a player may keep (or all unlocked towers when fewer). */
+export const LOADOUT_MIN = 3;
 /** YouTube: saved game MUST be < 3 MiB, SHOULD be < 500 KiB. */
 const MAX_BYTES = 500 * 1024;
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -51,6 +54,7 @@ export function defaultSave(): SaveData {
     gems: 0,
     metaLevels: {},
     unlockedTowers: [...START_TOWERS],
+    loadout: repairLoadout([], START_TOWERS),
     discoveredTowers: [],
     achievements: [],
     settings: {
@@ -126,6 +130,31 @@ export function pruneClaimed(claimed: Record<string, number>, max = REWARD_CONFI
   return Object.fromEntries(entries.slice(0, max));
 }
 
+/** True when the tower can hit flyers (unknown towers count as not). */
+export function towerHitsAir(id: TowerId): boolean {
+  return TOWERS[id]?.hitsAir === true;
+}
+
+/**
+ * Makes any loadout valid for the given unlocked towers: only unlocked, unique, valid ids, at most
+ * LOADOUT_SIZE; topped up from the unlocked towers in TOWER_IDS order to `size` (default
+ * min(LOADOUT_SIZE, unlocked)); and containing a tower that hits air (the last entry is swapped for
+ * the first such unlocked tower).
+ */
+export function repairLoadout(raw: unknown, unlocked: readonly TowerId[], size = LOADOUT_SIZE): TowerId[] {
+  const out = towerList(raw).filter((id) => unlocked.includes(id)).slice(0, LOADOUT_SIZE);
+  const target = Math.min(size, LOADOUT_SIZE, unlocked.length);
+  for (const id of TOWER_IDS) {
+    if (out.length >= target) break;
+    if (unlocked.includes(id) && !out.includes(id)) out.push(id);
+  }
+  if (out.length > 0 && !out.some(towerHitsAir)) {
+    const air = TOWER_IDS.find((id) => unlocked.includes(id) && towerHitsAir(id));
+    if (air) out[out.length - 1] = air;
+  }
+  return out;
+}
+
 function sanitizeStats(v: unknown): LifetimeStats {
   const s = isObj(v) ? v : {};
   const out = emptyLifetimeStats();
@@ -191,6 +220,7 @@ function sanitize(raw: Obj, catalog: Catalog): SaveData {
   const achKnown = catalog.achievementIds.length > 0;
   const ach = new Set(catalog.achievementIds);
   const tut = isObj(raw.tutorial) ? raw.tutorial : {};
+  const unlockedTowers = [...new Set<TowerId>([...START_TOWERS, ...towerList(raw.unlockedTowers)])];
   return {
     version: SAVE_VERSION,
     gems: int(raw.gems, 0, 0, MAX_GEMS),
@@ -200,7 +230,10 @@ function sanitize(raw: Obj, catalog: Catalog): SaveData {
       const level = Math.min(Math.floor(x), metaKnown ? catalog.metaMax[id] : MAX_META_LEVEL);
       return level > 0 ? level : undefined;
     }),
-    unlockedTowers: [...new Set<TowerId>([...START_TOWERS, ...towerList(raw.unlockedTowers)])],
+    unlockedTowers,
+    // A missing field (old save) is filled to the full size; a stored one keeps the player's choice
+    // down to the minimum of 3 that core/meta allows.
+    loadout: repairLoadout(raw.loadout, unlockedTowers, Array.isArray(raw.loadout) ? LOADOUT_MIN : LOADOUT_SIZE),
     discoveredTowers: towerList(raw.discoveredTowers),
     achievements: [...new Set((Array.isArray(raw.achievements) ? raw.achievements : [])
       .filter((x): x is string => typeof x === 'string' && x.length > 0 && (!achKnown || ach.has(x))))],

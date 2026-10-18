@@ -6,7 +6,8 @@ import {
 } from '../data/types';
 import type { RunOptions } from '../sim/api';
 import type { SaveData } from '../save/schema';
-import type { SaveManager } from '../save/SaveManager';
+import { LOADOUT_MIN, repairLoadout, towerHitsAir, type SaveManager } from '../save/SaveManager';
+import { LOADOUT_SIZE as SCHEMA_LOADOUT_SIZE } from '../save/schema';
 
 /** Reads accept the save data or the manager that owns it. */
 export type SaveLike = SaveData | Pick<SaveManager, 'data'>;
@@ -14,6 +15,9 @@ export type SaveLike = SaveData | Pick<SaveManager, 'data'>;
 function dataOf(save: SaveLike): SaveData {
   return 'data' in save ? save.data : save;
 }
+
+/** Max towers in the loadout (the pool the Buy button rolls from). */
+export const LOADOUT_SIZE = SCHEMA_LOADOUT_SIZE;
 
 /** Starting slots without meta upgrades. */
 export const BASE_SLOTS = 4;
@@ -89,6 +93,53 @@ export function unlockTower(save: SaveManager, id: TowerId): boolean {
   void save.update((d) => {
     d.gems -= cost;
     d.unlockedTowers.push(id);
+    if (d.loadout.length < LOADOUT_SIZE) d.loadout.push(id);
+  });
+  return true;
+}
+
+// ---------- loadout ----------
+
+/** The towers a run rolls from: the saved loadout, repaired against the unlocked towers. */
+export function getLoadout(save: SaveLike): TowerId[] {
+  const d = dataOf(save);
+  return repairLoadout(d.loadout, d.unlockedTowers, LOADOUT_MIN);
+}
+
+export type LoadoutBlock = 'locked' | 'full' | 'minimum' | 'noAir';
+
+/** Whether toggling `id` is allowed: adding needs room, removing must keep the minimum and an air-capable tower. */
+export function canToggleLoadout(save: SaveLike, id: TowerId): { ok: boolean; reason?: LoadoutBlock } {
+  const d = dataOf(save);
+  if (!d.unlockedTowers.includes(id)) return { ok: false, reason: 'locked' };
+  const current = getLoadout(d);
+  if (!current.includes(id)) return current.length >= LOADOUT_SIZE ? { ok: false, reason: 'full' } : { ok: true };
+  const rest = current.filter((t) => t !== id);
+  if (rest.length < Math.min(LOADOUT_MIN, d.unlockedTowers.length)) return { ok: false, reason: 'minimum' };
+  if (!rest.some(towerHitsAir)) return { ok: false, reason: 'noAir' };
+  return { ok: true };
+}
+
+/** Adds the tower to the loadout, or removes it. Returns false (and changes nothing) when not allowed. */
+export function toggleLoadout(save: SaveManager, id: TowerId): boolean {
+  if (!canToggleLoadout(save, id).ok) return false;
+  const current = getLoadout(save);
+  const next = current.includes(id) ? current.filter((t) => t !== id) : [...current, id];
+  void save.update((d) => {
+    d.loadout = next;
+  });
+  return true;
+}
+
+/** Replaces the loadout. Valid when: unique unlocked towers, between min(3, unlocked) and LOADOUT_SIZE of them, one hits air. */
+export function setLoadout(save: SaveManager, ids: readonly TowerId[]): boolean {
+  const d = save.data;
+  if (new Set(ids).size !== ids.length) return false;
+  if (!ids.every((id) => d.unlockedTowers.includes(id))) return false;
+  if (ids.length > LOADOUT_SIZE || ids.length < Math.min(LOADOUT_MIN, d.unlockedTowers.length)) return false;
+  if (!ids.some(towerHitsAir)) return false;
+  void save.update((s) => {
+    s.loadout = [...ids];
   });
   return true;
 }
@@ -131,7 +182,7 @@ export function buildRunOptions(
   const startLevel = Math.floor(metaTotal(data, 'startLevel'));
   const options: RunOptions = {
     seed: opts.seed,
-    towerPool: [...data.unlockedTowers],
+    towerPool: getLoadout(data),
     abilities: abilitiesFor(data),
     castleHpBonus: metaTotal(data, 'castleHp'),
     startCoinsBonus: metaTotal(data, 'startCoins'),

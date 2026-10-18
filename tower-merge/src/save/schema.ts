@@ -5,6 +5,9 @@ export const SAVE_VERSION = 1;
 /** Towers every fresh save owns (the 'start' towers of data/towers.ts). */
 export const START_TOWERS: readonly TowerId[] = ['arrow', 'cannon', 'frost'];
 
+/** Towers a run's Buy button can roll (the player's loadout). */
+export const LOADOUT_SIZE = 4;
+
 export interface Settings {
   musicVolume: number;   // 0..1
   sfxVolume: number;     // 0..1
@@ -46,6 +49,8 @@ export interface SaveData {
   metaLevels: Record<string, number>;
   unlockedTowers: TowerId[];
   /** Towers the player has seen in a run (collection screen). */
+  /** Chosen towers for runs: unique, unlocked, at most LOADOUT_SIZE, at least one that hits air. */
+  loadout: TowerId[];
   discoveredTowers: TowerId[];
   achievements: string[];
   settings: Settings;

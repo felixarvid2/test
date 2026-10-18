@@ -18,16 +18,18 @@ const FIXTURE_META: MetaUpgradeDef[] = [
 vi.mock('../../src/data/meta', () => ({ META_UPGRADES: FIXTURE_META }));
 vi.mock('../../src/data/towers', () => ({
   TOWERS: {
-    arrow: { id: 'arrow', unlock: { kind: 'start' } },
-    cannon: { id: 'cannon', unlock: { kind: 'start' } },
-    frost: { id: 'frost', unlock: { kind: 'start' } },
-    fire: { id: 'fire', unlock: { kind: 'gems', cost: 150 } },
-    lightning: { id: 'lightning', unlock: { kind: 'gems', cost: 200 } },
+    arrow: { id: 'arrow', hitsAir: true, unlock: { kind: 'start' } },
+    cannon: { id: 'cannon', hitsAir: false, unlock: { kind: 'start' } },
+    frost: { id: 'frost', hitsAir: true, unlock: { kind: 'start' } },
+    fire: { id: 'fire', hitsAir: true, unlock: { kind: 'gems', cost: 150 } },
+    lightning: { id: 'lightning', hitsAir: true, unlock: { kind: 'gems', cost: 200 } },
+    poison: { id: 'poison', hitsAir: false, unlock: { kind: 'gems', cost: 250 } },
+    sniper: { id: 'sniper', hitsAir: false, unlock: { kind: 'gems', cost: 350 } },
   },
 }));
 
 const {
-  abilitiesFor, buildRunOptions, buyMeta, canBuyMeta, canUnlockTower, isTowerUnlocked, metaCost, metaLevel, metaTotal,
+  LOADOUT_SIZE, abilitiesFor, buildRunOptions, buyMeta, canBuyMeta, canToggleLoadout, canUnlockTower, getLoadout, isTowerUnlocked, setLoadout, toggleLoadout, metaCost, metaLevel, metaTotal,
   towerUnlockCost, unlockTower,
 } = await import('../../src/core/meta');
 const { SaveManager, defaultSave } = await import('../../src/save/SaveManager');
@@ -107,7 +109,7 @@ describe('tower unlocks', () => {
   it('prices come from the tower data', () => {
     expect(towerUnlockCost('arrow')).toBe(0);
     expect(towerUnlockCost('fire')).toBe(150);
-    expect(towerUnlockCost('sniper')).toBe(Infinity); // not in the fixture
+    expect(towerUnlockCost('magic')).toBe(Infinity); // not in the fixture
   });
 
   it('unlockTower spends gems once and adds the tower', async () => {
@@ -119,11 +121,120 @@ describe('tower unlocks', () => {
     expect(unlockTower(save, 'fire')).toBe(true);
     expect(save.data.gems).toBe(250);
     expect(save.data.unlockedTowers).toEqual(['arrow', 'cannon', 'frost', 'fire']);
+    expect(save.data.loadout).toEqual(['arrow', 'cannon', 'frost', 'fire']); // room in the loadout: auto-added
     expect(unlockTower(save, 'fire')).toBe(false);
     expect(unlockTower(save, 'arrow')).toBe(false); // already owned
-    expect(unlockTower(save, 'sniper')).toBe(false); // unknown price
+    expect(unlockTower(save, 'magic')).toBe(false); // unknown price
     expect(save.data.gems).toBe(250);
     await save.flush();
+  });
+
+  it('does not add the new tower to a full loadout', async () => {
+    const { save } = await fresh();
+    save.data.gems = 1000;
+    unlockTower(save, 'fire');
+    unlockTower(save, 'lightning');
+    expect(save.data.unlockedTowers).toContain('lightning');
+    expect(save.data.loadout).toEqual(['arrow', 'cannon', 'frost', 'fire']);
+    expect(LOADOUT_SIZE).toBe(4);
+    await save.flush();
+  });
+});
+
+describe('loadout', () => {
+  async function withTowers(unlock: ('fire' | 'lightning' | 'poison' | 'sniper')[]) {
+    const f = await fresh();
+    for (const id of unlock) f.save.data.unlockedTowers.push(id);
+    f.save.data.loadout = ['arrow', 'cannon', 'frost'];
+    return f;
+  }
+
+  it('starts as the three start towers', async () => {
+    const { save } = await fresh();
+    expect(getLoadout(save)).toEqual(['arrow', 'cannon', 'frost']);
+    expect(getLoadout(save.data)).toEqual(['arrow', 'cannon', 'frost']);
+    getLoadout(save).push('fire');
+    expect(save.data.loadout).toEqual(['arrow', 'cannon', 'frost']);
+  });
+
+  it('adds until full, then reports full; locked towers cannot be added', async () => {
+    const { save } = await withTowers(['fire', 'lightning']);
+    expect(canToggleLoadout(save, 'sniper')).toEqual({ ok: false, reason: 'locked' });
+    expect(toggleLoadout(save, 'sniper')).toBe(false);
+    expect(canToggleLoadout(save, 'fire')).toEqual({ ok: true });
+    expect(toggleLoadout(save, 'fire')).toBe(true);
+    expect(save.data.loadout).toEqual(['arrow', 'cannon', 'frost', 'fire']);
+    expect(canToggleLoadout(save, 'lightning')).toEqual({ ok: false, reason: 'full' });
+    expect(toggleLoadout(save, 'lightning')).toBe(false);
+    expect(save.data.loadout).toHaveLength(4);
+  });
+
+  it('removes down to the minimum of 3, never below', async () => {
+    const { save } = await withTowers(['fire']);
+    toggleLoadout(save, 'fire');
+    expect(toggleLoadout(save, 'cannon')).toBe(true);
+    expect(save.data.loadout).toEqual(['arrow', 'frost', 'fire']);
+    expect(canToggleLoadout(save, 'frost')).toEqual({ ok: false, reason: 'minimum' });
+    expect(toggleLoadout(save, 'frost')).toBe(false);
+    expect(save.data.loadout).toEqual(['arrow', 'frost', 'fire']);
+  });
+
+  it('the minimum is the unlocked count when fewer than 3 are unlocked', async () => {
+    const { save } = await fresh();
+    save.data.unlockedTowers = ['arrow', 'cannon'];
+    save.data.loadout = ['arrow', 'cannon'];
+    expect(canToggleLoadout(save, 'cannon')).toEqual({ ok: false, reason: 'minimum' });
+  });
+
+  it('blocks removing the last tower that hits air', async () => {
+    const { save } = await fresh();
+    save.data.unlockedTowers = ['arrow', 'cannon', 'frost', 'poison', 'sniper'];
+    save.data.loadout = ['arrow', 'cannon', 'poison', 'sniper']; // arrow is the only flyer-capable one
+    expect(canToggleLoadout(save, 'arrow')).toEqual({ ok: false, reason: 'noAir' });
+    expect(toggleLoadout(save, 'arrow')).toBe(false);
+    expect(save.data.loadout).toEqual(['arrow', 'cannon', 'poison', 'sniper']);
+    expect(canToggleLoadout(save, 'sniper')).toEqual({ ok: true });
+  });
+
+  it('removing keeps the choice at 3 towers (no automatic refill)', async () => {
+    const { save } = await withTowers(['fire']);
+    toggleLoadout(save, 'fire');
+    toggleLoadout(save, 'cannon');
+    expect(getLoadout(save)).toEqual(['arrow', 'frost', 'fire']);
+  });
+
+  it('setLoadout validates and replaces', async () => {
+    const { save } = await withTowers(['fire', 'lightning']);
+    expect(setLoadout(save, ['arrow', 'fire', 'lightning'])).toBe(true);
+    expect(save.data.loadout).toEqual(['arrow', 'fire', 'lightning']);
+    expect(setLoadout(save, ['arrow', 'arrow', 'fire'])).toBe(false); // duplicate
+    expect(setLoadout(save, ['arrow', 'fire', 'sniper'])).toBe(false); // locked
+    expect(setLoadout(save, ['arrow', 'fire'])).toBe(false); // below the minimum
+    expect(setLoadout(save, ['arrow', 'fire', 'lightning', 'frost', 'cannon'])).toBe(false); // too many
+    expect(setLoadout(save, ['cannon', 'arrow', 'frost', 'fire'])).toBe(true);
+    expect(save.data.loadout).toEqual(['cannon', 'arrow', 'frost', 'fire']);
+    save.data.unlockedTowers = ['cannon', 'arrow', 'frost'];
+    expect(setLoadout(save, [])).toBe(false);
+    await save.flush();
+  });
+
+  it('setLoadout refuses a loadout with no air-capable tower', async () => {
+    const { save } = await fresh();
+    save.data.unlockedTowers = ['cannon', 'arrow', 'frost'];
+    expect(setLoadout(save, ['cannon'])).toBe(false);
+  });
+
+  it('getLoadout repairs a stale loadout against the unlocked towers', async () => {
+    const { save } = await fresh();
+    save.data.loadout = ['fire']; // not unlocked
+    expect(getLoadout(save)).toEqual(['arrow', 'cannon', 'frost']);
+  });
+
+  it('persists toggles', async () => {
+    const { save, platform } = await withTowers(['fire']);
+    toggleLoadout(save, 'fire');
+    await save.flush();
+    expect(JSON.parse(platform.stored!).loadout).toEqual(['arrow', 'cannon', 'frost', 'fire']);
   });
 });
 
@@ -158,6 +269,7 @@ describe('buildRunOptions', () => {
   it('applies every meta stat', () => {
     const d = defaultSave();
     d.unlockedTowers.push('fire');
+    d.loadout.push('fire');
     d.stats.bestWave = 12;
     d.metaLevels = { hp: 3, coins: 2, dmg: 4, rate: 2, disc: 1, lvl: 2, slot: 3, gain: 1, cd: 2, rr: 3 };
     const o = buildRunOptions(d, { seed: 7 });
@@ -182,6 +294,13 @@ describe('buildRunOptions', () => {
       FIXTURE_META[5].valuePerLevel = 1;
       FIXTURE_META[6].valuePerLevel = 1;
     }
+  });
+
+  it('the Buy pool is the loadout, not every unlocked tower', () => {
+    const d = defaultSave();
+    d.unlockedTowers.push('fire', 'lightning', 'poison');
+    d.loadout = ['arrow', 'fire', 'lightning'];
+    expect(buildRunOptions(d, { seed: 1 }).towerPool).toEqual(['arrow', 'fire', 'lightning']);
   });
 
   it('does not alias the save arrays', () => {

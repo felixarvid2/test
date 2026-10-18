@@ -1,3 +1,4 @@
+import { len as vlen } from './math';
 import { FLY_LANE, PATH } from '../data/map';
 import type { Point } from '../data/map';
 
@@ -36,7 +37,7 @@ export class Lane {
     for (let i = 0; i < n; i++) {
       const ex = pts[i + 1].x - pts[i].x;
       const ey = pts[i + 1].y - pts[i].y;
-      const len = Math.hypot(ex, ey);
+      const len = vlen(ex, ey);
       this.segLen[i] = len;
       this.dx[i] = ex / len;
       this.dy[i] = ey / len;
@@ -48,17 +49,18 @@ export class Lane {
     this.total = acc;
   }
 
-  /** Writes x, y, angle (and the cached segment index) for the walker's progress. */
-  place(w: LaneWalker): void {
+  /**
+   * Position for a distance along the lane, written to `out` as [x, y, angle, segment]. `seg` is a
+   * hint (the walker's previous segment) so lookups are O(1). Allocation-free and monomorphic.
+   */
+  locate(dist: number, seg: number, lateral: number, out: Float64Array): void {
     const last = this.segLen.length - 1;
-    let d = w.progress;
+    let d = dist;
     if (d < 0) d = 0;
     else if (d > this.total) d = this.total;
-    let seg = w.seg;
     if (seg > last) seg = last;
     while (seg > 0 && d < this.cum[seg]) seg--;
     while (seg < last && d >= this.cum[seg + 1]) seg++;
-    w.seg = seg;
     const t = d - this.cum[seg];
     const p0 = this.pts[seg];
     const dxs = this.dx[seg];
@@ -66,22 +68,34 @@ export class Lane {
     // Left normal of the segment, blended with the neighbour's near corners.
     let nx = -dys;
     let ny = dxs;
-    const len = this.segLen[seg];
+    const sl = this.segLen[seg];
     if (t < BLEND && seg > 0) {
       const wgt = 0.5 * (1 - t / BLEND);
       nx = nx * (1 - wgt) + -this.dy[seg - 1] * wgt;
       ny = ny * (1 - wgt) + this.dx[seg - 1] * wgt;
-    } else if (len - t < BLEND && seg < last) {
-      const wgt = 0.5 * (1 - (len - t) / BLEND);
+    } else if (sl - t < BLEND && seg < last) {
+      const wgt = 0.5 * (1 - (sl - t) / BLEND);
       nx = nx * (1 - wgt) + -this.dy[seg + 1] * wgt;
       ny = ny * (1 - wgt) + this.dx[seg + 1] * wgt;
     }
-    const nl = Math.hypot(nx, ny) || 1;
-    w.x = p0.x + dxs * t + (nx / nl) * w.lateral;
-    w.y = p0.y + dys * t + (ny / nl) * w.lateral;
-    w.angle = this.ang[seg];
+    const nl = vlen(nx, ny) || 1;
+    out[0] = p0.x + dxs * t + (nx / nl) * lateral;
+    out[1] = p0.y + dys * t + (ny / nl) * lateral;
+    out[2] = this.ang[seg];
+    out[3] = seg;
+  }
+
+  /** Writes x, y, angle (and the cached segment index) for the walker's progress. */
+  place(w: LaneWalker): void {
+    this.locate(w.progress, w.seg, w.lateral, PLACE_OUT);
+    w.x = PLACE_OUT[0];
+    w.y = PLACE_OUT[1];
+    w.angle = PLACE_OUT[2];
+    w.seg = PLACE_OUT[3];
   }
 }
+
+const PLACE_OUT = new Float64Array(4);
 
 export const GROUND_LANE = new Lane(PATH);
 export const AIR_LANE = new Lane(FLY_LANE);
