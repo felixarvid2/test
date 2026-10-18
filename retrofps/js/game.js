@@ -4,7 +4,8 @@
 // och en boss på sista våningen. Döden avslutar rundan; själar ger upplåsningar till nästa.
 (() => {
 const W = 320, H = 200, HUD_H = 34, VH = H - HUD_H, HORIZON = VH >> 1;
-const BASE_PLANE = 0.75;
+let BASE_PLANE = 0.75; // sätts från synfältet (FOV) i inställningarna
+const applyFov = () => { BASE_PLANE = Math.tan(clamp(settings.fov, 60, 100) * Math.PI / 360); };
 const FLOORS = 5; // vanliga våningar; våning FLOORS + 1 är bossen
 const canvas = document.getElementById('screen');
 const ctx = canvas.getContext('2d');
@@ -24,9 +25,10 @@ const store = {
   set(k, v) { try { localStorage.setItem('krypta.' + k, JSON.stringify(v)); } catch (e) { /* ingen lagring */ } },
   del(k) { try { localStorage.removeItem('krypta.' + k); } catch (e) { /* ingen lagring */ } },
 };
-const settings = Object.assign({ sens: 1, vol: 0.8, muted: false, diff: 1 }, store.get('settings', {}));
+const settings = Object.assign({ sens: 1, vol: 0.8, muted: false, diff: 1, fov: 74 }, store.get('settings', {}));
 if (params.has('diff')) settings.diff = clamp(+params.get('diff'), 0, 2);
 const saveSettings = () => store.set('settings', settings);
+applyFov();
 const profile = Object.assign({ souls: 0, unlocked: [], runs: 0, wins: 0, bestDepth: 0, bestScore: 0, history: [] }, store.get('profile', {}));
 const saveProfile = () => store.set('profile', profile);
 const DIFF = [
@@ -134,22 +136,23 @@ function play(name, vol = 1, rate = 1, opt = {}) {
 
 // ---------- Vapen ----------
 const WEAPONS = [
-  { id: 'pistol', name: 'PISTOL', short: 'PISTOL', ammo: 'p9', mag: 9, dmg: 2.2, pellets: 1, spread: 0.012, delay: 0.3, auto: false, sound: ['shot', 1.15, 0.85], flash: 0.75, kick: 0.8, reload: 1.1 },
-  { id: 'shotgun', name: 'HAGELGEVÄR', short: 'HAGEL', ammo: 'shells', mag: 6, dmg: 1.7, pellets: 9, spread: 0.07, delay: 0.95, auto: false, sound: ['boom', 0.8, 0.9], flash: 1.4, kick: 2.2, shellReload: true, reload: 0 },
-  { id: 'rifle', name: 'GEVÄR', short: 'GEVÄR', ammo: 'r556', mag: 24, dmg: 2.8, pellets: 1, spread: 0.014, delay: 0.13, auto: true, sound: ['shot', 0.82, 0.9], flash: 1.0, kick: 0.9, reload: 1.7 },
-  { id: 'smg', name: 'KULSPRUTEPISTOL', short: 'KPIST', ammo: 'p9', mag: 32, dmg: 1.5, pellets: 1, spread: 0.035, delay: 0.085, auto: true, sound: ['shot', 1.45, 0.65], flash: 0.75, kick: 0.5, reload: 1.5 },
+  { id: 'pistol', name: 'PISTOL', short: 'PISTOL', ammo: 'p9', mag: 9, dmg: 2.2, pellets: 1, spread: 0.012, delay: 0.3, auto: false, sound: ['shot', 1.15, 0.85], flash: 0.75, kick: 0.8, reload: 1.1, falloff: [7, 18, 0.5], recoil: [0.012, -0.006] },
+  { id: 'shotgun', name: 'HAGELGEVÄR', short: 'HAGEL', ammo: 'shells', mag: 6, dmg: 1.7, pellets: 9, spread: 0.07, delay: 0.95, auto: false, sound: ['boom', 0.8, 0.9], flash: 1.4, kick: 2.2, shellReload: true, reload: 0, falloff: [3, 11, 0.35], recoil: [0.02] },
+  { id: 'rifle', name: 'GEVÄR', short: 'GEVÄR', ammo: 'r556', mag: 24, dmg: 2.8, pellets: 1, spread: 0.014, delay: 0.13, auto: true, sound: ['shot', 0.82, 0.9], flash: 1.0, kick: 0.9, reload: 1.7, falloff: [12, 30, 0.6], recoil: [0.004, 0.006, -0.003, 0.007, -0.005, 0.004, -0.006] },
+  { id: 'smg', name: 'KULSPRUTEPISTOL', short: 'KPIST', ammo: 'p9', mag: 32, dmg: 1.5, pellets: 1, spread: 0.035, delay: 0.085, auto: true, sound: ['shot', 1.45, 0.65], flash: 0.75, kick: 0.5, reload: 1.5, falloff: [6, 16, 0.45], recoil: [0.003, -0.004, 0.005, -0.002, 0.004, -0.005] },
 ];
 const AMMO = { p9: { name: '9MM', max: 200 }, r556: { name: '5.56', max: 150 }, shells: { name: 'PATRONER', max: 50 } };
 const WF = window.WEAPON_FRAMES;
 
 // ---------- Spelstate ----------
-const P = { x: 2, y: 2, a: 0, vx: 0, vy: 0, hp: 100, armor: 0, shield: 0, shieldT: 0, haste: 0, weapon: 0, has: [true, false, false, false],
+const P = { pitch: 0, ryaw: 0, burst: 0, burstT: 0, x: 2, y: 2, a: 0, vx: 0, vy: 0, hp: 100, armor: 0, shield: 0, shieldT: 0, haste: 0, weapon: 0, has: [true, false, false, false],
   ammo: { p9: 36, r556: 0, shells: 0 }, mags: [9, 0, 0, 0], flash: 0, bob: 0, bobAmp: 0, hurt: 0, pick: 0, shake: 0, camZ: 0.5, deadT: 0 };
 const WS = { state: 'draw', t: 0, aim: 0, next: -1, shot: 99, cd: 0, swayX: 0, swayY: 0, spread: 0, shellPhase: '' };
 let map, mw, mh, doors, ents, items, pots, torches, chests, merchants, particles, projectiles, light, flow, flowCell = -1, seen;
 let lvl, totalEnemies, kills, secrets, totalSecrets, itemsTaken, totalItems, levelTime = 0, boss = null, bossBanner = 0;
 let state = 'title', tmr = 0, score = 0, showMap = false, hitMark = 0, hitKill = false, hitCrit = false, hurtDir = [], breathSnd = null, ambient = null, stepT = 0, fireHeld = false;
-let run = null, M = {}, hint = '';
+let run = null, M = {}, hint = '', hitStop = 0;
+const shakeAmt = () => { const tr = Math.min(1, P.shake / 2.5); return tr * tr; }; // trauma²: små träffar knappt märks, stora slår till
 const msgs = [];
 const keys = {};
 let mouseDown = false, aimDown = false;
@@ -351,10 +354,11 @@ const wallTexFor = { 1: 'wall_brick_stone_center', 2: 'wall_brick_small_stone', 
 let plane = BASE_PLANE, view = { dirX: 1, dirY: 0, plX: 0, plY: BASE_PLANE, hor: HORIZON, camZ: 0.5, a: 0 };
 function render() {
   [fogR, fogG, fogB] = lvl.fog;
-  const a = P.a + (P.shake ? rnd(-1, 1) * P.shake * 0.02 : 0);
+  const sh = shakeAmt();
+  const a = P.a + sh * 0.035 * Math.sin(tmr * 37);
   const dirX = Math.cos(a), dirY = Math.sin(a), plX = -dirY * plane, plY = dirX * plane;
   const camZ = P.camZ + Math.sin(P.bob * 2) * 0.012 * P.bobAmp;
-  const hor = HORIZON + (P.shake ? Math.round(rnd(-1, 1) * P.shake * 2) : 0);
+  const hor = HORIZON + Math.round(sh * 6 * Math.sin(tmr * 53 + 1) + P.pitch);
   view = { dirX, dirY, plX, plY, hor, camZ, a };
   const fl = tex[lvl.floor] || tex.floor_stone, ce = tex[lvl.ceil] || tex.floor_stone;
   // golv och tak
@@ -522,7 +526,7 @@ const shellSeg = ph => (ph === 'start' ? 0.32 : ph === 'step' ? 0.5 : 0.42) * re
 function drawWeapon() {
   const { f, idx, dx, dy } = weaponFrame();
   const amp = P.bobAmp * (1 - WS.aim * 0.75);
-  const ox = Math.round(Math.sin(P.bob) * 4 * amp - WS.swayX + dx), oy = Math.round(Math.abs(Math.cos(P.bob)) * 3 * amp - WS.swayY + dy + P.shake * 2);
+  const ox = Math.round(Math.sin(P.bob) * 4 * amp - WS.swayX + dx), oy = Math.round(Math.abs(Math.cos(P.bob)) * 3 * amp - WS.swayY + dy + shakeAmt() * 4 * Math.sin(tmr * 41) + P.pitch * 0.6);
   const img = wimg[WEAPONS[P.weapon].id];
   const L = clamp(lightAt(P.x, P.y) * 1.05 + P.flash * 4, 0.28, 1.25);
   if (wcan.width !== f.w || wcan.height !== f.h) { wcan.width = f.w; wcan.height = f.h; }
@@ -642,6 +646,16 @@ function drawMap() { // automap: bara rutor man har sett
 }
 
 // ---------- Strid (påverkas av korten via mod()) ----------
+// skada faller av med avståndet (fullt nära, golv långt bort) så att pistolen inte prickskjuter över hela banan
+function falloff(wp, d) { const [n, f, m] = wp.falloff; return d <= n ? 1 : d >= f ? m : 1 + (m - 1) * (d - n) / (f - n); }
+// siktstöd på pekskärm: kulan dras lätt mot en synlig fiende nära hårkorset
+function aimAssist(a) {
+  let best = null, bd = 0.07;
+  for (const e of ents) { if (e.dead) continue; const d = Math.hypot(e.x - P.x, e.y - P.y); if (d > 16) continue;
+    let da = Math.atan2(e.y - P.y, e.x - P.x) - a; da = Math.atan2(Math.sin(da), Math.cos(da));
+    const lim = Math.max(0.025, 0.35 / d); if (Math.abs(da) < Math.min(bd, lim) && hasLOS(P.x, P.y, e.x, e.y)) { bd = Math.abs(da); best = da; } }
+  return best === null ? a : a + best * 0.7;
+}
 const effMag = i => Math.max(1, Math.round(WEAPONS[i].mag * (1 + mod('magSize'))));
 const effDelay = wp => wp.delay / (1 + mod('fireRate'));
 const reloadMul = () => 1 / (1 + mod('reloadSpeed'));
@@ -659,6 +673,10 @@ function fire() {
   const firstShot = P.mags[P.weapon] >= effMag(P.weapon);
   if (Math.random() >= mod('ammoSave')) P.mags[P.weapon]--;
   WS.shot = 0; WS.cd = effDelay(wp); P.flash = 0.07; P.shake = Math.max(P.shake, wp.kick * 0.5);
+  // lärbart rekylmönster: samma sidoryck i samma ordning varje salva, plus en uppåtknyck som återhämtar sig
+  const kickYaw = wp.recoil[P.burst % wp.recoil.length] * (1 - WS.aim * 0.5);
+  P.a += kickYaw; P.ryaw += kickYaw * 0.6; P.pitch += wp.kick * 4 * (1 - WS.aim * 0.5);
+  P.burst++; P.burstT = effDelay(wp) + 0.25;
   WS.swayY -= wp.kick * 2;
   play(wp.sound[0], wp.sound[2], wp.sound[1] * rnd(0.96, 1.04));
   if (wp.id === 'shotgun') { play('boom', 0.45, 0.55); setTimeout(() => play('reload', 0.45, 1.4), 420 / (1 + mod('fireRate'))); }
@@ -671,7 +689,8 @@ function fire() {
   if (P.hp < maxHp() * 0.35) base *= 1 + mod('lowHpDmg');
   const pellets = wp.pellets + Math.round(mod('extraPellets'));
   for (let p = 0; p < pellets; p++) {
-    const a = P.a + rnd(-1, 1) * spread;
+    let a = P.a + (P.burst > 1 || pellets > 1 ? rnd(-1, 1) * spread : 0); // första skottet går där siktet är
+    if (p === 0 && touch.active) a = aimAssist(a);
     const dx = Math.cos(a), dy = Math.sin(a);
     const wall = cast(P.x, P.y, dx, dy);
     // allt som kulan kan träffa längs strålen, närmast först
@@ -693,9 +712,9 @@ function fire() {
     for (const h of hits) {
       if (left <= 0) { stopped = true; break; }
       if (h.k === 'p') { breakPot(h.o); left--; continue; }
-      let dmg = base * (h.d < 2 && wp.id === 'shotgun' ? 1.3 : 1);
+      let dmg = base * falloff(wp, h.d) * (h.d < 2 && wp.id === 'shotgun' ? 1.3 : 1);
       const c = Math.random() < mod('critChance');
-      if (c) { dmg *= 2 + mod('critDmg'); crit = true; }
+      if (c) { dmg *= 2 + mod('critDmg'); crit = true; hitStop = Math.max(hitStop, 0.03); }
       if (h.o.elite || h.o.boss) dmg *= 1 + mod('bossDmg');
       anyHit = true;
       if (hurtEnemy(h.o, dmg, P.x + dx * h.d, P.y + dy * h.d, { crit: c })) killed = true;
@@ -747,6 +766,7 @@ function hurtEnemy(e, dmg, hx, hy, opt = {}) {
   return false;
 }
 function killEnemy(e) {
+  hitStop = Math.max(hitStop, e.boss ? 0.15 : e.elite ? 0.07 : 0.02);
   e.dead = true; e.t = 0; e.state = 'dead'; kills++; run.kills++; score += e.d.score * (e.elite ? 3 : 1);
   play('gore', 0.5, rnd(0.9, 1.2), { x: e.x, y: e.y }); play('pain', 0.45, e.type === 'V' ? 1.2 : 0.8, { x: e.x, y: e.y });
   for (let i = 0; i < 5; i++) spawnBlood(e.x, e.y);
@@ -843,7 +863,7 @@ function occupied(d) { // dörren får inte stängas på någon
 }
 function alertEnemy(e, spread) {
   if (e.dead) return;
-  if (!e.alert) { e.alert = true; if (Math.random() < 0.7) play(e.d.growl, 0.5, rnd(0.9, 1.1), { x: e.x, y: e.y }); }
+  if (!e.alert) { e.alert = true; e.cd = Math.max(e.cd, rnd(0.35, 0.8)); if (Math.random() < 0.7) play(e.d.growl, 0.5, rnd(0.9, 1.1), { x: e.x, y: e.y }); }
   if (spread) for (const o of ents) if (o !== e && !o.dead && !o.alert && Math.hypot(o.x - e.x, o.y - e.y) < 6 && hasLOS(o.x, o.y, e.x, e.y)) alertEnemy(o, false);
 }
 // UI-lägen: släpp musen, pausa världen, återgå när UI stängs
@@ -915,7 +935,10 @@ function update(dt) {
   tmr += dt;
   for (const m of msgs) m.t -= dt;
   while (msgs.length && msgs[msgs.length - 1].t <= 0) msgs.pop();
-  P.hurt = Math.max(0, P.hurt - dt); P.pick = Math.max(0, P.pick - dt * 2); P.flash = Math.max(0, P.flash - dt); P.shake = Math.max(0, P.shake - dt * 5);
+  P.hurt = Math.max(0, P.hurt - dt); P.pick = Math.max(0, P.pick - dt * 2); P.flash = Math.max(0, P.flash - dt); P.shake = Math.max(0, P.shake - dt * 3);
+  // rekyl återhämtar sig mot ursprungligt sikte
+  P.pitch -= P.pitch * Math.min(1, dt * 9); const ry = P.ryaw * Math.min(1, dt * 5); P.a -= ry; P.ryaw -= ry;
+  P.burstT -= dt; if (P.burstT <= 0) P.burst = 0;
   hitMark = Math.max(0, hitMark - dt); bossBanner = Math.max(0, bossBanner - dt);
   for (const h of hurtDir) h.t -= dt * 1.2;
   hurtDir = hurtDir.filter(h => h.t > 0);
@@ -936,7 +959,8 @@ function update(dt) {
   let str = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
   if (touch.active) { // mobil: analog joystick och dra-för-att-vrida
     fwd -= touch.my; str += touch.mx;
-    P.a += touch.look * 0.011 * settings.sens * (1 - WS.aim * 0.35);
+    const overEnemy = ents.some(e => !e.dead && Math.abs(Math.atan2(Math.sin(Math.atan2(e.y - P.y, e.x - P.x) - P.a), Math.cos(Math.atan2(e.y - P.y, e.x - P.x) - P.a))) < Math.max(0.03, 0.3 / Math.hypot(e.x - P.x, e.y - P.y)));
+    P.a += touch.look * 0.011 * settings.sens * (1 - WS.aim * 0.35) * (overEnemy ? 0.55 : 1);
     WS.swayX = clamp(WS.swayX + touch.look * 0.25, -10, 10); WS.swayY = clamp(WS.swayY + touch.lookY * 0.15, -6, 6);
     touch.look = 0; touch.lookY = 0;
   }
@@ -1142,7 +1166,7 @@ function updateBoss(b, dt) {
   statusTick(b, dt); if (b.dead || b.dying) return;
   const dx = P.x - b.x, dy = P.y - b.y, dist = Math.hypot(dx, dy), ang = Math.atan2(dy, dx);
   const ph = b.hp < b.maxHp / 3 ? 3 : b.hp < b.maxHp * 2 / 3 ? 2 : 1;
-  if (ph !== b.phase) { b.phase = ph; play('bossroar', 1, ph === 3 ? 1.1 : 0.9); say(ph === 3 ? 'BENDEMONEN RASAR!' : 'BENDEMONEN KALLAR PÅ DE DÖDA', 2.5); P.shake = 2; }
+  if (ph !== b.phase) { b.phase = ph; hitStop = 0.18; play('bossroar', 1, ph === 3 ? 1.1 : 0.9); say(ph === 3 ? 'BENDEMONEN RASAR!' : 'BENDEMONEN KALLAR PÅ DE DÖDA', 2.5); P.shake = 2; }
   const fast = ph === 3 ? 1.5 : 1;
   b.growlT -= dt; if (b.growlT <= 0) { b.growlT = rnd(6, 10); play('bossroar', 0.6, rnd(0.8, 1)); }
   if (ph >= 2) { b.summonT -= dt; if (b.summonT <= 0) { b.summonT = ph === 3 ? 9 : 13; summonMinions(b); } }
@@ -1239,13 +1263,14 @@ const fmtTime = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStar
 // ---------- Huvudloop ----------
 let last = 0;
 function loop(t) {
-  const dt = Math.min(0.05, (t - last) / 1000 || 0); last = t;
+  const realDt = Math.min(0.05, (t - last) / 1000 || 0); last = t;
+  let dt = realDt; if (hitStop > 0) { hitStop -= realDt; dt = realDt * 0.06; } // träffstopp: tiden står nästan still ett ögonblick
   if (map && state !== 'title') {
     if (state !== 'pause' && state !== 'ui') update(dt);
     updateLight(); render(); drawWeapon(); drawHUD();
     if (state === 'dead' && P.deadT > 1.2) drawRunOver(false);
     if (state === 'runover') drawRunOver(true);
-    if (state === 'pause') overlay('PAUS', ['KLICKA FÖR ATT FORTSÄTTA', `FRÖ ${seedText(run.seed)}  VÅNING ${run.depth}`, `KORT ${run.owned.length}  (C = VISA)`, `KÄNSLIGHET ${settings.sens.toFixed(1)}  [ ]`, `VOLYM ${Math.round(settings.vol * 100)}%  - +`, `SVÅRIGHET ${DIFF[settings.diff].name}`], '#202040');
+    if (state === 'pause') overlay('PAUS', ['KLICKA FÖR ATT FORTSÄTTA', `FRÖ ${seedText(run.seed)}  VÅNING ${run.depth}`, `KORT ${run.owned.length}  (C = VISA)`, `KÄNSLIGHET ${settings.sens.toFixed(1)}  [ ]`, `SYNFÄLT ${settings.fov}°  , .`, `VOLYM ${Math.round(settings.vol * 100)}%  - +`, `SVÅRIGHET ${DIFF[settings.diff].name}`], '#202040');
     if (state === 'stats') drawStats();
   }
   requestAnimationFrame(loop);
@@ -1316,6 +1341,7 @@ addEventListener('keydown', e => {
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Tab'].includes(e.code)) e.preventDefault();
   if (e.code === 'BracketLeft' || e.code === 'BracketRight') { settings.sens = clamp(settings.sens + (e.code === 'BracketLeft' ? -0.1 : 0.1), 0.2, 3); saveSettings(); say(`MUSKÄNSLIGHET ${settings.sens.toFixed(1)}`, 1.2); }
   if (e.code === 'Minus' || e.code === 'Equal') { settings.vol = clamp(settings.vol + (e.code === 'Minus' ? -0.1 : 0.1), 0, 1); saveSettings(); applyVolume(); say(`VOLYM ${Math.round(settings.vol * 100)}%`, 1.2); }
+  if (e.code === 'Comma' || e.code === 'Period') { settings.fov = clamp(settings.fov + (e.code === 'Comma' ? -4 : 4), 60, 100); saveSettings(); say(`SYNFÄLT ${settings.fov}°`, 1.2); }
   if (e.code === 'KeyN') { settings.muted = !settings.muted; saveSettings(); applyVolume(); say(settings.muted ? 'LJUD AV' : 'LJUD PÅ', 1); }
   if (e.code === 'KeyO') { const el = document.documentElement; if (document.fullscreenElement) document.exitFullscreen(); else if (el.requestFullscreen) el.requestFullscreen().catch(() => {}); }
   if (e.code === 'KeyC' && (state === 'play' || state === 'pause')) { showDeck(); return; }
@@ -1429,6 +1455,13 @@ function setupTouch() {
 }
 
 // ---------- Startskärm och upplåsningar ----------
+function setupSliders() {
+  const sens = document.getElementById('sens'), fov = document.getElementById('fov');
+  const show = () => { document.getElementById('sensv').textContent = settings.sens.toFixed(1); document.getElementById('fovv').textContent = settings.fov + '°'; };
+  sens.value = settings.sens; fov.value = settings.fov; show();
+  sens.oninput = () => { settings.sens = +sens.value; saveSettings(); show(); };
+  fov.oninput = () => { settings.fov = +fov.value; saveSettings(); show(); };
+}
 function refreshTitle() {
   const diffBox = document.getElementById('diff');
   if (!diffBox.children.length) DIFF.forEach((d, i) => { const b = document.createElement('button'); b.type = 'button'; b.dataset.d = i; b.textContent = d.name; b.onclick = () => { settings.diff = i; saveSettings(); refreshTitle(); }; diffBox.appendChild(b); });
@@ -1454,7 +1487,7 @@ function openUnlocks() {
     st.textContent = '';
     for (const id of ['start', 'daily', 'unlocks']) document.getElementById(id).disabled = false;
   } catch (e) { st.textContent = 'FEL: ' + e.message; console.error(e); }
-  refreshTitle(); setupTouch();
+  refreshTitle(); setupTouch(); setupSliders();
   if (isTouch()) document.body.classList.add('touch');
   CardUI.sfx = n => { const m = { flip: ['card', 0.4, 1.3], pick: ['card', 0.8, 0.9], deny: ['click', 0.6, 0.7], open: ['card', 0.3, 0.8] }[n]; if (m) play(m[0], m[1], m[2]); };
   requestAnimationFrame(loop);

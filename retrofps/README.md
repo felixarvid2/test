@@ -6,7 +6,7 @@ mappen) och klicka **NY RUNDA**.
 
 **Kontroller:** WASD gå · mus sikta · vänsterklick skjut · högerklick sikta med vapnet · R ladda om ·
 E öppna dörr, kista, hemlig vägg eller handla · Shift spring · 1–4/Q/mushjul byt vapen · C dina kort ·
-M/Tab karta · P/Esc paus · `[` `]` muskänslighet · `-` `+` volym · N ljud av · O helskärm.
+M/Tab karta · P/Esc paus · `[` `]` muskänslighet · `,` `.` synfält · `-` `+` volym · N ljud av · O helskärm.
 
 **Mobil (liggande läge):** vänster tumme styr en flytande joystick (dra långt för att springa), höger tumme drar för att vrida. Den stora knappen skjuter, och man kan dra på den för att sikta samtidigt. Knapparna vid sidan av bilden siktar, laddar om, använder, byter vapen och öppnar karta, kort och paus. Knapparna kommer från Kenneys *Mobile Controls* (CC0, `assets/touch/`).
 
@@ -22,6 +22,16 @@ M/Tab karta · P/Esc paus · `[` `]` muskänslighet · `-` `+` volym · N ljud a
 - **Permadöd**: döden avslutar rundan och den sparade rundan raderas. *Fortsätt* finns bara för en runda som pågår och laddar början av den senaste våningen.
 - **Själar och upplåsningar**: varje runda ger själar efter hur långt man kom, och mer på svår nivå. Med dem låser man upp 17 kort på startskärmen. Profilen sparar rundor, segrar, bästa våning och rekord.
 - **Spelkänsla**: skadesiffror (gula vid krit), träffmarkör, brinnande och slöade fiender syns i färg, och fiender kan explodera i kedja.
+
+## Skjutkänsla (efter `fps-shooter`-, `game-feel`- och `input-systems`-skillsen)
+
+- **Lärbart rekylmönster:** varje automatvapen rycker i samma sidomönster under en salva, och hagelgevär och pistol knycker uppåt. Siktet återhämtar sig mot där du siktade, och första skottet går exakt dit hårkorset pekar.
+- **Avståndsfall:** skadan är full på nära håll och sjunker till ett golv på långt håll, så att pistolen inte prickskjuter över hela banan.
+- **Träffstopp:** tiden står nästan still ett ögonblick vid dödande träff, krit, elit och bossens fasbyten.
+- **Skärmskak:** skakningen bygger på trauma² och mjuka svängningar i stället för slumpbrus, så små träffar knappt märks medan stora slår till.
+- **Reaktionstid:** fiender väntar 0,35–0,8 s efter att de upptäckt dig innan de anfaller första gången.
+- **Siktstöd på pekskärm:** kulan dras lätt mot en synlig fiende nära hårkorset, och vridningen saktar in när hårkorset ligger över en fiende.
+- **Synfält och känslighet:** båda kan ställas in med reglage på startskärmen, `,` `.` och `[` `]` i spelet, och sparas.
 
 Testerna körs med `node tools/gen-test.js` (300 våningar och 50 bossarenor) och `node tools/cards-test.js`.
 `tools/cards-demo.html` visar kortgränssnittet fristående.

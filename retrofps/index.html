@@ -26,6 +26,8 @@
   .label { font-size: 9px; color: var(--dim); letter-spacing: 1px; }
   input { font: inherit; font-size: 10px; padding: 9px 10px; width: 11em; background: #1b1410; color: var(--ink); border: 2px solid var(--dim); text-transform: uppercase; }
   input:focus-visible { outline: 2px solid #ffe9a8; }
+  input[type=range] { width: 9em; padding: 0; border: 0; background: none; accent-color: var(--edge); }
+  .sliders output { color: var(--ink); }
   #status, #best { font-size: 9px; color: var(--dim); line-height: 1.8; }
   #souls { font-size: 10px; color: var(--soul); }
   kbd { font-family: inherit; color: var(--ink); }
@@ -76,6 +78,10 @@
   <div class="row">
     <label class="label" for="seed">FRÖ</label><input id="seed" maxlength="16" placeholder="SLUMPAT" autocomplete="off">
     <button id="unlocks" class="ghost" disabled>LÅS UPP KORT</button>
+  </div>
+  <div class="row sliders">
+    <label class="label" for="sens">KÄNSLIGHET <output id="sensv"></output></label><input id="sens" type="range" min="0.2" max="3" step="0.1">
+    <label class="label" for="fov">SYNFÄLT <output id="fovv"></output></label><input id="fov" type="range" min="60" max="100" step="2">
   </div>
   <div id="souls"></div>
   <div id="best"></div>
