@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="sv">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
@@ -1180,6 +1180,9 @@ button.primary[onclick="nextBlind()"]{background:var(--bl-green);box-shadow:0 5p
 .combo-row .cp{text-align:right;color:var(--dim);font-size:12px}
 .shop-item.combo{border-color:var(--bl-gold)}
 @media (max-width:480px){.combo-row{grid-template-columns:1.2fr .8fr 1.3fr;font-size:13px}.combo-row .cp{display:none}}
+/* Språkväljare i menyn */
+.lang-pick{display:inline-flex;gap:8px}
+.lang-pick button.on{background:var(--bl-blue)!important;box-shadow:0 5px 0 var(--bl-blue-d),0 5px 0 3px var(--bl-ink)!important}
 </style>
 </head>
 <body>
@@ -1203,7 +1206,7 @@ button.primary[onclick="nextBlind()"]{background:var(--bl-green);box-shadow:0 5p
     <div class="stat money">GULD<b id="s-money">4</b></div>
     <div class="stat interest">RÄNTA<b id="s-interest">+0</b></div>
     <div class="hbtns">
-      <button class="hbtn lang" id="lang-btn" onclick="toggleLang()" title="Language">🇸🇪 SV</button>
+      <button class="hbtn lang" id="lang-btn" onclick="toggleLang()" title="Language">🇬🇧 EN</button>
       <button class="hbtn" onclick="openDeck()" title="Dice">🎲</button>
       <button class="hbtn" onclick="openCombos()" title="Combos">📜</button>
       <button class="hbtn" onclick="openStats()" title="Stats">📊</button>
@@ -1254,7 +1257,7 @@ button.primary[onclick="nextBlind()"]{background:var(--bl-green);box-shadow:0 5p
 /* ========================
    i18n SYSTEM
    ======================== */
-let LANG = localStorage.getItem('dd_lang') || 'sv';
+let LANG = (function(){try{const v=localStorage.getItem('dd_lang');return v==='sv'||v==='en'?v:'en'}catch(e){return 'en'}})();
 const I18N = {
   sv: {
     app_title:'DUNGEON DICE',
@@ -1350,13 +1353,26 @@ const I18N = {
   }
 };
 function t(key){ return (I18N[LANG] && I18N[LANG][key]) || key; }
+function setLang(l){if((l==='sv'||l==='en')&&l!==LANG)toggleLang()}
 function toggleLang(){
   LANG = LANG==='sv'?'en':'sv';
-  localStorage.setItem('dd_lang', LANG);
+  try{localStorage.setItem('dd_lang', LANG)}catch(e){}
   document.documentElement.lang = LANG;
   applyLang();
   render();
   showMainMenu();
+}
+const HDR_LABELS={
+  sv:{'s-ante':'ANTE','s-blind':'BLIND','s-target':'MÅL','s-score':'POÄNG','s-money':'GULD','s-interest':'RÄNTA'},
+  en:{'s-ante':'ANTE','s-blind':'BLIND','s-target':'TARGET','s-score':'SCORE','s-money':'GOLD','s-interest':'INTEREST'}};
+function hdrLabels(){
+  const m=HDR_LABELS[LANG]||HDR_LABELS.en;
+  Object.keys(m).forEach(id=>{const b=document.getElementById(id);const n=b&&b.parentNode&&b.parentNode.childNodes[0];
+    if(n&&n.nodeType===3)n.nodeValue=m[id]});
+  const bl=document.getElementById('s-blind');
+  if(bl&&(!state||!state.phase||state.phase==='menu'))bl.textContent=t('small_blind');
+  const hb={'Dice':LANG==='sv'?'Tärningar':'Dice','Combos':LANG==='sv'?'Kombinationer':'Hands','Stats':LANG==='sv'?'Statistik':'Stats','Achv':LANG==='sv'?'Achievements':'Achievements','Help':LANG==='sv'?'Hjälp':'Help','Quit':LANG==='sv'?'Avsluta':'Quit'};
+  document.querySelectorAll('.hbtn').forEach(b=>{const k=b.getAttribute('data-k')||b.title;b.setAttribute('data-k',k);if(hb[k]){b.title=hb[k];b.setAttribute('aria-label',hb[k])}});
 }
 function applyLang(){
   document.querySelectorAll('[data-t]').forEach(el=>{
@@ -1368,7 +1384,7 @@ function applyLang(){
   if(lb) lb.textContent = LANG==='sv' ? '🇸🇪 SV' : '🇬🇧 EN';
   // Header labels
   const set=(id,k)=>{const e=document.getElementById(id);if(e)e.childNodes[0]&&(e.childNodes[0].nodeValue=t(k))};
-  // Just update header labels via full render
+  hdrLabels();
 }
 
 /* ========================
@@ -2874,7 +2890,10 @@ function showMainMenu(){
       </div>
       <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap">
         <button onclick="openDiceSkins()">🎨 ${t('dice_skins')}</button>
-        <button onclick="toggleLang()">🌐 ${LANG==='sv'?'English':'Svenska'}</button>
+        <span class="lang-pick" role="group" aria-label="Language">
+          <button class="${LANG==='en'?'on':''}" onclick="setLang('en')" aria-pressed="${LANG==='en'}">🇬🇧 English</button>
+          <button class="${LANG==='sv'?'on':''}" onclick="setLang('sv')" aria-pressed="${LANG==='sv'}">🇸🇪 Svenska</button>
+        </span>
         <button onclick="openHelp()">${spr('gi_question')} ${t('help')}</button>
       </div>
     </div>
