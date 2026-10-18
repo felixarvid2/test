@@ -132,7 +132,7 @@ export class UpgradeScene extends Phaser.Scene {
     if (halo) front.add(halo);
     front.add(uiIcon(this, 0, iconY, upgradeIconKey(def), 124));
     const name = crispText(this, 0, -CARD_H / 2 + 262, def.name, { preset: 'heading', size: 30, wordWrap: { width: CARD_W - 28 } });
-    if (name.height > 84) name.setScale(84 / name.height);
+    name.setScale(Math.min(1, (CARD_W - 16) / name.width, 84 / name.height));
     front.add(name);
     const rule = this.add.graphics();
     rule.fillStyle(color, 0.5).fillRect(-CARD_W / 2 + 30, -CARD_H / 2 + 318, CARD_W - 60, 3);

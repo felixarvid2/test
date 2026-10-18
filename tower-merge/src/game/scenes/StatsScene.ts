@@ -128,7 +128,7 @@ export class StatsScene extends Phaser.Scene {
       c.add(crispText(this, 0, 0, 'Finish a run to set your record!', { preset: 'body', size: 30, wordWrap: { width: ROW_W - 80 } }));
       return c;
     }
-    c.add(uiIcon(this, -ROW_W / 2 + 78, -22, iconKey('trophy'), 110));
+    c.add(uiIcon(this, -ROW_W / 2 + 78, -30, iconKey('trophy'), 92));
     c.add(crispText(this, -ROW_W / 2 + 156, -48, `Wave ${run.wave}`, { preset: 'title', size: 56 }).setOrigin(0, 0.5));
     const date = formatRunDate(run.date);
     if (date) c.add(crispText(this, ROW_W / 2 - 28, -64, date, { preset: 'small', size: 22 }).setOrigin(1, 0.5));

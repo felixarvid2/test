@@ -105,6 +105,7 @@ export class SettingsScene extends Phaser.Scene {
       if (key === 'sfxVolume') playSfx('coin'); // preview at the new level
     });
     c.add(slider.container);
+    this.view.content.add(c);
     return c;
   }
 
@@ -128,6 +129,7 @@ export class SettingsScene extends Phaser.Scene {
       fitText(crispText(this, -ROW_W / 2 + 36, -16, t.label, { preset: 'heading', size: 30 }).setOrigin(0, 0.5), 400),
       fitText(crispText(this, -ROW_W / 2 + 36, 26, t.hint, { preset: 'small', size: 21 }).setOrigin(0, 0.5), 420),
       sw.container]);
+    this.view.content.add(c);
     return c;
   }
 

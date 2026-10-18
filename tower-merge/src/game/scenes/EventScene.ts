@@ -125,7 +125,7 @@ export class EventScene extends Phaser.Scene {
   private buildChests(chests: EventOption[], leave: EventOption, top: number): void {
     const n = chests.length;
     const spacing = 208;
-    const chestY = top + 150;
+    const chestY = top + 205;
     const hint = crispText(this, W / 2, top + 40, 'Choose one chest', { preset: 'body', size: 30, colorNum: PALETTE.goldLight }).setDepth(DEPTH.panel + 2);
     const sprites: Phaser.GameObjects.Container[] = [];
     const reveal: Array<(chosen: boolean) => void> = [];
@@ -135,7 +135,7 @@ export class EventScene extends Phaser.Scene {
       const c = this.add.container(x, chestY).setDepth(DEPTH.panel + 3);
       const shadow = this.add.ellipse(0, 78, 150, 28, 0x000000, 0.35);
       const glow = addGlow(this, 0, 0, 260, PALETTE.gold, 0.35);
-      const chestImg = uiIcon(this, 0, 0, 'icon_chest', 168);
+      const chestImg = uiIcon(this, 0, 0, 'icon_chest', 184);
       const tap = crispText(this, 0, 118, 'TAP', { preset: 'small', size: 24, colorNum: PALETTE.goldLight });
       if (glow) c.add(glow);
       c.add([shadow, chestImg, tap]);
