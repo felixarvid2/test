@@ -78,6 +78,7 @@ for (const m of html.matchAll(/\b(?:src|href)=["']([^"']+)["']/gi)) {
   if (url === SDK || /^(data:|#|mailto:)/i.test(url)) continue;
   if (/^(https?:)?\/\//i.test(url)) fail(`index.html references an external URL: ${url}`);
   else if (url.startsWith('/')) fail(`index.html uses an absolute path (use ./ relative paths, check vite base): ${url}`);
+  else if (!existsSync(join(dist, url.split(/[?#]/)[0]))) fail(`index.html references a file that is not in dist/: ${url}`);
 }
 for (const m of html.matchAll(/https?:\/\/[^\s"'<>)]+/gi)) {
   if (m[0] !== SDK && !/\b(?:src|href)=["']$/.test(html.slice(Math.max(0, m.index - 6), m.index))) {
@@ -117,6 +118,7 @@ for (let i = 0; i < files.length; i++) {
         if (/^data:/i.test(u)) continue;
         if (/^(https?:)?\/\//i.test(u)) fail(`${rel} loads an external resource: ${u}`);
         else if (u.startsWith('/')) fail(`${rel} uses an absolute path in url(): ${u}`);
+        else if (rel === 'index.html' && !existsSync(join(dist, u.split(/[?#]/)[0]))) fail(`index.html url() points to a file that is not in dist/: ${u}`);
       }
       for (const m of text.matchAll(/@import\s+(?:url\()?["']?([^"');]+)/gi)) fail(`${rel} @import is not allowed (${m[1]}); bundle the file instead`);
     }
@@ -127,7 +129,7 @@ for (let i = 0; i < files.length; i++) {
       for (const m of text.matchAll(/https?:\/\/([A-Za-z0-9.-]+)([^\s"'`)\\<>]*)/g)) {
         const host = m[1];
         if (FORBIDDEN_HOSTS.test(host)) fail(`${rel} references a CDN / font host: ${m[0]}`);
-        else if (!HARMLESS_HOSTS.test(host)) externalHosts.set(host, (externalHosts.get(host) ?? 0) + 1);
+        else if (!HARMLESS_HOSTS.test(host)) externalHosts.set(`${host}${/phaser/i.test(rel) ? ' (phaser chunk)' : ` (${rel})`}`, (externalHosts.get(host) ?? 0) + 1);
       }
       const checks = [
         ['eval()', /(?<![\w$.])eval\s*\(/g],
@@ -142,7 +144,7 @@ for (let i = 0; i < files.length; i++) {
     }
   }
 }
-for (const [host, n] of externalHosts) warn(`code mentions external host ${host} (${n}x): confirm it is not requested at runtime`);
+for (const [host, n] of externalHosts) warn(`code mentions external host ${host} (${n}x): library strings (credits, docs links), confirm nothing requests it at runtime`);
 for (const [what, n] of risky) warn(`${what}: ${n} occurrence(s). Playables may reject eval / wasm / workers; check with the bundle analyzer`);
 if (files.length > LIMITS.files) fail(`too many files: ${files.length} > ${LIMITS.files}`);
 if (initialTotal >= LIMITS.initialMax) fail(`initial bundle ${fmtSize(initialTotal)} (compressed) is >= 30 MiB`);

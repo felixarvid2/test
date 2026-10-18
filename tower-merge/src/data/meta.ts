@@ -16,11 +16,11 @@ export const META_UPGRADES: MetaUpgradeDef[] = [
   },
   {
     id: 'metaDamage', name: 'Sharpened Steel', description: 'Towers deal +{value} damage.', icon: 'damage',
-    stat: 'damagePct', valuePerLevel: 0.1, maxLevel: 10, baseCost: 30, costGrowth: 1.35,
+    stat: 'damagePct', valuePerLevel: 0.12, maxLevel: 10, baseCost: 30, costGrowth: 1.35,
   },
   {
     id: 'metaFireRate', name: 'Well-Oiled Gears', description: 'Towers attack +{value} faster.', icon: 'speed',
-    stat: 'fireRatePct', valuePerLevel: 0.08, maxLevel: 10, baseCost: 30, costGrowth: 1.35,
+    stat: 'fireRatePct', valuePerLevel: 0.1, maxLevel: 10, baseCost: 30, costGrowth: 1.35,
   },
   {
     id: 'metaDiscount', name: 'Bulk Orders', description: 'Towers cost {value} less to buy.', icon: 'merchant',
@@ -28,11 +28,11 @@ export const META_UPGRADES: MetaUpgradeDef[] = [
   },
   {
     id: 'metaStartLevel', name: 'Veteran Archer', description: 'Your starting Arrow tower begins at +{value} levels.', icon: 'arrow',
-    stat: 'startLevel', valuePerLevel: 1, maxLevel: 2, baseCost: 300, costGrowth: 2.5,
+    stat: 'startLevel', valuePerLevel: 1, maxLevel: 2, baseCost: 200, costGrowth: 2.5,
   },
   {
     id: 'metaExtraSlot', name: 'Expanded Grounds', description: 'Start with +{value} unlocked tower slots.', icon: 'slot',
-    stat: 'extraSlot', valuePerLevel: 1, maxLevel: 2, baseCost: 350, costGrowth: 2.5,
+    stat: 'extraSlot', valuePerLevel: 1, maxLevel: 2, baseCost: 200, costGrowth: 2.5,
   },
   {
     id: 'metaCoinGain', name: 'Tax Collectors', description: '+{value} coins from kills.', icon: 'treasure',

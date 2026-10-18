@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { SLOTS } from '../../src/data/map';
 import {
   DragMachine, IdMirror, QUALITY_PRESETS, QualityMeter, SfxThrottle, abilityButtonXs, bounceOut, classifyTarget, damageLabel,
-  mergeHitstopMs, mergeSound, nearestSlot, overlayForPhase, pickTowerSlot, punchScale, resolveDropSlot, shouldOfferEmergency,
+  mergeHitstopMs, mergeSound, showDamageNumber, nearestSlot, overlayForPhase, pickTowerSlot, punchScale, resolveDropSlot, shouldOfferEmergency,
   shouldOfferRareTower, tutorialStep, type SlotPos, type TutorialInput,
 } from '../../src/game/play/logic';
 
@@ -218,7 +218,7 @@ describe('merge feel', () => {
 
 describe('tutorial and overlays', () => {
   const base: TutorialInput = {
-    firstRunDone: false, mergeHintShown: false, towersBought: 0, towersMerged: 0, coins: 120, buyCost: 36, hasFreeSlot: true, hasPair: false,
+    firstRunDone: false, mergeHintShown: false, towersBought: 0, towersMerged: 0, wave: 1, coins: 120, buyCost: 36, hasFreeSlot: true, hasPair: false,
   };
   it('asks to buy first, then to merge once a pair exists', () => {
     expect(tutorialStep(base)).toBe('buy');
@@ -230,6 +230,7 @@ describe('tutorial and overlays', () => {
     expect(tutorialStep({ ...base, hasPair: true, towersMerged: 1 })).toBe('none');
     expect(tutorialStep({ ...base, coins: 5 })).toBe('none');
     expect(tutorialStep({ ...base, hasFreeSlot: false })).toBe('none');
+    expect(tutorialStep({ ...base, wave: 10 })).toBe('none');
   });
   it('maps phases to blocking overlays', () => {
     expect(overlayForPhase('upgrade')).toBe('Upgrade');
@@ -247,6 +248,19 @@ describe('tutorial and overlays', () => {
     expect(shouldOfferEmergency('ad', true, true)).toBe(false);
     expect(shouldOfferEmergency('ad', false, false)).toBe(false);
     expect(shouldOfferEmergency('none', true, false)).toBe(false);
+  });
+});
+
+describe('damage number clutter', () => {
+  it('shows everything on a quiet screen and crits always', () => {
+    expect(showDamageNumber(1, 500, 2, false)).toBe(true);
+    expect(showDamageNumber(1, 500, 30, true)).toBe(true);
+  });
+  it('drops small hits relative to the biggest recent hit in a crowd', () => {
+    expect(showDamageNumber(10, 500, 8, false)).toBe(false);
+    expect(showDamageNumber(120, 500, 8, false)).toBe(true);
+    expect(showDamageNumber(120, 500, 14, false)).toBe(false);
+    expect(showDamageNumber(200, 500, 14, false)).toBe(true);
   });
 });
 

@@ -26,12 +26,12 @@ export const EVENTS: RandomEventDef[] = [
     description: 'Champions march with the next wave. Stronger foes, better loot.',
     options: [
       {
-        id: 'accept', label: 'Take the challenge', description: 'Next wave: 30% of enemies are elite, coins x1.5.',
-        waveModifier: { eliteChance: 0.3, coinMult: 1.5 },
+        id: 'accept', label: 'Take the challenge', description: 'Next wave: 30% of enemies are elite, coins x2.',
+        waveModifier: { eliteChance: 0.3, coinMult: 2 },
       },
       {
-        id: 'hunt', label: 'Hunt the champions', description: 'Next wave: 50% elite enemies with +10% HP, coins x2.',
-        waveModifier: { eliteChance: 0.5, enemyHpMult: 1.1, coinMult: 2 },
+        id: 'hunt', label: 'Hunt the champions', description: 'Next wave: 50% elite enemies with +10% HP, coins x3.',
+        waveModifier: { eliteChance: 0.5, enemyHpMult: 1.1, coinMult: 3 },
       },
       { id: 'decline', label: 'Decline', description: 'The next wave is unchanged.' },
     ],
@@ -57,8 +57,8 @@ export const EVENTS: RandomEventDef[] = [
     description: 'A chest rests beside the road. Choose one of the rewards inside.',
     options: [
       {
-        id: 'coins', label: 'Pile of gold', description: 'Gain 120 coins.',
-        effects: [{ kind: 'instant', action: 'grantCoins', value: 120 }],
+        id: 'coins', label: 'Pile of gold', description: 'Gain 180 coins.',
+        effects: [{ kind: 'instant', action: 'grantCoins', value: 180 }],
       },
       {
         id: 'tower', label: 'Hidden tower', description: 'Gain a free Level 2 tower.',

@@ -76,8 +76,8 @@ export const UPGRADES: UpgradeDef[] = [
     rarity: 'common', icon: 'crown', maxStacks: 3, requires: { minWave: 3 }, effects: [glob('bossDamage', 'pct', 0.15)],
   },
   {
-    id: 'castleRegen', name: 'Mason Crew', description: 'Castle regenerates 1 HP per second during waves.',
-    rarity: 'common', icon: 'heart', maxStacks: 4, effects: [flag('castleRegen', 1)],
+    id: 'castleRegen', name: 'Mason Crew', description: 'Castle regenerates 0.5 HP per second during waves.',
+    rarity: 'common', icon: 'heart', maxStacks: 4, effects: [flag('castleRegen', 0.5)],
   },
   {
     id: 'killBounty', name: 'Bounty Hunter', description: '+1 coin for every enemy defeated.',
@@ -239,10 +239,10 @@ export const UPGRADES: UpgradeDef[] = [
   },
   {
     id: 'archmagesLegacy', name: "Archmage's Legacy",
-    description: 'Abilities are 50% stronger and recharge 30% faster. All cooldowns reset now.',
+    description: 'Abilities are 35% stronger and recharge 20% faster. All cooldowns reset now.',
     rarity: 'legendary', icon: 'clock', maxStacks: 1, requires: { minWave: 8 },
     effects: [
-      glob('abilityPower', 'pct', 0.5), glob('abilityCooldown', 'pct', -0.3),
+      glob('abilityPower', 'pct', 0.35), glob('abilityCooldown', 'pct', -0.2),
       { kind: 'instant', action: 'resetCooldowns', value: 1 },
     ],
   },

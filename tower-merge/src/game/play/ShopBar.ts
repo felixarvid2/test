@@ -11,7 +11,7 @@ import { TEX } from './textures';
 import { createRoundButton, type RoundButton } from './widgets';
 
 const START_Y = 1076;
-const BUY_Y = 1203;
+const BUY_Y = 1214;
 
 export interface ShopHost {
   buy(): void;
@@ -52,6 +52,8 @@ export class ShopBar {
   private readonly count: Phaser.GameObjects.Text;
   /** Tutorial: gently throb the BUY button. */
   emphasizeBuy = false;
+  /** A tutorial callout owns the line above BUY: do not draw the board-full hint over it. */
+  tutorialShown = false;
 
   constructor(private readonly scene: Phaser.Scene, private readonly host: ShopHost) {
     const fixed = <T extends Phaser.GameObjects.GameObject>(o: T): T => { (o as unknown as { setScrollFactor(v: number): void }).setScrollFactor(0); return o; };
@@ -63,7 +65,7 @@ export class ShopBar {
     g.fillStyle(0xffffff, 0.07).fillRoundedRect(-18, 1044, 756, 26, 14);
 
     this.start = createButton(scene, 0, 0, {
-      label: 'START WAVE', icon: TEX.tri, width: 336, height: 84, fontSize: 32, style: 'primary', depth: D.shop,
+      label: 'START WAVE', icon: TEX.tri, width: 336, height: 88, fontSize: 32, style: 'primary', depth: D.shop,
       onClick: () => host.startWave(),
     });
     this.startWrap = fixed(scene.add.container(360, START_Y, [this.start.container]).setDepth(D.shop));
@@ -77,7 +79,7 @@ export class ShopBar {
     this.count.setPosition(-182, 1);
 
     this.buy = createButton(scene, 0, 0, {
-      label: 'BUY', icon: 'icon_coin', width: 280, height: 112, fontSize: 44, style: 'success', depth: D.shop,
+      label: 'BUY', icon: 'icon_coin', width: 280, height: 104, fontSize: 44, style: 'success', depth: D.shop,
       onClick: () => host.buy(),
     });
     this.buyWrap = fixed(scene.add.container(360, BUY_Y, [this.buy.container]).setDepth(D.shop));
@@ -153,7 +155,7 @@ export class ShopBar {
     } else if (!this.scene.tweens.isTweening(this.buyWrap)) {
       this.buyWrap.setScale(1);
     }
-    const full = !hasFree && live;
+    const full = !hasFree && live && !this.tutorialShown;
     this.hint.setVisible(full);
     if (full) this.hint.setScale(1 + 0.06 * Math.sin(time * 7)).setAlpha(0.8 + 0.2 * Math.sin(time * 7));
 

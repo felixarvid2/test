@@ -213,7 +213,7 @@ export class Hud {
       b.icon.setX(-w / 2 + 22);
       b.text.setX(-w / 2 + 22 + 15 + b.text.width / 2);
       x -= w / 2;
-      b.c.setPosition(x, 94).setVisible(true);
+      b.c.setPosition(x, 92).setVisible(true);
       x -= w / 2 + 8;
     }
   }
@@ -234,8 +234,8 @@ export class Hud {
       bg.fillStyle(0xb35cff, 1).fillCircle(0, 0, 20);
       bg.fillStyle(PALETTE.panelDark, 1).fillCircle(0, 0, 16.5);
       const icon = this.scene.add.image(0, 0, `icon_${def.icon}`).setDisplaySize(28, 28);
-      const zone = this.scene.add.zone(0, 0, 51, 60).setInteractive({ useHandCursor: true });
-      const c = this.scene.add.container(200 + i * 51, 98, [bg, icon, zone]).setDepth(D.hud).setScrollFactor(0);
+      const zone = this.scene.add.zone(0, 0, 51, 66).setInteractive({ useHandCursor: true });
+      const c = this.scene.add.container(200 + i * 51, 92, [bg, icon, zone]).setDepth(D.hud).setScrollFactor(0);
       zone.on('pointerdown', () => {
         showToast(this.scene, `${def.name}: ${def.description}`, { icon: `icon_${def.icon}`, kind: 'info', duration: 2600, y: 190 });
       });

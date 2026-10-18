@@ -206,9 +206,9 @@ export interface QualityPreset {
 }
 
 export const QUALITY_PRESETS: readonly QualityPreset[] = [
-  { particles: 1, trails: true, damageNumbers: 40, hitSparks: true, numbersPerFrame: 6 },
-  { particles: 0.6, trails: false, damageNumbers: 24, hitSparks: true, numbersPerFrame: 3 },
-  { particles: 0.3, trails: false, damageNumbers: 12, hitSparks: false, numbersPerFrame: 2 },
+  { particles: 1, trails: true, damageNumbers: 20, hitSparks: true, numbersPerFrame: 4 },
+  { particles: 0.6, trails: false, damageNumbers: 14, hitSparks: true, numbersPerFrame: 3 },
+  { particles: 0.3, trails: false, damageNumbers: 8, hitSparks: false, numbersPerFrame: 2 },
 ];
 
 export interface QualityOptions {
@@ -377,6 +377,8 @@ export interface TutorialInput {
   mergeHintShown: boolean;
   towersBought: number;
   towersMerged: number;
+  /** Upcoming/current wave number: the buy hint is only for the opening waves. */
+  wave: number;
   coins: number;
   buyCost: number;
   hasFreeSlot: boolean;
@@ -389,7 +391,7 @@ export function tutorialStep(i: TutorialInput): TutorialStep {
   if (i.firstRunDone) return 'none';
   if (i.towersMerged > 0) return 'none';
   if (i.hasPair) return 'merge';
-  if (i.towersBought === 0 && i.coins >= i.buyCost && i.hasFreeSlot) return 'buy';
+  if (i.towersBought === 0 && i.wave <= 2 && i.coins >= i.buyCost && i.hasFreeSlot) return 'buy';
   return 'none';
 }
 
@@ -419,6 +421,15 @@ export function shouldOfferEmergency(gate: string, isBossWave: boolean, alreadyO
 export function abilityButtonXs(count: number): number[] {
   const order = [165, 555, 62, 658];
   return order.slice(0, count);
+}
+
+/**
+ * Whether a normal (non-crit) damage number is worth showing: always while the screen is quiet,
+ * otherwise only hits that are a decent fraction of the biggest recent hit (small ticks are noise).
+ */
+export function showDamageNumber(amount: number, recentMax: number, alive: number, crit: boolean): boolean {
+  if (crit || alive < 5) return true;
+  return amount >= recentMax * (alive >= 12 ? 0.3 : 0.15);
 }
 
 /** Damage number text: whole numbers, compact above 10k. */

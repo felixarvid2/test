@@ -22,13 +22,13 @@ describe('meta descriptions', () => {
     expect(formatMetaValue('rerolls', 2)).toBe('2');
   });
   it('removes float noise from totals', () => {
-    expect(metaTotalAt(meta('metaDamage'), 3)).toBe(0.12);
-    expect(formatMetaValue('damagePct', metaTotalAt(meta('metaDamage'), 7))).toBe('28%');
+    expect(metaTotalAt(meta('metaDamage'), 3)).toBe(0.36);
+    expect(formatMetaValue('damagePct', metaTotalAt(meta('metaDamage'), 7))).toBe('84%');
     expect(formatMetaValue('coinGainPct', metaTotalAt(meta('metaCoinGain'), 3))).toBe('15%');
   });
   it('fills {value} with the total at the given level', () => {
     expect(metaDescription(meta('metaCastleHp'), 3)).toBe('+45 castle HP at the start of a run.');
-    expect(metaDescription(meta('metaDamage'), 3)).toBe('Towers deal +12% damage.');
+    expect(metaDescription(meta('metaDamage'), 3)).toBe('Towers deal +36% damage.');
     expect(metaDescription(meta('metaDiscount'), 0)).toBe('Towers cost 0% less to buy.');
   });
   it('every shipped description resolves without a leftover placeholder', () => {
@@ -38,7 +38,7 @@ describe('meta descriptions', () => {
   });
   it('shows the per-level gain', () => {
     expect(metaGainText(meta('metaCastleHp'))).toBe('+15');
-    expect(metaGainText(meta('metaDamage'))).toBe('+4%');
+    expect(metaGainText(meta('metaDamage'))).toBe('+12%');
   });
 });
 

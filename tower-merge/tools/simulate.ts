@@ -9,13 +9,13 @@
  *
  * Flags: --runs N, --policy greedy|churn|random|noUpgrades|mergeHeavy|spreadOut|all, --meta fresh|mid|late|max|all,
  *        --pool natural|start|full|subset|all (or a comma list), --seed BASE, --maxwaves N, --workers N, --probe KIND,
- *        --probe-runs N, --probe-meta META, --set path=value,... (what-if overrides), --json FILE (raw run records), --sections a,b,c, --quiet.
+ *        --probe-runs N, --probe-meta META, --set path=value,... (what-if overrides), --abilities meteor,repair,..., --json FILE (raw run records), --sections a,b,c, --quiet.
  */
 import { cpus } from 'node:os';
 import { writeFileSync } from 'node:fs';
 import type { BotPolicy } from '../src/sim/bot';
 import { Rng } from '../src/sim/rng';
-import type { TowerId } from '../src/data/types';
+import type { AbilityId, TowerId } from '../src/data/types';
 import {
   boardSection, bossSection, deathSection, economySection, eventSection, killerSection, lengthSection, matrixSection,
   synergySection, towerSection, upgradeSection,
@@ -51,6 +51,7 @@ const num = (k: string, d: number): number => (args[k] !== undefined ? Number(ar
 const workers = num('workers', Math.max(1, Math.min(4, cpus().length)));
 const quiet = args.quiet === 'true';
 const overrides = parseSet(args.set);
+const abilities = args.abilities ? (args.abilities.split(',') as AbilityId[]) : undefined;
 const log = (s: string): void => { if (!quiet) process.stderr.write(`${s}\n`); };
 const heading = (s: string): void => console.log(`\n=== ${s} ===`);
 
@@ -82,7 +83,7 @@ async function sweep(): Promise<void> {
           const pool: TowerId[] = mode === 'subset'
             ? randomSubset(new Rng(seed * 31 + 7))
             : towersForMeta(meta, mode === 'natural' ? 'mixed' : (mode as 'start' | 'full'));
-          jobs.push({ seed, policy, meta, pool, poolLabel: mode, maxWaves, ...(overrides ? { set: overrides } : {}) });
+          jobs.push({ seed, policy, meta, pool, poolLabel: mode, maxWaves, ...(overrides ? { set: overrides } : {}), ...(abilities ? { abilities } : {}) });
         }
       }
     }
@@ -98,7 +99,9 @@ async function sweep(): Promise<void> {
   const wanted = (args.sections ?? SECTIONS.join(',')).split(',');
   const has = (s: string): boolean => wanted.includes(s);
   heading('Presets');
+  const revert = applyOverrides(overrides);
   for (const m of metas) console.log(`${describePreset(m)}  (~${META_GEMS[m]} gems earned in total)`);
+  revert();
   console.log('Abilities: all four. Policies: greedy = rarity-first upgrade picks, merge whenever possible; churn = greedy + sells lonely level 1 towers to reroll when the board is full (tools/balance/churnBot.ts); mergeHeavy / spreadOut = merge-first / never merge; random = random upgrades and board; noUpgrades = only fallback cards.');
   if (has('matrix')) { heading('Policy x meta'); console.log(matrixSection(labelled)); }
   if (has('length')) { heading('Run length'); console.log(lengthSection(labelled)); }

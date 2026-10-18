@@ -228,7 +228,7 @@ describe('meta upgrades', () => {
   it('matches the specified caps', () => {
     const by = (s: MetaStat) => META_UPGRADES.find((m) => m.stat === s)!;
     const spec: Record<MetaStat, [number, number]> = {
-      castleHp: [15, 10], startCoins: [15, 8], damagePct: [0.04, 10], fireRatePct: [0.03, 10], discountPct: [0.03, 5],
+      castleHp: [15, 10], startCoins: [15, 8], damagePct: [0.12, 10], fireRatePct: [0.1, 10], discountPct: [0.03, 5],
       startLevel: [1, 2], extraSlot: [1, 2], coinGainPct: [0.05, 8], abilityCdPct: [0.05, 5], rerolls: [1, 3],
     };
     for (const s of META_STATS) expect([by(s).valuePerLevel, by(s).maxLevel], s).toEqual(spec[s]);

@@ -1,5 +1,5 @@
 /**
- * Headless performance benchmark of the simulation: 130 enemies and 12 level 5 towers firing with
+ * Headless performance benchmark of the simulation: 150 enemies and 12 level 5 towers firing with
  * a large set of flags (procs, statuses, spreads, chains), the projectile cap saturated. Prints
  * milliseconds per update(1/60) (avg / p95 / max), events per frame, an estimate of the garbage
  * produced per update and how fast a whole late-game bot run simulates.
@@ -24,7 +24,7 @@ const arg = (k: string, d: number): number => {
   return i >= 0 ? Number(argv[i + 1]) : d;
 };
 const FRAMES = arg('frames', 1800);
-const ENEMIES = arg('enemies', 130);
+const ENEMIES = arg('enemies', 150);
 const gc = (globalThis as { gc?: () => void }).gc;
 
 const flag = (f: string, value: number): Effect => ({ kind: 'flag', flag: f, value } as Effect);
@@ -41,7 +41,7 @@ const HEAVY: Effect[] = [
 
 function stress(): void {
   const w = createWorld(defaultRunOptions(7, {
-    startingSlots: 12, towerPool: [...TOWER_IDS], daily: { effects: HEAVY },
+    startingSlots: 12, towerPool: [...TOWER_IDS], daily: { effects: HEAVY }, castleHpBonus: 1e6,
   }), { upgrades: [], synergies: [], events: [] });
   w.sellTower(5);
   for (let i = 0; i < 12; i++) w.grantTower(TOWER_IDS[i % TOWER_IDS.length], MAX_TOWER_LEVEL);
@@ -52,7 +52,9 @@ function stress(): void {
   let spawned = 0;
   for (let i = 0; spawned < ENEMIES; i++) {
     const kind = i % 7 === 0 ? 'bat' : i % 5 === 0 ? 'orc' : 'goblin';
-    const e = spawnEnemy(s, kind, { progress: 20 + ((i * 21) % 2300), hpMult: 4e5 });
+    // flyers use the short air lane: keep them on it so nothing leaks into the castle during the run
+    const progress = kind === 'bat' ? 20 + ((i * 13) % 700) : 20 + ((i * 21) % 2300);
+    const e = spawnEnemy(s, kind, { progress, hpMult: 4e5 });
     if (!e) break;
     e.baseSpeed *= 0.05;
     spawned++;
@@ -74,7 +76,7 @@ function stress(): void {
     events += w.drainEvents().length; // the renderer drains every frame
   }
   const avg = ms.reduce((a, b) => a + b, 0) / ms.length;
-  console.log(`stress: ${spawned} enemies (${s.alive} alive), 12 level ${MAX_TOWER_LEVEL} towers, ${Object.keys(HEAVY).length} flags, ${FRAMES} frames`);
+  console.log(`stress: ${spawned} enemies spawned, ${s.alive} alive at the end, 12 level ${MAX_TOWER_LEVEL} towers, ${HEAVY.length} flags, ${FRAMES} frames`);
   console.log(`  update(1/60): avg ${avg.toFixed(3)} ms, p95 ${percentile(ms, 0.95).toFixed(3)} ms, p99 ${percentile(ms, 0.99).toFixed(3)} ms, max ${Math.max(...ms).toFixed(3)} ms (60 fps budget 16.7 ms)`);
   console.log(`  events drained: ${(events / FRAMES).toFixed(1)} per frame; projectiles active ${s.projectiles.filter((p) => p.active).length}/${BALANCE.caps.maxProjectiles}`);
   if (gc) {

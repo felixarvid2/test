@@ -7,6 +7,9 @@ import { D, TOWER_DY } from './constants';
 import type { TutorialStep } from './logic';
 import { TEX } from './textures';
 
+/** The callout sits in the gap between START WAVE and BUY, so the castle stays visible. */
+const TIP_Y = 1139;
+
 /** First-run hints: a pointing hand with a short line of text. Unobtrusive, dismissed by the action itself. */
 export class Tutorial {
   private readonly hand: Phaser.GameObjects.Image;
@@ -22,11 +25,12 @@ export class Tutorial {
   constructor(scene: Phaser.Scene, private readonly buyPoint: () => { x: number; y: number }) {
     this.hand = scene.add.image(0, 0, TEX.hand).setOrigin(0.5, 0.03).setDepth(D.tutorial).setVisible(false).setScale(0.8);
     this.boxBg = scene.add.graphics();
-    this.text = crispText(scene, 0, 0, '', { preset: 'body', size: 28, colorNum: 0xffffff, wordWrap: { width: 560 } });
+    this.text = crispText(scene, 0, 0, '', { preset: 'body', size: 24, colorNum: 0xffffff, strokeThickness: 3, wordWrap: { width: 600 } });
     this.box = scene.add.container(360, 0, [this.boxBg, this.text]).setDepth(D.tutorial).setVisible(false);
   }
 
   get current(): TutorialStep { return this.step; }
+  get visible(): boolean { return this.alpha > 0.03; }
 
   /** The slot pair (a, b) of two towers that can merge, or null. */
   static findPair(world: WorldApi): [number, number] | null {
@@ -40,7 +44,7 @@ export class Tutorial {
   private setText(label: string, y: number): void {
     this.text.setText(label);
     const w = Math.min(620, this.text.width + 48);
-    const h = this.text.height + 26;
+    const h = this.text.height + 14;
     this.boxBg.clear();
     this.boxBg.fillStyle(PALETTE.shadow, 0.35).fillRoundedRect(-w / 2, -h / 2 + 5, w, h, 22);
     this.boxBg.fillStyle(PALETTE.outline, 1).fillRoundedRect(-w / 2 - 3, -h / 2 - 3, w + 6, h + 6, 25);
@@ -54,9 +58,9 @@ export class Tutorial {
     if (step !== this.step) {
       this.step = step;
       this.t = 0;
-      if (step === 'buy') this.setText('Tap BUY to build a tower', 1002);
+      if (step === 'buy') this.setText('Tap BUY to build a tower', TIP_Y);
       else if (step === 'merge') {
-        this.setText('Drag a tower onto its twin to MERGE!', 1000);
+        this.setText('Drag a tower onto its twin to MERGE!', TIP_Y);
         const p = Tutorial.findPair(world);
         this.pairA = p ? p[0] : -1;
         this.pairB = p ? p[1] : -1;

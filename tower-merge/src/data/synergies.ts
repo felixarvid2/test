@@ -18,9 +18,9 @@ export const SYNERGIES: SynergyDef[] = [
   },
   {
     id: 'shatter', name: 'Shatter', icon: 'freeze',
-    description: 'Frost + Cannon: Cannon towers deal +50% damage to frozen or slowed enemies.',
+    description: 'Frost + Cannon: Cannon towers deal +80% damage to frozen or slowed enemies.',
     requires: { towers: ['frost', 'cannon'] },
-    effects: [flag('frozenBonusDamage', 0.5, ['cannon'])],
+    effects: [flag('frozenBonusDamage', 0.8, ['cannon'])],
   },
   {
     id: 'thunderstorm', name: 'Thunderstorm', icon: 'lightning',
@@ -36,9 +36,9 @@ export const SYNERGIES: SynergyDef[] = [
   },
   {
     id: 'napalm', name: 'Napalm', icon: 'cannon',
-    description: 'Cannon + Fire: cannon hits leave burning ground (8 dps, 50 px, 2.5 s).',
+    description: 'Cannon + Fire: cannon hits leave burning ground (14 dps, 50 px, 2.5 s).',
     requires: { towers: ['cannon', 'fire'] },
-    effects: [flag('fireZoneOnHit', 8, ['cannon'])],
+    effects: [flag('fireZoneOnHit', 14, ['cannon'])],
   },
   {
     id: 'deathMark', name: 'Death Mark', icon: 'skull',
@@ -48,9 +48,9 @@ export const SYNERGIES: SynergyDef[] = [
   },
   {
     id: 'arcaneStorm', name: 'Arcane Storm', icon: 'magic',
-    description: 'Magic + Lightning: magic hits have a 20% chance to trigger a 3-jump chain lightning.',
+    description: 'Magic + Lightning: magic hits have a 30% chance to trigger a 3-jump chain lightning.',
     requires: { towers: ['magic', 'lightning'] },
-    effects: [flag('chainLightningChance', 0.2, ['magic'])],
+    effects: [flag('chainLightningChance', 0.3, ['magic'])],
   },
   {
     id: 'frostfire', name: 'Frostfire', icon: 'vortex',
@@ -132,9 +132,9 @@ export const SYNERGIES: SynergyDef[] = [
   },
   {
     id: 'cryoRounds', name: 'Cryo Rounds', icon: 'sniper',
-    description: 'Sniper + Frost: sniper shots have a 20% chance to freeze and make targets take +20% damage for 3 s.',
+    description: 'Sniper + Frost: sniper shots have a 30% chance to freeze and make targets take +20% damage for 3 s.',
     requires: { towers: ['sniper', 'frost'] },
-    effects: [flag('freezeChance', 0.2, ['sniper']), flag('vulnerabilityOnHit', 0.2, ['sniper'])],
+    effects: [flag('freezeChance', 0.3, ['sniper']), flag('vulnerabilityOnHit', 0.2, ['sniper'])],
   },
   {
     id: 'witchsBrew', name: "Witch's Brew", icon: 'curse',

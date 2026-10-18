@@ -8,7 +8,7 @@ import { D } from './constants';
 
 const W_BAR = 560;
 const H_BAR = 36;
-const Y = 134;
+const Y = 148;
 
 /** Big boss health bar under the HUD with name/title and phase markers. Slides in while a boss lives. */
 export class BossBar {

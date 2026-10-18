@@ -35,8 +35,8 @@ export const BALANCE = {
     budgetPerWave: 4.2,
     budgetExp: 1.12,
     /** Enemy hp multiplier at wave n = hpScale * hpGrowth ^ (n - 1) * (1 + hpLinear * (n - 1)). */
-    hpScale: 3,
-    hpGrowth: 1.22,
+    hpScale: 3.7,
+    hpGrowth: 1.2,
     hpLinear: 0.02,
     /** Extra hp growth per wave beyond hpLateStart: the wall that ends most runs. */
     hpLateStart: 7,
@@ -68,7 +68,7 @@ export const BALANCE = {
 
   boss: {
     /** Each loop through Goblin King -> Stone Golem -> Dragon multiplies these. */
-    loopHpMult: 2.6,
+    loopHpMult: 3.6,
     loopCoinMult: 1.6,
     loopDamageMult: 1.25,
     loopGemMult: 1.3,
@@ -188,7 +188,7 @@ export const BALANCE = {
     freezeDuration: 1.2,
     stunDuration: 0.6,
     burnDuration: 3,
-    poisonDpsPerStack: 7,
+    poisonDpsPerStack: 5,
     poisonDuration: 4,
     maxPoisonStacks: 12,
     vulnerabilityDuration: 3,

@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { services } from '../../services';
 import { crispText } from '../ui/text';
 import { D } from './constants';
-import { damageLabel, type QualityMeter } from './logic';
+import { damageLabel, showDamageNumber, type QualityMeter } from './logic';
 
 interface Num {
   t: Phaser.GameObjects.Text;
@@ -25,6 +25,8 @@ export class DamageNumbers {
   private readonly pool: Num[] = [];
   private next = 0;
   private perFrame = 0;
+  private alive = 0;
+  private recentMax = 0;
 
   constructor(scene: Phaser.Scene, private readonly quality: QualityMeter) {
     for (let i = 0; i < POOL; i++) {
@@ -44,7 +46,8 @@ export class DamageNumbers {
   spawn(x: number, y: number, amount: number, crit: boolean): void {
     if (!this.enabled) return;
     const q = this.quality.preset;
-    if (this.perFrame >= q.numbersPerFrame) return;
+    if (amount > this.recentMax) this.recentMax = amount;
+    if (this.perFrame >= q.numbersPerFrame || !showDamageNumber(amount, this.recentMax, this.alive, crit)) return;
     this.perFrame++;
     const cap = Math.min(POOL, q.damageNumbers);
     let n: Num | undefined;
@@ -58,6 +61,7 @@ export class DamageNumbers {
       this.next = (this.next + 1) % POOL;
     }
     n.on = true;
+    this.alive++;
     n.max = n.life = crit ? 0.9 : 0.62;
     n.vy = crit ? -170 : -110;
     n.vx = (Math.random() - 0.5) * (crit ? 90 : 50);
@@ -68,9 +72,12 @@ export class DamageNumbers {
   }
 
   update(dt: number): void {
+    this.recentMax *= Math.exp(-dt / 1.6);
+    let alive = 0;
     for (let i = 0; i < POOL; i++) {
       const n = this.pool[i];
       if (!n.on) continue;
+      alive++;
       n.life -= dt;
       if (n.life <= 0) { n.on = false; n.t.setVisible(false); continue; }
       const age = n.max - n.life;
@@ -81,6 +88,7 @@ export class DamageNumbers {
       n.t.setScale(s * n.size);
       n.t.setAlpha(n.life < 0.2 ? n.life / 0.2 : 1);
     }
+    this.alive = alive;
   }
 
   destroy(): void {

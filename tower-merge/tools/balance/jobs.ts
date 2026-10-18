@@ -5,7 +5,7 @@
 import { Worker } from 'node:worker_threads';
 import { SYNERGIES } from '../../src/data/synergies';
 import { UPGRADES } from '../../src/data/upgrades';
-import type { Effect, TowerId } from '../../src/data/types';
+import type { AbilityId, Effect, TowerId } from '../../src/data/types';
 import type { BotPolicy } from '../../src/sim/bot';
 import type { WorldContent } from '../../src/sim/World';
 import { buildOptions } from './presets';
@@ -29,6 +29,8 @@ export interface JobSpec {
   forcedEffects?: Effect[];
   /** Free label passed through to the record's meta field. */
   tag?: string;
+  /** Abilities of the run (default: all four; the real game unlocks freeze at best wave 5 and frenzy at 10). */
+  abilities?: AbilityId[];
   /** Temporary number overrides (see overrides.ts), applied for the duration of the run. */
   set?: Record<string, number>;
 }
@@ -43,7 +45,7 @@ export function runJob(j: JobSpec): RunRecord {
 }
 
 function runJobInner(j: JobSpec): RunRecord {
-  const options = buildOptions({ seed: j.seed, meta: j.meta, pool: j.pool });
+  const options = buildOptions({ seed: j.seed, meta: j.meta, pool: j.pool, abilities: j.abilities });
   if (j.forcedEffects && j.forcedEffects.length > 0) options.daily = { effects: j.forcedEffects };
   const content: WorldContent | undefined =
     j.synergies || j.withoutUpgrades

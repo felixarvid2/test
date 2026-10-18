@@ -455,6 +455,7 @@ export class GameScene extends Phaser.Scene {
           mergeHintShown: t.mergeHintShown,
           towersBought: w.stats.towersBought,
           towersMerged: w.stats.towersMerged,
+          wave: w.wave,
           coins: w.coins,
           buyCost: w.buyCost(),
           hasFreeSlot: this.hasFreeSlot(),
@@ -465,6 +466,7 @@ export class GameScene extends Phaser.Scene {
     } catch { /* tutorial is optional */ }
     this.shop.emphasizeBuy = step === 'buy';
     this.tutorial.update(step, w, dt, this.drag.dragging);
+    this.shop.tutorialShown = this.tutorial.visible;
   }
 
   // ---------------------------------------------------------------------------------------------

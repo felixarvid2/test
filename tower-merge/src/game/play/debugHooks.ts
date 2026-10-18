@@ -20,8 +20,9 @@ export function installDebugHooks(game: Phaser.Game, scene: Phaser.Scene, world:
   window.__tm = { game, scene, world, speed: setSpeed };
 }
 
-export function clearDebugHooks(scene: Phaser.Scene): void {
-  if (typeof window !== 'undefined' && window.__tm?.scene === scene) delete window.__tm;
+/** Kept installed across scene restarts (a restart re-installs it in create()); nothing to remove. */
+export function clearDebugHooks(_scene: Phaser.Scene): void {
+  /* intentionally empty: window.__tm must never flicker out while a scene restarts */
 }
 
 /** URL flags: ?stress=1 (heavy scenario + fps log), ?q=0|1|2 (pin quality). */

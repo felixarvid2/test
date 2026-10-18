@@ -69,14 +69,22 @@ export function economyReport(): string {
     ['sell value of the starting arrow tower', loops.startArrowSell],
     ['sellRefund', E.sellRefund],
   ]));
+  const buyCost = (n: number): number => Math.round(E.buyBaseCost * Math.pow(E.buyGrowth, n));
+  const slotCost = (k: number): number => Math.round(E.slotUnlockBase * Math.pow(E.slotUnlockGrowth, k));
+  const merchant = EVENTS.find((e) => e.id === 'merchant')?.options[0].cost ?? 0;
+  const chestCoins = EVENTS.find((e) => e.id === 'chest')?.options.find((o) => o.id === 'coins')?.effects?.[0];
+  const coins = chestCoins && chestCoins.kind === 'instant' ? chestCoins.value : 0;
   const rows: (string | number)[][] = [];
-  for (const n of [0, 5, 10, 15, 20, 30]) {
-    const buy = Math.round(E.buyBaseCost * Math.pow(E.buyGrowth, n));
-    const merchant = (EVENTS.find((e) => e.id === 'merchant')?.options[0].cost) ?? 0;
-    rows.push([n, buy, buy * 2, merchant, `${Math.round((1 - merchant / (buy * 2)) * 100)}%`, Math.round(E.slotUnlockBase * Math.pow(E.slotUnlockGrowth, Math.min(n, 8)))]);
+  // typical greedy run: towers bought and slots unlocked by the time of the offer
+  for (const [wave, bought, unlocked] of [[3, 5, 1], [6, 9, 2], [10, 14, 4], [15, 20, 6]]) {
+    const l2 = buyCost(bought) * 2;
+    rows.push([wave, buyCost(bought), coins, l2, `${merchant} (${Math.round((1 - merchant / l2) * 100)}% off)`, slotCost(unlocked)]);
   }
-  parts.push(`Prices by number of towers bought so far (buy cost; two L1 = one L2; merchant L2 offer; discount; next slot unlock if n unlocks)\n${
-    table(['bought', 'buy cost', 'cost of L2', 'merchant L2', 'merchant discount', 'slot unlock'], rows)}`);
+  parts.push(`Coin value of event rewards at typical points of a run (chest: coins / free L2 tower = two buys / free slot = next unlock price; merchant: L2 tower price)\n${
+    table(['wave', 'buy cost', 'chest coins', 'free L2 tower', 'merchant L2', 'free slot'], rows)}`);
+  const unlockRows: (string | number)[][] = [];
+  for (let k = 0; k < 8; k++) unlockRows.push([k + 1, slotCost(k), Math.round(slotCost(k) / buyCost(k * 2 + 4) * 10) / 10]);
+  parts.push(`Slot unlock prices (and as a multiple of the tower price at that point)\n${table(['unlock #', 'coins', 'x tower price'], unlockRows)}`);
   const invested: (string | number)[][] = [];
   for (let l = 1; l <= MAX_TOWER_LEVEL; l++) {
     invested.push([`L${l}`, grantedValue(l), Math.floor(grantedValue(l) * E.sellRefund), `${2 ** (l - 1)} L1 towers`]);

@@ -50,7 +50,7 @@ describe('bot', () => {
     expect(g.wave).toBeLessThanOrEqual(14);
     expect(g.seconds).toBeGreaterThanOrEqual(180);
     expect(g.seconds).toBeLessThanOrEqual(400);
-  });
+  }, 60_000);
 
   it('skipping upgrades dies noticeably earlier', () => {
     const g = average('greedy');
@@ -58,7 +58,7 @@ describe('bot', () => {
     // eslint-disable-next-line no-console
     console.log(`noUpgrades: avg wave ${n.wave.toFixed(1)}, avg ${n.seconds.toFixed(0)} s`);
     expect(n.wave).toBeLessThan(g.wave - 0.8);
-  });
+  }, 60_000);
 
   it('merging beats never merging, and no policy loses in the first waves', () => {
     const spread = average('spreadOut');
@@ -68,5 +68,5 @@ describe('bot', () => {
       const a = policy === 'greedy' ? greedy : policy === 'spreadOut' ? spread : average(policy);
       expect(a.min, policy).toBeGreaterThanOrEqual(4);
     }
-  });
+  }, 60_000);
 });

@@ -15,7 +15,8 @@ const lv = (
 /**
  * The eight towers. Level multipliers are tuned so a level 2 tower (perk included) deals about
  * 2.3-2.5x a level 1 tower's single-target DPS (it frees a slot), and higher levels keep adding
- * ~2x DPS per level through multipliers plus the listed perks. See tests/sim/balance.test.ts.
+ * ~2x DPS per level through multipliers plus the listed perks. See tests/balance/towers.test.ts and docs/BALANCE.md
+ * (damage per slot at equal level is measured by `npm run sim`; base damage and fire rate here were tuned against it).
  */
 export const TOWERS: Record<TowerId, TowerDef> = {
   arrow: {
@@ -87,7 +88,7 @@ export const TOWERS: Record<TowerId, TowerDef> = {
   },
   poison: {
     id: 'poison', name: 'Poison Tower', role: 'Stacking poison that melts tough enemies over time.',
-    attack: 'projectile', damage: 3, fireRate: 1.2, range: 190, splashRadius: 0, projectileSpeed: 480,
+    attack: 'projectile', damage: 3, fireRate: 1.5, range: 190, splashRadius: 0, projectileSpeed: 480,
     critChance: 0, critMult: 2, statusPower: 5, statusDuration: 4, chainCount: 0, chainRange: 0, armorPen: 0,
     hitsAir: true, baseEffects: [flag('poisonOnHit', 1)], color: 0x7bd957, unlock: { kind: 'gems', cost: 250 }, buyWeight: 14,
     levels: [

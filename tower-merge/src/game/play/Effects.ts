@@ -18,6 +18,8 @@ interface Anim {
   arc: number;
   ease: number;
   tex: number;
+  /** True for additive flashes: they are capped so dense fights never white out. */
+  flashy: boolean;
   /** Called once when the animation ends (e.g. a coin reaching the pill). */
   done: ((x: number, y: number) => void) | null;
 }
@@ -104,6 +106,9 @@ export class Effects {
   private linesDirty = false;
   private readonly sfxThrottle = new SfxThrottle(7);
   private frame = 0;
+  private flashAlive = 0;
+  /** Decaying count of recent explosions: dense fights get smaller, dimmer effects. */
+  private recent = 0;
 
   constructor(private readonly scene: Phaser.Scene, readonly quality: QualityMeter) {
     this.cam = scene.cameras.main;
@@ -111,7 +116,7 @@ export class Effects {
       .setScrollFactor(0).setDepth(D.screen).setVisible(false);
 
     const mk = (tex: string, depth: number, cfg: Phaser.Types.GameObjects.Particles.ParticleEmitterConfig) => {
-      const e = scene.add.particles(0, 0, tex, { emitting: false, maxAliveParticles: 260, ...cfg });
+      const e = scene.add.particles(0, 0, tex, { emitting: false, maxAliveParticles: 140, ...cfg });
       e.setDepth(depth);
       return e;
     };
@@ -143,7 +148,7 @@ export class Effects {
     for (let i = 0; i < ANIM_CAP; i++) {
       const img = scene.add.image(0, 0, TEX.dot).setVisible(false);
       this.anims.push({
-        img, on: false, t: 0, dur: 1, x0: 0, y0: 0, x1: 0, y1: 0, s0: 1, s1: 1, a0: 1, a1: 0, r0: 0, r1: 0, arc: 0, ease: 0, tex: 32, done: null,
+        img, on: false, t: 0, dur: 1, x0: 0, y0: 0, x1: 0, y1: 0, s0: 1, s1: 1, a0: 1, a1: 0, r0: 0, r1: 0, arc: 0, ease: 0, tex: 32, flashy: false, done: null,
       });
     }
     for (let i = 0; i < BEAM_CAP; i++) this.beams.push({ on: false, t: 0, dur: 0.12, x1: 0, y1: 0, x2: 0, y2: 0, color: 0xffffff, width: 6 });
@@ -189,6 +194,8 @@ export class Effects {
 
   update(dt: number): void {
     this.frame++;
+    this.recent = Math.max(0, this.recent - dt * 7);
+    let flashes = 0;
     if (this.hitstopLeft > 0) this.hitstopLeft = Math.max(0, this.hitstopLeft - dt);
     if (this.slowLeft > 0) {
       this.slowLeft -= dt;
@@ -211,6 +218,7 @@ export class Effects {
     for (let i = 0; i < anims.length; i++) {
       const a = anims[i];
       if (!a.on) continue;
+      if (a.flashy) flashes++;
       a.t += dt;
       const k = a.t >= a.dur ? 1 : a.t / a.dur;
       const e = a.ease === 1 ? k : a.ease === 2 ? k * k : 1 - (1 - k) * (1 - k);
@@ -225,6 +233,7 @@ export class Effects {
         if (a.done) { const f = a.done; a.done = null; f(a.x1, a.y1); }
       }
     }
+    this.flashAlive = flashes;
     this.drawLines(dt);
   }
 
@@ -278,6 +287,7 @@ export class Effects {
     a.r0 = o?.rot0 ?? 0; a.r1 = o?.rot1 ?? 0;
     a.arc = o?.arc ?? 0;
     a.ease = o?.ease ?? 0;
+    a.flashy = false;
     a.done = o?.done ?? null;
     const img = a.img;
     img.setTexture(tex);
@@ -294,7 +304,13 @@ export class Effects {
 
   /** Soft additive flash. */
   glow(x: number, y: number, color: number, d0: number, d1: number, ms: number, alpha = 0.9): void {
-    this.anim('fx_glow', x, y, d0, d1, alpha, 0, ms / 1000, color);
+    // at most ~6 flash sprites alive; the more there are, the dimmer, smaller and shorter the next ones
+    const n = this.flashAlive;
+    if (n >= 6) return;
+    const k = 1 - n / 7;
+    this.flashAlive++;
+    this.anim('fx_glow', x, y, d0 * (0.6 + 0.4 * k), d1 * (0.6 + 0.4 * k), alpha * 0.8 * k, 0, (ms / 1000) * (0.7 + 0.3 * k), color);
+    this.anims[(this.animNext + this.anims.length - 1) % this.anims.length].flashy = true;
   }
 
   // --- particles --------------------------------------------------------------------------------
@@ -440,23 +456,25 @@ export class Effects {
   explosion(x: number, y: number, radius: number, element: string): void {
     const color = ELEMENT_COLORS[element] ?? ELEMENT_COLORS.physical;
     const r = Math.max(20, radius);
-    this.glow(x, y, 0xffffff, r * 1.0, r * 2.1, 200, 0.5);
-    this.glow(x, y, color, r * 1.4, r * 2.8, 300, 0.5);
-    this.ring(x, y, color, r * 0.7, r * 2.4, 340, 0.95);
-    const n = 5 + r / 7;
+    this.recent += 1;
+    const dense = 1 / (1 + this.recent * 0.45);
+    const n = (5 + r / 7) * dense;
+    // element-coloured flash and ring (no near-white blobs: enemies must stay readable)
+    this.glow(x, y, color, r * 1.2, r * 2.3, 240, 0.5);
+    this.ring(x, y, color, r * 0.7, r * 2.2, 320, 0.85 * (0.4 + 0.6 * dense));
     switch (element) {
       case 'frost':
-        this.stars(x, y, 0xbfeeff, n * 0.8);
-        this.sparks(x, y, 0xffffff, n * 0.6);
+        this.stars(x, y, 0xbfeeff, n * 0.7);
+        this.sparks(x, y, 0xffffff, n * 0.4);
         break;
       case 'poison':
         this.bubbles(x, y, n * 0.6, 0x9be85a);
-        this.puffs(x, y, 3 + r / 20, 0x8be04e);
+        this.puffs(x, y, (3 + r / 20) * dense, 0x8be04e);
         this.sparks(x, y, color, n * 0.5);
         break;
       case 'arcane':
-        this.stars(x, y, color, n * 0.7);
-        this.sparks(x, y, 0xffffff, n * 0.5);
+        this.stars(x, y, color, n * 0.6);
+        this.sparks(x, y, 0xffffff, n * 0.3);
         break;
       case 'lightning':
         this.sparks(x, y, color, n);
@@ -464,11 +482,11 @@ export class Effects {
       case 'fire':
         this.sparks(x, y, color, n);
         this.embers(x, y, n * 0.6);
-        this.puffs(x, y, 2 + r / 24, 0x6a5a52);
+        this.puffs(x, y, (2 + r / 24) * dense, 0x6a5a52);
         break;
       default:
         this.sparks(x, y, 0xffe2b0, n * 0.8);
-        this.puffs(x, y, 3 + r / 18, 0xcdb594);
+        this.puffs(x, y, (3 + r / 18) * dense, 0xcdb594);
     }
     if (r >= 70) this.shake(r >= 95 ? 6 : 3, 180);
     this.sfx(r >= 80 ? 'explosion_big' : 'explosion', { volume: r >= 80 ? 0.9 : 0.55, gapMs: 60 });
@@ -476,7 +494,7 @@ export class Effects {
 
   /** Expanding glow only (no sound), used for hit impacts of lobbed shells etc. */
   impact(x: number, y: number, color: number, size = 34): void {
-    this.glow(x, y, color, size * 0.5, size * 1.6, 160, 0.8);
+    this.glow(x, y, color, size * 0.5, size * 1.4, 130, 0.6);
     if (this.quality.preset.hitSparks) this.sparks(x, y, color, 3);
   }
 
