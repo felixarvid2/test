@@ -18,7 +18,7 @@ export const GOLD = mat('#f5c542', '#c48a1c', '#ffe58a');
 export const IRON = mat('#4a4f63');
 export const BLUE = mat('#3f7fd1', '#2d5ea5', '#6aa6ec');
 
-export const f = (n) => String(+n.toFixed(1));
+export const f = (n) => String(Math.round(n * 2) / 2);
 
 // ---- path shape factories: each returns d(dx, dy) ----
 export const poly = (pts) => (dx = 0, dy = 0) =>
@@ -65,20 +65,38 @@ export class Doc {
     this.add(`<path d="${d()}" fill="${fill}"${ex}${o.extra ?? ''}/>`);
   }
   /**
-   * Cel-shaded outlined shape. m = {b,s,h}. o.sh=[dx,dy] shadow offset, o.hi=[dx,dy] highlight offset
-   * (omit to skip), o.inner = svg drawn inside the clip (bricks, stripes), o.base overrides fill.
+   * Cel-shaded outlined shape. m = {b,s,h}. o.sh=[ax,ay] width of the lower-right shadow crescent,
+   * o.hi=[bx,by] width of the upper-left highlight crescent (omit/null to skip either), o.inner =
+   * svg drawn inside the clip (bricks, stripes), o.base overrides the base fill. Built from three
+   * translated <use> copies of one path, so the geometry is only stored once.
    */
   shape(d, m, o = {}) {
-    const sh = o.sh ?? [3, 3], hi = o.hi;
+    const sh = o.sh === undefined ? [3, 3] : o.sh, hi = o.hi ?? null;
     const id = this.id('p');
     this.defs.push(`<path id="${id}" d="${d()}"/>`, `<clipPath id="c${id}"><use href="#${id}"/></clipPath>`);
-    let g = `<use href="#${id}" fill="${o.base ?? m.b}" stroke="none"/><g clip-path="url(#c${id})" stroke="none">`;
-    if (sh) g += `<path fill-rule="evenodd" fill="${m.s}" d="${d()}${d(-sh[0], -sh[1])}"/>`;
-    if (hi) g += `<path fill-rule="evenodd" fill="${m.h}" d="${d()}${d(hi[0], hi[1])}"/>`;
+    const base = o.base ?? m.b;
+    const u = (x, y, c) => `<use href="#${id}"${x || y ? ` transform="translate(${f(x)} ${f(y)})"` : ''} fill="${c}"/>`;
+    let g = `<g clip-path="url(#c${id})" stroke="none">`;
+    const [hx, hy] = hi ?? [0, 0];
+    if (hi && sh) g += u(0, 0, m.h) + u(hx, hy, m.s) + u(hx - sh[0], hy - sh[1], base);
+    else if (hi) g += u(0, 0, m.h) + u(hx, hy, base);
+    else if (sh) g += u(0, 0, m.s) + u(-sh[0], -sh[1], base);
+    else g += u(0, 0, base);
     if (o.inner) g += o.inner;
-    g += `</g><use href="#${id}" fill="none"${o.sw ? ` stroke-width="${o.sw}"` : ''}/>`;
+    g += o.sw === 0 ? '</g>' : `</g><use href="#${id}" fill="none"${o.sw ? ` stroke-width="${o.sw}"` : ''}/>`;
     this.add(g);
   }
+  /** Records body elements produced by fn() into a reusable <g id> in defs; returns its id. */
+  group(fn) {
+    const id = this.id('r');
+    const saved = this.out;
+    this.out = [];
+    fn();
+    this.defs.push(`<g id="${id}">${this.out.join('')}</g>`);
+    this.out = saved;
+    return id;
+  }
+  use(id, x = 0, y = 0) { this.add(`<use href="#${id}" x="${f(x)}" y="${f(y)}"/>`); }
   toString(extraRoot = '') {
     const sw = this.sw;
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${this.w}" height="${this.h}" viewBox="0 0 ${this.w} ${this.h}"${extraRoot}>` +

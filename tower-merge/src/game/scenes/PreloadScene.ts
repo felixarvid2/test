@@ -3,7 +3,7 @@ import { allTextureKeys } from '../assetKeys';
 import { generateFallbackTextures, textureSizeForKey } from '../fallbackArt';
 import { services } from '../../services';
 import { createProgressBar } from '../ui/progress';
-import { crispText } from '../ui/text';
+import { crispText, fitText } from '../ui/text';
 import { DEPTH, H, PALETTE, W } from '../ui/theme';
 import { SceneKeys } from './keys';
 
@@ -65,14 +65,14 @@ export class PreloadScene extends Phaser.Scene {
       g.fillStyle(Phaser.Display.Color.GetColor(c.r, c.g, c.b), 1).fillRect(0, (H / bands) * i, W, H / bands + 1);
     }
     // soft glow behind the title and a few stars
-    g.fillStyle(0xffc94d, 0.05);
-    for (let r = 300; r > 40; r -= 40) g.fillCircle(W / 2, H * 0.36, r);
+    g.fillStyle(0xffc94d, 0.014);
+    for (let r = 320; r > 30; r -= 8) g.fillCircle(W / 2, H * 0.36, r);
     const rng = new Phaser.Math.RandomDataGenerator(['tower-merge']);
     for (let i = 0; i < 40; i++) {
       g.fillStyle(0xffffff, rng.realInRange(0.15, 0.55)).fillCircle(rng.between(10, W - 10), rng.between(10, H * 0.7), rng.realInRange(1.5, 3.5));
     }
 
-    crispText(this, W / 2, H * 0.3, 'TOWER MERGE', { preset: 'title', size: 84 });
+    fitText(crispText(this, W / 2, H * 0.3, 'TOWER MERGE', { preset: 'title', size: 76 }), W - 60);
     crispText(this, W / 2, H * 0.3 + 100, 'Last Stand', { preset: 'heading', size: 56, colorNum: 0xffffff });
     g.fillStyle(PALETTE.gold, 1).fillRoundedRect(W / 2 - 150, H * 0.3 + 160, 300, 8, 4);
 

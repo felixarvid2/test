@@ -224,9 +224,9 @@ enemies.shaman = () => {
   A.limb('M84 40L69 45', OUT, 3.5, { sw: 0, hi: false });
   A.flat('M56 62Q70 72 84 60Q70 66 56 62Z', '#5b1d2e', { sw: 3 });
   // feather headdress
-  A.cel('M50 32Q40 10 52 4Q58 18 60 30Z', '#e05a3a', { k: 3, sw: 3.5 });
-  A.cel('M60 28Q58 4 70 0Q74 14 70 28Z', GOLD, { k: 3, sw: 3.5 });
-  A.cel('M72 30Q76 8 90 8Q86 22 80 34Z', '#35b8c8', { k: 3, sw: 3.5 });
+  A.cel('M50 32Q42 14 52 9Q58 20 60 30Z', '#e05a3a', { k: 3, sw: 3.5 });
+  A.cel('M60 28Q58 9 70 5Q74 16 70 28Z', GOLD, { k: 3, sw: 3.5 });
+  A.cel('M72 30Q76 12 90 12Q86 24 80 34Z', '#35b8c8', { k: 3, sw: 3.5 });
   A.cel(rr(48, 28, 40, 8, 4), '#a8673a', { k: 3, sw: 3.5 });
   return A;
 };
@@ -245,9 +245,8 @@ enemies.summoner = () => {
   A.stroke('M32 104Q64 112 92 104', '#e05ad6', 4);
   // face void + eyes
   A.cel(ell(64, 44, 20, 17), '#1d1230', { sh: false, hi: false, sw: 3.5 });
-  A.dot(57, 44, 4.5, '#5ef0ff'); A.dot(73, 44, 4.5, '#5ef0ff');
-  A.dot(57, 44, 8, '#5ef0ff').add('');
-  A.body[A.body.length - 1] = `<circle cx="57" cy="44" r="8" fill="#5ef0ff" opacity=".25"/><circle cx="73" cy="44" r="8" fill="#5ef0ff" opacity=".25"/>`;
+  A.add('<circle cx="57" cy="44" r="8.5" fill="#5ef0ff" opacity=".28"/><circle cx="73" cy="44" r="8.5" fill="#5ef0ff" opacity=".28"/>');
+  A.dot(57, 44, 4.6, '#5ef0ff'); A.dot(73, 44, 4.6, '#5ef0ff');
   A.dot(57, 44, 4.2, '#c9fbff'); A.dot(73, 44, 4.2, '#c9fbff');
   A.limb('M47 34L60 40', OUT, 3.5, { sw: 0, hi: false });
   A.limb('M81 34L68 40', OUT, 3.5, { sw: 0, hi: false });
@@ -270,12 +269,12 @@ enemies.troll = () => {
   const T = '#6c8db0', A = E('tr');
   A.shadow(60, 116, 48, 7);
   // club
-  A.limb('M108 112L104 44', '#8a5230', 14, { hi: true });
-  A.cel('M92 52Q88 14 108 10Q128 14 122 52Q108 62 92 52Z', '#a8673a');
-  A.cel('M96 18L88 10L100 14Z', STEEL, { k: 2, sw: 3 });
-  A.cel('M118 16L128 10L122 24Z', STEEL, { k: 2, sw: 3 });
-  A.cel('M92 40L82 40L92 48Z', STEEL, { k: 2, sw: 3 });
-  A.cel('M122 42L130 44L120 52Z', STEEL, { k: 2, sw: 3 });
+  A.limb('M100 112L97 46', '#8a5230', 14, { hi: true });
+  A.cel('M84 54Q80 16 100 12Q118 16 114 54Q100 64 84 54Z', '#a8673a');
+  A.cel('M88 20L80 12L92 16Z', STEEL, { k: 2, sw: 3 });
+  A.cel('M110 18L120 12L114 26Z', STEEL, { k: 2, sw: 3 });
+  A.cel('M84 42L75 42L84 50Z', STEEL, { k: 2, sw: 3 });
+  A.cel('M114 44L122 46L112 54Z', STEEL, { k: 2, sw: 3 });
   // legs
   A.cel(rr(24, 88, 32, 26, 10), T);
   A.cel(rr(60, 88, 32, 26, 10), T);
@@ -287,8 +286,8 @@ enemies.troll = () => {
   A.cel('M16 88Q56 108 96 88L98 98Q56 118 14 98Z', '#8a5a30', { k: 3, sw: 4 });
   // far arm, near arm gripping club
   A.limb('M24 56Q6 74 14 94', T, 17);
-  A.limb('M88 56Q104 70 106 90', T, 17);
-  A.cel(ell(106, 92, 11, 10), T, { k: 4 });
+  A.limb('M88 56Q100 70 100 90', T, 17);
+  A.cel(ell(100, 92, 11, 10), T, { k: 4 });
   // head (small, forward)
   A.cel(ell(58, 36, 24, 20), T);
   A.cel('M36 26Q36 12 56 12Q78 12 80 26Q58 18 36 26Z', '#4a8a4a', { k: 3, sw: 3.5 });
@@ -374,14 +373,10 @@ enemies.imp = () => {
 // ==================================================================================== bosses
 bosses.goblinKing = () => {
   const G = '#4fb36b', CAPE = '#b52f4a', A = B('gk');
-  A.shadow(160, 298, 118, 16);
+  A.shadow(160, 298, 124, 16);
   // cape
-  A.cel('M96 100Q60 160 52 290Q120 302 190 290L196 140Z', CAPE, { k: 14 });
-  A.stroke('M56 276Q120 290 190 276', '#ffe58a', 8);
-  // mace behind
-  A.limb('M262 296L254 130', '#7a4523', 20, { hi: true });
-  A.cel('M222 92L236 48L258 70L282 40L292 82L316 96L290 118L292 154L258 134L232 150L232 116Z', '#6a6f88', { k: 11 });
-  A.cel(ell(262, 98, 22, 22), '#8d8fa8', { k: 7, sw: 7 });
+  A.cel('M104 100Q50 150 28 292Q110 306 196 292L200 140Z', CAPE, { k: 14 });
+  A.stroke('M34 276Q110 292 192 278', '#ffe58a', 8);
   // legs
   A.cel(rr(108, 244, 44, 48, 18), G, { k: 10 });
   A.cel(rr(176, 244, 44, 48, 18), G, { k: 10 });
@@ -397,32 +392,32 @@ bosses.goblinKing = () => {
   A.cel('M96 130Q130 160 164 150Q200 160 232 130Q232 118 214 112L110 114Q96 120 96 130Z', '#e8dcc0', { k: 8 });
   // far arm
   A.limb('M104 150Q70 190 90 230', G, 36);
-  // near arm to mace
-  A.limb('M224 150Q256 160 258 200', G, 36);
-  A.cel(ell(258, 204, 24, 22), G, { k: 8 });
-  // ears
-  A.cel('M96 82L18 52Q22 104 62 124L100 118Z', G, { k: 10 });
-  A.cel('M218 78L296 50Q292 100 252 122L216 116Z', G, { k: 10 });
-  A.cel('M92 86L38 66Q42 94 66 108Z', '#f4a9b8', { sh: false, hi: false, sw: 0, line: false });
-  // head
+  // ears + head
+  A.cel('M96 82L16 56Q20 106 62 126L100 118Z', G, { k: 10 });
+  A.cel('M222 84L284 70Q284 108 252 124L216 116Z', G, { k: 10 });
+  A.cel('M90 88L36 70Q40 96 66 110Z', '#f4a9b8', { sh: false, hi: false, sw: 0, line: false });
   A.cel(ell(162, 98, 70, 56), G, { k: 12 });
   A.cel(ell(216, 114, 14, 11), G, { k: 6, sw: 7 });
-  // eyes + brows
   A.eye(138, 92, 15, 18, { px: 5, sclera: '#fff6b8', sw: 6 });
   A.eye(188, 92, 15, 18, { px: 5, sclera: '#fff6b8', sw: 6 });
   A.limb('M112 70L150 86', OUT, 11, { sw: 0, hi: false });
   A.limb('M214 70L176 86', OUT, 11, { sw: 0, hi: false });
-  // mouth + tusks
   A.flat('M122 128Q166 168 214 124Q166 140 122 128Z', '#5b1d2e', { sw: 7 });
   A.flat('M134 135l-6-22 18 18z', '#fff', { sw: 6 });
   A.flat('M200 133l8-24-20 16z', '#fff', { sw: 6 });
-  A.cel('M126 64Q130 44 162 44Q196 44 202 64Z', '#c0703a', { sh: false, hi: false, sw: 0, line: false }).body.pop();
   // crown
   A.cel('M112 62L106 20L136 40L162 6L188 40L218 20L212 62Q162 74 112 62Z', GOLD, { k: 9 });
   A.cel(rr(112, 54, 100, 16, 6), '#ffe58a', { k: 5, sw: 7 });
   A.cel(ell(162, 36, 9, 9), '#e0394f', { k: 4, sw: 5 });
   A.cel(ell(134, 54, 6, 6), '#35b8c8', { k: 3, sw: 4 });
   A.cel(ell(190, 54, 6, 6), '#35b8c8', { k: 3, sw: 4 });
+  // spiked mace (in front of the ear), then the gripping arm
+  A.limb('M266 300L270 118', '#7a4523', 22, { hi: true });
+  A.cel('M236 98L246 66L262 76L274 44L288 74L308 70L302 98L316 116L296 128L298 154L272 140L246 156L248 128L230 118Z', '#6a6f88', { k: 11 });
+  A.cel(ell(270, 106, 24, 24), '#8d8fa8', { k: 7, sw: 7 });
+  A.cel(ell(262, 98, 7, 7), '#c9ccdd', { sh: false, hi: false, sw: 0, line: false });
+  A.limb('M222 160Q252 170 262 206', G, 36);
+  A.cel(ell(268, 212, 25, 23), G, { k: 8 });
   return A;
 };
 
@@ -471,40 +466,47 @@ bosses.stoneGolem = () => {
 
 bosses.dragon = () => {
   const R = '#e04a34', O = '#ff9a3b', BEL = '#ffd98a', A = B('dr');
-  A.shadow(160, 304, 70, 9, 0.16);
-  // far wing
-  A.cel('M140 140Q100 60 40 40Q60 70 48 92Q70 96 76 120Q100 114 112 138Q124 134 136 150Z', '#b22f2a', { k: 11 });
+  A.shadow(160, 306, 70, 9, 0.16);
+  // wings (behind the body): far wing darker and offset back
+  const wing = (dx, dy) => {
+    const P = (x, y) => `${x + dx} ${y + dy}`;
+    return `M${P(165, 156)}L${P(122, 28)}Q${P(70, 8)} ${P(16, 28)}Q${P(52, 58)} ${P(14, 104)}Q${P(58, 108)} ${P(66, 150)}Q${P(112, 132)} ${P(166, 164)}Z`;
+  };
+  const bones = (dx, dy) => `M${122 + dx} ${28 + dy}L${16 + dx} ${28 + dy}M${122 + dx} ${28 + dy}L${14 + dx} ${104 + dy}M${122 + dx} ${28 + dy}L${66 + dx} ${150 + dy}`;
+  A.cel(wing(26, -8), '#b22f2a', { k: 11 });
+  A.stroke(bones(26, -8), '#6e1c24', 6);
+  A.cel(wing(0, 0), O, { k: 12 });
+  A.stroke(bones(0, 0), '#b22f2a', 7);
   // tail
-  A.limb('M110 200Q48 210 40 250Q38 280 70 284', R, 34);
-  A.cel('M56 262L92 270L62 304L42 284Z', O, { k: 8, sw: 8 });
-  // hind leg + front leg dangling
+  A.limb('M112 206Q50 214 42 250Q40 282 76 286', R, 34);
+  A.cel('M52 268L92 262L84 304L50 296L60 282Z', O, { k: 7, sw: 8 });
+  // hind leg
   A.cel('M122 220Q104 250 122 276L164 270L158 230Z', R, { k: 9 });
-  A.cel('M122 270L168 266L170 288L116 292Z', '#ffd98a', { k: 5, sw: 7 });
+  A.cel('M118 270L168 266L170 290L112 294Z', BEL, { k: 5, sw: 7 });
   // body
   A.cel('M96 176Q100 130 170 128Q226 130 232 180Q226 240 160 244Q98 240 96 176Z', R, { k: 14 });
   A.cel('M130 176Q170 152 218 172Q214 226 160 232Q132 224 130 176Z', BEL, { k: 8, sw: 0, line: false });
   A.stroke('M146 190H208M146 206H204M150 220H196', '#e0a24a', 5);
+  // wing arm
+  A.limb('M168 156Q154 84 122 30', R, 18);
+  A.cel(ell(122, 28, 11, 11), BEL, { k: 4, sw: 6 });
   // front leg
   A.cel('M184 220Q176 252 196 270L232 262L214 226Z', R, { k: 8 });
-  A.cel('M194 264L238 258L240 282L190 284Z', '#ffd98a', { k: 5, sw: 7 });
+  A.cel('M194 264L238 258L240 284L190 286Z', BEL, { k: 5, sw: 7 });
   // spikes along back
-  A.cel('M120 150L108 120L146 134Z', O, { k: 5, sw: 6 });
-  A.cel('M158 134L156 100L184 130Z', O, { k: 5, sw: 6 });
+  A.cel('M112 160L98 128L136 142Z', O, { k: 5, sw: 6 });
+  A.cel('M184 134L200 104L214 140Z', O, { k: 5, sw: 6 });
   // neck + head
-  A.limb('M200 170Q238 150 242 108', R, 46);
-  A.cel('M214 110Q214 66 252 62Q296 64 312 96Q306 122 270 128Q240 140 214 110Z', R, { k: 11 });
-  A.cel('M262 112Q296 104 308 106Q304 124 270 128Z', BEL, { sh: false, hi: false, sw: 0, line: false });
-  A.cel(ell(300, 92, 6, 5), shade(R, 0.5), { sh: false, hi: false, sw: 4 });
-  A.eye(256, 90, 11, 13, { px: 3, sclera: '#fff3a0', pupil: '#2b1d3a', sw: 6 });
-  A.limb('M236 74L270 86', OUT, 8, { sw: 0, hi: false });
-  A.flat('M270 122l4 12 6-12zM286 118l4 10 5-12z', '#fff', { sw: 5 });
-  // horns + frill
-  A.cel('M232 72L206 38L246 62Z', '#f4e2b0', { k: 5, sw: 7 });
-  A.cel('M250 62L238 24L272 56Z', '#f4e2b0', { k: 5, sw: 7 });
-  // near wing (spread)
-  A.cel('M168 140Q190 54 150 12Q232 24 282 14Q262 46 282 76Q250 76 242 104Q218 94 208 120Q188 116 168 150Z', O, { k: 12 });
-  A.stroke('M170 142L150 14M176 142L282 16M180 142L252 80M184 144L212 118', '#b22f2a', 7);
-  A.cel(ell(172, 144, 14, 14), R, { k: 5, sw: 7 });
+  A.limb('M200 174Q238 158 244 116', R, 46);
+  A.cel('M222 112Q220 68 256 64Q298 66 312 98Q306 124 272 130Q244 142 222 112Z', R, { k: 11 });
+  A.cel('M264 114Q296 106 308 108Q304 126 272 130Z', BEL, { sh: false, hi: false, sw: 0, line: false });
+  A.cel(ell(300, 94, 6, 5), shade(R, 0.5), { sh: false, hi: false, sw: 4 });
+  A.eye(258, 92, 11, 13, { px: 3, sclera: '#fff3a0', pupil: '#2b1d3a', sw: 6 });
+  A.limb('M238 76L272 88', OUT, 8, { sw: 0, hi: false });
+  A.flat('M272 124l4 12 6-12zM288 120l4 10 5-12z', '#fff', { sw: 5 });
+  // horns
+  A.cel('M236 74L212 40L252 64Z', '#f4e2b0', { k: 5, sw: 7 });
+  A.cel('M254 64L246 28L278 58Z', '#f4e2b0', { k: 5, sw: 7 });
   return A;
 };
 

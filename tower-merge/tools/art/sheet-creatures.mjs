@@ -25,6 +25,10 @@ const sheets = {
     h += `<h3>in-game 64 / 48 px (grass | path)</h3><div class="row">${ks.map((k) => tile(k, 64, GRASS, 70) + tile(k, 64, PATH_C, 70) + tile(k, 48, GRASS, 56) + tile(k, 48, PATH_C, 56)).join('')}</div>`;
     return { html: h, width: 1420, name: 'enemies' };
   },
+  zoom() {
+    const ks = ENEMY_IDS.map((e) => 'enemy_' + e);
+    return { html: `<div class="row">${ks.map((k, i) => `<div class="t" style="background:${i % 2 ? PATH_C : GRASS};width:256px;height:256px">${img(k, 256)}</div>`).join('')}</div>`, width: 1280, name: 'zoom' };
+  },
   bosses() {
     const ks = BOSS_IDS.map((e) => 'boss_' + e);
     const t = (k, s, bg) => `<div class="t" style="background:${bg};width:${s + 8}px;height:${s + 8}px">${img(k, s)}</div>`;
@@ -45,7 +49,7 @@ const sheets = {
   },
 };
 
-const which = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(sheets);
+const which = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(sheets).filter((k) => k !== 'zoom');
 const browser = await chromium.launch();
 for (const name of which) {
   const { html, width, name: n } = sheets[name]();

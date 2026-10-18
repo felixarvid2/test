@@ -1,0 +1,214 @@
+[
+  {
+    "key": "boss_dragon",
+    "file": "boss_dragon.svg"
+  },
+  {
+    "key": "boss_goblinKing",
+    "file": "boss_goblinKing.svg"
+  },
+  {
+    "key": "boss_stoneGolem",
+    "file": "boss_stoneGolem.svg"
+  },
+  {
+    "key": "enemy_bat",
+    "file": "enemy_bat.svg"
+  },
+  {
+    "key": "enemy_goblin",
+    "file": "enemy_goblin.svg"
+  },
+  {
+    "key": "enemy_imp",
+    "file": "enemy_imp.svg"
+  },
+  {
+    "key": "enemy_orc",
+    "file": "enemy_orc.svg"
+  },
+  {
+    "key": "enemy_rat",
+    "file": "enemy_rat.svg"
+  },
+  {
+    "key": "enemy_shaman",
+    "file": "enemy_shaman.svg"
+  },
+  {
+    "key": "enemy_skeleton",
+    "file": "enemy_skeleton.svg"
+  },
+  {
+    "key": "enemy_stoneling",
+    "file": "enemy_stoneling.svg"
+  },
+  {
+    "key": "enemy_summoner",
+    "file": "enemy_summoner.svg"
+  },
+  {
+    "key": "enemy_troll",
+    "file": "enemy_troll.svg"
+  },
+  {
+    "key": "tower_arrow_1",
+    "file": "tower_arrow_1.svg"
+  },
+  {
+    "key": "tower_arrow_2",
+    "file": "tower_arrow_2.svg"
+  },
+  {
+    "key": "tower_arrow_3",
+    "file": "tower_arrow_3.svg"
+  },
+  {
+    "key": "tower_arrow_4",
+    "file": "tower_arrow_4.svg"
+  },
+  {
+    "key": "tower_arrow_5",
+    "file": "tower_arrow_5.svg"
+  },
+  {
+    "key": "tower_cannon_1",
+    "file": "tower_cannon_1.svg"
+  },
+  {
+    "key": "tower_cannon_2",
+    "file": "tower_cannon_2.svg"
+  },
+  {
+    "key": "tower_cannon_3",
+    "file": "tower_cannon_3.svg"
+  },
+  {
+    "key": "tower_cannon_4",
+    "file": "tower_cannon_4.svg"
+  },
+  {
+    "key": "tower_cannon_5",
+    "file": "tower_cannon_5.svg"
+  },
+  {
+    "key": "tower_fire_1",
+    "file": "tower_fire_1.svg"
+  },
+  {
+    "key": "tower_fire_2",
+    "file": "tower_fire_2.svg"
+  },
+  {
+    "key": "tower_fire_3",
+    "file": "tower_fire_3.svg"
+  },
+  {
+    "key": "tower_fire_4",
+    "file": "tower_fire_4.svg"
+  },
+  {
+    "key": "tower_fire_5",
+    "file": "tower_fire_5.svg"
+  },
+  {
+    "key": "tower_frost_1",
+    "file": "tower_frost_1.svg"
+  },
+  {
+    "key": "tower_frost_2",
+    "file": "tower_frost_2.svg"
+  },
+  {
+    "key": "tower_frost_3",
+    "file": "tower_frost_3.svg"
+  },
+  {
+    "key": "tower_frost_4",
+    "file": "tower_frost_4.svg"
+  },
+  {
+    "key": "tower_frost_5",
+    "file": "tower_frost_5.svg"
+  },
+  {
+    "key": "tower_lightning_1",
+    "file": "tower_lightning_1.svg"
+  },
+  {
+    "key": "tower_lightning_2",
+    "file": "tower_lightning_2.svg"
+  },
+  {
+    "key": "tower_lightning_3",
+    "file": "tower_lightning_3.svg"
+  },
+  {
+    "key": "tower_lightning_4",
+    "file": "tower_lightning_4.svg"
+  },
+  {
+    "key": "tower_lightning_5",
+    "file": "tower_lightning_5.svg"
+  },
+  {
+    "key": "tower_magic_1",
+    "file": "tower_magic_1.svg"
+  },
+  {
+    "key": "tower_magic_2",
+    "file": "tower_magic_2.svg"
+  },
+  {
+    "key": "tower_magic_3",
+    "file": "tower_magic_3.svg"
+  },
+  {
+    "key": "tower_magic_4",
+    "file": "tower_magic_4.svg"
+  },
+  {
+    "key": "tower_magic_5",
+    "file": "tower_magic_5.svg"
+  },
+  {
+    "key": "tower_poison_1",
+    "file": "tower_poison_1.svg"
+  },
+  {
+    "key": "tower_poison_2",
+    "file": "tower_poison_2.svg"
+  },
+  {
+    "key": "tower_poison_3",
+    "file": "tower_poison_3.svg"
+  },
+  {
+    "key": "tower_poison_4",
+    "file": "tower_poison_4.svg"
+  },
+  {
+    "key": "tower_poison_5",
+    "file": "tower_poison_5.svg"
+  },
+  {
+    "key": "tower_sniper_1",
+    "file": "tower_sniper_1.svg"
+  },
+  {
+    "key": "tower_sniper_2",
+    "file": "tower_sniper_2.svg"
+  },
+  {
+    "key": "tower_sniper_3",
+    "file": "tower_sniper_3.svg"
+  },
+  {
+    "key": "tower_sniper_4",
+    "file": "tower_sniper_4.svg"
+  },
+  {
+    "key": "tower_sniper_5",
+    "file": "tower_sniper_5.svg"
+  }
+]
