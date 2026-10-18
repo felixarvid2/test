@@ -957,6 +957,30 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:600;op
   #controls{padding:8px}
   button{padding:10px 14px}
 }
+/* =========================================================
+   FLIMMERFIX: inga suddiga bakgrunder under rörliga lager, inga animerade skuggor/filter
+   ========================================================= */
+/* F1 Ta bort backdrop-filter (bakgrunden under rör sig och ritades om varje bildruta) */
+header,#relics-bar,#combo-sub,#score-display,#overlay,.toast,.popup-log{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+header{background:linear-gradient(180deg,rgb(52,38,80),rgb(26,19,38))}
+#relics-bar{background:rgba(14,10,24,.92)}
+#combo-sub{background:rgba(0,0,0,.55)}
+#overlay{background:radial-gradient(ellipse at 50% 45%,rgba(18,10,32,.9),rgba(3,2,8,.96))}
+/* F2 Orbarna utan mix-blend-mode och blur-filter (ger flimmer när de rör sig) */
+.bg-orb{mix-blend-mode:normal!important;filter:none!important;opacity:.28;will-change:transform}
+/* F3 Roterande bakgrund långsammare och på egen lager */
+.bg-grad,.bg-fog,.bg-ray,.bg-stars{will-change:transform}
+.bg-grad{animation-duration:140s}
+/* F4 Skanlinjerna borta (gav moiré mot rörligt innehåll) */
+body::after{display:none!important}
+/* F5 Inga animerade skuggor och filter på text och knappar */
+#combo-name{animation:none!important}
+#roll-btn,#score-btn{animation:none!important}
+header::before{animation:none!important;display:none}
+#progress-fill{animation:none!important}
+/* F6 Egen komposit för spelytan så att bakgrundslagren inte ritar om innehållet */
+#bg-layers{contain:strict;transform:translateZ(0)}
+#app{isolation:isolate}
 </style>
 </head>
 <body>
