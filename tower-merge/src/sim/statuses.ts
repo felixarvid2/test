@@ -1,12 +1,29 @@
 import { BALANCE } from '../data/balance';
 import { FL } from './modifiers';
-import { hurt, useProc } from './combat';
+import { emitExplosion, HURT_ARGS, hurt, hurtCore, useProc } from './combat';
 import type { Enemy, SimState, TowerInst } from './state';
 
 const C = BALANCE.combat;
 
+/**
+ * Status arguments. Hot callers (on-hit statuses, one call per hit) write their numbers here and
+ * call the *Core functions: passing doubles as call arguments to a function V8 does not inline boxes
+ * every one of them into a heap number, which was a large share of the per-tick garbage.
+ * The public applyX wrappers keep the plain signatures for everything else.
+ */
+export const SA = new Float64Array(4);
+
 /** Slow: keeps the strongest slow and the longest remaining time. */
 export function applySlow(s: SimState, e: Enemy, frac: number, dur: number): void {
+  SA[0] = frac;
+  SA[1] = dur;
+  slowCore(s, e);
+}
+
+/** SA: [fraction, seconds]. */
+export function slowCore(s: SimState, e: Enemy): void {
+  const frac = SA[0];
+  const dur = SA[1];
   if (frac <= 0 || dur <= 0) return;
   const f = Math.min(C.maxSlow, frac);
   if (e.slowTime <= 0) s.emit({ type: 'status', enemyId: e.id, status: 'slow' });
@@ -21,6 +38,15 @@ export function applySlow(s: SimState, e: Enemy, frac: number, dur: number): voi
 export function applyFreeze(
   s: SimState, e: Enemy, dur: number, tower: TowerInst | null, bossCap: number = BALANCE.boss.freezeSeconds,
 ): boolean {
+  SA[0] = dur;
+  SA[1] = bossCap;
+  return freezeCore(s, e, tower);
+}
+
+/** SA: [seconds, boss cap seconds]. */
+export function freezeCore(s: SimState, e: Enemy, tower: TowerInst | null): boolean {
+  let dur = SA[0];
+  const bossCap = SA[1];
   if (e.isBoss) {
     if (e.freezeImmune > 0) return false;
     dur = Math.min(dur, bossCap);
@@ -38,7 +64,7 @@ export function applyFreeze(
 
 function frostNova(s: SimState, src: Enemy, radius: number, tower: TowerInst): void {
   if (!useProc(s)) return;
-  s.emit({ type: 'explosion', x: src.x, y: src.y, radius, element: 'frost' });
+  emitExplosion(s, src.x, src.y, radius, 'frost');
   const buf = s.borrow();
   const n = s.grid.query(src.x, src.y, radius, buf, buf.length);
   const dmg = tower.stats.damage * C.frostNovaDamage;
@@ -52,6 +78,13 @@ function frostNova(s: SimState, src: Enemy, radius: number, tower: TowerInst): v
 }
 
 export function applyStun(s: SimState, e: Enemy, dur: number): void {
+  SA[0] = dur;
+  stunCore(s, e);
+}
+
+/** SA: [seconds]. */
+export function stunCore(s: SimState, e: Enemy): void {
+  let dur = SA[0];
   if (e.isBoss) {
     if (e.stunImmune > 0) return;
     dur = Math.min(dur, BALANCE.boss.stunSeconds);
@@ -63,6 +96,15 @@ export function applyStun(s: SimState, e: Enemy, dur: number): void {
 }
 
 export function applyBurn(s: SimState, e: Enemy, dps: number, dur: number, src: TowerInst | null): void {
+  SA[0] = dps;
+  SA[1] = dur;
+  burnCore(s, e, src);
+}
+
+/** SA: [dps, seconds]. */
+export function burnCore(s: SimState, e: Enemy, src: TowerInst | null): void {
+  const dps = SA[0];
+  const dur = SA[1];
   if (dps <= 0 || dur <= 0) return;
   if (e.burnTime <= 0) {
     e.burnDps = dps;
@@ -75,6 +117,17 @@ export function applyBurn(s: SimState, e: Enemy, dps: number, dur: number, src: 
 }
 
 export function applyPoison(s: SimState, e: Enemy, stacks: number, dpsPerStack: number, dur: number, src: TowerInst | null): void {
+  SA[0] = stacks;
+  SA[1] = dpsPerStack;
+  SA[2] = dur;
+  poisonCore(s, e, src);
+}
+
+/** SA: [stacks, dps per stack, seconds]. */
+export function poisonCore(s: SimState, e: Enemy, src: TowerInst | null): void {
+  const stacks = SA[0];
+  const dpsPerStack = SA[1];
+  const dur = SA[2];
   if (stacks <= 0 || dur <= 0) return;
   if (e.poisonTime <= 0) {
     e.poisonStacks = 0;
@@ -89,6 +142,15 @@ export function applyPoison(s: SimState, e: Enemy, stacks: number, dpsPerStack: 
 }
 
 export function applyVulnerability(e: Enemy, frac: number, dur: number): void {
+  SA[0] = frac;
+  SA[1] = dur;
+  vulnerabilityCore(e);
+}
+
+/** SA: [fraction, seconds]. */
+export function vulnerabilityCore(e: Enemy): void {
+  const frac = SA[0];
+  const dur = SA[1];
   const f = Math.min(C.maxVulnerability, frac);
   if (f > e.vulnerable || e.vulnTime <= 0) e.vulnerable = f;
   if (dur > e.vulnTime) e.vulnTime = dur;
@@ -130,7 +192,7 @@ export function tickStatuses(s: SimState, e: Enemy): boolean {
       e.spreadTimer += dt;
       if (e.spreadTimer >= C.fireSpreadInterval) {
         e.spreadTimer = 0;
-        spreadBurn(s, e, e.burnDps, e.burnTime, e.burnSrc);
+        spreadBurn(s, e, e.burnSrc);
       }
     }
   }
@@ -143,14 +205,18 @@ export function tickStatuses(s: SimState, e: Enemy): boolean {
   if (total > 0) {
     const credit = burnPart >= poisonPart ? e.burnSrc : e.poisonSrc;
     // Damage over time ignores armor (armorPen 1) and the front shield.
-    hurt(s, e, total * dt, credit, 1, NaN, NaN, false, true);
+    HURT_ARGS[0] = total * dt;
+    HURT_ARGS[1] = 1;
+    HURT_ARGS[2] = NaN;
+    HURT_ARGS[3] = NaN;
+    hurtCore(s, e, credit, false, true);
     return e.active;
   }
   return true;
 }
 
 /** Spreads a burn to the nearest enemy that is not already burning (fireSpread). Returns true if it spread. */
-export function spreadBurn(s: SimState, from: Enemy, dps: number, dur: number, src: TowerInst): boolean {
+export function spreadBurn(s: SimState, from: Enemy, src: TowerInst): boolean {
   if (!useProc(s)) return false;
   const buf = s.borrow();
   const n = s.grid.query(from.x, from.y, C.fireSpreadRange, buf, buf.length);
@@ -166,6 +232,6 @@ export function spreadBurn(s: SimState, from: Enemy, dps: number, dur: number, s
   }
   s.release();
   if (!best) return false;
-  applyBurn(s, best, dps, Math.max(dur, 1.5), src);
+  applyBurn(s, best, from.burnDps, Math.max(from.burnTime, 1.5), src);
   return true;
 }

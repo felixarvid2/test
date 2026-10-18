@@ -3,9 +3,11 @@ import { TOWERS } from '../data/towers';
 import type { EnemyId, TowerId } from '../data/types';
 import { FL } from './modifiers';
 import { TOWER_INDEX } from './refresh';
-import { applyBurn, applyFreeze, applyPoison, applySlow, applyStun, applyVulnerability } from './statuses';
+import {
+  applyBurn, applyPoison, applySlow, burnCore, freezeCore, poisonCore, SA, slowCore, stunCore, vulnerabilityCore,
+} from './statuses';
 import { spawnEnemy } from './enemies';
-import type { DeathRec, Enemy, FireZone, Projectile, SimState, TowerInst } from './state';
+import type { DeathRec, Enemy, FireZone, PointRec, Projectile, SimState, TowerInst } from './state';
 
 const C = BALANCE.combat;
 type Element = 'fire' | 'frost' | 'poison' | 'arcane' | 'physical' | 'lightning';
@@ -52,9 +54,20 @@ export function hurt(
   hurtCore(s, e, tower, crit, dot);
 }
 
-const HURT_ARGS = new Float64Array(4);
+export const HURT_ARGS = new Float64Array(4);
 
-function hurtCore(s: SimState, e: Enemy, tower: TowerInst | null, crit: boolean, dot: boolean): void {
+/** Damage number above an enemy (recycled event object; amount is a whole number). */
+function emitDamage(s: SimState, e: Enemy, amount: number, crit: boolean): void {
+  const ev = s.evDamage.next();
+  ev.x = e.x;
+  ev.y = e.y - e.radius;
+  ev.amount = amount;
+  ev.crit = crit;
+  ev.enemyId = e.id;
+  s.emit(ev);
+}
+
+export function hurtCore(s: SimState, e: Enemy, tower: TowerInst | null, crit: boolean, dot: boolean): void {
   const raw = HURT_ARGS[0];
   const armorPen = HURT_ARGS[1];
   const srcX = HURT_ARGS[2];
@@ -99,14 +112,14 @@ function hurtCore(s: SimState, e: Enemy, tower: TowerInst | null, crit: boolean,
     if (e.dotEventTimer >= 0.5) {
       if (e.dotAcc >= 1 && s.damageEvents < BALANCE.caps.damageEventsPerTick) {
         s.damageEvents++;
-        s.emit({ type: 'damage', x: e.x, y: e.y - e.radius, amount: Math.round(e.dotAcc), crit: false, enemyId: e.id });
+        emitDamage(s, e, Math.round(e.dotAcc), false);
       }
       e.dotAcc = 0;
       e.dotEventTimer = 0;
     }
   } else if (s.damageEvents < BALANCE.caps.damageEventsPerTick) {
     s.damageEvents++;
-    s.emit({ type: 'damage', x: e.x, y: e.y - e.radius, amount: Math.max(1, Math.round(shown)), crit, enemyId: e.id });
+    emitDamage(s, e, Math.max(1, Math.round(shown)), crit);
   }
   if (e.hp <= 0) killEnemy(s, e, tower, false);
 }
@@ -284,12 +297,39 @@ function poisonSpread(s: SimState, r: DeathRec, src: TowerInst): void {
 // Area effects
 // ---------------------------------------------------------------------------------------------
 
+/** Explosion visual event (recycled event object). Inlined by callers so the doubles are not boxed. */
+export function emitExplosion(s: SimState, x: number, y: number, radius: number, element: Element): void {
+  const ev = s.evExplosion.next();
+  ev.x = x;
+  ev.y = y;
+  ev.radius = radius;
+  ev.element = element;
+  s.emit(ev);
+}
+
 /** Plain explosion damage (no statuses, never triggers procs). */
 export function explosion(
   s: SimState, x: number, y: number, radius: number, dmg: number, tower: TowerInst | null,
   element: Element, hitAir: boolean, armorPen: number,
 ): void {
-  s.emit({ type: 'explosion', x, y, radius, element });
+  EX_ARGS[0] = x;
+  EX_ARGS[1] = y;
+  EX_ARGS[2] = radius;
+  EX_ARGS[3] = dmg;
+  EX_ARGS[4] = armorPen;
+  explosionCore(s, tower, element, hitAir);
+}
+
+/** explosion's numbers (x, y, radius, damage, armorPen), passed through memory so no double is boxed. */
+export const EX_ARGS = new Float64Array(5);
+
+export function explosionCore(s: SimState, tower: TowerInst | null, element: Element, hitAir: boolean): void {
+  const x = EX_ARGS[0];
+  const y = EX_ARGS[1];
+  const radius = EX_ARGS[2];
+  const dmg = EX_ARGS[3];
+  const armorPen = EX_ARGS[4];
+  emitExplosion(s, x, y, radius, element);
   const buf = s.borrow();
   const n = s.grid.query(x, y, radius, buf, buf.length);
   for (let i = 0; i < n; i++) {
@@ -418,6 +458,19 @@ export function updateZones(s: SimState, dt: number): void {
 export function towerHit(
   s: SimState, t: TowerInst, e: Enemy, base: number, crit: boolean, primary: boolean, srcX: number, srcY: number,
 ): void {
+  TH_ARGS[0] = base;
+  TH_ARGS[1] = srcX;
+  TH_ARGS[2] = srcY;
+  towerHitCore(s, t, e, crit, primary);
+}
+
+/** towerHit's doubles (base damage, source x/y), passed through memory to avoid boxing. */
+export const TH_ARGS = new Float64Array(3);
+
+export function towerHitCore(s: SimState, t: TowerInst, e: Enemy, crit: boolean, primary: boolean): void {
+  const base = TH_ARGS[0];
+  const srcX = TH_ARGS[1];
+  const srcY = TH_ARGS[2];
   const st = t.stats;
   const f = st.flags;
   let d = base;
@@ -439,7 +492,7 @@ export function towerHit(
       s.emit({ type: 'status', enemyId: e.id, status: 'execute' });
       if (s.damageEvents < BALANCE.caps.damageEventsPerTick) {
         s.damageEvents++;
-        s.emit({ type: 'damage', x: e.x, y: e.y - e.radius, amount: Math.max(1, Math.round(hpLeft)), crit: true, enemyId: e.id });
+        emitDamage(s, e, Math.max(1, Math.round(hpLeft)), true);
       }
       t.damageDealt += e.hp;
       s.towerDmg[TOWER_INDEX[t.type]] += e.hp;
@@ -451,34 +504,81 @@ export function towerHit(
   }
   if (!executed) {
     hurt(s, e, d, t, st.armorPen, srcX, srcY, crit, false);
-    if (e.active) onHitStatuses(s, t, e, d);
+    if (e.active) {
+      HIT_DMG[0] = d;
+      onHitStatuses(s, t, e);
+    }
   }
   if (primary && s.depth === 0) onHitProcs(s, t, e, base, crit);
 }
 
-function onHitStatuses(s: SimState, t: TowerInst, e: Enemy, hitDmg: number): void {
+/** Damage of the hit being processed (passed through memory so no double is boxed for the call). */
+const HIT_DMG = new Float64Array(1);
+
+function onHitStatuses(s: SimState, t: TowerInst, e: Enemy): void {
+  const hitDmg = HIT_DMG[0];
   const st = t.stats;
   const f = st.flags;
   const rng = s.rngC;
   const durRel = st.durRel;
   let v = f[FL.slowOnHit];
-  if (v > 0) applySlow(s, e, v * st.spRel, C.slowDuration * durRel);
+  if (v > 0) {
+    SA[0] = v * st.spRel;
+    SA[1] = C.slowDuration * durRel;
+    slowCore(s, e);
+  }
   v = f[FL.freezeChance];
-  if (v > 0 && rng.chance(Math.min(1, v))) applyFreeze(s, e, C.freezeDuration * durRel, t);
+  if (v > 0 && rng.below(v)) {
+    SA[0] = C.freezeDuration * durRel;
+    SA[1] = BALANCE.boss.freezeSeconds;
+    freezeCore(s, e, t);
+  }
   v = f[FL.stunChance];
-  if (v > 0 && rng.chance(Math.min(1, v))) applyStun(s, e, C.stunDuration * durRel);
+  if (v > 0 && rng.below(v)) {
+    SA[0] = C.stunDuration * durRel;
+    stunCore(s, e);
+  }
   v = f[FL.burnOnHit];
-  if (v > 0) applyBurn(s, e, v * hitDmg * st.spRel, C.burnDuration * durRel, t);
+  if (v > 0) {
+    SA[0] = v * hitDmg * st.spRel;
+    SA[1] = C.burnDuration * durRel;
+    burnCore(s, e, t);
+  }
   v = f[FL.poisonOnHit];
-  if (v > 0) applyPoison(s, e, Math.max(1, Math.round(v)), C.poisonDpsPerStack * st.spRel * st.dotScale, C.poisonDuration * durRel, t);
+  if (v > 0) {
+    SA[0] = Math.max(1, Math.round(v));
+    SA[1] = C.poisonDpsPerStack * st.spRel * st.dotScale;
+    SA[2] = C.poisonDuration * durRel;
+    poisonCore(s, e, t);
+  }
   v = f[FL.vulnerabilityOnHit];
-  if (v > 0) applyVulnerability(e, v, C.vulnerabilityDuration);
+  if (v > 0) {
+    SA[0] = v;
+    SA[1] = C.vulnerabilityDuration;
+    vulnerabilityCore(e);
+  }
   if (f[FL.randomElement] > 0) {
     switch (rng.int(4)) {
-      case 0: applyBurn(s, e, C.randomElementBurnFraction * hitDmg * st.spRel, C.burnDuration * durRel, t); break;
-      case 1: applySlow(s, e, C.randomElementSlow * st.spRel, C.slowDuration * durRel); break;
-      case 2: applyPoison(s, e, 1, C.poisonDpsPerStack * st.spRel * st.dotScale, C.poisonDuration * durRel, t); break;
-      default: applyStun(s, e, C.randomElementStun * durRel); break;
+      case 0:
+        SA[0] = C.randomElementBurnFraction * hitDmg * st.spRel;
+        SA[1] = C.burnDuration * durRel;
+        burnCore(s, e, t);
+        break;
+      case 1:
+        SA[0] = C.randomElementSlow * st.spRel;
+        SA[1] = C.slowDuration * durRel;
+        slowCore(s, e);
+        break;
+      case 2:
+        SA[0] = 1;
+        SA[1] = C.poisonDpsPerStack * st.spRel * st.dotScale;
+        SA[2] = C.poisonDuration * durRel;
+        poisonCore(s, e, t);
+        break;
+      default:
+        SA[0] = C.randomElementStun * durRel;
+        stunCore(s, e);
+        break;
     }
   }
 }
@@ -487,12 +587,19 @@ function onHitProcs(s: SimState, t: TowerInst, e: Enemy, base: number, crit: boo
   const st = t.stats;
   const f = st.flags;
   let v = f[FL.explosionOnHit];
-  if (v > 0 && useProc(s)) explosion(s, e.x, e.y, v, base * C.explosionOnHitDamage, t, towerElement(t.type), true, st.armorPen);
+  if (v > 0 && useProc(s)) {
+    EX_ARGS[0] = e.x;
+    EX_ARGS[1] = e.y;
+    EX_ARGS[2] = v;
+    EX_ARGS[3] = base * C.explosionOnHitDamage;
+    EX_ARGS[4] = st.armorPen;
+    explosionCore(s, t, towerElement(t.type), true);
+  }
   v = f[FL.fireZoneOnHit];
   if (v > 0 && !e.flying) addFireZone(s, e.x, e.y, v, t);
   v = f[FL.chainLightningChance];
   if (v > 0 && s.rngC.chance(Math.min(1, v)) && useProc(s)) {
-    chainStrike(s, t, e, base * C.procChainDamage, false, C.procChainJumps, C.procChainRange, true, e.x, e.y);
+    chainStrike(s, t, e, base * C.procChainDamage, false, C.procChainJumps, C.procChainRange, true, e);
   }
   v = f[FL.critLightning];
   if (crit && v > 0 && useProc(s)) critBolts(s, t, e, base * C.critLightningDamage, Math.round(v));
@@ -518,7 +625,12 @@ function critBolts(s: SimState, t: TowerInst, origin: Enemy, dmg: number, count:
     if (bestI < 0) break;
     const v = s.enemies[buf[bestI]];
     buf[bestI] = -1;
-    s.emit({ type: 'chain', points: [{ x: origin.x, y: origin.y }, { x: v.x, y: v.y }], source: 'proc' });
+    const cs = s.evChain.next();
+    cs.begin('proc');
+    cs.addAt(origin);
+    cs.addAt(v);
+    cs.finish();
+    s.emit(cs.ev);
     hurt(s, v, dmg, t, t.stats.armorPen, NaN, NaN, false, false);
   }
   s.release();
@@ -530,26 +642,38 @@ function critBolts(s: SimState, t: TowerInst, origin: Enemy, dmg: number, count:
  */
 export function chainStrike(
   s: SimState, t: TowerInst | null, first: Enemy, dmg: number, crit: boolean, jumps: number, range: number,
-  proc: boolean, srcX: number, srcY: number,
+  proc: boolean, src: PointRec,
 ): void {
   const infinite = s.gm.flags[FL.infiniteChain] > 0;
   const decay = infinite ? C.chainDecayInfinite : C.chainDecay;
   const maxJumps = infinite ? BALANCE.caps.chainHardCap : jumps;
   const ids = s.borrow();
   let hitCount = 0;
-  const pts: { x: number; y: number }[] = [{ x: srcX, y: srcY }];
+  const slot = s.evChain.next();
+  slot.begin(proc || !t ? 'proc' : t.type);
+  slot.addAt(src);
   let cur: Enemy = first;
   let d = dmg;
   const floor = dmg * C.chainMinFraction;
   for (let j = 0; ; j++) {
-    pts.push({ x: cur.x, y: cur.y });
+    slot.addAt(cur);
     ids[hitCount++] = cur.id;
     if (s.hitEvents < BALANCE.caps.hitEventsPerTick) {
       s.hitEvents++;
-      s.emit({ type: 'hit', x: cur.x, y: cur.y, kind: 'chain', tower: t ? t.type : null });
+      const hv = s.evHit.next();
+      hv.x = cur.x;
+      hv.y = cur.y;
+      hv.kind = 'chain';
+      hv.tower = t ? t.type : null;
+      s.emit(hv);
     }
     if (proc || !t) hurt(s, cur, d, t, t ? t.stats.armorPen : 0, NaN, NaN, crit, false);
-    else towerHit(s, t, cur, d, crit, j === 0, j === 0 ? srcX : NaN, j === 0 ? srcY : NaN);
+    else {
+      TH_ARGS[0] = d;
+      TH_ARGS[1] = j === 0 ? src.x : NaN;
+      TH_ARGS[2] = j === 0 ? src.y : NaN;
+      towerHitCore(s, t, cur, crit, j === 0);
+    }
     if (j >= maxJumps) break;
     d *= 1 - decay;
     if (infinite && d < floor) break;
@@ -560,7 +684,8 @@ export function chainStrike(
   }
   s.release();
   s.stats.chainLightnings++;
-  s.emit({ type: 'chain', points: pts, source: proc || !t ? 'proc' : t.type });
+  slot.finish();
+  s.emit(slot.ev);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -574,7 +699,7 @@ export function applySecondary(s: SimState, t: TowerInst, e: Enemy, base: number
     case 'fire': applySlow(s, e, C.secondarySlow * st.spRel, C.secondarySlowSeconds * st.durRel); break;
     case 'frost': applyBurn(s, e, C.secondaryBurnFraction * base * st.spRel, C.burnDuration * st.durRel, t); break;
     case 'poison':
-      if (useProc(s)) chainStrike(s, t, e, base * C.procChainDamage, false, C.secondaryChainJumps, C.procChainRange, true, e.x, e.y);
+      if (useProc(s)) chainStrike(s, t, e, base * C.procChainDamage, false, C.secondaryChainJumps, C.procChainRange, true, e);
       break;
     case 'lightning':
       applyPoison(s, e, C.secondaryPoisonStacks, C.poisonDpsPerStack * st.spRel * st.dotScale, C.poisonDuration * st.durRel, t);

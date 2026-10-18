@@ -6,13 +6,23 @@ export class Rng {
     this.s = (seed | 0) || 0x9e3779b9;
   }
 
-  /** Uniform in [0, 1). */
-  next(): number {
+  /** Next raw 32-bit output (unsigned). Integer-valued, so hot callers avoid boxing a double. */
+  private u32(): number {
     this.s = (this.s + 0x6d2b79f5) | 0;
     let t = this.s;
     t = Math.imul(t ^ (t >>> 15), t | 1);
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    return (t ^ (t >>> 14)) >>> 0;
+  }
+
+  /** Uniform in [0, 1). */
+  next(): number {
+    return this.u32() / 4294967296;
+  }
+
+  /** True with probability p; always consumes one random number (same stream as `next() < p`). */
+  below(p: number): boolean {
+    return this.u32() < p * 4294967296;
   }
 
   range(a: number, b: number): number {
@@ -21,11 +31,11 @@ export class Rng {
 
   /** Integer in [0, n). */
   int(n: number): number {
-    return n <= 1 ? 0 : Math.floor(this.next() * n);
+    return n <= 1 ? 0 : Math.floor(this.u32() * n / 4294967296);
   }
 
   chance(p: number): boolean {
-    return p > 0 && this.next() < p;
+    return p > 0 && this.u32() < p * 4294967296;
   }
 
   pick<T>(arr: readonly T[]): T {

@@ -101,9 +101,19 @@ export class World implements WorldApi {
     if (this.s.dirty) refresh(this.s);
   }
 
+  /**
+   * Returns the events since the last call. To avoid per-frame garbage the returned array and the
+   * hit / damage / explosion / chain event objects are recycled: read them synchronously (the renderer
+   * does, within the frame) and copy anything you want to keep. The array stays intact until the
+   * second following drainEvents() call; event objects are reused after ~500 further events of their type.
+   */
   drainEvents(): SimEvent[] {
-    const out = this.s.events;
-    this.s.events = [];
+    const s = this.s;
+    const out = s.events;
+    if (out.length !== s.evCount) out.length = s.evCount;
+    s.events = s.spareEvents;
+    s.evCount = 0;
+    s.spareEvents = out;
     return out;
   }
 
@@ -153,7 +163,7 @@ export class World implements WorldApi {
     if (s.phase !== 'wave') return;
     updateTowers(s, STEP);
     flushDeaths(s);
-    updateProjectiles(s, STEP);
+    updateProjectiles(s);
     updateZones(s, STEP);
     flushDeaths(s);
     if (s.phase === 'wave' && plan.next >= plan.entries.length && s.alive <= 0) completeWave(s);

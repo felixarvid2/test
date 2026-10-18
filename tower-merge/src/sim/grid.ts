@@ -14,6 +14,8 @@ const COLS = Math.ceil(WORLD_W / CELL);
 const ROWS = Math.ceil(WORLD_H / CELL);
 /** Largest enemy radius: queries widen their cell range by this so big bodies are not missed. */
 const MAX_RADIUS = 64;
+/** Query arguments (x, y, radius) passed through memory instead of as boxed call arguments. */
+const QA = new Float64Array(3);
 
 /**
  * Uniform grid over the world. Rebuilt once per tick (after movement); entities are chained through
@@ -53,6 +55,17 @@ export class SpatialGrid<T extends GridEntity> {
    * not seen until the next tick.
    */
   query(x: number, y: number, r: number, out: Int32Array, max: number): number {
+    // numbers go through memory: this method is too big to inline, and a real call would box x, y and r
+    QA[0] = x;
+    QA[1] = y;
+    QA[2] = r;
+    return this.queryCore(out, max);
+  }
+
+  private queryCore(out: Int32Array, max: number): number {
+    const x = QA[0];
+    const y = QA[1];
+    const r = QA[2];
     const reach = r + MAX_RADIUS;
     let x0 = ((x - reach) / CELL) | 0;
     let x1 = ((x + reach) / CELL) | 0;
@@ -92,6 +105,16 @@ export class SpatialGrid<T extends GridEntity> {
     x: number, y: number, range: number, skip: Int32Array, skipCount: number, groundOnly: boolean,
     isFlyer: (e: T) => boolean,
   ): number {
+    QA[0] = x;
+    QA[1] = y;
+    QA[2] = range;
+    return this.nearestCore(skip, skipCount, groundOnly, isFlyer);
+  }
+
+  private nearestCore(skip: Int32Array, skipCount: number, groundOnly: boolean, isFlyer: (e: T) => boolean): number {
+    const x = QA[0];
+    const y = QA[1];
+    const range = QA[2];
     const reach = range + MAX_RADIUS;
     let x0 = Math.max(0, ((x - reach) / CELL) | 0);
     let y0 = Math.max(0, ((y - reach) / CELL) | 0);

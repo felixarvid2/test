@@ -5,11 +5,11 @@ import { TOWERS } from '../data/towers';
 import type { TowerId } from '../data/types';
 import type { ProjectileKind } from './api';
 import {
-  acquireProjectile, applySecondary, chainStrike, explosion, isFlyer, scatterBomblets, spawnShards, towerElement, towerHit,
+  acquireProjectile, applySecondary, chainStrike, emitExplosion, explosion, isFlyer, scatterBomblets, spawnShards, towerElement, TH_ARGS, towerHitCore,
   useProc, hurt,
 } from './combat';
 import { FL } from './modifiers';
-import type { Enemy, Projectile, SimState, TowerInst } from './state';
+import type { Enemy, HitEvent, Projectile, SimState, TowerInst } from './state';
 
 const C = BALANCE.combat;
 
@@ -114,8 +114,8 @@ function attackOne(s: SimState, t: TowerInst, targetIdx: number, secondary: bool
     case 'chain':
       for (let k = 0; k < n; k++) {
         if (k > 0 && !target.active) break;
-        const crit = s.rngC.next() < st.critChance;
-        chainStrike(s, t, target, st.damage * (crit ? st.critMult : 1), crit, st.chainCount, st.chainRange, false, pos.x, pos.y);
+        const crit = s.rngC.below(st.critChance);
+        chainStrike(s, t, target, st.damage * (crit ? st.critMult : 1), crit, st.chainCount, st.chainRange, false, pos);
       }
       if (secondary && target.active) applySecondary(s, t, target, st.damage);
       break;
@@ -134,16 +134,19 @@ function attackOne(s: SimState, t: TowerInst, targetIdx: number, secondary: bool
 function fireBeam(s: SimState, t: TowerInst, target: Enemy, secondary: boolean): void {
   const st = t.stats;
   const pos = SLOTS[t.slot];
-  const crit = s.rngC.next() < st.critChance;
+  const crit = s.rngC.below(st.critChance);
   const dmg = st.damage * (crit ? st.critMult : 1);
   s.emit({ type: 'beam', tower: t.type, x: pos.x, y: pos.y, tx: target.x, ty: target.y, crit });
   if (s.hitEvents < BALANCE.caps.hitEventsPerTick) {
     s.hitEvents++;
-    s.emit({ type: 'hit', x: target.x, y: target.y, kind: 'beam', tower: t.type });
+    emitHit(s, target.x, target.y, 'beam', t.type);
   }
   const tx = target.x;
   const ty = target.y;
-  towerHit(s, t, target, dmg, crit, true, pos.x, pos.y);
+  TH_ARGS[0] = dmg;
+  TH_ARGS[1] = pos.x;
+  TH_ARGS[2] = pos.y;
+  towerHitCore(s, t, target, crit, true);
   if (secondary) applySecondary(s, t, target, dmg);
   // pierce: also hit enemies along the line behind the target
   const pierce = Math.min(8, Math.round(st.flags[FL.pierce]));
@@ -176,7 +179,10 @@ function fireBeam(s: SimState, t: TowerInst, target: Enemy, secondary: boolean):
       if (bestI < 0) break;
       const v = s.enemies[bestI];
       used[usedN++] = v.id;
-      towerHit(s, t, v, dmg, crit, false, pos.x, pos.y);
+      TH_ARGS[0] = dmg;
+      TH_ARGS[1] = pos.x;
+      TH_ARGS[2] = pos.y;
+      towerHitCore(s, t, v, crit, false);
     }
     s.release();
   }
@@ -190,7 +196,7 @@ function fireCone(s: SimState, t: TowerInst, target: Enemy, secondary: boolean):
   const uy = Math.sin(ang);
   const tanHalf = Math.tan(C.coneHalfAngle);
   s.emit({ type: 'cone', x: pos.x, y: pos.y, angle: ang, range: st.range });
-  const crit = s.rngC.next() < st.critChance;
+  const crit = s.rngC.below(st.critChance);
   const dmg = st.damage * (crit ? st.critMult : 1);
   const buf = s.borrow();
   const n = s.grid.query(pos.x, pos.y, st.range, buf, buf.length);
@@ -209,13 +215,16 @@ function fireCone(s: SimState, t: TowerInst, target: Enemy, secondary: boolean):
         if (Math.abs(px * uy - py * ux) > Math.max(0, along) * tanHalf + v.radius) continue;
       }
       if (v === target) doneTarget = true;
-      towerHit(s, t, v, dmg, crit, v === target, pos.x, pos.y);
+      TH_ARGS[0] = dmg;
+      TH_ARGS[1] = pos.x;
+      TH_ARGS[2] = pos.y;
+      towerHitCore(s, t, v, crit, v === target);
     }
   }
   s.release();
   if (s.hitEvents < BALANCE.caps.hitEventsPerTick && doneTarget) {
     s.hitEvents++;
-    s.emit({ type: 'hit', x: target.x, y: target.y, kind: 'cone', tower: t.type });
+    emitHit(s, target.x, target.y, 'cone', t.type);
   }
   if (secondary && target.active) applySecondary(s, t, target, dmg);
 }
@@ -228,7 +237,7 @@ function launchProjectile(
   const def = TOWERS[t.type];
   const p = acquireProjectile(s);
   if (!p) return;
-  const crit = s.rngC.next() < st.critChance;
+  const crit = s.rngC.below(st.critChance);
   p.kind = PROJ_KIND[t.type];
   p.towerType = t.type;
   p.tower = t;
@@ -294,18 +303,20 @@ function launchProjectile(
 // Projectile flight and impact
 // ---------------------------------------------------------------------------------------------
 
-export function updateProjectiles(s: SimState, dt: number): void {
+export function updateProjectiles(s: SimState): void {
   const pool = s.projectiles;
   for (let i = 0; i < pool.length; i++) {
     const p = pool[i];
     if (!p.active) continue;
-    if (p.mode === 0) updateHoming(s, p, dt);
-    else if (p.mode === 1) updateStraight(s, p, dt);
-    else updateLobbed(s, p, dt);
+    // dt is read from s.dt inside: passing a double to a non-inlined call would box it, once per projectile
+    if (p.mode === 0) updateHoming(s, p);
+    else if (p.mode === 1) updateStraight(s, p);
+    else updateLobbed(s, p);
   }
 }
 
-function updateHoming(s: SimState, p: Projectile, dt: number): void {
+function updateHoming(s: SimState, p: Projectile): void {
+  const dt = s.dt;
   p.life -= dt;
   if (p.life <= 0) { p.active = false; return; }
   let target = p.targetIdx >= 0 ? s.enemies[p.targetIdx] : null;
@@ -340,7 +351,8 @@ function updateHoming(s: SimState, p: Projectile, dt: number): void {
   p.angle = Math.atan2(dy, dx);
 }
 
-function updateStraight(s: SimState, p: Projectile, dt: number): void {
+function updateStraight(s: SimState, p: Projectile): void {
+  const dt = s.dt;
   p.x += p.vx * dt;
   p.y += p.vy * dt;
   p.life -= p.speed * dt;
@@ -362,7 +374,8 @@ function updateStraight(s: SimState, p: Projectile, dt: number): void {
   s.release();
 }
 
-function updateLobbed(s: SimState, p: Projectile, dt: number): void {
+function updateLobbed(s: SimState, p: Projectile): void {
+  const dt = s.dt;
   p.t += dt;
   const f = Math.min(1, p.t / p.flight);
   p.arcT = f;
@@ -373,10 +386,19 @@ function updateLobbed(s: SimState, p: Projectile, dt: number): void {
   landLobbed(s, p);
 }
 
+function emitHit(s: SimState, x: number, y: number, kind: HitEvent['kind'], tower: TowerId | null): void {
+  const ev = s.evHit.next();
+  ev.x = x;
+  ev.y = y;
+  ev.kind = kind;
+  ev.tower = tower;
+  s.emit(ev);
+}
+
 function hitEvent(s: SimState, p: Projectile, x: number, y: number): void {
   if (s.hitEvents >= BALANCE.caps.hitEventsPerTick) return;
   s.hitEvents++;
-  s.emit({ type: 'hit', x, y, kind: p.kind, tower: p.towerType });
+  emitHit(s, x, y, p.kind, p.towerType);
 }
 
 /** A homing/straight projectile reaches an enemy. */
@@ -392,16 +414,22 @@ function projectileImpact(s: SimState, p: Projectile, e: Enemy): void {
   const ex = e.x;
   const ey = e.y;
   const eid = e.id;
-  towerHit(s, t, e, p.dmg, p.crit, true, p.sx, p.sy);
+  TH_ARGS[0] = p.dmg;
+  TH_ARGS[1] = p.sx;
+  TH_ARGS[2] = p.sy;
+  towerHitCore(s, t, e, p.crit, true);
   if (p.splash > 0) {
-    s.emit({ type: 'explosion', x: ex, y: ey, radius: p.splash, element: p.element });
+    emitExplosion(s, ex, ey, p.splash, p.element);
     const buf = s.borrow();
     const n = s.grid.query(ex, ey, p.splash, buf, buf.length);
     for (let i = 0; i < n; i++) {
       const v = s.enemies[buf[i]];
       if (!v.active || v.id === eid) continue;
       if (p.groundOnly && v.flying) continue;
-      towerHit(s, t, v, p.dmg * C.splashSecondaryMult, false, false, NaN, NaN);
+      TH_ARGS[0] = p.dmg * C.splashSecondaryMult;
+      TH_ARGS[1] = NaN;
+      TH_ARGS[2] = NaN;
+      towerHitCore(s, t, v, false, false);
     }
     s.release();
   }
@@ -421,7 +449,7 @@ function landLobbed(s: SimState, p: Projectile): void {
   const t = p.tower;
   if (!t) return;
   const f = t.stats.flags;
-  s.emit({ type: 'explosion', x: p.tx, y: p.ty, radius: p.splash, element: p.element });
+  emitExplosion(s, p.tx, p.ty, p.splash, p.element);
   const buf = s.borrow();
   const n = s.grid.query(p.tx, p.ty, p.splash, buf, buf.length);
   let primary: Enemy | null = null;
@@ -434,13 +462,21 @@ function landLobbed(s: SimState, p: Projectile): void {
   }
   if (primary) hitEvent(s, p, primary.x, primary.y);
   // primary first so its on-hit procs run before the rest of the blast
-  if (primary) towerHit(s, t, primary, p.dmg * edgeFalloff(bestD, p.splash), p.crit, true, p.sx, p.sy);
+  if (primary) {
+    TH_ARGS[0] = p.dmg * edgeFalloff(bestD, p.splash);
+    TH_ARGS[1] = p.sx;
+    TH_ARGS[2] = p.sy;
+    towerHitCore(s, t, primary, p.crit, true);
+  }
   for (let i = 0; i < n; i++) {
     if (buf[i] < 0) continue;
     const v = s.enemies[buf[i]];
     if (!v.active || v === primary) continue;
     const d = len(v.x - p.tx, v.y - p.ty);
-    towerHit(s, t, v, p.dmg * edgeFalloff(d, p.splash), false, false, p.sx, p.sy);
+    TH_ARGS[0] = p.dmg * edgeFalloff(d, p.splash);
+    TH_ARGS[1] = p.sx;
+    TH_ARGS[2] = p.sy;
+    towerHitCore(s, t, v, false, false);
   }
   s.release();
   if (primary && p.secondary && primary.active) applySecondary(s, t, primary, p.dmg);

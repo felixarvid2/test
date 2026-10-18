@@ -196,6 +196,74 @@ export class DeathRec {
   hpMult = 1;
 }
 
+/**
+ * Fixed ring of pre-built objects. High-frequency event types (hit, damage, explosion, chain) are
+ * recycled instead of allocated: an event object stays valid for roughly `items.length` further
+ * events of its type, so consumers must read events within the frame they drain them in.
+ */
+export class Ring<T> {
+  private i = 0;
+  constructor(readonly items: T[]) {}
+
+  next(): T {
+    const it = this.items[this.i];
+    this.i = this.i + 1 === this.items.length ? 0 : this.i + 1;
+    return it;
+  }
+}
+
+type EventOf<K extends SimEvent['type']> = Extract<SimEvent, { type: K }>;
+export type HitEvent = EventOf<'hit'>;
+export type DamageEvent = EventOf<'damage'>;
+export type ExplosionEvent = EventOf<'explosion'>;
+export type ChainEvent = EventOf<'chain'>;
+export interface PointRec {
+  x: number;
+  y: number;
+}
+
+/**
+ * A recyclable chain event with its own point storage. Points are collected in `store`, and finish()
+ * points `ev.points` at a cached array of exactly the right length (shrinking one array with
+ * `length = 0` would drop its backing store and allocate again on the next push).
+ */
+export class ChainSlot {
+  private readonly store: PointRec[] = [];
+  private readonly arrays: PointRec[][] = [];
+  private n = 0;
+  readonly ev: ChainEvent = { type: 'chain', points: [], source: 'proc' };
+
+  /** Starts a new chain. */
+  begin(source: ChainEvent['source']): void {
+    this.n = 0;
+    this.ev.source = source;
+  }
+
+  /** Appends a copy of a position (an enemy, a slot...), reusing stored point objects. */
+  addAt(src: PointRec): void {
+    let p = this.store[this.n];
+    if (!p) {
+      p = { x: 0.5, y: 0.5 };
+      this.store.push(p);
+    }
+    p.x = src.x;
+    p.y = src.y;
+    this.n++;
+  }
+
+  /** Publishes the collected points as ev.points. */
+  finish(): void {
+    const n = this.n;
+    let arr = this.arrays[n];
+    if (!arr) {
+      arr = new Array<PointRec>(n);
+      this.arrays[n] = arr;
+    }
+    for (let i = 0; i < n; i++) arr[i] = this.store[i];
+    this.ev.points = arr;
+  }
+}
+
 export interface SlotRec extends SlotState {
   tower: TowerInst | null;
 }
@@ -317,6 +385,14 @@ export class SimState {
 
   // output
   events: SimEvent[] = [];
+  /** Second event buffer: drainEvents alternates so the previously returned array stays intact for one more frame. */
+  spareEvents: SimEvent[] = [];
+  /** Number of valid entries in `events` (the array may be longer: it holds stale entries from an earlier frame). */
+  evCount = 0;
+  readonly evHit = new Ring<HitEvent>(Array.from({ length: 512 }, () => ({ type: 'hit' as const, x: 0.5, y: 0.5, kind: 'arrow' as HitEvent['kind'], tower: null as HitEvent['tower'] })));
+  readonly evDamage = new Ring<DamageEvent>(Array.from({ length: 512 }, () => ({ type: 'damage' as const, x: 0.5, y: 0.5, amount: 0, crit: false, enemyId: 0 })));
+  readonly evExplosion = new Ring<ExplosionEvent>(Array.from({ length: 512 }, () => ({ type: 'explosion' as const, x: 0.5, y: 0.5, radius: 0.5, element: 'fire' as ExplosionEvent['element'] })));
+  readonly evChain = new Ring<ChainSlot>(Array.from({ length: 64 }, () => new ChainSlot()));
   readonly stats: RunStats;
 
   constructor(opts: RunOptions, content: Content) {
@@ -352,7 +428,7 @@ export class SimState {
 
   /** Queues an event; cosmetic events are dropped when nobody drains the queue. */
   emit(ev: SimEvent): void {
-    if (this.events.length > BALANCE.caps.maxQueuedEvents) {
+    if (this.evCount > BALANCE.caps.maxQueuedEvents) {
       switch (ev.type) {
         case 'shot': case 'beam': case 'chain': case 'cone': case 'hit': case 'damage': case 'explosion':
         case 'status': case 'coins': case 'enemySpawned': case 'enemyHealed':
@@ -360,7 +436,10 @@ export class SimState {
         default:
       }
     }
-    this.events.push(ev);
+    // overwrite in place; the array is trimmed to evCount only when drained (see World.drainEvents)
+    if (this.evCount < this.events.length) this.events[this.evCount] = ev;
+    else this.events.push(ev);
+    this.evCount++;
   }
 
   /** Adds (or removes, if negative) coins; fractional gains are carried so rounding never loses coins. Only gains emit 'coins' events. */
