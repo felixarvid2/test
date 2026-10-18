@@ -4,24 +4,30 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Krypta</title>
+<link rel="stylesheet" href="css/cards.css">
 <style>
   @font-face { font-family: "PressStart2P"; src: url(assets/font/PressStart2P.ttf); }
-  :root { --bg: #0b0806; --ink: #e8d9b0; --muted: #c9a87a; --dim: #8a7550; --blood: #d8442a; --btn: #5a1a10; --btn-hi: #7c2616; --edge: #d8a24a; color-scheme: dark; }
+  :root { --bg: #0b0806; --ink: #e8d9b0; --muted: #c9a87a; --dim: #8a7550; --blood: #d8442a; --btn: #5a1a10; --btn-hi: #7c2616; --edge: #d8a24a; --soul: #c0a0ff; color-scheme: dark; }
   [hidden] { display: none !important; }
   html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; font-family: "PressStart2P", monospace; color: var(--ink); }
   #wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #000; }
   canvas { image-rendering: pixelated; width: min(100vw, 160vh); height: min(62.5vw, 100vh); background: #000; outline: none; cursor: crosshair; }
-  #title { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: radial-gradient(#2a1810, var(--bg) 70%); text-align: center; padding: 16px; overflow-y: auto; }
+  #title { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; background: radial-gradient(#2a1810, var(--bg) 70%); text-align: center; padding: 16px; overflow-y: auto; }
   h1 { font-size: clamp(28px, 7vw, 64px); margin: 0; color: var(--blood); text-shadow: 4px 4px #000, 0 0 24px #6a1408; letter-spacing: 6px; }
-  p { font-size: clamp(8px, 1.3vw, 11px); line-height: 2.1; margin: 0; color: var(--muted); max-width: 760px; }
-  .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  p { font-size: clamp(8px, 1.3vw, 11px); line-height: 2.1; margin: 0; color: var(--muted); max-width: 780px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; align-items: center; }
   button { font: inherit; font-size: 13px; padding: 13px 22px; background: var(--btn); color: #ffe9a8; border: 3px solid var(--edge); cursor: pointer; }
   button:disabled { opacity: .5; cursor: wait; }
   button:hover:not(:disabled), button:focus-visible { background: var(--btn-hi); outline: 2px solid #ffe9a8; outline-offset: 2px; }
+  button.ghost { background: transparent; border-color: var(--dim); color: var(--muted); font-size: 10px; padding: 9px 14px; }
+  #unlocks { border-color: var(--soul); color: var(--soul); }
   #diff button { font-size: 10px; padding: 9px 14px; background: transparent; border-color: var(--dim); color: var(--muted); }
   #diff button[aria-pressed="true"] { background: var(--btn); border-color: var(--edge); color: #ffe9a8; }
   .label { font-size: 9px; color: var(--dim); letter-spacing: 1px; }
-  #status, #best { font-size: 10px; color: var(--dim); }
+  input { font: inherit; font-size: 10px; padding: 9px 10px; width: 11em; background: #1b1410; color: var(--ink); border: 2px solid var(--dim); text-transform: uppercase; }
+  input:focus-visible { outline: 2px solid #ffe9a8; }
+  #status, #best { font-size: 9px; color: var(--dim); line-height: 1.8; }
+  #souls { font-size: 10px; color: var(--soul); }
   kbd { font-family: inherit; color: var(--ink); }
 </style>
 </head>
@@ -29,20 +35,28 @@
 <div id="wrap"><canvas id="screen" tabindex="0"></canvas></div>
 <div id="title">
   <h1>KRYPTA</h1>
-  <p>Skelett och vampyrer har tagit över borgen. Rensa fyra banor, hitta de hemliga rummen och ta dig ut genom grinden.</p>
+  <p>En roguelike i borgens katakomber. Varje runda är ny: fem slumpade våningar och Bendemonen längst ner. Samla kort som ger bonusar, köp av dödgrävaren och lås upp nya kort med själarna från rundor som gått åt skogen.</p>
   <div class="label">SVÅRIGHETSGRAD</div>
   <div class="row" id="diff"></div>
   <div class="row">
-    <button id="start" disabled>NYTT SPEL</button>
+    <button id="start" disabled>NY RUNDA</button>
+    <button id="daily" disabled>DAGENS RUNDA</button>
     <button id="continue" hidden>FORTSÄTT</button>
   </div>
+  <div class="row">
+    <label class="label" for="seed">FRÖ</label><input id="seed" maxlength="16" placeholder="SLUMPAT" autocomplete="off">
+    <button id="unlocks" class="ghost" disabled>LÅS UPP KORT</button>
+  </div>
+  <div id="souls"></div>
   <div id="best"></div>
-  <p><kbd>WASD</kbd> gå · <kbd>MUS</kbd> sikta · <kbd>VÄNSTERKLICK</kbd> skjut · <kbd>HÖGERKLICK</kbd> sikta med vapnet · <kbd>R</kbd> ladda om<br>
-     <kbd>E</kbd>/<kbd>MELLANSLAG</kbd> öppna dörr eller hemlig vägg · <kbd>SHIFT</kbd> spring · <kbd>1-4</kbd>/<kbd>Q</kbd>/<kbd>HJUL</kbd> byt vapen<br>
-     <kbd>M</kbd>/<kbd>TAB</kbd> karta · <kbd>P</kbd>/<kbd>ESC</kbd> paus · <kbd>[ ]</kbd> muskänslighet · <kbd>- +</kbd> volym · <kbd>N</kbd> ljud av · <kbd>O</kbd> helskärm</p>
+  <p><kbd>WASD</kbd> gå · <kbd>MUS</kbd> sikta · <kbd>VÄNSTERKLICK</kbd> skjut · <kbd>HÖGERKLICK</kbd> sikta med vapnet · <kbd>R</kbd> ladda om · <kbd>E</kbd> öppna, handla<br>
+     <kbd>SHIFT</kbd> spring · <kbd>1-4</kbd>/<kbd>Q</kbd>/<kbd>HJUL</kbd> byt vapen · <kbd>C</kbd> dina kort · <kbd>M</kbd>/<kbd>TAB</kbd> karta · <kbd>P</kbd>/<kbd>ESC</kbd> paus · <kbd>[ ]</kbd> känslighet · <kbd>- +</kbd> volym · <kbd>N</kbd> ljud · <kbd>O</kbd> helskärm</p>
   <div id="status">Laddar…</div>
 </div>
-<script src="js/levels.js"></script>
+<script src="js/rng.js"></script>
+<script src="js/gen.js"></script>
+<script src="js/cards.js"></script>
+<script src="js/cardui.js"></script>
 <script src="js/weapons.js"></script>
 <script src="js/game.js"></script>
 </body>

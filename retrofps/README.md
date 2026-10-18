@@ -1,14 +1,32 @@
-# KRYPTA – retro-FPS
+# KRYPTA – roguelike-FPS
 
-Ett raycaster-FPS (Wolfenstein/Doom-känsla) som körs direkt i webbläsaren. Öppna `index.html` via en lokal
-webbserver (`python3 -m http.server` i den här mappen) och klicka **NYTT SPEL**. Fyra banor, fyra vapen,
-tre fiendetyper, hemliga rum och sparat framsteg.
+Ett raycaster-FPS i Doom/Quake 1-stil som är en roguelike: varje runda är fem slumpade våningar och
+en boss längst ner. Öppna `index.html` via en lokal webbserver (`python3 -m http.server` i den här
+mappen) och klicka **NY RUNDA**.
 
 **Kontroller:** WASD gå · mus sikta · vänsterklick skjut · högerklick sikta med vapnet · R ladda om ·
-E/mellanslag öppna dörr eller hemlig vägg · Shift spring · 1–4/Q/mushjul byt vapen · M/Tab karta ·
-P/Esc paus · `[` `]` muskänslighet · `-` `+` volym · N ljud av · O helskärm.
+E öppna dörr, kista, hemlig vägg eller handla · Shift spring · 1–4/Q/mushjul byt vapen · C dina kort ·
+M/Tab karta · P/Esc paus · `[` `]` muskänslighet · `-` `+` volym · N ljud av · O helskärm.
 
-## Förbättringar
+## Roguelike
+
+- **Genererade våningar** (`js/gen.js`, `js/rng.js`): rum och korridorer med minimalt uppspännande träd och slingor, dörrar, hemliga rum, skattrum med kortkista, butiksrum, elitfiender och eldfat. Storleken och fienderna ökar med djupet, och temat (väggar, golv, dimma, namn) varierar.
+- **Frö och dagens runda**: samma frö ger samma våningar. Fröet visas i pausen och efter rundan, och kan skrivas in på startskärmen. *Dagens runda* har samma frö för alla under dagen.
+- **Kort** (`js/cards.js`, `js/cardui.js`): 50 kort i fyra sällsyntheter (vanlig, ovanlig, sällsynt, legendarisk). Korten ger permanenta bonusar under rundan, till exempel skada, eldhastighet, krit, genomslag, explosioner, brand, livsstöld, sköld, extraliv, magnet och rabatt. Fem förbannade kort ger en stark fördel med en nackdel. Det finns synergier, som eld + explosion och krit + kritskada.
+- **Var korten kommer ifrån**: ett startkort (1 av 3), ett kort efter varje våning (1 av 3, eller hoppa över för guld), kortkistor och butiken.
+- **Guld och butik**: fiender, krukor och guldhögar ger guld. Dödgrävaren på våning 2 och 4 säljer kort, hälsa, rustning, ammunition och nya kort.
+- **Elitfiender**: större, färgade fiender med livmätare och en egenskap (snabb, seg, blodtörstig, explosiv eller brutal). De tappar mer guld.
+- **Bossen Bendemonen** på våning 6 har tre faser. Den sprutar eldfläktar och slår med vingarna. Från fas 2 kallar den på skelett och skjuter en ring av eldklot efter slaget, och fas 3 är snabbare. Den har en livmätare och en dödsanimation, och grinden till utgången öppnas när den dör.
+- **Permadöd**: döden avslutar rundan och den sparade rundan raderas. *Fortsätt* finns bara för en runda som pågår och laddar början av den senaste våningen.
+- **Själar och upplåsningar**: varje runda ger själar efter hur långt man kom, och mer på svår nivå. Med dem låser man upp 17 kort på startskärmen. Profilen sparar rundor, segrar, bästa våning och rekord.
+- **Spelkänsla**: skadesiffror (gula vid krit), träffmarkör, brinnande och slöade fiender syns i färg, och fiender kan explodera i kedja.
+
+Testerna körs med `node tools/gen-test.js` (300 våningar och 50 bossarenor) och `node tools/cards-test.js`.
+`tools/cards-demo.html` visar kortgränssnittet fristående.
+
+## Grundspelet (version 2)
+
+De handgjorda banorna, banomstarten och det gamla sparade framsteget har ersatts av roguelike-systemen ovan.
 
 Vapen och känsla
 1. Vapnen sticker rakt fram från skärmens nederkant som i Doom och Quake 1, utan händer. De är renderade ur RetroWeaponPack.
@@ -50,7 +68,6 @@ Världen
 33. Hemliga väggar (E) med rustning, ammunition och hälsa bakom.
 34. Rustning som tar halva skadan.
 35. Ammolåda renderad från Styloo-paketet.
-36. Ny bana 4: Kapellet.
 37. Grinden öppnas av sig själv när sista fienden dör.
 38. Dörrar går inte att stänga på någon.
 39. Spelaren börjar varje bana vänd mot den öppnaste riktningen.
@@ -63,8 +80,6 @@ Spelare och gränssnitt
 44. Paus med P/Esc, och automatiskt när fönstret tappar fokus eller musen släpps.
 45. Svårighetsgrad (Lätt, Normal, Svår) på startskärmen.
 46. Banstatistik efter varje bana: fiender, hemligheter, föremål, tid och bonus.
-47. Sparat framsteg (Fortsätt) och rekord i webbläsaren.
-48. Dör man börjar banan om med samma utrustning som när den startade.
 49. Karta (M/Tab) som bara visar utforskade rutor, föremål och utgång.
 50. Inställbar muskänslighet och volym som sparas.
 51. Helskärm (O).
@@ -86,6 +101,10 @@ Spelare och gränssnitt
 | Ammolåda | `assets/3d-models/Styloo Guns Asset Pack` (renderad till sprite) |
 | Hälsa och rustning | `assets/2d-sprites/potions` |
 | Ljud | `assets/audio/400 Sounds Pack` och release `assets-large-v1` → `Horror.SFX.Free.zip` |
+| Boss: vingad demon | `assets/2d-pixel/Legacy Collection/.../Gothicvania/Characters/demon-Files` (Ansimuz, CC0) |
+| Köpman (liemannen) | `assets/2d-pixel/Legacy Collection/.../Gothicvania/Characters/death` (CC0) |
+| Kistor och mynt | `assets/2d-pixel/2D Pixel Dungeon Asset Pack v2.0` |
+| Kortbilder och kortbaksida | `assets/rune-ai/flux/relics` och `card-backs` |
 | Typsnitt | Press Start 2P (OFL) |
 
 Se licensfilerna i respektive källpaket.

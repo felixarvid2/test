@@ -1,0 +1,200 @@
+/* KRYPTA – kortgränssnitt (draft, butik, kortlek, toast). Allt prefixat med cu-. */
+@font-face { font-family: "CUPress"; src: local("Press Start 2P"), url(../assets/font/PressStart2P.ttf); font-display: swap; }
+
+#cardui {
+  position: fixed; inset: 0; z-index: 1000; pointer-events: none;
+  font-family: "CUPress", "PressStart2P", "Press Start 2P", monospace;
+  color: #e8d9b0; line-height: 1.5;
+  --ink: #e8d9b0; --muted: #c9a87a; --dim: #8a7550; --panel: #1b1410; --panel2: #3a2c1e; --edge: #5a4630;
+  --gold: #ffd24a; --blood: #d8442a; --curse: #b040d8;
+}
+#cardui *, #cardui *::before, #cardui *::after { box-sizing: border-box; }
+#cardui [hidden] { display: none !important; }
+
+.cu-screen {
+  position: absolute; inset: 0; pointer-events: auto; overflow: auto;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 20px 16px; text-align: center;
+  background: radial-gradient(ellipse at center, rgba(42,24,16,.95) 0%, rgba(8,5,3,.98) 75%);
+  animation: cu-fade .25s ease-out both;
+  outline: none;
+}
+.cu-screen > .cu-wrap { margin: auto; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+.cu-title { margin: 0; font-size: clamp(14px, 3.2vw, 24px); color: var(--gold); text-shadow: 3px 3px #000, 0 0 18px rgba(216,68,42,.55); letter-spacing: 3px; font-weight: normal; }
+.cu-sub { margin: 0; font-size: clamp(7px, 1.4vw, 10px); color: var(--muted); line-height: 2; max-width: 640px; }
+
+.cu-btn {
+  font: inherit; font-size: 10px; padding: 11px 16px; cursor: pointer;
+  background: #5a1a10; color: #ffe9a8; border: 3px solid #d8a24a; box-shadow: 3px 3px 0 #000;
+}
+.cu-btn:hover, .cu-btn:focus-visible { background: #7c2616; outline: 2px solid #ffe9a8; outline-offset: 2px; }
+.cu-btn.ghost { background: transparent; border-color: var(--edge); color: var(--muted); }
+.cu-btn.ghost:hover, .cu-btn.ghost:focus-visible { background: #2a1d12; color: var(--ink); }
+
+/* ---------- Kort (draft) ---------- */
+.cu-cards {
+  --cw: min(230px, calc((100vw - 32px - (var(--n, 3) - 1) * 16px) / var(--n, 3)), 36vh);
+  display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; align-items: center;
+}
+.cu-card {
+  --rc: #c9a87a; --bc: var(--rc); --glow: rgba(201,168,122,.35);
+  position: relative; width: var(--cw); aspect-ratio: 11 / 17; perspective: 900px;
+  font-size: calc(var(--cw) / 22); cursor: pointer; outline: none; color: var(--ink);
+  transition: transform .18s ease, opacity .3s ease; text-align: left;
+}
+.cu-card:hover, .cu-card:focus-visible { transform: translateY(-8px); }
+.cu-card:focus-visible .cu-front, .cu-card:hover .cu-front { box-shadow: 0 0 0 2px #000, 0 0 26px 4px var(--glow), 6px 6px 0 #000; }
+.cu-inner { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform .55s cubic-bezier(.3,.7,.3,1); }
+.cu-card.down .cu-inner { transform: rotateY(180deg); }
+.cu-card.down { pointer-events: auto; }
+.cu-face { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.cu-back {
+  position: absolute; inset: 0; transform: rotateY(180deg);
+  background: #0b0806 url(../assets/cards/back.png) center / 100% 100% no-repeat;
+  border: 3px solid #000; box-shadow: 0 0 0 2px var(--edge), 4px 4px 0 #000;
+}
+.cu-front {
+  position: relative; height: 100%; display: flex; flex-direction: column; align-items: center;
+  padding: .9em .9em .8em; gap: .55em; overflow: hidden;
+  background: linear-gradient(180deg, #2a1d12 0%, var(--panel) 45%, #120d09 100%);
+  border: 4px solid var(--bc); box-shadow: 0 0 0 2px #000, 0 0 14px 1px var(--glow), 5px 5px 0 #000;
+}
+.cu-rar { align-self: stretch; display: flex; justify-content: space-between; font-size: .85em; color: var(--rc); letter-spacing: .05em; }
+.cu-rar .cu-key { color: var(--dim); }
+.cu-art {
+  width: 58%; aspect-ratio: 1; flex: none; border: 2px solid var(--bc);
+  background: radial-gradient(circle, #3a2c1e 0%, #120d09 85%);
+  box-shadow: inset 0 0 12px #000;
+}
+.cu-art img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.cu-name { font-size: 1.15em; line-height: 1.4; text-align: center; color: var(--ink); overflow-wrap: anywhere; text-shadow: 2px 2px #000; }
+.cu-sep { align-self: stretch; height: 2px; background: linear-gradient(90deg, transparent, var(--bc), transparent); flex: none; }
+.cu-fx { font-size: .92em; line-height: 1.6; text-align: center; color: var(--muted); overflow-wrap: anywhere; }
+.cu-front > .cu-fx { flex: 1; display: flex; flex-direction: column; justify-content: center; align-self: stretch; }
+.cu-fx div { margin-bottom: .35em; }
+.cu-fx .bad { color: #ff7a5e; }
+.cu-own { margin-top: auto; font-size: .7em; color: var(--dim); }
+.cu-ribbon { align-self: stretch; text-align: center; font-size: .8em; padding: .35em 0; color: #f0c4ff; background: #4a1460; border: 2px solid var(--curse); letter-spacing: .12em; }
+
+/* Förbannade kort */
+.cu-card.curse { --bc: var(--curse); --glow: rgba(176,64,216,.6); }
+.cu-card.curse .cu-front { background: linear-gradient(180deg, #2a1030 0%, #170c1a 45%, #0e060f 100%); animation: cu-curse 2.2s ease-in-out infinite; }
+.cu-card.curse .cu-fx { color: #d8b4e8; }
+.cu-card.curse .cu-fx .bad { color: #ff5a40; }
+/* Legendariska: glans */
+.cu-card.legend .cu-front::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(115deg, transparent 35%, rgba(255,236,160,.28) 50%, transparent 65%);
+  background-size: 250% 100%; animation: cu-shine 3.2s linear infinite;
+}
+.cu-card.picked { transform: scale(1.1); z-index: 2; }
+.cu-card.faded { opacity: .12; transform: scale(.92); pointer-events: none; }
+
+.cu-foot { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.cu-hint { font-size: 7px; color: var(--dim); line-height: 2; }
+
+@keyframes cu-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cu-curse { 0%, 100% { box-shadow: 0 0 0 2px #000, 0 0 10px 0 rgba(176,64,216,.5), 5px 5px 0 #000; } 50% { box-shadow: 0 0 0 2px #000, 0 0 26px 5px rgba(216,68,42,.65), 5px 5px 0 #000; } }
+@keyframes cu-shine { from { background-position: 150% 0; } to { background-position: -100% 0; } }
+@keyframes cu-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+@keyframes cu-sold { to { opacity: 0; transform: scale(.85); } }
+@keyframes cu-toast-in { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: none; } }
+
+/* ---------- Butik ---------- */
+.cu-shopbox { width: min(980px, 100%); display: flex; flex-direction: column; gap: 14px; }
+.cu-shophead { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.cu-gold { font-size: 12px; color: var(--gold); display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--panel); border: 3px solid var(--edge); text-shadow: 2px 2px #000; }
+.cu-coin { width: 14px; height: 14px; background: currentColor; border: 2px solid #000; box-shadow: inset -3px -3px 0 rgba(0,0,0,.35); display: inline-block; }
+.cu-gold.flash { animation: cu-flash .5s; }
+@keyframes cu-flash { 50% { background: #5a4630; } }
+.cu-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.cu-item {
+  --rc: #c9a87a; --bc: var(--rc); --glow: rgba(201,168,122,.3);
+  position: relative; display: flex; flex-direction: column; gap: 8px; text-align: left; padding: 10px;
+  background: var(--panel); border: 3px solid var(--bc); box-shadow: 0 0 10px var(--glow), 4px 4px 0 #000;
+  cursor: pointer; outline: none; font-size: 8px; transition: transform .12s, filter .2s, opacity .2s;
+}
+.cu-item:hover, .cu-item:focus-visible { transform: translateY(-3px); background: #241a12; }
+.cu-item:focus-visible { outline: 2px solid #ffe9a8; outline-offset: 2px; }
+.cu-item.curse { --bc: var(--curse); --glow: rgba(176,64,216,.5); background: #170c1a; }
+.cu-item .cu-top { display: flex; gap: 10px; align-items: center; }
+.cu-item .cu-art { width: 56px; border-width: 2px; }
+.cu-item .cu-ico { width: 56px; height: 56px; flex: none; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle, #3a2c1e, #120d09 85%); border: 2px solid var(--bc); }
+.cu-item .cu-ico svg { width: 36px; height: 36px; shape-rendering: crispEdges; }
+.cu-item .cu-iname { font-size: 8px; line-height: 1.5; color: var(--ink); overflow-wrap: anywhere; }
+.cu-item .cu-irar { font-size: 7px; color: var(--rc); margin-top: 3px; }
+.cu-item .cu-fx { text-align: left; font-size: 7px; line-height: 1.7; }
+.cu-item .cu-fx div { margin-bottom: 2px; }
+.cu-item .cu-price { margin-top: auto; display: flex; justify-content: space-between; align-items: center; color: var(--gold); font-size: 10px; border-top: 2px solid var(--edge); padding-top: 8px; }
+.cu-item .cu-num { color: var(--dim); font-size: 8px; }
+.cu-item.poor { filter: grayscale(.9) brightness(.7); opacity: .65; }
+.cu-item.poor .cu-price { color: #8a7550; }
+.cu-item.owned { filter: grayscale(.6); opacity: .8; cursor: default; }
+.cu-item.owned .cu-price { color: #6fc26a; }
+.cu-item.shake { animation: cu-shake .3s; }
+.cu-item.sold { animation: cu-sold .3s forwards; pointer-events: none; }
+.cu-msg { min-height: 2.4em; font-size: 9px; color: var(--muted); line-height: 1.6; text-align: center; }
+.cu-msg.bad { color: #ff7a5e; }
+.cu-msg.ok { color: #6fc26a; }
+.cu-empty { grid-column: 1 / -1; font-size: 9px; color: var(--dim); padding: 24px 0; }
+
+/* ---------- Kortlek ---------- */
+.cu-deckbox { width: min(980px, 100%); display: flex; flex-direction: column; gap: 14px; align-items: center; }
+.cu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; width: 100%; }
+.cu-tile {
+  --rc: #c9a87a; --bc: var(--rc); --glow: rgba(201,168,122,.3);
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 6px;
+  background: var(--panel); border: 3px solid var(--bc); box-shadow: 0 0 8px var(--glow), 3px 3px 0 #000;
+  cursor: pointer; outline: none; font-size: 7px; line-height: 1.5; color: var(--ink); text-align: center;
+}
+.cu-tile.curse { --bc: var(--curse); --glow: rgba(176,64,216,.5); background: #170c1a; }
+.cu-tile:hover, .cu-tile:focus-visible, .cu-tile.sel { background: #2a1d12; box-shadow: 0 0 14px 2px var(--glow), 3px 3px 0 #000; }
+.cu-tile:focus-visible { outline: 2px solid #ffe9a8; outline-offset: 2px; }
+.cu-tile .cu-art { width: 64px; border-width: 2px; }
+.cu-tile .cu-cnt { position: absolute; top: 4px; right: 4px; background: #000; color: var(--gold); font-size: 8px; padding: 3px 4px; border: 2px solid var(--gold); }
+.cu-tile .cu-tn { overflow-wrap: anywhere; }
+.cu-detail { width: 100%; min-height: 96px; padding: 12px; background: var(--panel); border: 3px solid var(--edge); text-align: left; font-size: 9px; line-height: 1.8; }
+.cu-detail .cu-dn { font-size: 11px; margin-bottom: 4px; }
+.cu-detail .cu-fx { text-align: left; font-size: 9px; }
+.cu-detail .cu-dm { color: var(--dim); font-size: 8px; margin-top: 6px; }
+.cu-detail.empty { color: var(--dim); text-align: center; display: flex; align-items: center; justify-content: center; }
+
+/* ---------- Toast ---------- */
+.cu-toasts { position: absolute; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; pointer-events: none; max-width: calc(100vw - 24px); }
+.cu-toast {
+  --rc: #c9a87a; --bc: var(--rc);
+  width: min(300px, calc(100vw - 24px)); display: flex; gap: 10px; align-items: center; padding: 8px 10px;
+  background: rgba(27,20,16,.96); border: 3px solid var(--bc); box-shadow: 4px 4px 0 #000, 0 0 14px rgba(0,0,0,.6);
+  animation: cu-toast-in .25s ease-out both; transition: opacity .3s, transform .3s; font-size: 7px; line-height: 1.6;
+}
+.cu-toast.curse { --bc: var(--curse); background: rgba(23,12,26,.96); }
+.cu-toast.out { opacity: 0; transform: translateX(30px); }
+.cu-toast img { width: 44px; height: 44px; flex: none; border: 2px solid var(--bc); background: #120d09; }
+.cu-toast .cu-tk { color: var(--dim); font-size: 6px; }
+.cu-toast .cu-tnm { color: var(--rc); font-size: 8px; margin: 2px 0; overflow-wrap: anywhere; }
+.cu-toast.curse .cu-tnm { color: #e8a0ff; }
+.cu-toast .cu-tfx { color: var(--muted); overflow-wrap: anywhere; }
+
+/* ---------- Mobil: korten blir rader ---------- */
+@media (max-width: 720px) {
+  .cu-screen { padding: 14px 10px; }
+  .cu-cards { flex-direction: column; flex-wrap: nowrap; width: 100%; max-width: 460px; gap: 12px; --cw: 100%; }
+  .cu-card { width: 100%; aspect-ratio: auto; font-size: 8px; perspective: 700px; min-height: 108px; }
+  .cu-card:hover, .cu-card:focus-visible { transform: none; }
+  .cu-inner { height: auto; min-height: 108px; }
+  .cu-back { background-size: 100% 100%; }
+  .cu-front { height: auto; min-height: 108px; display: grid; grid-template-columns: 64px 1fr; grid-template-areas: "ribbon ribbon" "art rar" "art name" "art fx"; column-gap: 10px; row-gap: 4px; align-items: start; padding: 8px 10px; }
+  .cu-front > .cu-ribbon { grid-area: ribbon; }
+  .cu-front .cu-rar { grid-area: rar; }
+  .cu-front .cu-art { grid-area: art; width: 64px; }
+  .cu-front .cu-name { grid-area: name; text-align: left; font-size: 8px; }
+  .cu-front .cu-sep { display: none; }
+  .cu-front .cu-fx { grid-area: fx; text-align: left; font-size: 7px; line-height: 1.6; }
+  .cu-front .cu-own { display: none; }
+  .cu-items { grid-template-columns: 1fr; }
+  .cu-hint { display: none; }
+  .cu-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #cardui *, #cardui *::before, #cardui *::after { animation: none !important; transition: none !important; }
+}
