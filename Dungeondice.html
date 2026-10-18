@@ -1036,6 +1036,42 @@ header::after,.shop-item::after{opacity:.55}
 #progress-fill{background:linear-gradient(180deg,#52b9ff,var(--bl-blue) 55%,var(--bl-blue-d))!important}
 /* 315 Etiketter i dämpad krämvit färg */
 .stat,#round-info span{color:#b9c4c9}
+/* ---- omgång 2: 316-330 knappar, handpanel, poängblock, siffror ---- */
+/* 316 Kasta-knappen orange, platt färg */
+#roll-btn{background:var(--bl-orange);border-color:var(--bl-ink);color:#fff;box-shadow:0 5px 0 var(--bl-orange-d),0 5px 0 3px var(--bl-ink)}
+/* 317 Poäng-knappen blå ("spela hand") */
+#score-btn{background:var(--bl-blue);border-color:var(--bl-ink);color:#fff;box-shadow:0 5px 0 var(--bl-blue-d),0 5px 0 3px var(--bl-ink)}
+/* 318 Släng-knappen röd */
+#discard-btn{background:var(--bl-red);border-color:var(--bl-ink);color:#fff;box-shadow:0 5px 0 var(--bl-red-d),0 5px 0 3px var(--bl-ink)}
+/* 319 Sortera och Håll lika i skiffer */
+#sort-btn,#hold-btn{background:#55666f;border-color:var(--bl-ink);color:#fff;box-shadow:0 5px 0 #34434b,0 5px 0 3px var(--bl-ink)}
+/* 320 Knapptext vit med mörk kontur */
+button{color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.5);border-radius:10px}
+/* 321 Tryck: knappen sjunker och skuggan försvinner */
+button:active:not(:disabled){transform:translateY(5px)!important;box-shadow:0 0 0 3px var(--bl-ink)!important}
+/* 322 Hover: liten lutning och förstoring (engångsövergång) */
+button:hover:not(:disabled){transform:translateY(-3px) rotate(-1.5deg) scale(1.04);border-color:var(--bl-ink);filter:brightness(1.08)}
+/* 323 Inaktiva knappar platt grå */
+button:disabled{background:#4a555b!important;color:#9aa5aa;box-shadow:0 4px 0 #2e373b,0 4px 0 3px var(--bl-ink)!important;opacity:1;filter:none;background-image:none!important}
+/* 324 Chips som blått block med vit siffra */
+#score-display .chips{background:var(--bl-blue);color:#fff;border:3px solid var(--bl-ink);border-radius:10px;padding:2px 14px;
+  text-shadow:0 2px 0 rgba(0,0,0,.45);box-shadow:0 4px 0 var(--bl-blue-d),0 4px 0 3px var(--bl-ink)}
+/* 325 Mult som rött block med vit siffra */
+#score-display .mult{background:var(--bl-red);color:#fff;border:3px solid var(--bl-ink);border-radius:10px;padding:2px 14px;
+  text-shadow:0 2px 0 rgba(0,0,0,.45);box-shadow:0 4px 0 var(--bl-red-d),0 4px 0 3px var(--bl-ink)}
+/* 326 Gångertecknet stort och vitt */
+#score-display .eq{color:#fff;font-size:26px;text-shadow:0 3px 0 var(--bl-ink);opacity:1}
+/* 327 Totalen i guldram */
+#score-display .total{border:3px solid var(--bl-ink);border-radius:10px;padding:2px 16px;background:var(--bl-slate-d);color:#fff;
+  box-shadow:0 4px 0 var(--bl-ink),inset 0 0 0 2px var(--bl-gold);text-shadow:0 3px 0 var(--bl-ink)}
+/* 328 Poängpanelen mörk platt skiffer */
+#score-display{background:rgba(27,36,41,.92);border:3px solid var(--bl-ink);box-shadow:0 5px 0 var(--bl-ink)}
+/* 329 Handnamnet på en mörk platta */
+#combo-banner:not(.none){background:var(--bl-slate-d);border:3px solid var(--bl-ink);border-radius:14px;padding:6px 26px 10px;
+  box-shadow:0 5px 0 var(--bl-ink),inset 0 2px 0 rgba(255,255,255,.08)}
+/* 330 Siffror som ändras blinkar till (JS lägger på .pop) */
+.stat b.pop{animation:statPop .4s cubic-bezier(.34,1.56,.64,1)}
+@keyframes statPop{0%{transform:scale(1)}40%{transform:scale(1.35)}100%{transform:scale(1)}}
 </style>
 </head>
 <body>
@@ -1278,6 +1314,20 @@ const Sound = (()=>{
   };
 })();
 function updateMuteBtn(){const b=document.getElementById('mute-btn');if(b)b.innerHTML=spr(Sound.isMuted()?'gi_audioOff':'gi_audioOn');}
+/* Siffror som räknar upp (bara visning) */
+const _num={};
+function setNum(id,v,tween){
+  const el=document.getElementById(id);if(!el)return;
+  const prev=_num[id];_num[id]=v;
+  const flash=()=>{el.classList.remove('pop');void el.offsetWidth;el.classList.add('pop')};
+  if(el._raf)cancelAnimationFrame(el._raf);
+  if(prev===undefined||prev===v){el.textContent=v.toLocaleString();return}
+  flash();
+  if(!tween||matchMedia('(prefers-reduced-motion: reduce)').matches){el.textContent=v.toLocaleString();return}
+  const t0=performance.now(),dur=450;
+  const step=t=>{const k=Math.min(1,(t-t0)/dur);el.textContent=Math.round(prev+(v-prev)*(1-Math.pow(1-k,3))).toLocaleString();if(k<1)el._raf=requestAnimationFrame(step)};
+  el._raf=requestAnimationFrame(step);
+}
 function a11y(){document.querySelectorAll('.hbtn').forEach(b=>{if(b.title&&!b.getAttribute('aria-label'))b.setAttribute('aria-label',b.title)});
   const cb=document.getElementById('combo-banner');if(cb)cb.setAttribute('aria-live','polite');const ov=document.getElementById('overlay');if(ov)ov.setAttribute('role','dialog')}
 function hdrIcons(){const m={'Stats':'gi_leaderboardsSimple','Achv':'gi_trophy','Help':'gi_question','Quit':'gi_cross'};document.querySelectorAll('.hbtn').forEach(b=>{const k=m[b.title];if(k)b.innerHTML=spr(k)});updateMuteBtn();a11y()}
@@ -1856,8 +1906,8 @@ function render(){
   document.getElementById('s-ante').textContent=state.endless&&state.ante>8?'∞ '+state.ante:state.ante;
   document.getElementById('s-blind').textContent=state.boss?state.boss.name[LANG]:t(['small_blind','big_blind','boss_blind'][state.blindIdx]);
   document.getElementById('s-target').textContent=state.target.toLocaleString();
-  document.getElementById('s-score').textContent=state.roundScore.toLocaleString();
-  document.getElementById('s-money').textContent=state.money;
+  setNum('s-score',state.roundScore,true);
+  setNum('s-money',state.money,false);
   const int=state.interest?Math.floor(state.money/5):0;
   document.getElementById('s-interest').textContent='+'+int;
   const bi=document.getElementById('blind-icon');
