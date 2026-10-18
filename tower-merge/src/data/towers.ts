@@ -33,7 +33,7 @@ export const TOWERS: Record<TowerId, TowerDef> = {
   },
   cannon: {
     id: 'cannon', name: 'Cannon', role: 'Slow lobbed shells that explode on the ground. Cannot hit flyers.',
-    attack: 'lobbed', damage: 34, fireRate: 0.55, range: 230, splashRadius: 62, projectileSpeed: 380,
+    attack: 'lobbed', damage: 31, fireRate: 0.55, range: 230, splashRadius: 62, projectileSpeed: 380,
     critChance: 0, critMult: 2, statusPower: 1, statusDuration: 3, chainCount: 0, chainRange: 0, armorPen: 0,
     hitsAir: false, baseEffects: [], color: 0x8a8f98, unlock: { kind: 'start' }, buyWeight: 22,
     levels: [
@@ -46,7 +46,7 @@ export const TOWERS: Record<TowerId, TowerDef> = {
   },
   frost: {
     id: 'frost', name: 'Frost Tower', role: 'Slows enemies so every other tower gets more time on target.',
-    attack: 'projectile', damage: 6, fireRate: 1.1, range: 180, splashRadius: 0, projectileSpeed: 520,
+    attack: 'projectile', damage: 8, fireRate: 1.1, range: 180, splashRadius: 0, projectileSpeed: 520,
     critChance: 0, critMult: 2, statusPower: 1, statusDuration: 1.5, chainCount: 0, chainRange: 0, armorPen: 0,
     hitsAir: true, baseEffects: [flag('slowOnHit', 0.3)], color: 0x6fd3ff, unlock: { kind: 'start' }, buyWeight: 20,
     levels: [
@@ -59,7 +59,7 @@ export const TOWERS: Record<TowerId, TowerDef> = {
   },
   lightning: {
     id: 'lightning', name: 'Lightning Tower', role: 'Instant bolts that chain between enemies. Great against crowds.',
-    attack: 'chain', damage: 13, fireRate: 1.0, range: 170, splashRadius: 0, projectileSpeed: 0,
+    attack: 'chain', damage: 14.5, fireRate: 1.0, range: 170, splashRadius: 0, projectileSpeed: 0,
     critChance: 0.05, critMult: 2, statusPower: 1, statusDuration: 1.5, chainCount: 2, chainRange: 110, armorPen: 0,
     hitsAir: true, baseEffects: [], color: 0xf6e05e, unlock: { kind: 'gems', cost: 150 }, buyWeight: 16,
     levels: [
@@ -87,7 +87,7 @@ export const TOWERS: Record<TowerId, TowerDef> = {
   },
   poison: {
     id: 'poison', name: 'Poison Tower', role: 'Stacking poison that melts tough enemies over time.',
-    attack: 'projectile', damage: 3, fireRate: 1.0, range: 190, splashRadius: 0, projectileSpeed: 480,
+    attack: 'projectile', damage: 3, fireRate: 1.2, range: 190, splashRadius: 0, projectileSpeed: 480,
     critChance: 0, critMult: 2, statusPower: 5, statusDuration: 4, chainCount: 0, chainRange: 0, armorPen: 0,
     hitsAir: true, baseEffects: [flag('poisonOnHit', 1)], color: 0x7bd957, unlock: { kind: 'gems', cost: 250 }, buyWeight: 14,
     levels: [
@@ -100,7 +100,7 @@ export const TOWERS: Record<TowerId, TowerDef> = {
   },
   sniper: {
     id: 'sniper', name: 'Sniper Tower', role: 'Instant long-range shots at the toughest enemy. Huge damage, slow reload.',
-    attack: 'beam', damage: 55, fireRate: 0.35, range: 560, splashRadius: 0, projectileSpeed: 0,
+    attack: 'beam', damage: 51, fireRate: 0.35, range: 560, splashRadius: 0, projectileSpeed: 0,
     critChance: 0.1, critMult: 2.5, statusPower: 1, statusDuration: 1.5, chainCount: 0, chainRange: 0, armorPen: 0.2,
     hitsAir: true, baseEffects: [], color: 0xc084fc, unlock: { kind: 'gems', cost: 350 }, buyWeight: 10,
     levels: [

@@ -48,7 +48,8 @@ export class ShopBar {
   private buyState = '';
   private affordable = false;
   private leftShown = -1;
-  private time = 0;
+  private countShown = -1;
+  private readonly count: Phaser.GameObjects.Text;
   /** Tutorial: gently throb the BUY button. */
   emphasizeBuy = false;
 
@@ -62,11 +63,18 @@ export class ShopBar {
     g.fillStyle(0xffffff, 0.07).fillRoundedRect(-18, 1044, 756, 26, 14);
 
     this.start = createButton(scene, 0, 0, {
-      label: 'START WAVE', icon: TEX.tri, width: 400, height: 84, fontSize: 34, style: 'primary', depth: D.shop,
+      label: 'START WAVE', icon: TEX.tri, width: 336, height: 84, fontSize: 32, style: 'primary', depth: D.shop,
       onClick: () => host.startWave(),
     });
     this.startWrap = fixed(scene.add.container(360, START_Y, [this.start.container]).setDepth(D.shop));
     this.start.container.setDepth(0);
+    const cg = scene.add.graphics();
+    cg.fillStyle(PALETTE.outline, 1).fillCircle(0, 0, 29).fillStyle(0x1d2548, 1).fillCircle(0, 0, 24);
+    this.count = crispText(scene, 0, 1, '', { preset: 'number', size: 30, strokeThickness: 5 });
+    this.startWrap.add([cg, this.count]);
+    this.start.container.setX(14);
+    cg.setPosition(-182, 0);
+    this.count.setPosition(-182, 1);
 
     this.buy = createButton(scene, 0, 0, {
       label: 'BUY', icon: 'icon_coin', width: 280, height: 112, fontSize: 44, style: 'success', depth: D.shop,
@@ -80,7 +88,7 @@ export class ShopBar {
     this.ff = createRoundButton(scene, 646, START_Y, 66, () => this.onFast(), D.shop);
     this.ff.container.setScrollFactor(0);
     this.ff.paint(0x5a6bb8, 0x3d4a94, 0x232b5c);
-    this.ffText = crispText(scene, 0, -1, 'x1', { preset: 'heading', size: 28, strokeThickness: 5 });
+    this.ffText = crispText(scene, 0, -1, 'x1', { preset: 'body', size: 30, strokeThickness: 5 });
     this.ff.container.add(this.ffText);
 
     this.left = createPill(scene, 360, START_Y, { icon: 'icon_skull', value: 0, height: 56, align: 'center', depth: D.shop, color: 0xff6a5a });
@@ -121,7 +129,6 @@ export class ShopBar {
   }
 
   update(world: WorldApi, dt: number, time: number, speed: number): void {
-    this.time = time;
     this.ffText.setText(`x${speed}`);
     const phase = world.phase;
     const live = phase === 'wave' || phase === 'prewave';
@@ -140,7 +147,7 @@ export class ShopBar {
       if (ok && !this.affordable) this.scene.tweens.add({ targets: this.buyWrap, scale: { from: 1.14, to: 1 }, duration: 240, ease: 'Back.Out' });
       this.affordable = ok;
     }
-    if (ok && (this.emphasizeBuy || true)) {
+    if (ok) {
       const k = this.emphasizeBuy ? 0.06 : 0.018;
       if (!this.scene.tweens.isTweening(this.buyWrap)) this.buyWrap.setScale(1 + k * Math.sin(time * (this.emphasizeBuy ? 7 : 4)));
     } else if (!this.scene.tweens.isTweening(this.buyWrap)) {
@@ -155,7 +162,7 @@ export class ShopBar {
     this.startWrap.setVisible(pre);
     if (pre) {
       const sec = Math.ceil(world.prewaveTime);
-      this.start.setLabel(`START WAVE ${sec > 0 ? sec : ''}`.trim());
+      if (sec !== this.countShown) { this.countShown = sec; this.count.setText(String(Math.max(0, sec))); }
       this.startWrap.setScale(1 + 0.02 * Math.sin(time * 5));
     }
     this.left.container.setVisible(phase === 'wave');

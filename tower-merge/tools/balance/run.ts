@@ -10,6 +10,7 @@ import type { RunOptions, SimEvent, WorldApi } from '../../src/sim/api';
 import type { WorldContent } from '../../src/sim/World';
 import type { BotPolicy } from '../../src/sim/bot';
 import { runBot } from '../../src/sim/bot';
+import { runChurnBot } from './churnBot';
 import { AIR_LANE, GROUND_LANE } from '../../src/sim/path';
 import type { TowerId } from '../../src/data/types';
 
@@ -29,7 +30,7 @@ export interface WaveSample {
 
 export interface RunConfig {
   seed: number;
-  policy: BotPolicy;
+  policy: BotPolicy | 'churn';
   options: RunOptions;
   /** Labels used for grouping in the report. */
   meta: string;
@@ -39,7 +40,7 @@ export interface RunConfig {
 }
 
 export interface RunRecord {
-  cfg: { seed: number; policy: BotPolicy; meta: string; poolLabel: string; pool: TowerId[] };
+  cfg: { seed: number; policy: BotPolicy | 'churn'; meta: string; poolLabel: string; pool: TowerId[] };
   wave: number;
   cleared: number;
   seconds: number;
@@ -51,9 +52,14 @@ export interface RunRecord {
   /** True when the castle never fell (maxWaves reached). */
   survived: boolean;
   samples: WaveSample[];
-  /** Castle damage by source ("goblin", "goblinKing", "dragon:fireBreath"), whole run and death wave. */
+  /** Castle damage by source ("goblin", "dragon", "dragon:fireBreath") over the whole run and in the death wave. */
   castleDamage: Record<string, number>;
   deathWaveDamage: Record<string, number>;
+  /** Castle damage taken per wave (all sources) and by source in boss waves. */
+  waveDamage: Record<number, number>;
+  bossWaveSources: Record<number, Record<string, number>>;
+  /** Tower-seconds lost to boss disables and fire scorch, per boss wave. */
+  bossDisabled: Record<number, number>;
   /** Tower damage and kills by type from RunStats. */
   towerDamage: Record<string, number>;
   towerKills: Record<string, number>;
@@ -77,14 +83,14 @@ export function runInstrumented(cfg: RunConfig): RunRecord {
   const rec: RunRecord = {
     cfg: { seed: cfg.seed, policy: cfg.policy, meta: cfg.meta, poolLabel: cfg.poolLabel, pool: [...cfg.options.towerPool] },
     wave: 0, cleared: 0, seconds: 0, gems: 0, highestLevel: 1, bought: 0, merged: 0, coinsEarned: 0, survived: false,
-    samples: [], castleDamage: {}, deathWaveDamage: {}, towerDamage: {}, towerKills: {},
+    samples: [], castleDamage: {}, deathWaveDamage: {}, waveDamage: {}, bossWaveSources: {}, bossDisabled: {}, towerDamage: {}, towerKills: {},
     damageByTL: {}, slotSecondsByTL: {}, picks: [], synergies: [], events: [], finalBoard: [], disabledTime: 0,
   };
   let snap: Snap[] = [];
   const lastDmg = new Map<number, number>();
   let lastT = 0;
   let lastEventWave = -1;
-  let deathWave = 0;
+  const perWaveSrc: Record<number, Record<string, number>> = {};
 
   const expected = (kind: string, wave: number): number => {
     const e = (ENEMIES as Record<string, { castleDamage: number }>)[kind];
@@ -108,7 +114,10 @@ export function runInstrumented(cfg: RunConfig): RunRecord {
       else add(rec.damageByTL, key, 0);
       lastDmg.set(t.uid, t.damageDealt);
       if (dt > 0 && dt < 1) add(rec.slotSecondsByTL, key, dt);
-      if (t.disabledTime > 0 && dt > 0 && dt < 1) rec.disabledTime += dt;
+      if (t.disabledTime > 0 && dt > 0 && dt < 1) {
+        rec.disabledTime += dt;
+        if (wave % 5 === 0) rec.bossDisabled[wave] = (rec.bossDisabled[wave] ?? 0) + dt;
+      }
     }
 
     // --- castle damage attribution: leakers vanished near the lane end without being listed as kills
@@ -135,8 +144,8 @@ export function runInstrumented(cfg: RunConfig): RunRecord {
         else if (bossAlive && (bossAlive.kind as string) === 'dragon') src = 'dragon:fireBreath';
         else src = 'other';
         add(rec.castleDamage, src, h.damage);
-        if (wave !== deathWave) { deathWave = wave; rec.deathWaveDamage = {}; }
-        add(rec.deathWaveDamage, src, h.damage);
+        rec.waveDamage[wave] = (rec.waveDamage[wave] ?? 0) + h.damage;
+        add(perWaveSrc[wave] ??= {}, src, h.damage);
       }
     }
     snap = [];
@@ -176,7 +185,9 @@ export function runInstrumented(cfg: RunConfig): RunRecord {
   };
 
   const maxWaves = cfg.maxWaves ?? 40;
-  const r = runBot(cfg.options, cfg.policy, maxWaves, cfg.content, { onEvents });
+  const r = cfg.policy === 'churn'
+    ? runChurnBot(cfg.options, maxWaves, cfg.content, { onEvents })
+    : runBot(cfg.options, cfg.policy, maxWaves, cfg.content, { onEvents });
   const st = r.stats;
   rec.wave = r.waveReached;
   rec.cleared = st.wavesCleared;
@@ -187,6 +198,8 @@ export function runInstrumented(cfg: RunConfig): RunRecord {
   rec.merged = st.towersMerged;
   rec.coinsEarned = st.coinsEarned;
   rec.survived = r.waveReached > maxWaves;
+  if (!rec.survived) rec.deathWaveDamage = perWaveSrc[rec.wave] ?? {};
+  for (const w of Object.keys(perWaveSrc)) if (Number(w) % 5 === 0) rec.bossWaveSources[Number(w)] = perWaveSrc[Number(w)];
   rec.towerDamage = { ...st.towerDamage } as Record<string, number>;
   rec.towerKills = { ...st.towerKills } as Record<string, number>;
   return rec;

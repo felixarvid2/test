@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { SLOTS } from '../../data/map';
+import { services } from '../../services';
 import type { MoveResult, TowerState, WorldApi } from '../../sim/api';
 import { towerKey } from '../assetKeys';
 import { COLOR_DANGER, D, DRAG_LIFT, DRAG_THRESHOLD, TOWER_DY, towerSize } from './constants';
@@ -108,11 +109,14 @@ export class DragController {
   private fromTower: TowerState | null = null;
   private pendingFlyer: FlyerSnapshot | null = null;
   private readonly towerSlots: SlotPos[] = [];
+  private readonly rangeGfx: Phaser.GameObjects.Graphics;
+  private rangeR = 0;
 
   constructor(private readonly host: DragHost) {
     const scene = host.scene;
     this.visual = new DragVisual(scene);
     this.highlights = new Highlights(scene);
+    this.rangeGfx = scene.add.graphics().setDepth(D.ground + 0.6).setVisible(false);
     scene.input.on('pointerdown', this.onDown, this);
     scene.input.on('pointermove', this.onMove, this);
     scene.input.on('pointerup', this.onUp, this);
@@ -194,12 +198,17 @@ export class DragController {
     this.kinds = SLOTS.map((s) => classifyTarget(slot, s.id, world.slots.map(toInfo), (a, b) => world.canMerge(a, b)));
     this.highlights.begin(this.kinds);
     this.hover = -1;
+    this.rangeR = 0;
+    try {
+      if (services.save.data.settings.showRanges) this.rangeR = world.describeTower(slot)?.range ?? 0;
+    } catch { /* settings optional */ }
   }
 
   /** Called every frame by the scene. */
   update(dt: number, time: number): void {
     if (this.machine.phase !== 'dragging') {
       if (this.highlights.isActive && !this.busy) this.highlights.end();
+      if (this.rangeGfx.visible) this.rangeGfx.clear().setVisible(false);
       return;
     }
     const v = this.visual.root;
@@ -229,6 +238,11 @@ export class DragController {
     const want = Phaser.Math.Clamp(this.vx / 2600, -0.32, 0.32);
     this.tilt += (want - this.tilt) * (1 - Math.exp(-dt * 16));
     v.setRotation(this.tilt);
+    if (this.rangeR > 0) {
+      const cx = this.hover >= 0 ? SLOT_POS[this.hover].x : this.tx;
+      const cy = this.hover >= 0 ? SLOT_POS[this.hover].y : this.ty;
+      this.rangeGfx.setVisible(true).clear().fillStyle(0xffffff, 0.08).fillCircle(cx, cy, this.rangeR).lineStyle(3, 0xffffff, 0.45).strokeCircle(cx, cy, this.rangeR);
+    }
     this.highlights.update(time, this.hover);
   }
 
@@ -345,6 +359,7 @@ export class DragController {
     input.off('pointerupoutside', this.onUp, this);
     input.off('gameout', this.onOut, this);
     this.highlights.destroy();
+    this.rangeGfx.destroy();
     this.visual.destroy();
   }
 }

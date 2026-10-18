@@ -8,49 +8,36 @@ import { PALETTE, TOWER_COLORS } from '../ui/theme';
 import { D, TOWER_DY, depthForY, towerSize } from './constants';
 import type { Effects } from './Effects';
 import { TEX } from './textures';
+import { bounceOut, clamp01, punchScale } from './logic';
 
 export const LEVEL_COLORS = [0xc5cee0, 0x5ed06a, 0x4fa3ff, 0xb35cff, 0xffb627];
-
-const clamp01 = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
-
-/** 0.6 -> 1.25 -> 1 punch used when a merged tower appears (t in seconds). */
-export function punchScale(t: number): number {
-  if (t <= 0) return 0.6;
-  if (t < 0.16) {
-    const k = t / 0.16;
-    return 0.6 + 0.65 * (1 - (1 - k) * (1 - k));
-  }
-  const k = clamp01((t - 0.16) / 0.5);
-  // damped oscillation around 1 starting from 1.25
-  return 1 + 0.25 * Math.cos(k * Math.PI * 2.4) * Math.pow(1 - k, 1.6);
-}
-
-/** Bounce-out landing used when a bought tower drops in (0..1 -> 0..1). */
-function bounceOut(k: number): number {
-  if (k < 1 / 2.75) return 7.5625 * k * k;
-  if (k < 2 / 2.75) { k -= 1.5 / 2.75; return 7.5625 * k * k + 0.75; }
-  if (k < 2.5 / 2.75) { k -= 2.25 / 2.75; return 7.5625 * k * k + 0.9375; }
-  k -= 2.625 / 2.75;
-  return 7.5625 * k * k + 0.984375;
-}
 
 /** Level pill with 1-5 colour-coded pips, centred on cx with its top at topY. */
 export function drawLevelBadge(g: Phaser.GameObjects.Graphics, cx: number, topY: number, level: number): void {
   const n = Math.max(1, Math.min(MAX_TOWER_LEVEL, level));
   const col = LEVEL_COLORS[n - 1];
-  const pip = 11;
-  const gap = 5;
-  const w = n * pip + (n - 1) * gap + 22;
-  const h = 24;
+  const step = 20;
+  const w = n * step + 14;
+  const h = 26;
   const bx = cx - w / 2;
   g.fillStyle(PALETTE.outline, 1).fillRoundedRect(bx - 3, topY - 3, w + 6, h + 6, h / 2 + 3);
   g.fillStyle(0x1b2140, 1).fillRoundedRect(bx, topY, w, h, h / 2);
   for (let i = 0; i < n; i++) {
-    const x = bx + 11 + pip / 2 + i * (pip + gap);
-    g.fillStyle(PALETTE.outline, 1).fillCircle(x, topY + h / 2, pip / 2 + 2);
-    g.fillStyle(col, 1).fillCircle(x, topY + h / 2, pip / 2);
-    g.fillStyle(0xffffff, 0.7).fillCircle(x - 1.5, topY + h / 2 - 2, pip / 6);
+    const x = bx + 7 + step / 2 + i * step;
+    star(g, x, topY + h / 2 + 0.5, 9.5, PALETTE.outline);
+    star(g, x, topY + h / 2 + 0.5, 7.4, col);
   }
+}
+
+const STAR_PTS: Array<{ x: number; y: number }> = Array.from({ length: 10 }, () => ({ x: 0, y: 0 }));
+function star(g: Phaser.GameObjects.Graphics, cx: number, cy: number, r: number, color: number): void {
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI / 2 + (i * Math.PI) / 5;
+    const rr = i % 2 === 0 ? r : r * 0.45;
+    STAR_PTS[i].x = cx + Math.cos(a) * rr;
+    STAR_PTS[i].y = cy + Math.sin(a) * rr;
+  }
+  g.fillStyle(color, 1).fillPoints(STAR_PTS as unknown as Phaser.Math.Vector2[], true);
 }
 
 /** One tower slot on the board: pad shadow, tower sprite, level badge and the animations around them. */
@@ -89,7 +76,7 @@ export class TowerView {
   readonly x: number;
   readonly y: number;
 
-  constructor(private readonly scene: Phaser.Scene, readonly def: SlotDef, private readonly fx: Effects) {
+  constructor(scene: Phaser.Scene, readonly def: SlotDef, private readonly fx: Effects) {
     this.x = def.x;
     this.y = def.y;
     this.phase = def.id * 1.7;

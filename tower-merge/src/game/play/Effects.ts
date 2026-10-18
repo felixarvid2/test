@@ -440,8 +440,8 @@ export class Effects {
   explosion(x: number, y: number, radius: number, element: string): void {
     const color = ELEMENT_COLORS[element] ?? ELEMENT_COLORS.physical;
     const r = Math.max(20, radius);
-    this.glow(x, y, 0xffffff, r * 1.2, r * 2.8, 220, 0.85);
-    this.glow(x, y, color, r * 1.6, r * 3.4, 320, 0.75);
+    this.glow(x, y, 0xffffff, r * 1.0, r * 2.1, 200, 0.5);
+    this.glow(x, y, color, r * 1.4, r * 2.8, 300, 0.5);
     this.ring(x, y, color, r * 0.7, r * 2.4, 340, 0.95);
     const n = 5 + r / 7;
     switch (element) {
@@ -489,6 +489,6 @@ export class Effects {
     this.linesDirty = false;
     this.timeScale = 1;
     this.hitstopLeft = 0;
-    this.cam.setScroll(0, 0);
+    try { this.cam.setScroll(0, 0); } catch { /* camera already gone */ }
   }
 }

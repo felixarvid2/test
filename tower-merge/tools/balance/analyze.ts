@@ -45,7 +45,7 @@ export function deathSection(recs: RunRecord[], policy = 'greedy'): string {
   return out.join('\n\n');
 }
 
-/** Boss waves: how many runs entered them and what share died there. */
+/** Boss waves: how many runs entered them, what share died there and how much the boss wave hurt. */
 export function bossSection(recs: RunRecord[], policy = 'greedy'): string {
   const names: Record<number, string> = { 5: 'Goblin King', 10: 'Stone Golem', 15: 'Dragon', 20: 'Goblin King x2', 25: 'Stone Golem x2', 30: 'Dragon x2' };
   const rows: (string | number)[][] = [];
@@ -55,11 +55,15 @@ export function bossSection(recs: RunRecord[], policy = 'greedy'): string {
       if (entered.length < 3) continue;
       const died = entered.filter((r) => r.wave === bw);
       const hpLeft = mean(entered.map((r) => r.samples.find((s) => s.wave === bw)).filter((s) => s).map((s) => s!.hp / s!.maxHp));
-      rows.push([meta, `${bw} ${names[bw]}`, entered.length, died.length, pct(died.length / entered.length), pct(hpLeft)]);
+      const lost = mean(entered.map((r) => (r.waveDamage[bw] ?? 0) / (r.samples.find((s) => s.wave === bw)?.maxHp ?? 100)));
+      const breath = entered.reduce((a, r) => a + (r.bossWaveSources[bw]?.['dragon:fireBreath'] ?? 0), 0);
+      const all = entered.reduce((a, r) => a + (r.waveDamage[bw] ?? 0), 0);
+      const dis = mean(entered.map((r) => r.bossDisabled[bw] ?? 0));
+      rows.push([meta, `${bw} ${names[bw]}`, entered.length, died.length, pct(died.length / entered.length), pct(hpLeft), pct(lost), bw % 15 === 0 ? pct(breath / Math.max(1, all)) : '-', fmt(dis, 1)]);
     }
   }
-  return `Boss walls, ${policy}: runs that entered the boss wave and died in it\n${
-    table(['meta', 'boss wave', 'entered', 'died', 'death rate', 'castle hp on entry'], rows)}`;
+  return `Boss walls, ${policy}: runs that entered the boss wave, deaths in it, castle damage taken in it\n${
+    table(['meta', 'boss wave', 'entered', 'died', 'death rate', 'castle hp on entry', 'hp lost in wave', 'fire breath share', 'tower-s disabled'], rows)}`;
 }
 
 /** What took the castle down: damage by source in the death wave, and over the whole run. */

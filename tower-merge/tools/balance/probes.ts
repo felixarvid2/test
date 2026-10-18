@@ -6,7 +6,7 @@
 import { SYNERGIES } from '../../src/data/synergies';
 import { UPGRADES } from '../../src/data/upgrades';
 import type { Effect, TowerId } from '../../src/data/types';
-import { START_POOL } from './presets';
+import { FULL_POOL, START_POOL } from './presets';
 import type { MetaPreset } from './presets';
 import { runJobs } from './jobs';
 import type { JobSpec, Progress } from './jobs';
@@ -99,4 +99,30 @@ export function probeReport(title: string, rows: ProbeRow[], withExtra = false):
     ['name', ...(withExtra ? ['rarity'] : []), 'base wave', 'delta waves', '95% ci', 'delta min'],
     sorted.map((r) => [r.label, ...(withExtra ? [r.extra ?? ''] : []), fmt(r.baseWave), signed(r.delta), `+-${fmt(r.se * 1.96, 2)}`, signed(r.deltaMin, 1)]),
   )}`;
+}
+
+/** Value of each tower: waves lost when it is removed from the pool (full pool, and the start pool for its three towers). */
+export async function towerProbe(o: ProbeOptions): Promise<ProbeRow[]> {
+  const seeds = Array.from({ length: o.runs }, (_, i) => i + 1);
+  const variants: Variant[] = [];
+  const rows: { label: string; base: string; v: string }[] = [];
+  const add = (poolName: string, pool: TowerId[]): void => {
+    const base = `base:${poolName}`;
+    const common = { policy: 'greedy' as const, meta: o.meta, poolLabel: poolName };
+    variants.push({ label: base, base, spec: { ...common, pool } });
+    for (const t of pool) {
+      const rest = pool.filter((x) => x !== t);
+      variants.push({ label: `${poolName}-${t}`, base, spec: { ...common, pool: rest } });
+      rows.push({ label: `${t} (${poolName} pool)`, base, v: `${poolName}-${t}` });
+    }
+  };
+  add('start', START_POOL);
+  add('full', [...FULL_POOL]);
+  const res = await runVariants(variants, seeds, o.workers, o.seedBase, o.onProgress, o.set);
+  return rows.map((r) => {
+    const b = res.get(r.base)!;
+    const d = diff(res.get(r.v)!, b);
+    // removing a tower: the delta is the negative of its value
+    return { label: r.label, baseWave: mean(b.wave), delta: -d.d, se: d.se, deltaMin: -d.dm };
+  });
 }

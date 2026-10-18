@@ -340,6 +340,33 @@ export function mergeSound(level: number): { key: 'merge' | 'merge_big'; rate: n
 export const mergeHitstopMs = (level: number): number => Math.min(80, 50 + (level - 2) * 10);
 
 // ---------------------------------------------------------------------------------------------
+// Tower animation curves
+// ---------------------------------------------------------------------------------------------
+
+export const clamp01 = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
+
+/** 0.6 -> 1.25 -> 1 punch used when a merged tower appears (t in seconds). */
+export function punchScale(t: number): number {
+  if (t <= 0) return 0.6;
+  if (t < 0.16) {
+    const k = t / 0.16;
+    return 0.6 + 0.65 * (1 - (1 - k) * (1 - k));
+  }
+  const k = clamp01((t - 0.16) / 0.5);
+  // damped oscillation around 1 starting from 1.25
+  return 1 + 0.25 * Math.cos(k * Math.PI * 2.4) * Math.pow(1 - k, 1.6);
+}
+
+/** Bounce-out landing used when a bought tower drops in (0..1 -> 0..1). */
+export function bounceOut(k: number): number {
+  if (k < 1 / 2.75) return 7.5625 * k * k;
+  if (k < 2 / 2.75) { k -= 1.5 / 2.75; return 7.5625 * k * k + 0.75; }
+  if (k < 2.5 / 2.75) { k -= 2.25 / 2.75; return 7.5625 * k * k + 0.9375; }
+  k -= 2.625 / 2.75;
+  return 7.5625 * k * k + 0.984375;
+}
+
+// ---------------------------------------------------------------------------------------------
 // Tutorial and overlay decisions
 // ---------------------------------------------------------------------------------------------
 

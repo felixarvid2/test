@@ -43,12 +43,20 @@ export function spendMeta(gems: number): Record<string, number> {
   }
 }
 
+/** Gems a preset has spent on unlocking its natural towers; the rest went into meta upgrades. */
+function naturalTowerGems(preset: MetaPreset): number {
+  return towersForMeta(preset, 'mixed').reduce((n, id) => n + (TOWERS[id].unlock.kind === 'gems' ? TOWERS[id].unlock.cost : 0), 0);
+}
+
+/**
+ * The meta levels belong to the preset, not to the pool a run happens to use: experiments that
+ * restrict the pool (start towers only, random subsets, one tower removed) keep the same bonuses.
+ */
 function fakeSave(preset: MetaPreset, unlocked: TowerId[]): SaveData {
-  const towerGems = unlocked.reduce((n, id) => n + (TOWERS[id].unlock.kind === 'gems' ? TOWERS[id].unlock.cost : 0), 0);
   return {
     version: 1,
     gems: 0,
-    metaLevels: spendMeta(Math.max(0, META_GEMS[preset] - towerGems)),
+    metaLevels: spendMeta(Math.max(0, META_GEMS[preset] - naturalTowerGems(preset))),
     unlockedTowers: unlocked,
     stats: { bestWave: 15 },
   } as unknown as SaveData;

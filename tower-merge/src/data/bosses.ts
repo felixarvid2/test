@@ -8,7 +8,7 @@ import type { BossDef, BossId } from './types';
 export const BOSSES: Record<BossId, BossDef> = {
   goblinKing: {
     id: 'goblinKing', name: 'Goblin King', title: 'Lord of the Raiders', wave: 5,
-    hp: 1100, speed: 72, armor: 0.1, coins: 90, gems: 8, castleDamage: 25, flying: false, radius: 34,
+    hp: 1800, speed: 83, armor: 0.1, coins: 90, gems: 8, castleDamage: 25, flying: false, radius: 34,
     phases: [
       {
         hpBelow: 1, speedMult: 1, intervalMult: 1,
@@ -40,7 +40,7 @@ export const BOSSES: Record<BossId, BossDef> = {
   },
   stoneGolem: {
     id: 'stoneGolem', name: 'Stone Golem', title: 'The Living Mountain', wave: 10,
-    hp: 3600, speed: 56, armor: 0.45, coins: 160, gems: 15, castleDamage: 35, flying: false, radius: 44,
+    hp: 6500, speed: 64, armor: 0.45, coins: 160, gems: 15, castleDamage: 35, flying: false, radius: 44,
     phases: [
       {
         hpBelow: 1, speedMult: 1, intervalMult: 1,
@@ -72,7 +72,7 @@ export const BOSSES: Record<BossId, BossDef> = {
   },
   dragon: {
     id: 'dragon', name: 'Ancient Dragon', title: 'Scourge of the Skies', wave: 15,
-    hp: 5600, speed: 48, armor: 0.15, coins: 260, gems: 25, castleDamage: 40, flying: true, radius: 50,
+    hp: 13500, speed: 55, armor: 0.15, coins: 260, gems: 25, castleDamage: 40, flying: true, radius: 50,
     phases: [
       {
         hpBelow: 1, speedMult: 1, intervalMult: 1,

@@ -32,6 +32,9 @@ interface Slot {
   burnT: number;
   poisonT: number;
   depth: number;
+  /** Hit flash: seconds of white left, and a cooldown so constant fire does not keep an enemy white. */
+  flashLeft: number;
+  flashCool: number;
 }
 
 /**
@@ -52,7 +55,7 @@ export class EnemyLayer {
       const sprite = scene.add.image(0, 0, enemyKey('goblin')).setVisible(false).setOrigin(0.5, 0.875);
       this.slots.push({
         sprite, shadow, glow: null, fx1: null, fx2: null, size: 56, baseScale: 0.4, flip: false, ph: i * 0.9, tintMode: 0, tintColor: WHITE,
-        boss: false, flying: false, kind: '', burnT: 0, poisonT: 0, depth: 0,
+        boss: false, flying: false, kind: '', burnT: 0, poisonT: 0, depth: 0, flashLeft: 0, flashCool: 0,
       });
     }
     this.bars = scene.add.graphics().setDepth(D.bars);
@@ -89,6 +92,8 @@ export class EnemyLayer {
     s.ph = (e.id * 0.73) % 6.28;
     s.burnT = 0;
     s.poisonT = 0;
+    s.flashLeft = 0;
+    s.flashCool = 0;
     s.shadow.setVisible(true);
     s.shadow.setScale((s.size * (e.flying ? 0.7 : 1.0)) / s.shadow.frame.width, (s.size * 0.4 * (e.flying ? 0.7 : 1)) / s.shadow.frame.height);
     s.shadow.setAlpha(e.flying ? 0.55 : 1);
@@ -193,7 +198,13 @@ export class EnemyLayer {
     // --- tint by status; the hit flash wins ---
     let mode = 0;
     let color = WHITE;
-    if (e.hitFlash < 0.08) {
+    if (s.flashCool > 0) s.flashCool -= dt;
+    if (s.flashLeft > 0) s.flashLeft -= dt;
+    if (e.hitFlash < 0.05 && s.flashCool <= 0) {
+      s.flashLeft = 0.07;
+      s.flashCool = s.boss ? 0.5 : 0.2;
+    }
+    if (s.flashLeft > 0) {
       mode = 1;
     } else if (frozen) { mode = 2; color = TINT_FROZEN; }
     else if (e.charging) { mode = 2; color = Math.sin(time * 30) > 0 ? 0xff6a5a : 0xffffff; }

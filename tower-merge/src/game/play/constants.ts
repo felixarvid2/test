@@ -41,7 +41,7 @@ export const ALL_SLOTS_COUNT = SLOTS.length;
 export const TOWER_DY = 14;
 
 /** Displayed tower height by level (px): higher levels are visibly grander. */
-export const towerSize = (level: number): number => 118 + (Math.min(MAX_TOWER_LEVEL, Math.max(1, level)) - 1) * 6;
+export const towerSize = (level: number): number => 134 + (Math.min(MAX_TOWER_LEVEL, Math.max(1, level)) - 1) * 8;
 
 /** Finger offset while dragging: the tower is rendered this far above the pointer. */
 export const DRAG_LIFT = 70;

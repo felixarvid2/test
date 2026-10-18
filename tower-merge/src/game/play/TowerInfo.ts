@@ -4,7 +4,7 @@ import { TOWERS } from '../../data/towers';
 import type { WorldApi } from '../../sim/api';
 import { PALETTE, TOWER_COLORS, hex } from '../ui/theme';
 import { createButton, type UIButton } from '../ui/button';
-import { crispText } from '../ui/text';
+import { crispText, fitText } from '../ui/text';
 import { D, TOWER_DY, towerSize } from './constants';
 
 const CARD_W = 340;
@@ -65,6 +65,7 @@ export class TowerInfo {
     this.range.lineStyle(2, 0xffffff, 0.5).strokeCircle(cx, cy, st.range - 3);
 
     this.title.setText(`${def.name}  Lv ${tw.level}`).setColor(hex(col === 0x3b5b9a ? 0x8fb4ff : col));
+    fitText(this.title, CARD_W - 40);
     const lines = [
       `DPS ${fmt(st.dps)}    Range ${Math.round(st.range)}`,
       `Dmg ${fmt(st.damage)} x ${st.fireRate.toFixed(1)}/s`,

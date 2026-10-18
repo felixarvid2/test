@@ -10,7 +10,7 @@ import { D } from './constants';
 import { createRoundButton, type RoundButton } from './widgets';
 
 const BAR_X = 62;
-const BAR_W = 238;
+const BAR_W = 218;
 const BAR_H = 32;
 const ROW_Y = 40;
 
@@ -47,7 +47,7 @@ export class Hud {
   private coinsTarget = 0;
   private coinsPending = 0;
 
-  constructor(private readonly scene: Phaser.Scene, private readonly host: { openPause(): void }) {
+  constructor(private readonly scene: Phaser.Scene, host: { openPause(): void }) {
     const fixed = <T extends Phaser.GameObjects.GameObject>(o: T): T => { (o as unknown as { setScrollFactor(v: number): void }).setScrollFactor(0); return o; };
 
     // soft top fade so HUD reads over the grass and the cave
@@ -60,13 +60,13 @@ export class Hud {
 
     this.waveGfx = scene.add.graphics();
     this.skull = scene.add.image(-52, 0, 'icon_skull').setDisplaySize(34, 34).setVisible(false);
-    this.waveText = crispText(scene, 0, 1, 'WAVE 1', { preset: 'heading', size: 26, strokeThickness: 6 });
-    this.wave = fixed(scene.add.container(372, ROW_Y, [this.waveGfx, this.skull, this.waveText]).setDepth(D.hud));
+    this.waveText = crispText(scene, 0, 1, 'WAVE 1', { preset: 'heading', size: 24, strokeThickness: 6 });
+    this.wave = fixed(scene.add.container(362, ROW_Y, [this.waveGfx, this.skull, this.waveText]).setDepth(D.hud));
 
-    this.coins = createPill(scene, 602, ROW_Y, { icon: 'icon_coin', value: 0, height: 56, align: 'right', depth: D.hud });
+    this.coins = createPill(scene, 622, ROW_Y, { icon: 'icon_coin', value: 0, height: 54, align: 'right', depth: D.hud });
     this.coins.container.setScrollFactor(0);
 
-    this.pause = createRoundButton(scene, 664, ROW_Y, 62, () => host.openPause(), D.hud);
+    this.pause = createRoundButton(scene, 678, ROW_Y, 56, () => host.openPause(), D.hud);
     this.pause.container.setScrollFactor(0);
     this.pause.paint(0x5a6bb8, 0x3d4a94, 0x232b5c);
     const bars = scene.add.graphics();
@@ -225,16 +225,17 @@ export class Hud {
     this.chipKey = key;
     for (const c of this.chips) c.destroy();
     this.chips = [];
-    world.activeSynergies.forEach((id, i) => {
+    const MAX_CHIPS = 9;
+    world.activeSynergies.slice(0, MAX_CHIPS).forEach((id, i) => {
       const def = SYNERGIES.find((s) => s.id === id);
       if (!def) return;
       const bg = this.scene.add.graphics();
-      bg.fillStyle(PALETTE.outline, 1).fillCircle(0, 0, 25);
-      bg.fillStyle(0xb35cff, 1).fillCircle(0, 0, 22);
-      bg.fillStyle(PALETTE.panelDark, 1).fillCircle(0, 0, 18);
-      const icon = this.scene.add.image(0, 0, `icon_${def.icon}`).setDisplaySize(30, 30);
-      const zone = this.scene.add.zone(0, 0, 60, 60).setInteractive({ useHandCursor: true });
-      const c = this.scene.add.container(196 + i * 56, 96, [bg, icon, zone]).setDepth(D.hud).setScrollFactor(0);
+      bg.fillStyle(PALETTE.outline, 1).fillCircle(0, 0, 23);
+      bg.fillStyle(0xb35cff, 1).fillCircle(0, 0, 20);
+      bg.fillStyle(PALETTE.panelDark, 1).fillCircle(0, 0, 16.5);
+      const icon = this.scene.add.image(0, 0, `icon_${def.icon}`).setDisplaySize(28, 28);
+      const zone = this.scene.add.zone(0, 0, 51, 60).setInteractive({ useHandCursor: true });
+      const c = this.scene.add.container(200 + i * 51, 98, [bg, icon, zone]).setDepth(D.hud).setScrollFactor(0);
       zone.on('pointerdown', () => {
         showToast(this.scene, `${def.name}: ${def.description}`, { icon: `icon_${def.icon}`, kind: 'info', duration: 2600, y: 190 });
       });

@@ -133,6 +133,7 @@ interface SlotPad {
   price: Phaser.GameObjects.Container;
   priceText: Phaser.GameObjects.Text;
   priceBg: Phaser.GameObjects.Graphics;
+  coin: Phaser.GameObjects.Image;
   affordable: boolean | null;
   shownCost: number;
 }
@@ -177,10 +178,10 @@ export class BoardView {
       const pad = scene.add.image(def.x, def.y + 6, 'slot_empty').setDepth(D.slot).setDisplaySize(SLOT_SIZE, SLOT_SIZE);
       const lock = scene.add.image(def.x, def.y + 4, 'slot_locked').setDepth(D.slot + 0.1).setDisplaySize(SLOT_SIZE, SLOT_SIZE).setVisible(false);
       const priceBg = scene.add.graphics();
-      const coin = scene.add.image(-30, 0, 'icon_coin').setDisplaySize(34, 34);
-      const priceText = crispText(scene, 12, 0, '', { preset: 'number', size: 26 });
-      const price = scene.add.container(def.x, def.y + 50, [priceBg, coin, priceText]).setDepth(D.slotFx).setVisible(false);
-      this.pads.push({ pad, lock, price, priceText, priceBg, affordable: null, shownCost: -1 });
+      const coin = scene.add.image(-30, 0, 'icon_coin').setDisplaySize(28, 28);
+      const priceText = crispText(scene, 12, 0, '', { preset: 'number', size: 21, strokeThickness: 5 });
+      const price = scene.add.container(def.x, def.y + 48, [priceBg, coin, priceText]).setDepth(D.slotFx).setVisible(false);
+      this.pads.push({ pad, lock, price, priceText, priceBg, coin, affordable: null, shownCost: -1 });
     }
 
     this.vignette = scene.add.image(W / 2, H / 2, TEX.vignette).setDisplaySize(W, H).setScrollFactor(0).setDepth(150)
@@ -203,13 +204,14 @@ export class BoardView {
           p.shownCost = cost;
           p.affordable = affordable;
           p.priceText.setText(String(cost)).setColor(affordable ? '#ffe58a' : '#ff9a90');
-          const w = 34 + 14 + p.priceText.width + 22;
-          const h = 40;
+          const w = 28 + 6 + p.priceText.width + 20;
+          const h = 34;
           p.priceBg.clear();
           p.priceBg.fillStyle(PALETTE.outline, 1).fillRoundedRect(-w / 2 - 3, -h / 2 - 3, w + 6, h + 6, h / 2 + 3);
           p.priceBg.fillStyle(affordable ? 0x3a5a2a : 0x3a2a40, 1).fillRoundedRect(-w / 2, -h / 2, w, h, h / 2);
           p.priceBg.lineStyle(2, affordable ? 0x9be85a : 0x7a6a90, 1).strokeRoundedRect(-w / 2 + 1, -h / 2 + 1, w - 2, h - 2, h / 2 - 1);
-          p.priceText.setX(10 + 0);
+          p.priceText.setX(-w / 2 + 28 + 10 + p.priceText.width / 2);
+          p.coin.setX(-w / 2 + 6 + 14 + 2);
         }
         // affordable locks wobble invitingly
         if (affordable) p.lock.setAngle(Math.sin(time * 6 + i) * 3); else p.lock.setAngle(0);
@@ -242,7 +244,7 @@ export class BoardView {
     this.lowHp = ratio < 0.3 && world.castleHp > 0 ? 1 - ratio / 0.3 : 0;
     if (this.hurt > 0) this.hurt = Math.max(0, this.hurt - dt * 2.2);
     let a = this.hurt * 0.75;
-    if (this.lowHp > 0) a = Math.max(a, (0.28 + 0.2 * Math.sin(time * 5.5)) * (0.6 + 0.4 * this.lowHp));
+    if (this.lowHp > 0) a = Math.max(a, (0.42 + 0.22 * Math.sin(time * 5.5)) * (0.7 + 0.3 * this.lowHp));
     if (a > 0.01) this.vignette.setVisible(true).setAlpha(a);
     else if (this.vignette.visible) this.vignette.setVisible(false);
   }

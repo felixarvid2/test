@@ -62,7 +62,7 @@ export class DamageNumbers {
     n.vy = crit ? -170 : -110;
     n.vx = (Math.random() - 0.5) * (crit ? 90 : 50);
     n.pop = crit ? 0.16 : 0.1;
-    n.size = crit ? 1.45 : 0.72;
+    n.size = crit ? 1.25 : 0.72;
     n.t.setText(damageLabel(amount)).setTint(crit ? 0xffd23a : 0xffffff)
       .setPosition(x + (Math.random() - 0.5) * 16, y - 18).setAlpha(1).setScale(0.4 * n.size).setVisible(true);
   }

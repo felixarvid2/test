@@ -16,7 +16,7 @@ import type { RunRecord } from './run';
 
 export interface JobSpec {
   seed: number;
-  policy: BotPolicy;
+  policy: BotPolicy | 'churn';
   meta: MetaPreset;
   pool: TowerId[];
   poolLabel: string;

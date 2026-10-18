@@ -35,12 +35,12 @@ export const BALANCE = {
     budgetPerWave: 4.2,
     budgetExp: 1.12,
     /** Enemy hp multiplier at wave n = hpScale * hpGrowth ^ (n - 1) * (1 + hpLinear * (n - 1)). */
-    hpScale: 2,
-    hpGrowth: 1.3,
+    hpScale: 3,
+    hpGrowth: 1.22,
     hpLinear: 0.02,
     /** Extra hp growth per wave beyond hpLateStart: the wall that ends most runs. */
     hpLateStart: 7,
-    hpLateGrowth: 1.03,
+    hpLateGrowth: 1,
     /** Castle damage of regular enemies grows by this fraction per wave. */
     castleDamagePerWave: 0.1,
     /** Enemy speed multiplier = min(speedCap, 1 + speedPerWave * (n - 1)). */
@@ -188,7 +188,7 @@ export const BALANCE = {
     freezeDuration: 1.2,
     stunDuration: 0.6,
     burnDuration: 3,
-    poisonDpsPerStack: 5,
+    poisonDpsPerStack: 7,
     poisonDuration: 4,
     maxPoisonStacks: 12,
     vulnerabilityDuration: 3,
