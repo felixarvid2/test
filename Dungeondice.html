@@ -1168,6 +1168,18 @@ button.primary{background:var(--bl-blue);box-shadow:0 5px 0 var(--bl-blue-d),0 5
 button.primary[onclick="nextBlind()"]{background:var(--bl-green);box-shadow:0 5px 0 var(--bl-green-d),0 5px 0 3px var(--bl-ink)}
 /* 360 Overlay i mörk blågrön ton */
 #overlay{background:radial-gradient(ellipse at 50% 45%,rgba(10,30,30,.88),rgba(2,8,8,.96))!important}
+/* ---- Kombonivåer: översikt och tavlor ---- */
+.combo-table{display:flex;flex-direction:column;gap:6px;margin:12px 0}
+.combo-row{display:grid;grid-template-columns:1.4fr .8fr 1.2fr .5fr;gap:8px;align-items:center;text-align:left;
+  background:var(--bl-slate-d);border:3px solid var(--bl-ink);border-radius:10px;padding:6px 12px;box-shadow:0 3px 0 var(--bl-ink)}
+.combo-row.leveled{border-color:var(--bl-ink);box-shadow:0 3px 0 var(--bl-ink),inset 0 0 0 2px rgba(240,196,74,.45)}
+.combo-row .cn{font-family:var(--font-pixel);font-weight:700;color:#fff}
+.combo-row .cl{font-family:var(--font-pixel);color:var(--bl-gold)}
+.combo-row .cl i{font-style:normal}
+.combo-row .cv{text-align:center;color:#fff}
+.combo-row .cp{text-align:right;color:var(--dim);font-size:12px}
+.shop-item.combo{border-color:var(--bl-gold)}
+@media (max-width:480px){.combo-row{grid-template-columns:1.2fr .8fr 1.3fr;font-size:13px}.combo-row .cp{display:none}}
 </style>
 </head>
 <body>
@@ -1193,6 +1205,7 @@ button.primary[onclick="nextBlind()"]{background:var(--bl-green);box-shadow:0 5p
     <div class="hbtns">
       <button class="hbtn lang" id="lang-btn" onclick="toggleLang()" title="Language">🇸🇪 SV</button>
       <button class="hbtn" onclick="openDeck()" title="Dice">🎲</button>
+      <button class="hbtn" onclick="openCombos()" title="Combos">📜</button>
       <button class="hbtn" onclick="openStats()" title="Stats">📊</button>
       <button class="hbtn" onclick="openAchievements()" title="Achv">🏆</button>
       <button class="hbtn" onclick="openHelp()" title="Help">❓</button>
@@ -1452,7 +1465,7 @@ function rarityLabel(r){
 })();
 function a11y(){document.querySelectorAll('.hbtn').forEach(b=>{if(b.title&&!b.getAttribute('aria-label'))b.setAttribute('aria-label',b.title)});
   const cb=document.getElementById('combo-banner');if(cb)cb.setAttribute('aria-live','polite');const ov=document.getElementById('overlay');if(ov)ov.setAttribute('role','dialog')}
-function hdrIcons(){const m={'Stats':'gi_leaderboardsSimple','Achv':'gi_trophy','Help':'gi_question','Quit':'gi_cross'};document.querySelectorAll('.hbtn').forEach(b=>{const k=m[b.title];if(k)b.innerHTML=spr(k)});updateMuteBtn();a11y()}
+function hdrIcons(){const m={'Combos':'o_33_15','Stats':'gi_leaderboardsSimple','Achv':'gi_trophy','Help':'gi_question','Quit':'gi_cross'};document.querySelectorAll('.hbtn').forEach(b=>{const k=m[b.title];if(k)b.innerHTML=spr(k)});updateMuteBtn();a11y()}
 function toggleMute(){Sound.toggle();}
 
 /* ========================
@@ -1601,10 +1614,25 @@ const COMBOS={
   'Par':{chips:10,mult:2,name:{sv:'Par',en:'Pair'}},
   'Högsta':{chips:5,mult:1,name:{sv:'Högsta',en:'High'}},
 };
+/* Kombonivåer: varje nivå ger fler chips och mult. Nivå 5 och 8 ger dessutom en mästarbonus på mult. */
+const COMBO_ORDER=['Fem lika','Straight Flush','Fyrtal','Full house','Stege','Färg','Triss','Två par','Par','Högsta'];
+const COMBO_INC={'Högsta':{chips:10,mult:1},'Par':{chips:15,mult:1},'Två par':{chips:20,mult:1},'Triss':{chips:20,mult:2},
+  'Stege':{chips:30,mult:3},'Färg':{chips:15,mult:2},'Full house':{chips:25,mult:2},'Fyrtal':{chips:30,mult:3},
+  'Straight Flush':{chips:40,mult:4},'Fem lika':{chips:35,mult:3}};
+const COMBO_BASE_PRICE={'Högsta':3,'Par':3,'Två par':4,'Triss':4,'Stege':4,'Färg':4,'Full house':5,'Fyrtal':6,'Straight Flush':7,'Fem lika':7};
+const COMBO_MAX_LEVEL=10;
+function comboLevel(key){return (state&&state.comboLevels&&state.comboLevels[key])||1}
+function masteryMult(lv){return lv>=8?1.5:lv>=5?1.25:1}
+function comboWithLevel(key){
+  const base=COMBOS[key],inc=COMBO_INC[key],lv=comboLevel(key);
+  return {key,...base,level:lv,
+    chips:base.chips+inc.chips*(lv-1),
+    mult:Math.round((base.mult+inc.mult*(lv-1))*masteryMult(lv)*100)/100};
+}
 function detectCombo(dice){
-  if(!dice.length) return {key:'Högsta',...COMBOS['Högsta']};
+  if(!dice.length) return comboWithLevel('Högsta');
   const active=dice.filter(d=>d.mod!=='sten');
-  if(!active.length) return {key:'Högsta',...COMBOS['Högsta']};
+  if(!active.length) return comboWithLevel('Högsta');
   const values=active.map(d=>d.value), colors=active.map(d=>d.color);
   const counts={}; values.forEach(v=>counts[v]=(counts[v]||0)+1);
   const cv=Object.values(counts).sort((a,b)=>b-a);
@@ -1613,16 +1641,16 @@ function detectCombo(dice){
   const uniq=[...new Set(sortedV)];
   const isStraight=uniq.length===sortedV.length && sortedV.length>=5 &&
     uniq.every((v,i)=>i===0||v===uniq[i-1]+1);
-  if(isFlush&&isStraight&&sortedV.length>=5) return {key:'Straight Flush',...COMBOS['Straight Flush']};
-  if(cv[0]>=5) return {key:'Fem lika',...COMBOS['Fem lika']};
-  if(cv[0]>=4) return {key:'Fyrtal',...COMBOS['Fyrtal']};
-  if(cv[0]===3 && cv[1]>=2) return {key:'Full house',...COMBOS['Full house']};
-  if(isStraight) return {key:'Stege',...COMBOS['Stege']};
-  if(isFlush) return {key:'Färg',...COMBOS['Färg']};
-  if(cv[0]>=3) return {key:'Triss',...COMBOS['Triss']};
-  if(cv[0]>=2 && cv[1]>=2) return {key:'Två par',...COMBOS['Två par']};
-  if(cv[0]>=2) return {key:'Par',...COMBOS['Par']};
-  return {key:'Högsta',...COMBOS['Högsta']};
+  if(isFlush&&isStraight&&sortedV.length>=5) return comboWithLevel('Straight Flush');
+  if(cv[0]>=5) return comboWithLevel('Fem lika');
+  if(cv[0]>=4) return comboWithLevel('Fyrtal');
+  if(cv[0]===3 && cv[1]>=2) return comboWithLevel('Full house');
+  if(isStraight) return comboWithLevel('Stege');
+  if(isFlush) return comboWithLevel('Färg');
+  if(cv[0]>=3) return comboWithLevel('Triss');
+  if(cv[0]>=2 && cv[1]>=2) return comboWithLevel('Två par');
+  if(cv[0]>=2) return comboWithLevel('Par');
+  return comboWithLevel('Högsta');
 }
 
 /* ========================
@@ -1693,6 +1721,8 @@ const VOUCHERS=[
   {id:'v_discard',name:{sv:'Fler Slängar',en:'More Discards'},icon:'🗑️',desc:{sv:'+1 släng per hand',en:'+1 discard per hand'},price:8,ef:s=>s.baseDiscards++},
   {id:'v_interest',name:{sv:'Bankir',en:'Banker'},icon:'🏦',desc:{sv:'Ränta: +1 guld per 5',en:'Interest: +1 gold per 5'},price:15,ef:s=>s.interest=true},
   {id:'v_shop',name:{sv:'Större Butik',en:'Bigger Shop'},icon:'🛒',desc:{sv:'+1 butiksplats',en:'+1 shop slot'},price:12,ef:s=>s.shopSlots++},
+  {id:'v_tavla',name:{sv:'Tavelsamlare',en:'Tablet Collector'},icon:'📜',desc:{sv:'+1 kombotavla i butiken',en:'+1 hand tablet in the shop'},price:10,ef:s=>s.tabletSlots=(s.tabletSlots||2)+1},
+  {id:'v_fokus',name:{sv:'Specialisering',en:'Specialization'},icon:'🔮',desc:{sv:'Första tavlan gäller din mest spelade kombo',en:'First tablet is for your most played hand'},price:9,ef:s=>s.focusTablet=true},
   {id:'v_reroll',name:{sv:'Rabatt',en:'Discount'},icon:'🏷️',desc:{sv:'Butiksvaror −25%',en:'Shop items −25%'},price:14,ef:s=>s.discount=0.75},
 ];
 
@@ -1917,6 +1947,15 @@ const RELIC_POOL = (()=>{
   A('cursed','Den Förbannade','The Cursed','💀','rare','×3 mult.','×3 mult.',c=>c.mult*=3);
   A('dice_lover','Tärningsälskaren','Dice Lover','🎲','uncommon','+3 chips per tärningsvärde.','+3 chips per die value.',c=>c.dice.forEach(d=>c.chips+=3*d.value));
   A('echo','Ekot','The Echo','📢','rare','×1.5 mult.','×1.5 mult.',c=>c.mult*=1.5);
+  // Kombobyggare: gör bättre kombos lättare att nå (verkar direkt efter varje kast)
+  A('k_magnet','Likhetsmagnet','Pair Magnet','🧲','uncommon','Efter varje kast blir en ny tärning lika med den vanligaste.','After each roll one new die matches the most common value.',null,{passive:1});
+  A('k_stege','Stegbyggaren','Ladder Builder','🏗️','uncommon','Efter varje kast blir en dubblett ett saknat steg i en stege.','After each roll a duplicate becomes a missing rung of a straight.',null,{passive:1});
+  A('k_farg','Färgdoppet','Color Dip','🎨','uncommon','Efter varje kast får en ny tärning den vanligaste färgen.','After each roll one new die takes the most common color.',null,{passive:1});
+  // Specialisering mot bredd: belönar nivåer på kombos
+  A('k_larling','Kombo-lärlingen','Hand Apprentice','📖','common','+8 chips per nivå på spelad kombo.','+8 chips per level of the played hand.',c=>c.chips+=8*(c.combo.level||1));
+  A('k_mastare','Mästarens Ring','Master\'s Ring','💍','rare','×1.15 mult per nivå över 1 på spelad kombo.','×1.15 mult per level above 1 on the played hand.',c=>{const l=(c.combo.level||1)-1;if(l>0)c.mult*=1+0.15*l});
+  A('k_fokus','Fokuslinsen','Focus Lens','🔮','rare','×2 mult om kombon är din högsta nivå (minst nivå 3).','×2 mult if the hand is your highest level (at least level 3).',c=>{const L=Object.values(state.comboLevels||{});const mx=Math.max(1,...L);const lv=c.combo.level||1;if(lv>=3&&lv===mx)c.mult*=2});
+  A('k_bredd','Breddmedaljen','Breadth Medal','🏆','uncommon','+3 mult per kombo på nivå 2 eller högre.','+3 mult per hand at level 2 or higher.',c=>{const n=Object.values(state.comboLevels||{}).filter(v=>v>=2).length;c.mult+=3*n});
   // Priser
   R.forEach(r=>r.price={common:4,uncommon:6,rare:9,legendary:15}[r.r]||4);
   return R;
@@ -2107,7 +2146,7 @@ function updateComboPreview(){
   banner.classList.remove('none');
   nameEl.textContent=combo.name[LANG].toUpperCase();
   const sum=state.dice.reduce((a,d)=>a+d.value,0);
-  subEl.textContent=`${combo.chips} × ${combo.mult}  •  ${sum}  •  ~${estimateScore().toLocaleString()}`;
+  subEl.textContent=`LV ${combo.level}${combo.level>=5?'★':''}  •  ${combo.chips} × ${combo.mult}  •  ${sum}  •  ~${estimateScore().toLocaleString()}`;
   // Tier classes
   banner.classList.remove('tier-1','tier-2','tier-3','tier-4','tier-5');
   const tierMap={'Högsta':1,'Par':1,'Två par':2,'Triss':2,'Färg':3,'Stege':3,'Full house':3,'Fyrtal':4,'Fem lika':5,'Straight Flush':5};
@@ -2133,6 +2172,7 @@ function estimateScore(){
    ======================== */
 function startRun(opts={}){
   state.ante=1;state.blindIdx=0;state.money=4;
+  state.comboLevels={};state.tabletSlots=2;state.focusTablet=false;
   state.relics=[];state.handSize=5;state.baseHand=5;state.baseRolls=3;state.baseDiscards=3;
   state.maxHands=3;state.maxRolls=3;state.maxDiscards=3;
   state.relicSlots=5;state.shopSlots=4;state.discount=1;state.interest=false;
@@ -2247,6 +2287,28 @@ function refreshHandSize(){
   state.maxRolls=Math.max(1,mr);
   state.maxDiscards=Math.max(0,md);
 }
+function applyComboRelics(idxs){
+  const D=state.dice;if(!idxs.length||!D.length)return;
+  const pick=a=>a[Math.floor(Math.random()*a.length)];
+  if(hasRelic('k_magnet')){
+    const cnt={};D.forEach(d=>cnt[d.value]=(cnt[d.value]||0)+1);
+    let best=0,bc=0;for(const v in cnt){if(cnt[v]>bc){bc=cnt[v];best=+v}}
+    const cand=idxs.filter(i=>D[i].value!==best);
+    if(bc>=2&&cand.length){D[pick(cand)].value=best;log('🧲 '+(LANG==='sv'?'Likhetsmagnet':'Pair Magnet'),'#4d9fff')}
+  }
+  if(hasRelic('k_stege')){
+    const vals=D.map(d=>d.value),set=new Set(vals);
+    const dup=idxs.filter(i=>vals.filter(v=>v===D[i].value).length>1);
+    const need=[];for(let v=1;v<=6;v++){if(!set.has(v)&&(set.has(v-1)||set.has(v+1)))need.push(v)}
+    if(dup.length&&need.length){D[pick(dup)].value=pick(need);log('🏗️ '+(LANG==='sv'?'Stegbyggaren':'Ladder Builder'),'#4d9fff')}
+  }
+  if(hasRelic('k_farg')){
+    const cnt={};D.forEach(d=>cnt[d.color]=(cnt[d.color]||0)+1);
+    let best=-1,bc=0;for(const c in cnt){if(cnt[c]>bc){bc=cnt[c];best=+c}}
+    const cand=idxs.filter(i=>D[i].color!==best);
+    if(bc>=2&&cand.length){D[pick(cand)].color=best;log('🎨 '+(LANG==='sv'?'Färgdoppet':'Color Dip'),'#4d9fff')}
+  }
+}
 function rollDice(initial=false){
   if(!initial&&state.rolls<=0) return;
   if(!initial) state.rolls--;
@@ -2258,6 +2320,7 @@ function rollDice(initial=false){
   if(toReroll.length) state.noRerolls=false;
   state.rerolledThisHand+=toReroll.length;
   toReroll.forEach(i=>{state.dice[i]=randDie()});
+  applyComboRelics(toReroll);
   const glassChance=(state.boss&&state.boss.desc.sv.includes('Glas'))?0.5:0.25;
   if(!hasRelic('oljelampa')){
     for(let i=state.dice.length-1;i>=0;i--){
@@ -2496,6 +2559,29 @@ function openShop(){
     const m=modPool.splice(Math.floor(Math.random()*modPool.length),1)[0];
     if(m) state.shopItems.push({type:'mod',data:m,price:m.price,sold:false});
   }
+  // Kombotavlor: höjer nivån på en kombination. Vikt efter hur mycket du spelat den, så man kan satsa vidare eller bredda.
+  const plays={};state.comboHistory.forEach(h=>plays[h.name]=(plays[h.name]||0)+1);
+  let tabs=COMBO_ORDER.filter(k=>comboLevel(k)<COMBO_MAX_LEVEL);
+  const nTab=state.tabletSlots||2;
+  for(let i=0;i<nTab&&tabs.length;i++){
+    let k;
+    if(i===0&&state.focusTablet&&Object.keys(plays).length){
+      const best=Object.keys(plays).filter(x=>tabs.includes(x)).sort((x,y)=>plays[y]-plays[x])[0];
+      k=best||tabs[0];
+    }else{
+      const w=tabs.map(x=>1+2*(plays[x]||0));let r=Math.random()*w.reduce((x,y)=>x+y,0),j=0;
+      while(j<tabs.length-1&&(r-=w[j])>0)j++;
+      k=tabs[j];
+    }
+    tabs=tabs.filter(x=>x!==k);
+    const lv=comboLevel(k),inc=COMBO_INC[k];
+    let price=Math.max(1,Math.floor((COMBO_BASE_PRICE[k]+(lv-1))*state.discount));
+    if(state.boss&&state.boss.desc.sv.includes('dubbelt')) price*=2;
+    state.shopItems.push({type:'combo',key:k,price,sold:false,data:{
+      name:{sv:COMBOS[k].name.sv+'-tavla',en:COMBOS[k].name.en+' Tablet'},icon:'📜',
+      desc:{sv:`Nivå ${lv} → ${lv+1}: +${inc.chips} chips, +${inc.mult} mult${lv+1===5||lv+1===8?' och mästarbonus!':''}`,
+            en:`Level ${lv} → ${lv+1}: +${inc.chips} chips, +${inc.mult} mult${lv+1===5||lv+1===8?' and mastery bonus!':''}`}}});
+  }
   renderShop();
 }
 function renderShop(){
@@ -2503,7 +2589,7 @@ function renderShop(){
   ov.classList.add('active');
   const itemsHtml=state.shopItems.map((it,i)=>{
     if(it.sold) return `<div class="shop-item sold"><div class="icon">${it.type==='relic'?relicIco(it.data):ico(it.data.icon)}</div><div class="name">${it.data.name[LANG]}</div><div class="price">${t('sold')}</div></div>`;
-    const cls=it.type==='relic'?(it.data.r==='rare'?'rare':it.data.r==='legendary'?'legendary':''):'';
+    const cls=it.type==='relic'?(it.data.r==='rare'?'rare':it.data.r==='legendary'?'legendary':''):(it.type==='combo'?'combo':'');
     return `<div class="shop-item ${cls}" onclick="buyItem(${i})">
       <div class="icon">${it.type==='relic'?relicIco(it.data):ico(it.data.icon)}</div>
       <div class="name">${it.data.name[LANG]}</div>
@@ -2536,6 +2622,11 @@ function buyItem(i){
     log(`✅ ${it.data.name[LANG]}`);
     refreshHandSize();
     burst(innerWidth/2,innerHeight/2,['✨','⭐'],6);
+  } else if(it.type==='combo'){
+    state.comboLevels=state.comboLevels||{};
+    state.comboLevels[it.key]=comboLevel(it.key)+1;
+    log(`📜 ${COMBOS[it.key].name[LANG]} → ${LANG==='sv'?'nivå':'level'} ${state.comboLevels[it.key]}`);
+    burst(innerWidth/2,innerHeight/2,['✨','⭐','💫'],8);
   } else if(it.type==='mod'){
     const d=randDie();
     d.mod=it.data.mod;
@@ -2645,6 +2736,24 @@ function checkAchievements(){
 /* ========================
    MODALER
    ======================== */
+function openCombos(){
+  const ov=document.getElementById('overlay');
+  ov.classList.add('active');
+  const plays={};state.comboHistory.forEach(h=>plays[h.name]=(plays[h.name]||0)+1);
+  const rows=COMBO_ORDER.map(k=>{
+    const c=comboWithLevel(k);
+    const star=c.level>=8?'★★':c.level>=5?'★':'';
+    return `<div class="combo-row${c.level>1?' leveled':''}"><span class="cn">${COMBOS[k].name[LANG]}</span>
+      <span class="cl">LV ${c.level}${star?' <i>'+star+'</i>':''}</span>
+      <span class="cv"><span class="t-chips">${c.chips}</span> × <span class="t-mult">${c.mult}</span></span>
+      <span class="cp">${plays[k]||0}×</span></div>`}).join('');
+  ov.innerHTML=`<div class="modal">
+    <h2>${spr('o_33_15')} ${LANG==='sv'?'Kombinationer':'Hands'}</h2>
+    <p>${LANG==='sv'?'Köp kombotavlor i butiken för att höja nivån. Nivå 5 och 8 ger extra mult. Satsa på få kombos eller bredda.':'Buy hand tablets in the shop to level up. Levels 5 and 8 give bonus mult. Focus on a few hands or go wide.'}</p>
+    <div class="combo-table">${rows}</div>
+    <div class="buttons"><button onclick="closeOverlay()">${t('close')||'OK'}</button></div>
+  </div>`;
+}
 function closeOverlay(){document.getElementById('overlay').classList.remove('active');}
 function openDeck(){
   const ov=document.getElementById('overlay');
