@@ -32,20 +32,20 @@ export function isBossRoom(index: number): boolean {
   return index > 0 && index % BALANCE.rooms.bossEvery === 0;
 }
 
-/** Which boss fights in room `index` (null when it is not a boss room). The 3 bosses repeat every bossCycle rooms. */
+/** Which boss fights in room `index` (null when it is not a boss room). The six bosses repeat every bossCycle (30) rooms. */
 export function bossForRoom(index: number): BossDef | null {
   if (!isBossRoom(index)) return null;
   const pos = ((index - 1) % BALANCE.bossCycle) + 1;
   return BOSSES.find((b) => b.room === pos) ?? null;
 }
 
-/** Number of completed boss cycles before this room (0 for rooms 1..15). */
+/** Number of completed boss cycles before this room (0 for rooms 1..30). */
 export function bossLoop(index: number): number {
   return Math.floor((Math.max(1, index) - 1) / BALANCE.bossCycle);
 }
 
 function eligibleEnemies(index: number, unlocks: readonly string[]): EnemyDef[] {
-  return ENEMIES.filter((e) => e.minRoom <= index && (!e.unlock || unlocks.includes(e.unlock)));
+  return ENEMIES.filter((e) => !e.bossOnly && e.minRoom <= index && (!e.unlock || unlocks.includes(e.unlock)));
 }
 
 function enemyWeight(e: EnemyDef, index: number): number {

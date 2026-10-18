@@ -571,6 +571,7 @@ def build_extra():
         'ice_shard': ice_shard(), 'lightning': lightning(), 'poison_cloud': poison_cloud(),
     }
     out.update(build_bosses())
+    out.update(build_hazards())
     out['companion_wisp'] = companion_wisp()
     out['companion_fairy'] = companion_fairy()
     for i in range(4):
@@ -822,4 +823,347 @@ def skeleton_king():
 
 
 def build_bosses():
-    return {'dragon': dragon(), 'giant_slime': giant_slime(), 'skeleton_king': skeleton_king()}
+    return {'dragon': dragon(), 'giant_slime': giant_slime(), 'skeleton_king': skeleton_king(),
+            'spider_queen': spider_queen(), 'lich': lich(), 'mimic_king': mimic_king()}
+
+
+def build_hazards():
+    return {'web': web(), 'web_ball': web_ball(), 'egg_sac': egg_sac(), 'soul_bolt': soul_bolt(),
+            'venom_glob': venom_glob()}
+
+
+# --------------------------------------------------------------------------- spider queen, lich, mimic king
+
+def px_rect(img, x0, y0, x1, y1, color):
+    """Inclusive rectangle fill (clipped)."""
+    px = img.load()
+    for y in range(y0, y1 + 1):
+        for x in range(x0, x1 + 1):
+            if 0 <= x < img.width and 0 <= y < img.height:
+                px[x, y] = rgba(color)
+
+
+def spider_queen():
+    W = 38
+    R = Regions(W, W)
+    LEG, ABD, HEAD, FANG = range(1, 5)
+    # four legs per side (mirrored): joint -> knee (high) -> foot, 2 px strokes so each one reads on its own
+    legs = [
+        [(14, 10), (8, 2), (2, 9)],
+        [(12, 14), (4, 9), (0, 19)],
+        [(11, 18), (3, 20), (1, 31)],
+        [(12, 23), (6, 27), (4, 37)],
+    ]
+    for pts in legs:
+        R.line(LEG, pts, 2, mirror=True)
+    R.ellipse(ABD, (8, 15, 29, 37))
+    R.ellipse(HEAD, (11, 6, 26, 19))
+    R.poly(FANG, [(15, 17), (17, 17), (17, 22), (16, 22)], mirror=True)
+    ramps = {
+        LEG: ((38, 22, 60), (92, 58, 126), (156, 108, 190)),
+        ABD: ((30, 16, 48), (62, 34, 88), (104, 60, 134), True),
+        HEAD: ((36, 20, 58), (84, 50, 114), (140, 92, 172), True),
+        FANG: ((160, 135, 110), (236, 222, 190), (255, 252, 235)),
+    }
+    img = R.shade(ramps)
+    px = img.load()
+    ink = (28, 14, 40)
+    # abdomen: bold violet / dark stripes following the curve of the body
+    for y in range(W):
+        for x in range(W):
+            if R.get(x, y) != ABD or y < 21:
+                continue
+            curve = y - 0.04 * (x - 18.5) ** 2
+            band = int(curve) % 5
+            if band == 0:
+                px[x, y] = rgba((150, 92, 190))
+            elif band == 1:
+                px[x, y] = rgba((124, 72, 160))
+            elif band == 3:
+                px[x, y] = rgba((40, 20, 62))
+    # a dark seam where the head sits on the abdomen
+    for y in range(W):
+        for x in range(W):
+            if R.get(x, y) == ABD and R.get(x, y - 1) == HEAD:
+                px[x, y] = rgba(ink)
+    # red hourglass mark
+    hour = {23: (14, 23), 24: (15, 22), 25: (16, 21), 26: (17, 20), 27: (18, 19), 28: (18, 19), 29: (17, 20),
+            30: (16, 21), 31: (15, 22), 32: (14, 23)}
+    for y, (x0, x1) in hour.items():
+        for x in range(x0, x1 + 1):
+            px[x, y] = rgba(PAL['r'] if y not in (23, 32) else PAL['R'])
+    for y, (x0, x1) in hour.items():
+        px[x1, y] = rgba(PAL['R'])
+        px[x0, y] = rgba(PAL['q'] if y < 28 else PAL['r'])
+    dot(img, [(19, 27), (19, 28), (18, 28)], PAL['D'])
+    # knee joints catch the light
+    for (x, y) in ((8, 2), (4, 9), (3, 20), (6, 27)):
+        for xx in (x, W - 1 - x):
+            dot(img, [(xx, y)], (176, 124, 206))
+    # face: brows, six red eyes (two big, two mid, two small), mouth between the fangs
+    for sx in (0, 1):
+        f = (lambda x: W - 1 - x) if sx else (lambda x: x)
+        dot(img, [(f(11), 9), (f(12), 9), (f(13), 9), (f(14), 10), (f(15), 10), (f(16), 11)], ink)           # angry brow
+        dot(img, [(f(12), 10), (f(13), 10), (f(14), 11), (f(15), 11), (f(16), 12)], ink)
+        dot(img, [(f(12), 11), (f(13), 11), (f(14), 12), (f(12), 12), (f(13), 12), (f(14), 13), (f(13), 13)], PAL['r'])
+        dot(img, [(f(11), 11), (f(11), 12), (f(12), 13), (f(15), 12), (f(15), 13), (f(14), 14), (f(13), 14)], PAL['D'])
+        dot(img, [(f(12), 11), (f(13), 11), (f(12), 12)], PAL['q'])
+        dot(img, [(f(12), 11)], PAL['w'])
+        dot(img, [(f(16), 7), (f(17), 7), (f(16), 8), (f(17), 8)], PAL['r'])                                  # mid eyes
+        dot(img, [(f(16), 7)], PAL['w'])
+        dot(img, [(f(15), 7), (f(15), 8), (f(16), 9), (f(17), 9)], PAL['D'])
+        dot(img, [(f(17), 12), (f(17), 13)], PAL['r'])                                                       # small eyes
+        dot(img, [(f(17), 12)], PAL['q'])
+        dot(img, [(f(17), 14)], PAL['D'])
+    dot(img, [(18, 16), (19, 16), (18, 17), (19, 17)], ink)
+    dot(img, [(18, 18), (19, 18), (18, 19), (19, 19)], PAL['D'])
+    dot(img, [(15, 21), (22, 21), (16, 22), (21, 22)], PAL['v'])
+    # little gold crown on the head
+    crown_img = parse(mirror_rows(["y..y", "yyyy", "YrYY", "eeee"], {'y': 'Y', 'Y': 'e'}))
+    over(img, crown_img, 15, 2)
+    return finish(img, (40, 40))
+
+
+def lich():
+    t1, t2, t3, t4 = (20, 46, 66), (30, 78, 92), (52, 128, 128), (90, 186, 172)
+    pal = {'1': t1, '2': t2, '3': t3, '4': t4, 'W': (205, 255, 252), 'H': (70, 36, 86), 'J': (116, 66, 134),
+           'K': (46, 22, 62), 'N': (18, 30, 52)}
+    half = [
+        "......JJHH",      # 0  hood
+        "....JJHHHH",
+        "..JJHHvvvv",
+        ".JHHvvvvvv",
+        ".JHvvvvvvv",
+        ".JHvNNNNvv",      # 5  eye sockets with glowing cyan pupils
+        ".JHvNzWNvv",
+        ".JHvvNNvvN",
+        ".JHHvvvvvN",
+        "..HHvVvVvN",      # 9  teeth
+        "..HHHvNvNv",
+        "...HHHvvvv",
+        "..333HHHHH",      # 12 shoulders
+        ".3443333HH",
+        "34443333HH",
+        "3444222333",
+        "3443221233",
+        "3342221123",
+        "334222112H",
+        "3342221123",
+        ".342221112",
+        ".332221112",
+        ".332211112",
+        "..32211112",
+        "..32211111",
+        "..22211111",
+        "..221.1.11",
+    ]
+    body = parse(mirror_rows(half, {'3': '2', '4': '3', '2': '1', 'J': 'H', 'H': 'K', 'v': 'V', 'V': 'B'}), pal)
+    # purple belt with a glowing rune, purple hem trim
+    for x in range(2, 18):
+        if body.getpixel((x, 17))[3]:
+            body.putpixel((x, 17), rgba(pal['J']))
+    for x in (9, 10):
+        body.putpixel((x, 17), rgba(PAL['z']))
+    for x in range(2, 18):
+        if body.getpixel((x, 24))[3]:
+            body.putpixel((x, 24), rgba(pal['H']))
+    img = canvas(30, 30)
+    img.alpha_composite(body, (1, 2))
+    px = img.load()
+    # sleeve + skeletal hand gripping the staff (viewer's right)
+    px_rect(img, 20, 17, 23, 19, t2)
+    px_rect(img, 20, 19, 23, 20, t1)
+    px_rect(img, 20, 17, 21, 17, t3)
+    px_rect(img, 24, 18, 25, 20, PAL['v'])
+    px_rect(img, 24, 20, 25, 20, PAL['V'])
+    px[26, 19] = rgba(PAL['v'])
+    for y in range(8, 30):
+        px[25, y] = rgba(PAL['b'] if y % 4 else PAL['S']) if not (18 <= y <= 20) else px[25, y]
+        px[26, y] = rgba(PAL['C'] if y % 4 else PAL['b'])
+    for (x, y) in ((24, 8), (27, 8), (24, 7), (27, 7), (25, 6), (26, 6)):    # claw holding the gem
+        px[x, y] = rgba(PAL['a'])
+    over(img, parse([".zz.", "zwXz", "zXzx", ".xx."]), 24, 3)
+    img = finish(img, (32, 32))
+    px = img.load()
+    # gem glow
+    for (x, y) in ((24, 3), (29, 3), (24, 8), (29, 8), (26, 2), (27, 2), (26, 9), (27, 9)):
+        if not px[x, y][3]:
+            px[x, y] = rgba(PAL['z'], 110)
+    # faint floating soul wisps: bright head, fading tail
+    for (x, y, k) in ((4, 4, 1), (1, 11, -1), (29, 15, 1)):
+        px[x, y] = rgba(PAL['X'], 200)
+        px[x, y + 1] = rgba(PAL['X'], 150)
+        px[x + k, y + 1] = rgba(PAL['x'], 110)
+        px[x + k, y + 2] = rgba(PAL['x'], 80)
+        px[x, y + 3] = rgba(PAL['x'], 55)
+    return img
+
+
+def mimic_king():
+    N = 30
+    img = canvas(N, N)
+    wood, wood_l, wood_d, wood_dd = PAL['C'], PAL['h'], PAL['S'], PAL['b']
+    # lid (open, seen from the front) with planks
+    px_rect(img, 2, 3, 27, 3, wood_l)
+    px_rect(img, 1, 4, 28, 4, wood_l)
+    px_rect(img, 1, 5, 28, 8, wood)
+    px_rect(img, 1, 9, 28, 9, wood_d)
+    px_rect(img, 1, 10, 28, 10, wood_dd)
+    for x in range(8, 23, 5):
+        px_rect(img, x, 5, x, 8, wood_d)
+    # mouth interior
+    px_rect(img, 1, 11, 28, 20, PAL['D'])
+    px_rect(img, 1, 11, 28, 12, PAL['o'])
+    px_rect(img, 4, 19, 25, 20, PAL['o'])
+    # chest front (lower jaw)
+    px_rect(img, 1, 21, 28, 29, wood)
+    px_rect(img, 1, 21, 28, 21, wood_l)
+    px_rect(img, 1, 28, 28, 28, wood_d)
+    px_rect(img, 1, 29, 28, 29, wood_dd)
+    for x in range(8, 23, 5):
+        px_rect(img, x, 23, x, 27, wood_d)
+    # iron bands: a frame down both ends of lid, mouth and chest (lit on the left, shadowed on the right)
+    left = [PAL['m'], PAL['l'], PAL['m'], PAL['a'], PAL['a']]
+    right = [PAL['a'], PAL['m'], PAL['m'], PAL['a'], PAL['a']]
+    for k in range(5):
+        px_rect(img, 1 + k, 3 if k else 4, 1 + k, 29, left[k])
+        px_rect(img, 28 - k, 3 if k else 4, 28 - k, 29, right[k])
+    for (x, y) in ((3, 5), (26, 5), (3, 8), (26, 8), (3, 15), (26, 15), (3, 24), (26, 24), (3, 27), (26, 27)):
+        img.putpixel((x, y), rgba(PAL['i']))
+    for (x, y) in ((1, 3), (28, 3)):                              # rounded lid corners
+        img.putpixel((x, y), CLEAR)
+    # teeth: upper row hangs from the lid, lower row rises from the chest (both mirrored)
+    for x in (6, 9, 12):
+        for xx in (x, 28 - x):
+            px_rect(img, xx, 11, xx + 1, 12, PAL['w'])
+            px_rect(img, xx, 13, xx + 1, 13, PAL['i'])
+            img.putpixel((xx, 14), rgba(PAL['V']))
+    for x in (7, 10, 13):
+        for xx in (x, 29 - x - 1):
+            px_rect(img, xx, 18, xx + 1, 18, PAL['i'])
+            px_rect(img, xx, 19, xx + 1, 19, PAL['w'])
+    # two angry eyes in the mouth: inner top corner cut by the brow, red pupils glaring inwards
+    ink = PAL['o']
+    eye = ["YYYoo",
+           "yyyyo",
+           "yyyrr",
+           "Yyyrr"]
+    for sx in (0, 1):
+        for dy, row in enumerate(eye):
+            for dx, ch in enumerate(row):
+                col = PAL[ch]
+                x = 6 + dx
+                img.putpixel((29 - x if sx else x, 14 + dy), rgba(col))
+        img.putpixel((29 - 10 if sx else 10, 16), rgba(PAL['R']))
+    # long red tongue hanging over the chest front
+    for y in range(15, 26):
+        w = 4 if y < 24 else 3 if y == 24 else 2
+        x0 = 13 if w >= 3 else 14
+        for x in range(x0, x0 + w):
+            c = PAL['r']
+            if x == x0:
+                c = PAL['q']
+            if x == x0 + w - 1:
+                c = PAL['R']
+            img.putpixel((x, y), rgba(c))
+        if 17 <= y < 24:
+            img.putpixel((x0 + 2, y), rgba(PAL['R']))
+    # lock plate under the tongue
+    px_rect(img, 12, 26, 17, 29, PAL['m'])
+    px_rect(img, 12, 26, 17, 26, PAL['l'])
+    px_rect(img, 12, 29, 17, 29, PAL['a'])
+    px_rect(img, 14, 27, 15, 28, PAL['o'])
+    # gold crown on top of the lid
+    over(img, parse(mirror_rows(["y..y..y", "yyyyyyy", "YrYYxYY", "YYYYYYY", "eeeeeee"], {'y': 'Y', 'Y': 'e'})), 8, 0)
+    # a few coins spilling out at the lower right
+    coin = parse(["yYY", "YyY", "YYe"])
+    for (x, y) in ((22, 25), (26, 26), (19, 27), (24, 28)):
+        over(img, coin, x, y)
+    return finish(img, (32, 32))
+
+
+# --------------------------------------------------------------------------- spider / lich projectiles & hazards
+
+def web():
+    img = canvas(16, 16)
+    cx, cy = 7.5, 7.5
+    strand, bright = (226, 230, 240), (252, 253, 255)
+    # eight spokes of uneven length: a worn, sticky patch rather than a perfect wheel
+    reach = [7.4, 6.2, 7.5, 6.4, 7.2, 6.0, 7.5, 6.6]
+    tips = [(cx + math.cos(i * math.pi / 4 + 0.12) * r, cy + math.sin(i * math.pi / 4 + 0.12) * r) for i, r in enumerate(reach)]
+    d = ImageDraw.Draw(img)
+    d.polygon(tips, fill=rgba(strand, 40))
+    for f, col, a in ((0.82, strand, 160), (0.5, strand, 160)):      # sagging rings between the spokes
+        pts = [(cx + (tx - cx) * f * (0.86 if i % 2 else 1.0), cy + (ty - cy) * f * (0.86 if i % 2 else 1.0))
+               for i, (tx, ty) in enumerate(tips)]
+        d.line(pts + [pts[0]], fill=rgba(col, a), width=1)
+    for (tx, ty) in tips:
+        d.line([(cx, cy), (tx, ty)], fill=rgba(bright, 178))
+    d.rectangle((7, 7, 8, 8), fill=rgba(bright, 200))
+    for (x, y) in ((11, 3), (2, 11), (13, 11)):                      # loose strands + sticky dew
+        img.putpixel((x, y), rgba(PAL['w'], 190))
+    return img
+
+
+def web_ball():
+    return sprite([
+        ".iwwi.",
+        "iwwmwl",
+        "wwlwwm",
+        "wmwwlm",
+        "iwlwmm",
+        ".lmmm.",
+    ], (8, 8))
+
+
+def egg_sac():
+    pal = {'1': (222, 236, 190), '2': (246, 252, 222), '3': (176, 204, 140), '4': (112, 168, 96), '5': (84, 124, 82),
+           '6': (58, 96, 66)}
+    rows = [
+        "..2.22.2..",
+        ".222111122",
+        "2211141116",
+        "2114411561",
+        "2144111611",
+        "1141551111",
+        "1114555113",
+        "1111441133",
+        ".11144133.",
+        "..333333..",
+    ]
+    img = parse(rows, pal)
+    px = img.load()
+    for y in range(img.height):
+        for x in range(img.width):
+            r, g, b, a = px[x, y]
+            if a and (r, g, b) not in (pal['4'], pal['5'], pal['6']):
+                px[x, y] = (r, g, b, 224)          # silk is slightly see-through, veins / spiderlings / crack are not
+    return place(add_outline(img), (12, 12))
+
+
+def soul_bolt():
+    pal = {'1': (28, 140, 160, 170), '2': (44, 232, 245), '3': (170, 250, 252), 'N': (18, 60, 90)}
+    rows = [
+        "....1..1..",
+        "...121.21.",
+        "....22222.",
+        ".1.2333332",
+        "12223N3N32",
+        "13323N3N32",
+        ".1.2333332",
+        "....2N3N2.",
+        ".....222..",
+        "..........",
+    ]
+    return parse(rows, pal)
+
+
+def venom_glob():
+    return sprite([
+        "..22..",
+        ".2112.",
+        "21w122",
+        "211122",
+        "223322",
+        ".3333.",
+    ], (8, 8), {'1': (150, 255, 90), '2': (99, 199, 77), '3': (62, 137, 72), 'w': (255, 255, 255)})

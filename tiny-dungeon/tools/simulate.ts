@@ -92,7 +92,7 @@ for (const b of BOSSES) {
   console.log(`${pad(b.name, 18)} room ${padl(b.room, 2)}: ${padl(win(first), 5)} of ${padl(first.length, 5)} first fights   (all loops: ${win(fights)} of ${fights.length})`);
 }
 const allBossFights = results.flatMap((r) => r.bossFights);
-for (const room of [20, 25, 30, 35, 40]) {
+for (const room of [35, 40, 45, 50, 55, 60]) {
   const f = allBossFights.filter((x) => x.room === room);
   if (f.length >= 10) console.log(`  loop boss room ${room}: ${((f.filter((x) => x.won).length / f.length) * 100).toFixed(0)}% of ${f.length}`);
 }
@@ -213,10 +213,19 @@ if (metaName === 'none') {
 if (metaName === 'max' && skill === 'expert') {
   console.log(`${verdict(pct(allRooms, 0.5) >= 20)} maxed expert: median room >= 20 (${pct(allRooms, 0.5)})`);
 }
+// first-fight win rate band of the late bosses for a half-bought shop and skilled play
+const BAND: Record<string, [number, number]> = { spider_queen: [0.7, 0.85], lich: [0.6, 0.8], mimic_king: [0.55, 0.75] };
 for (const b of BOSSES) {
   const f = results.flatMap((r) => r.bossFights.filter((x) => x.boss === b.id && x.room === b.room));
   if (f.length >= 100) {
     const w = f.filter((x) => x.won).length / f.length;
     console.log(`${verdict(w >= 0.08)} ${b.name} is not a wall: first-fight win rate >= 8% (${(w * 100).toFixed(0)}%)`);
+    const band = BAND[b.id];
+    if (band && metaName === 'mid' && skill === 'expert') {
+      console.log(`${verdict(w >= band[0] && w <= band[1])} ${b.name} expert/mid first-fight win rate ${Math.round(band[0] * 100)}-${Math.round(band[1] * 100)}% (${(w * 100).toFixed(0)}%)`);
+    }
+    if (band && metaName === 'max' && skill === 'average') {
+      console.log(`${verdict(w > 0.5)} ${b.name} average/max beats it most of the time: > 50% (${(w * 100).toFixed(0)}%)`);
+    }
   }
 }

@@ -30,7 +30,7 @@ The hero attacks automatically. You only move: drag anywhere, or use WASD / arro
 
 - A room lasts about 15–25 seconds.
 - Clear a room, pick 1 of 3 upgrades, then choose the next door.
-- Every 5th room is a boss: Giant Slime, Skeleton King, Dungeon Dragon. They return every 15 rooms, scaled, so the run is endless.
+- Every 5th room is a boss: Giant Slime, Skeleton King, Dungeon Dragon, Spider Queen, the Lich and the Mimic King (rooms 5 to 30). They return every 30 rooms, scaled, so the run is endless.
 - Death banks your gold for permanent upgrades.
 
 ## Content
@@ -42,10 +42,10 @@ The hero attacks automatically. You only move: drag anywhere, or use WASD / arro
 | Upgrades | 43 | 4 rarities |
 | Synergies | 15 | 3 of them evolutions |
 | Enemy types | 10 | Includes unlockable variants |
-| Bosses | 3 | Telegraphed multi-phase attacks |
+| Bosses | 6 | Telegraphed multi-phase attacks |
 | Room types | – | Elite, treasure, shrine, boss |
 | Permanent shop | 10 upgrades | |
-| Achievements | 20 | |
+| Achievements | 24 | |
 
 Also included: Mystery Egg, a deterministic daily challenge, and cosmetic skins.
 ## Commands

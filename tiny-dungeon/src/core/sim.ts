@@ -74,10 +74,11 @@ interface Cohort {
   arriveAt: number;
   dmg: number;
   rate: number;              // attack attempts per second per enemy once engaged
-  kind: 'contact' | 'lunge' | 'ranged' | 'boss';
+  kind: 'contact' | 'lunge' | 'ranged' | 'boss' | 'egg';
   xp: number;
   gold: number;
   summonAcc: number;
+  hatchAt: number;           // eggs only: what is left of the cohort hatches at this time
 }
 
 interface WeaponRun {
@@ -196,13 +197,16 @@ export function simulateRoom(run: RunState, plan: RoomPlan, rng: Rng, skill: Ski
   for (const w of run.weapons) levels[w] = weaponLevel(run, w);
 
   const addCohort = (def: EnemyDef, count: number, elite: boolean, dist: number, build: Build): void => {
+    const egg = def.behavior === 'egg';
     const speedBase = def.speed * (def.behavior === 'erratic' ? SIM.erraticSpeedFactor : 1);
-    const speedEff = Math.max(8, speedBase * (1 - run.stats.slowAmount * build.slowCover) * (1 - build.frozenCover * 0.6));
-    const kind: Cohort['kind'] = def.behavior === 'ranged' || def.behavior === 'summoner' ? 'ranged'
+    // eggs never move: they are laid next to the hero, so they are in reach (and "arrived") at once
+    const speedEff = egg ? 1000
+      : Math.max(8, speedBase * (1 - run.stats.slowAmount * build.slowCover) * (1 - build.frozenCover * 0.6));
+    const kind: Cohort['kind'] = egg ? 'egg' : def.behavior === 'ranged' || def.behavior === 'summoner' ? 'ranged'
       : def.behavior === 'lunge' ? 'lunge' : 'contact';
     const stopDist = kind === 'ranged' ? (def.attackRange ?? 300) * 0.9
       : kind === 'lunge' ? (def.attackRange ?? 90) * 0.8 : def.radius + 25;
-    const rate = def.behavior === 'summoner' ? 0
+    const rate = def.behavior === 'summoner' || egg ? 0
       : kind === 'contact' ? SIM.contactAttackRate * (def.behavior === 'erratic' ? 0.6 : 1)
         : 1 / (def.attackCooldown ?? 2.2);
     cohorts.push({
@@ -210,6 +214,7 @@ export function simulateRoom(run: RunState, plan: RoomPlan, rng: Rng, skill: Ski
       spawnAt: t, dist, speedEff, arriveAt: t + Math.max(0, (dist - stopDist) / speedEff),
       dmg: enemyHitDamage(def, plan, elite), rate, kind,
       xp: enemyXp(def, plan.index, elite), gold: enemyGold(def, plan, elite), summonAcc: 0,
+      hatchAt: t + (def.windup ?? 0),
     });
   };
 
@@ -233,7 +238,7 @@ export function simulateRoom(run: RunState, plan: RoomPlan, rng: Rng, skill: Ski
         dist: SIM.bossDistance, speedEff,
         arriveAt: t + Math.max(0, (SIM.bossDistance - boss.radius - 20) / speedEff),
         dmg: enemyHitDamage(boss, plan), rate: SIM.bossBodyRate, kind: 'boss',
-        xp: enemyXp(boss, plan.index), gold: enemyGold(boss, plan), summonAcc: 0,
+        xp: enemyXp(boss, plan.index), gold: enemyGold(boss, plan), summonAcc: 0, hatchAt: 0,
       });
       bossNext = t + 1.5;
     }
@@ -370,6 +375,14 @@ export function simulateRoom(run: RunState, plan: RoomPlan, rng: Rng, skill: Ski
         c.summonAcc -= k;
         if (liveCount() < BALANCE.limits.maxEnemiesAlive) addCohort(add, k, false, SIM.summonDistance, build);
       }
+    }
+
+    // --- eggs: whatever was not broken in time hatches into `summonCount` x `summon` each
+    for (const c of spawned) {
+      if (c.kind !== 'egg' || c.n <= EPS || t < c.hatchAt) continue;
+      const add = c.def?.summon ? ENEMY_BY_ID[c.def.summon] : undefined;
+      if (add && liveCount() < BALANCE.limits.maxEnemiesAlive) addCohort(add, c.n * (c.def?.summonCount ?? 1), false, SIM.summonDistance, build);
+      c.n = 0;
     }
 
     // --- boss

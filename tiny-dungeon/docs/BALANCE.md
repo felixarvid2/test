@@ -22,42 +22,74 @@ default 60 seeds per hero, `--ablation 0` skips them).
 | Fresh player (novice, no permanent upgrades) reaches room ~5-8 in a 2-5 min first run | mean room 7.4, 2.9 min; average skill mean 8.5, 3.3 min |
 | First boss is a real check, not a wall | Giant Slime first-fight win rate 46% (novice) / 56% (average) |
 | Fresh players often die at the first or second boss | 45% of average/none runs end in room 5, 34% in room 10 |
-| Meaningful power growth within minutes | a half-bought shop (`mid`) takes a novice from mean room 7.4 to 11.4; inside a run each pick/level-up is a visible step (Double Strike alone is worth ~3 rooms at the start) |
-| Fully upgraded skilled player reaches 20-30+ | expert/max: median 25, mean 27, p90 40 (average/max: mean 20) |
-| No boss is a wall | lowest first-fight win rate with no permanent upgrades is 10-17% (Dragon, only ~10% of runs get there); >= 31% once the shop is half bought |
+| Meaningful power growth within minutes | a half-bought shop (`mid`) takes a novice from mean room 7.4 to 11.1; inside a run each pick/level-up is a visible step (Double Strike alone is worth ~3 rooms at the start) |
+| Fully upgraded skilled player reaches 20-30+ | expert/max: median 30, mean 30, p90 45 (average/max: mean 20.5, median 20) |
+| No boss is a wall | lowest first-fight win rate with no permanent upgrades is 9-15% (Dragon; the three late bosses are reached by <1-2% of fresh runs); >= 29% once the shop is half bought |
+| The three late bosses (rooms 20/25/30) are a real step up, not walls | expert/mid first-fight win 74% / 71% / 63%; average/max 63% / 55% / 53% (see "Late bosses") |
 | No single upgrade dominates | see "Upgrades" below; only Infinite Blades is flagged (legendary, Knight-only) |
 | Whole shop takes dozens of runs | median 36 runs (average), 47 (novice), 19 (expert) |
 
 ## Results (3000 runs each, mixed pick strategies, all three heroes)
 
 Room reached = the room the run ended in (rooms cleared + 1). The distribution is lumpy because the bosses in
-rooms 5/10/15 gate it, so look at the mean as well as the median.
+rooms 5/10/15/20/25/30 gate it, so look at the mean as well as the median.
 
-| skill | meta | mean room | median | p90 | minutes | gold/run | Slime (5) | King (10) | Dragon (15) |
-|---|---|---|---|---|---|---|---|---|---|
-| novice | none | 7.4 | 5 | 10 | 2.9 | 98 | 46% | 15% | 10% |
-| novice | mid | 11.4 | 10 | 15 | 4.3 | 267 | 81% | 40% | 31% |
-| novice | max | 17.4 | 15 | 25 | 6.4 | 627 | 96% | 71% | 62% |
-| average | none | 8.5 | 9 | 15 | 3.3 | 130 | 56% | 28% | 17% |
-| average | mid | 13.6 | 10 | 25 | 5.3 | 380 | 86% | 54% | 50% |
-| average | max | 20.3 | 22 | 30 | 7.6 | 831 | 97% | 80% | 78% |
-| expert | none | 12.2 | 10 | 25 | 5.0 | 279 | 71% | 55% | 61% |
-| expert | mid | 19.9 | 20 | 30 | 8.0 | 779 | 92% | 77% | 85% |
-| expert | max | 27.3 | 25 | 40 | 10.5 | 1454 | 98% | 93% | 96% |
+| skill | meta | mean room | median | p90 | minutes | gold/run | Slime (5) | King (10) | Dragon (15) | Spider Queen (20) | Lich (25) | Mimic King (30) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| novice | none | 7.4 | 5 | 10 | 2.9 | 98 | 46% | 15% | 9% | 7% (n=15) | - | - |
+| novice | mid | 11.1 | 10 | 15 | 4.2 | 268 | 81% | 39% | 29% | 36% | 40% (n=89) | 50% (n=36) |
+| novice | max | 17.0 | 15 | 25 | 6.3 | 710 | 96% | 71% | 62% | 49% | 45% | 48% |
+| average | none | 8.4 | 9 | 15 | 3.3 | 129 | 56% | 28% | 15% | 26% (n=58) | 40% (n=15) | - |
+| average | mid | 13.2 | 10 | 20 | 5.1 | 399 | 86% | 53% | 49% | 45% | 38% | 52% (n=99) |
+| average | max | 20.5 | 20 | 35 | 7.7 | 1043 | 97% | 80% | 78% | 63% | 55% | 53% |
+| expert | none | 12.2 | 10 | 25 | 5.0 | 315 | 70% | 55% | 60% | 53% | 50% | 49% (n=150) |
+| expert | mid | 20.9 | 20 | 40 | 8.4 | 1042 | 91% | 77% | 84% | 74% | 71% | 63% |
+| expert | max | 29.9 | 30 | 45 | 11.5 | 2088 | 98% | 93% | 96% | 86% | 82% | 72% |
 
-(Boss columns: win rate of the first fight against that boss among runs that reached it; `mid` = half of every
-level, bow unlocked; `max` = everything bought.)
+(Boss columns: win rate of the first fight against that boss among runs that reached it, so deep columns are
+survivor-biased, which is why e.g. novice/mid Mimic King (50%) is not "easier" than the Lich; `n` is shown where
+fewer than 100 runs got there. `mid` = half of every level, bow unlocked; `max` = everything bought.)
 
-Per hero, average/none: Knight mean 10.1, Ranger 7.5, Mage 7.8. Expert/max: Knight 25.4, Ranger 31.2, Mage 25.2.
+Per hero, average/none: Knight mean 10.0, Ranger 7.5, Mage 7.7. Expert/max: Knight 27.9, Ranger 34.0, Mage 27.8.
 
-Boss loops (rooms 20/25/30/35...) are tuned so the cycle gets harder with depth (`bossLoopHp`, `bossLoopDmg`
-plus the exponential room scaling): with max meta and expert skill the Slime loops win 91% (room 20) / 82% (35),
-King 65% (25) / 57% (40) and Dragon 41% (30).
+## Late bosses (rooms 20 / 25 / 30)
+
+Spider Queen (room 20), the Lich (25) and the Mimic King (30) were added after the first three. They are
+tuned with `hp`/`damage`/`attackDelay` in `src/data/bosses.ts` and `BALANCE.bossAttacks`; the targets are
+first-fight win rates among the runs that reach them.
+
+| Boss | HP / dmg (at 1.0) | expert + mid | target | average + max | target |
+|---|---|---|---|---|---|
+| Spider Queen | 760 / 12 | 74% | 70-85% | 63% | > 50% |
+| The Lich | 880 / 10.5 | 71% | 60-80% | 55% | > 50% |
+| Mimic King | 720 / 9 | 63% | 55-75% | 53% | > 50% |
+
+How they were found: the three draft bosses (HP 760/880/1000, damage 14/15/16) were walls at room 25-30
+(expert/mid 66% / 52% / 32%, average/max 53% / 36% / 17%). Cutting boss damage helps the skilled player most
+(more attacks avoided), cutting HP helps the high-damage builds most, and raising HP while cutting damage
+hurt both (long fights, more attack events). Final numbers lower damage on all three (Spider x0.85, Lich x0.7,
+Mimic x0.55) and HP on the Mimic King (x0.72, it had to be the room-30 finale, not a wall). The step from boss
+to boss is a few points of win rate (expert/mid: Dragon 84% -> 74% -> 71% -> 63%), and deaths
+cluster on the boss rooms 20/25/30 just as on 5/10/15 (the histogram flags no spike in any other room). Novice players with a half-bought shop win the late
+bosses 36-50% of the time, but only a few percent of them get that far (the room 15 Dragon gates them).
+
+`npm run sim -- --skill expert --meta mid` and `--skill average --meta max` print these bands as `ok`/`MISS`.
+`spiderEggs` is modelled as eggs (a stationary cohort of `summonCount` spiders each that hatches after the
+egg's `windup` unless the damage the build spreads over it breaks it first), `lichRaise` as 3 ghosts,
+`mimicDecoys` as 2 mimics; none of the summons give gold.
+
+Boss loops (rooms 35/40/45/50/55/60, then 65...) are tuned so the cycle gets harder with depth (`bossLoopHp` 0.65,
+`bossLoopDmg` 0.25 per completed 30-room cycle, plus the exponential room scaling). With max meta and expert
+skill the loop fights win 85% (Slime, room 35), 56% (King, 40), 26% (Dragon, 45), 21% (Spider Queen, 50) and
+10% (Lich, 55); with average/max skill 84% / 40% / 8%. That is the intended soft wall: a maxed expert
+plays on to about room 45 and then the exponential tail stops everything. The loop bonus per cycle was raised
+from +50% HP / +20% damage (15-room cycle) to +65% / +25% because the cycle is twice as long.
 
 Economy (average skill, `none` start): a first run pays ~60-100 gold (room 5-6), enough for the first
 Vitality / Might levels. Buying the whole shop (17,318 gold: all permanent upgrades plus Ranger 400 and Mage 900)
-takes a median of 36 runs for an average player (novice 47, expert 19) when always buying the cheapest
-affordable item.
+takes a median of 33 runs for an average player (novice 45, expert 16) when always buying the cheapest
+affordable item. The new boss achievements (900 + 1,200 + 2,000 gold, 7 Fortune Tokens) and Boss Rush (2,500 gold,
+4 tokens) are one-off bonuses on top; they only matter to players who already reach room 20+.
 
 ## Upgrades
 
@@ -95,8 +127,10 @@ play-testing. Runs complete 1.2-1.5 synergies in the first-run setting (`none`) 
 * Room scaling (hp, damage) is `(1 + a*i') * g^i'` with `i' = room - 1`, so it is smooth (no step between rooms)
   and exponential in the tail, the soft wall of endless mode. Spawn budget is `14 + 3*i' + 0.02*i'^2`, capped at
   50 enemies per room by `enemyCountHardCap` (limits.maxEnemiesAlive is 60).
-* Bosses repeat every 15 rooms (5 Slime, 10 King, 15 Dragon, 20 Slime...) with +50% HP and +20% damage per
-  completed cycle on top of the room scaling.
+* Bosses repeat every 30 rooms (5 Slime, 10 King, 15 Dragon, 20 Spider Queen, 25 Lich, 30 Mimic King, 35 Slime...)
+  with +65% HP and +25% damage per completed cycle on top of the room scaling (`BALANCE.bossCycle`,
+  `bossLoopHp`, `bossLoopDmg`). `bossOnly` enemies (Egg Sac, Mimic) are never picked by `planRoom`; only boss
+  attacks create them.
 * Anti-runaway guards live in `BALANCE.limits` (chain jumps per hit 6, explosions per frame 6, thunder strikes
   per pulse 8, pooled projectiles/particles/damage numbers) and are used by the combat helpers in
   `src/core/combat.ts`; chains and explosions never trigger further chains or explosions.
@@ -122,7 +156,9 @@ alive count, one HP pool, an arrival time from spawn distance and speed, and slo
    (armor, minimum damage, dodge, phoenix).
 4. **Bosses.** Attack events at `attackDelay / speedMult` pick from the phase's attack list; each hit lands with
    probability `1 - bossAvoid` (novice 30%, average 45%, expert 70% avoided), summon attacks add cohorts. Phase
-   follows the remaining HP fraction.
+   follows the remaining HP fraction. Egg cohorts (behavior `egg`, the Spider Queen's Egg Sacs) never move or
+   attack and are in reach at once; they soak damage like any cohort (by head count) and whatever is left of
+   them after `windup` seconds hatches into `summonCount` x `summon` per egg and no kill is credited for the egg.
 5. **Rewards.** XP, gold and kills are credited from the cohorts that shrank this step, using the real `addXp`,
    `addGold`, `registerKill`; level-ups recompute stats mid-room.
 6. **Run loop.** Door choice and upgrade picks follow a strategy: *random*, *greedy* (highest rarity) or
@@ -142,6 +178,9 @@ alive count, one HP pool, an arrival time from spawn distance and speed, and slo
   `sqrt(area)`), so Heavy Hitter, Long Reach and Magnet read as weak.
 * Economy cards (Greed, Magnet, Scholar) have no survival value in the model; Scholar is partly credited through
   faster levels.
+* Late-boss mechanics beyond their attack lists (web slows, the Lich's blink, the Mimic King's tongue pull) have no
+  effect in the model; they live in the skill factors. If they feel worse than the numbers above in play, lower
+  that boss's `damage` before its HP.
 * Enemy variants (Ghost, Spider, Fire Slime, Ogre) are simulated, but their special movement (phasing) is
   approximated by the erratic speed factor.
 * Pick strategies are heuristics; a human who builds around a synergy early will beat the `synergy` strategy.
@@ -150,11 +189,13 @@ alive count, one HP pool, an arrival time from spawn distance and speed, and slo
 
 ## Open concerns for play-testing
 
-1. **Ranger scales better than the others at the top** (expert/max 31 vs 25): bow count and pierce multiply.
+1. **Ranger scales better than the others at the top** (expert/max 34 vs 28): bow count and pierce multiply.
    If it shows in play, reduce `caps.max.pierce` / `extraProjectiles` before nerfing single cards.
 2. **Mage is the weakest start** (needs elemental cards; 7.8 vs Knight 10.1 with no meta). Raise
    `elementPower` or the Arcane Affinity chances if it feels bad.
-3. **Dragon is a wall for fresh players** (10-17% win with no meta) but only ~10% of fresh runs get there.
+3. **Dragon is a wall for fresh players** (9-15% win with no meta) but only ~10% of fresh runs get there. Spider
+   Queen, Lich and Mimic King are not reachable without permanent upgrades (<2% of runs) and should be judged
+   with `mid` meta or better.
 4. **Infinite Blades and Meteor Storm** are the top-end legendaries; Soul Harvest and Chaos Engine are weaker.
 5. Economy: if players buy everything too fast raise `meta.ts` costs, not `enemyGoldScale` (which also changes
    the first run).

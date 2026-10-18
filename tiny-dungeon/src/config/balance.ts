@@ -248,13 +248,13 @@ export const BALANCE = {
     eliteHpMult: 3,
     eliteDmgMult: 1.35,
     eliteRewardMult: 3,
-    /** Extra boss HP per full 15-room cycle already completed (loops get harder than the curve alone). */
-    bossLoopHp: 0.5,
-    bossLoopDmg: 0.2,
+    /** Extra boss HP per full 30-room cycle already completed (loops get harder than the curve alone). */
+    bossLoopHp: 0.65,
+    bossLoopDmg: 0.25,
     /** XP per kill grows like gold does. */
     xpLinear: 0.06,
   },
-  bossCycle: 15,
+  bossCycle: 30,
 
   // ---- Economy --------------------------------------------------------------------------------
   economy: {
@@ -324,6 +324,18 @@ export const BALANCE = {
     dragonTailSwipe: { damage: 1.3, windup: 0.7, hitsPerUse: 1 },
     dragonMeteors:   { damage: 0.45, windup: 1.2, hitsPerUse: 3 },
     dragonRing:      { damage: 0.4, windup: 1.0, hitsPerUse: 3 },
+    spiderWeb:       { damage: 0.4, windup: 0.8, hitsPerUse: 3 },
+    spiderEggs:      { damage: 0,   windup: 1.0, hitsPerUse: 0, summon: { enemy: 'spider_egg', count: 3 } },
+    spiderPounce:    { damage: 1.3, windup: 0.75, hitsPerUse: 1 },
+    spiderVenom:     { damage: 0.35, windup: 0.9, hitsPerUse: 4 },
+    lichBlink:       { damage: 0.8, windup: 0.8, hitsPerUse: 1 },
+    lichSpiral:      { damage: 0.35, windup: 0.8, hitsPerUse: 6 },
+    lichNova:        { damage: 1.2, windup: 1.1, hitsPerUse: 1 },
+    lichRaise:       { damage: 0,   windup: 1.1, hitsPerUse: 0, summon: { enemy: 'ghost', count: 3 } },
+    mimicChomp:      { damage: 1.4, windup: 0.8, hitsPerUse: 1 },
+    mimicCoins:      { damage: 0.35, windup: 0.8, hitsPerUse: 5 },
+    mimicTongue:     { damage: 1.1, windup: 0.9, hitsPerUse: 1 },
+    mimicDecoys:     { damage: 0,   windup: 1.0, hitsPerUse: 0, summon: { enemy: 'mimic', count: 2 } },
   } as Record<BossAttackId, BossAttackTuning>,
 
   // ---- Shrines (data.events) ------------------------------------------------------------------

@@ -21,7 +21,7 @@ All six phases are implemented. The game is playable end to end in a browser and
 - 43 upgrades in 4 weighted rarities. Rarity is gated by room: rare from room 2, epic from room 4, legendary from room 7.
 - 15 data-driven synergies, 3 of them evolutions: Frozen Fortress, Tempest, Armageddon.
 - 10 enemy types: slime, bat, skeleton, skeleton archer, armored goblin, necromancer, and the unlockable ghost, spider, fire slime and ogre.
-- 3 bosses with telegraphed, phase-based attacks: Giant Slime (room 5), Skeleton King (room 10), Dungeon Dragon (room 15). They loop every 15 rooms with scaling.
+- 6 bosses with telegraphed, phase-based attacks: Giant Slime (room 5), Skeleton King (room 10), Dungeon Dragon (room 15), Spider Queen (room 20), the Lich (room 25), Mimic King (room 30). They loop every 30 rooms with scaling.
 - Elite, treasure and shrine rooms.
 - Difficulty scaling.
 
@@ -48,7 +48,7 @@ All six phases are implemented. The game is playable end to end in a browser and
 - Original pixel art in the Kenney Tiny Dungeon palette: bosses, skeletons, goblin, effects and 49 icons.
 - CC0 audio: 25 sound effects and 3 music loops.
 - Hit flashes, damage numbers, crits, knockback, screen shake, hitstop, death effects, synergy banners and animated menus.
-- 20 achievements.
+- 24 achievements.
 - Deterministic daily challenge.
 - Settings: music and SFX volume, screen shake, reduced motion, damage numbers, joystick mode, reset, credits.
 

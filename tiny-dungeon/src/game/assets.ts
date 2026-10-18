@@ -59,6 +59,7 @@ export const EXTRA_FRAMES = [
   'shadow', 'spark', 'puff', 'flame_0', 'flame_1', 'flame_2', 'flame_3',
   'torch_0', 'torch_1', 'torch_2', 'torch_3', 'heart', 'skull', 'egg', 'crown', 'slash',
   'ice_shard', 'lightning', 'poison_cloud', 'companion_fairy', 'companion_wisp',
+  'spider_queen', 'lich', 'mimic_king', 'web', 'web_ball', 'egg_sac', 'soul_bolt', 'venom_glob',
 ] as const;
 export type ExtraFrame = (typeof EXTRA_FRAMES)[number];
 

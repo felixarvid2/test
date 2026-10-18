@@ -141,7 +141,8 @@ export interface WeaponDef {
   icon: string;
 }
 
-export type EnemyBehavior = 'chase' | 'erratic' | 'lunge' | 'ranged' | 'tank' | 'summoner';
+// 'egg': never moves; hatches into `summonCount` x `summon` after `windup` seconds unless destroyed first.
+export type EnemyBehavior = 'chase' | 'erratic' | 'lunge' | 'ranged' | 'tank' | 'summoner' | 'egg';
 
 export interface EnemyDef {
   id: string;
@@ -168,12 +169,16 @@ export interface EnemyDef {
   summon?: string;            // enemy id summoned
   summonCount?: number;
   unlock?: string;            // variants only spawn once unlocked
+  bossOnly?: boolean;         // only bosses create it; room planning never spawns it
 }
 
 export type BossAttackId =
   | 'slimeJump' | 'slimeSplit' | 'slimeBurst'
   | 'kingSweep' | 'kingSummon' | 'kingCharge'
-  | 'dragonBreath' | 'dragonMeteors' | 'dragonRing' | 'dragonTailSwipe';
+  | 'dragonBreath' | 'dragonMeteors' | 'dragonRing' | 'dragonTailSwipe'
+  | 'spiderWeb' | 'spiderEggs' | 'spiderPounce' | 'spiderVenom'
+  | 'lichBlink' | 'lichSpiral' | 'lichNova' | 'lichRaise'
+  | 'mimicChomp' | 'mimicCoins' | 'mimicTongue' | 'mimicDecoys';
 
 export interface BossPhase {
   hpBelow: number;            // phase is active while hp fraction <= this (first phase uses 1)

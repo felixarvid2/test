@@ -6,6 +6,8 @@ import {
 } from '../src/core/sim';
 import type { Skill, Strategy } from '../src/core/sim';
 import { createRun } from '../src/core/run';
+import { BOSS_BY_ID } from '../src/data/bosses';
+import { ENEMY_BY_ID } from '../src/data/enemies';
 import type { HeroId } from '../src/core/types';
 
 const HEROES: HeroId[] = ['knight', 'ranger', 'mage'];
@@ -67,6 +69,52 @@ describe('simulation', () => {
     expect(out.bossLeft).toBeDefined();
     if (out.cleared) expect(run.bossesDefeated).toEqual(['giant_slime']);
     else expect(out.bossLeft).toBeGreaterThan(0);
+  });
+
+  it('fights the three new bosses in whole runs and a maxed expert can beat each', () => {
+    const { meta, unlocks } = metaPreset('max');
+    const fights: Record<string, { room: number; won: boolean }[]> = {};
+    for (let i = 0; i < 60; i++) {
+      const res = simulateRun({
+        hero: HEROES[i % 3], skill: 'expert', strategy: STRATEGIES[(i >> 1) % 3], meta, unlocks, seed: 4000 + i, maxRooms: 40,
+      });
+      for (const f of res.bossFights) (fights[f.boss] ??= []).push({ room: f.room, won: f.won });
+    }
+    for (const [id, room] of [['spider_queen', 20], ['lich', 25], ['mimic_king', 30]] as const) {
+      const list = fights[id] ?? [];
+      expect(list.length, `${id} fought`).toBeGreaterThan(5);
+      expect(list.every((f) => (f.room - 1) % 30 + 1 === room), id).toBe(true);
+      expect(list.some((f) => f.won), `${id} won at least once`).toBe(true);
+      expect(list.some((f) => !f.won), `${id} is a real fight`).toBe(true);
+    }
+  });
+
+  it('eggs hatch into their summon unless broken in time', () => {
+    // A boss that only lays eggs and cannot hurt the hero, so extra kills come only from what hatched.
+    const queen = BOSS_BY_ID.spider_queen;
+    const egg = ENEMY_BY_ID.spider_egg;
+    const saved = { phases: queen.phases, hp: queen.hp, windup: egg.windup, eggHp: egg.hp };
+    const fight = (windup: number): number => {
+      egg.windup = windup;
+      const { meta, unlocks } = metaPreset('max');
+      const run = createRun({ hero: 'knight', seed: 3, mode: 'normal', meta, unlocks, runId: 's' });
+      run.room = 20;
+      const plan = { ...planRoom(20, new Rng(3), { unlocks }), hpMult: 1, dmgMult: 0.01 };
+      return simulateRoom(run, plan, new Rng(4), 'expert').kills;
+    };
+    try {
+      queen.phases = [{ hpBelow: 1, attacks: ['spiderEggs'], speedMult: 1, attackDelay: 1.2 }];
+      queen.hp = saved.hp * 8;
+      egg.hp = saved.eggHp * 60; // too tanky to break before the hatch timer runs out
+      const never = fight(500);  // never hatches inside the fight
+      const fast = fight(0.4);   // hatches almost at once: spiders to kill as well
+      expect(fast).toBeGreaterThan(never);
+    } finally {
+      queen.phases = saved.phases;
+      queen.hp = saved.hp;
+      egg.windup = saved.windup;
+      egg.hp = saved.eggHp;
+    }
   });
 
   it('meta makes runs go further on average', () => {

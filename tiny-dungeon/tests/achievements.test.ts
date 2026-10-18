@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { evaluateAchievements, recordRun } from '../src/core/achievements';
 import type { RunSummary } from '../src/core/types';
 import { ACHIEVEMENTS } from '../src/data/achievements';
+import { BOSSES } from '../src/data/bosses';
 import { COSMETICS } from '../src/data/buffs';
 import { ICONS } from '../src/game/assets';
 import { defaultSave } from '../src/save/SaveManager';
@@ -108,11 +109,51 @@ describe('recordRun and evaluateAchievements', () => {
     expect(later).toEqual(expect.arrayContaining(['daily_3', 'mage_10', 'legendaries_5', 'runs_10', 'gold_5000', 'kills_1000']));
   });
 
+  it('has a defeat achievement for every boss and a room 30 milestone', () => {
+    for (const b of BOSSES) {
+      const a = ACHIEVEMENTS.find((x) => x.check.kind === 'bossDefeated' && x.check.boss === b.id);
+      expect(a, b.id).toBeDefined();
+      expect(a?.reward?.gold, b.id).toBeGreaterThan(0);
+    }
+    const rewards = ['boss_spider', 'boss_lich', 'boss_mimic'].map((id) => ACHIEVEMENTS.find((a) => a.id === id)?.reward);
+    for (const r of rewards) expect(r?.tokens).toBeGreaterThan(0);
+    expect(ACHIEVEMENTS.find((a) => a.id === 'room_30')?.check).toEqual({ kind: 'bestRoom', value: 30 });
+  });
+
+  it('awards the new boss achievements once, from a run or from saved stats', () => {
+    const save = defaultSave();
+    const run = summary({ roomsCleared: 24, bossesDefeated: ['giant_slime', 'skeleton_king', 'dragon', 'spider_queen'] });
+    recordRun(save, run);
+    const first = evaluateAchievements(save, run).map((a) => a.id);
+    expect(first).toEqual(expect.arrayContaining(['boss_spider', 'room_25']));
+    expect(first).not.toContain('boss_lich');
+    expect(first).not.toContain('boss_mimic');
+    expect(first).not.toContain('room_30');
+    const goldBefore = save.gold;
+    const tokensBefore = save.rewards.tokens;
+
+    const deep = summary({ roomsCleared: 30, bossesDefeated: ['lich', 'mimic_king'] });
+    recordRun(save, deep);
+    const second = evaluateAchievements(save, deep).map((a) => a.id);
+    expect(second.sort()).toEqual(['boss_lich', 'boss_mimic', 'room_30']);
+    const gain = ACHIEVEMENTS.filter((a) => second.includes(a.id));
+    expect(save.gold).toBe(goldBefore + gain.reduce((s, a) => s + (a.reward?.gold ?? 0), 0));
+    expect(save.rewards.tokens).toBe(tokensBefore + gain.reduce((s, a) => s + (a.reward?.tokens ?? 0), 0));
+    // nothing is granted a second time, with or without the run
+    const gold = save.gold;
+    expect(evaluateAchievements(save, deep)).toEqual([]);
+    expect(evaluateAchievements(save)).toEqual([]);
+    expect(save.gold).toBe(gold);
+    expect(save.stats.bossesDefeated).toMatchObject({ spider_queen: 1, lich: 1, mimic_king: 1 });
+  });
+
   it('one run can earn every boss achievement', () => {
     const save = defaultSave();
-    const run = summary({ roomsCleared: 16, bossesDefeated: ['giant_slime', 'skeleton_king', 'dragon'] });
+    const run = summary({ roomsCleared: 30, bossesDefeated: BOSSES.map((b) => b.id) });
     recordRun(save, run);
     const ids = evaluateAchievements(save, run).map((a) => a.id);
-    expect(ids).toEqual(expect.arrayContaining(['boss_slime', 'boss_king', 'boss_dragon', 'room_15']));
+    expect(ids).toEqual(expect.arrayContaining([
+      'boss_slime', 'boss_king', 'boss_dragon', 'boss_spider', 'boss_lich', 'boss_mimic', 'room_15', 'room_25', 'room_30',
+    ]));
   });
 });

@@ -170,6 +170,8 @@ def write_atlas(frames, order, width, png_name, json_name):
 EXTRA_SIZES = {
     'skeleton_king': (24, 24), 'giant_slime': (32, 32), 'dragon': (48, 48), 'xp_gem': (8, 8), 'xp_gem_big': (12, 12),
     'arrow': (16, 5), 'enemy_arrow': (16, 5), 'bone': (16, 6), 'shadow': (16, 8), 'slash': (32, 16), 'lightning': (12, 40),
+    'spider_queen': (40, 40), 'lich': (32, 32), 'mimic_king': (32, 32), 'web': (16, 16), 'web_ball': (8, 8),
+    'egg_sac': (12, 12), 'soul_bolt': (10, 10), 'venom_glob': (8, 8),
 }
 
 

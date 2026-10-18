@@ -31,6 +31,34 @@ export const BOSSES: BossDef[] = [
     ],
     gold: 120, xp: 300,
   },
+  {
+    id: 'spider_queen', name: 'Spider Queen', title: 'Mind the webs.',
+    frame: 'extra:spider_queen', scale: 2.6, hp: 760, damage: 12, speed: 60, radius: 46, room: 20,
+    phases: [
+      { hpBelow: 1, attacks: ['spiderWeb', 'spiderPounce', 'spiderEggs'], speedMult: 1, attackDelay: 2.3 },
+      { hpBelow: 0.5, attacks: ['spiderWeb', 'spiderPounce', 'spiderEggs', 'spiderVenom'], speedMult: 1.25, attackDelay: 1.8 },
+    ],
+    gold: 160, xp: 380,
+  },
+  {
+    id: 'lich', name: 'The Lich', title: 'Death was only the beginning.',
+    frame: 'extra:lich', scale: 2.8, hp: 880, damage: 10.5, speed: 40, radius: 36, room: 25,
+    phases: [
+      { hpBelow: 1, attacks: ['lichSpiral', 'lichBlink', 'lichRaise'], speedMult: 1, attackDelay: 2.4 },
+      { hpBelow: 0.66, attacks: ['lichSpiral', 'lichBlink', 'lichRaise', 'lichNova'], speedMult: 1.1, attackDelay: 2.1 },
+      { hpBelow: 0.33, attacks: ['lichSpiral', 'lichBlink', 'lichNova'], speedMult: 1.25, attackDelay: 1.7 },
+    ],
+    gold: 200, xp: 460,
+  },
+  {
+    id: 'mimic_king', name: 'Mimic King', title: 'Not every chest is your friend.',
+    frame: 'extra:mimic_king', scale: 3, hp: 720, damage: 9, speed: 58, radius: 46, room: 30,
+    phases: [
+      { hpBelow: 1, attacks: ['mimicChomp', 'mimicCoins', 'mimicTongue'], speedMult: 1, attackDelay: 2.2 },
+      { hpBelow: 0.5, attacks: ['mimicChomp', 'mimicCoins', 'mimicTongue', 'mimicDecoys'], speedMult: 1.3, attackDelay: 1.7 },
+    ],
+    gold: 260, xp: 560,
+  },
 ];
 
 export const BOSS_BY_ID: Record<string, BossDef> = Object.fromEntries(BOSSES.map((b) => [b.id, b]));

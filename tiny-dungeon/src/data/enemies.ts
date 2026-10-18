@@ -30,6 +30,14 @@ export const ENEMIES: EnemyDef[] = [
   { id: 'ogre', name: 'Ogre', frame: 'tile:ogre', behavior: 'tank', scale: 1.5,
     hp: 190, damage: 20, speed: 36, radius: 24, armor: 4, knockbackResist: 0.9, xp: 24, gold: 6, cost: 12, minRoom: 8,
     unlock: 'variant_ogre' },
+  // Boss-only: laid by the Spider Queen, hatches unless broken in time.
+  { id: 'spider_egg', name: 'Egg Sac', frame: 'extra:egg_sac', behavior: 'egg', scale: 1.2,
+    hp: 45, damage: 0, speed: 0, radius: 14, knockbackResist: 1, xp: 2, gold: 0, cost: 0, minRoom: 1,
+    summon: 'spider', summonCount: 2, windup: 4.5, bossOnly: true },
+  // Boss-only: the Mimic King's little helpers.
+  { id: 'mimic', name: 'Mimic', frame: 'tile:mimic', behavior: 'lunge',
+    hp: 60, damage: 14, speed: 70, radius: 14, xp: 4, gold: 0, cost: 0, minRoom: 1,
+    attackRange: 120, attackCooldown: 2.2, windup: 0.5, bossOnly: true },
 ];
 
 export const ENEMY_BY_ID: Record<string, EnemyDef> = Object.fromEntries(ENEMIES.map((e) => [e.id, e]));
