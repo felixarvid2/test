@@ -8,6 +8,8 @@ mappen) och klicka **NY RUNDA**.
 E öppna dörr, kista, hemlig vägg eller handla · Shift spring · 1–4/Q/mushjul byt vapen · C dina kort ·
 M/Tab karta · P/Esc paus · `[` `]` muskänslighet · `-` `+` volym · N ljud av · O helskärm.
 
+**Mobil (liggande läge):** vänster tumme styr en flytande joystick (dra långt för att springa), höger tumme drar för att vrida. Den stora knappen skjuter, och man kan dra på den för att sikta samtidigt. Knapparna vid sidan av bilden siktar, laddar om, använder, byter vapen och öppnar karta, kort och paus. Knapparna kommer från Kenneys *Mobile Controls* (CC0, `assets/touch/`).
+
 ## Roguelike
 
 - **Genererade våningar** (`js/gen.js`, `js/rng.js`): rum och korridorer med minimalt uppspännande träd och slingor, dörrar, hemliga rum, skattrum med kortkista, butiksrum, elitfiender och eldfat. Storleken och fienderna ökar med djupet, och temat (väggar, golv, dimma, namn) varierar.
@@ -105,6 +107,7 @@ Spelare och gränssnitt
 | Köpman (liemannen) | `assets/2d-pixel/Legacy Collection/.../Gothicvania/Characters/death` (CC0) |
 | Kistor och mynt | `assets/2d-pixel/2D Pixel Dungeon Asset Pack v2.0` |
 | Kortbilder och kortbaksida | `assets/rune-ai/flux/relics` och `card-backs` |
+| Mobilknappar och joystick | Kenney *Mobile Controls* 1.0 (CC0), hämtad från kenney.nl |
 | Typsnitt | Press Start 2P (OFL) |
 
 Se licensfilerna i respektive källpaket.

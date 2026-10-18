@@ -932,13 +932,19 @@ function update(dt) {
   const turn = (keys.ArrowRight ? 1 : 0) - (keys.ArrowLeft ? 1 : 0);
   P.a += turn * 2.4 * dt * (1 - WS.aim * 0.4);
   // mjuk rörelse med acceleration och friktion
-  const fwd = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0);
-  const str = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
-  const running = keys.ShiftLeft || keys.ShiftRight;
+  let fwd = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0);
+  let str = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
+  if (touch.active) { // mobil: analog joystick och dra-för-att-vrida
+    fwd -= touch.my; str += touch.mx;
+    P.a += touch.look * 0.011 * settings.sens * (1 - WS.aim * 0.35);
+    WS.swayX = clamp(WS.swayX + touch.look * 0.25, -10, 10); WS.swayY = clamp(WS.swayY + touch.lookY * 0.15, -6, 6);
+    touch.look = 0; touch.lookY = 0;
+  }
+  const running = keys.ShiftLeft || keys.ShiftRight || touch.mag > 0.95;
   const maxSp = (running && WS.aim < 0.5 ? 4.7 : 3.1) * (1 - WS.aim * 0.4) * (1 + mod('moveSpeed')) * (P.haste > 0 ? 1.35 : 1);
   let tx = 0, ty = 0;
-  if (fwd || str) { const l = Math.hypot(fwd, str); tx = (Math.cos(P.a) * fwd - Math.sin(P.a) * str) / l * maxSp; ty = (Math.sin(P.a) * fwd + Math.cos(P.a) * str) / l * maxSp; }
-  const k = Math.min(1, dt * (fwd || str ? 10 : 12));
+  if (Math.abs(fwd) + Math.abs(str) > 0.05) { const l = Math.hypot(fwd, str), s = Math.min(1, l) / l * maxSp; tx = (Math.cos(P.a) * fwd - Math.sin(P.a) * str) * s; ty = (Math.sin(P.a) * fwd + Math.cos(P.a) * str) * s; }
+  const k = Math.min(1, dt * (tx || ty ? 10 : 12));
   P.vx += (tx - P.vx) * k; P.vy += (ty - P.vy) * k;
   tryMove(P, P.vx * dt, P.vy * dt, 0.24);
   for (const e of ents) if (!e.dead && !e.dying) pushOut(P, e.x, e.y, e.boss ? 1.1 : 0.55);
@@ -1297,7 +1303,7 @@ function begin(mode) { // mode: 'new' | 'daily' | 'continue'
   // startkort: välj ett av tre innan första våningen
   openUI(() => CardUI.draft(drawCards(3), { title: 'RUNDAN BÖRJAR', subtitle: 'VÄLJ ETT STARTKORT', skipLabel: 'INGET KORT' }, card => { gainCard(card); closeUI(); }));
 }
-function lockPointer() { if (!params.has('nolock') && document.pointerLockElement !== canvas && canvas.requestPointerLock) { try { const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (e) { /* pekarlås valfritt */ } } }
+function lockPointer() { if (!params.has('nolock') && !isTouch() && document.pointerLockElement !== canvas && canvas.requestPointerLock) { try { const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (e) { /* pekarlås valfritt */ } } }
 function pause() { if (state === 'play') { state = 'pause'; mouseDown = false; aimDown = false; for (const k in keys) keys[k] = false; if (actx) actx.suspend(); } }
 function resume() { if (state === 'pause') { state = 'play'; if (actx) actx.resume(); lockPointer(); } }
 function leaveRunScreen() { if ((state === 'dead' && P.deadT > 1.2) || (state === 'runover' && P.deadT > 1)) showTitle(); }
@@ -1348,6 +1354,80 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) pause
 canvas.addEventListener('wheel', e => { e.preventDefault(); if (state === 'play') cycleWeapon(Math.sign(e.deltaY)); }, { passive: false });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
+// ---------- Mobilstyrning (Kenney Mobile Controls, CC0) ----------
+// Vänster halva: flytande joystick (gå/springa). Höger halva: dra för att vrida. Knappar: skjut (dra också för att sikta), sikta, ladda om, använd, byt vapen, karta, kort, paus.
+const touch = { active: false, mx: 0, my: 0, mag: 0, look: 0, lookY: 0 };
+const isTouch = () => matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+function setupTouch() {
+  const ui = document.getElementById('touch');
+  const T = A + 'touch/';
+  const btn = (act, icon, cls) => `<button class="tb ${cls}" data-act="${act}" aria-label="${act}"><img src="${T}btn.png" alt=""><img class="ic" src="${T}icon_${icon}.png" alt=""></button>`;
+  ui.innerHTML = `<div class="joy" hidden><img class="pad" src="${T}pad.png" alt=""><img class="nub" src="${T}nub.png" alt=""></div>
+    ${btn('fire', 'crosshair', 'fire')}${btn('aim', 'target', 'aim')}${btn('reload', 'arrow_rotate', 'reload')}${btn('use', 'hand', 'use')}${btn('swap', 'arrow_curved', 'swap')}
+    ${btn('map', 'search', 'map small')}${btn('deck', 'star', 'deck small')}${btn('pause', 'pause', 'pausebtn small')}
+    <div class="rotate">VRID TELEFONEN TILL LIGGANDE LÄGE</div>`;
+  const joy = ui.querySelector('.joy'), nub = ui.querySelector('.nub');
+  const ptrs = new Map(); // pointerId -> { kind, x, y, ox, oy }
+  const R = () => Math.min(innerWidth, innerHeight) * 0.13; // joystickens radie
+  ui.addEventListener('pointerdown', e => {
+    if (state !== 'play') { // tryck för att fortsätta, gå vidare osv.
+      if (state === 'pause') resume(); else if (state === 'stats') nextFloor(); else leaveRunScreen();
+      e.preventDefault(); return;
+    }
+    touch.active = true; ensureAudio();
+    const b = e.target.closest('.tb');
+    ui.setPointerCapture(e.pointerId);
+    if (b) {
+      const act = b.dataset.act; b.classList.add('on');
+      if (act === 'fire') { mouseDown = true; ptrs.set(e.pointerId, { kind: 'look', x: e.clientX, y: e.clientY, btn: b, fire: true }); }
+      else {
+        ptrs.set(e.pointerId, { kind: 'btn', btn: b });
+        if (act === 'aim') aimDown = !aimDown;
+        if (act === 'reload') startReload();
+        if (act === 'use') useKey();
+        if (act === 'swap') cycleWeapon(1);
+        if (act === 'map') showMap = !showMap;
+        if (act === 'deck') showDeck();
+        if (act === 'pause') pause();
+      }
+    } else if (e.clientX < innerWidth * 0.45) { // flytande joystick där tummen landar
+      ptrs.set(e.pointerId, { kind: 'joy', ox: e.clientX, oy: e.clientY });
+      joy.hidden = false; joy.style.left = e.clientX + 'px'; joy.style.top = e.clientY + 'px'; nub.style.transform = 'translate(-50%,-50%)';
+    } else ptrs.set(e.pointerId, { kind: 'look', x: e.clientX, y: e.clientY });
+    e.preventDefault();
+  });
+  ui.addEventListener('pointermove', e => {
+    const p = ptrs.get(e.pointerId); if (!p) return;
+    if (p.kind === 'joy') {
+      let dx = e.clientX - p.ox, dy = e.clientY - p.oy; const d = Math.hypot(dx, dy), r = R();
+      if (d > r) { dx *= r / d; dy *= r / d; }
+      touch.mx = dx / r; touch.my = dy / r; touch.mag = Math.min(1, d / r);
+      nub.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+    } else if (p.kind === 'look') {
+      touch.look += (e.clientX - p.x) * 320 / innerWidth; touch.lookY += (e.clientY - p.y) * 200 / innerHeight;
+      p.x = e.clientX; p.y = e.clientY;
+    }
+    e.preventDefault();
+  });
+  const end = e => {
+    const p = ptrs.get(e.pointerId); if (!p) return;
+    ptrs.delete(e.pointerId);
+    if (p.kind === 'joy') { touch.mx = touch.my = touch.mag = 0; joy.hidden = true; }
+    if (p.btn) p.btn.classList.remove('on');
+    if (p.fire) mouseDown = false;
+  };
+  ui.addEventListener('pointerup', end); ui.addEventListener('pointercancel', end);
+  ui.addEventListener('contextmenu', e => e.preventDefault());
+  ui.addEventListener('touchstart', e => e.preventDefault(), { passive: false }); // inga efterföljande musklick som stänger kortleken direkt
+  // visa kontrollerna bara när det behövs
+  setInterval(() => {
+    const show = isTouch() && map && state !== 'title' && state !== 'ui';
+    ui.hidden = !show;
+    ui.classList.toggle('playing', state === 'play');
+    ui.querySelector('[data-act=aim]').classList.toggle('lit', aimDown);
+  }, 150);
+}
+
 // ---------- Startskärm och upplåsningar ----------
 function refreshTitle() {
   const diffBox = document.getElementById('diff');
@@ -1374,7 +1454,8 @@ function openUnlocks() {
     st.textContent = '';
     for (const id of ['start', 'daily', 'unlocks']) document.getElementById(id).disabled = false;
   } catch (e) { st.textContent = 'FEL: ' + e.message; console.error(e); }
-  refreshTitle();
+  refreshTitle(); setupTouch();
+  if (isTouch()) document.body.classList.add('touch');
   CardUI.sfx = n => { const m = { flip: ['card', 0.4, 1.3], pick: ['card', 0.8, 0.9], deny: ['click', 0.6, 0.7], open: ['card', 0.3, 0.8] }[n]; if (m) play(m[0], m[1], m[2]); };
   requestAnimationFrame(loop);
   window.__game = { P, WS, ents: () => ents, items: () => items, pots: () => pots, chests: () => chests, merchants: () => merchants, state: () => state, run: () => run, kills: () => kills, begin, doors: () => doors,
