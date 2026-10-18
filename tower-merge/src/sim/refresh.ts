@@ -3,7 +3,7 @@ import { SLOTS } from '../data/map';
 import { TOWERS } from '../data/towers';
 import type { Effect, TowerId } from '../data/types';
 import { TOWER_IDS } from '../data/types';
-import { FL, GLOBAL_INDEX, ModSet, NFLAGS, STAT_INDEX } from './modifiers';
+import { FL, ModSet, NFLAGS, STAT_INDEX } from './modifiers';
 import type { SimState, TowerInst } from './state';
 
 export const TOWER_INDEX: Record<TowerId, number> = {
@@ -159,6 +159,12 @@ export function refresh(s: SimState): void {
   if (s.mergeFrenzyTime > 0) s.buffFireRatePct += BALANCE.combat.mergeFrenzyFireRatePct;
   s.buffDamageMul = s.doubleDamage ? BALANCE.emergency.doubleDamageMult : 1;
 
+  s.coinGainMult = Math.max(0, s.gm.value('coinGain', 1));
+  s.bossDamageMult = Math.max(0, s.gm.value('bossDamage', 1));
+  s.abilityPowerMult = Math.max(0.1, s.gm.value('abilityPower', 1));
+  s.abilityCdMult = Math.max(0.2, s.gm.value('abilityCooldown', 1));
+  s.towerCostMult = Math.max(0.2, s.gm.value('towerCost', 1));
+
   const newMax = Math.max(1, Math.round(s.gm.value('castleMaxHp', BALANCE.castle.hp)));
   if (s.castleMaxHp > 0 && newMax !== s.castleMaxHp) {
     if (newMax > s.castleMaxHp) s.castleHp += newMax - s.castleMaxHp;
@@ -168,8 +174,4 @@ export function refresh(s: SimState): void {
 
   for (const slot of s.slots) if (slot.tower) computeTowerStats(s, slot.tower);
   s.dirty = false;
-}
-
-export function globalStat(s: SimState, stat: keyof typeof GLOBAL_INDEX, base: number): number {
-  return s.gm.value(stat, base);
 }

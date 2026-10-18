@@ -48,7 +48,7 @@ enemies.goblin = () => {
 
 // ---------------------------------------------------------------------------------- rat
 enemies.rat = () => {
-  const R = '#9a8272', A = E('rt');
+  const R = '#8f8590', A = E('rt');
   A.shadow(62, 114, 38, 6);
   // speed lines
   A.stroke('M4 70H20M0 84H16M6 98H18', '#fff', 3, ' opacity=".7"');

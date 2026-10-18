@@ -272,6 +272,16 @@ export class SimState {
   deathTail = 0;
   /** Current kill-cascade depth (see combat.killEnemy). */
   depth = 0;
+  /** Scratch index buffers for spatial queries, borrowed in a stack discipline (no allocation per query). */
+  private readonly bufs: Int32Array[] = Array.from({ length: 12 }, () => new Int32Array(BALANCE.caps.maxEnemies + 16));
+  private bufTop = 0;
+  bossGems = 0;
+  // cached aggregated globals (set by refresh)
+  coinGainMult = 1;
+  bossDamageMult = 1;
+  abilityPowerMult = 1;
+  abilityCdMult = 1;
+  towerCostMult = 1;
 
   // temporary buffs (seconds)
   frenzyTime = 0;
@@ -323,6 +333,14 @@ export class SimState {
       abilitiesUsed: 0, flawlessWaves: 0, synergiesActivated: [], legendariesPicked: 0, upgradesTaken: [],
       towerKills: {}, towerDamage: {}, timeSeconds: 0,
     };
+  }
+
+  borrow(): Int32Array {
+    return this.bufs[this.bufTop++];
+  }
+
+  release(): void {
+    this.bufTop--;
   }
 
   /** Queues an event; cosmetic events are dropped when nobody drains the queue. */

@@ -37,10 +37,11 @@ export class Art {
   /** Filled shape with 3-tone cel shading and an outline. */
   cel(d, base, o = {}) {
     const { k = this.k, sw = this.sw, sh = true, hi = true, shc = shade(base), hic = light(base), line = true } = o;
+    if (!sh && !hi) return this.flat(d, base, { sw: line ? sw : 0 });
     const id = this.uid(), { w, h } = this;
     this.defs.push(`<path id="${id}" d="${d}"/>`);
     const mask = (suffix, dx) =>
-      `<mask id="${id}${suffix}" maskUnits="userSpaceOnUse" width="${w}" height="${h}"><rect width="${w}" height="${h}" fill="#fff"/><use href="#${id}" transform="translate(${dx} ${dx})" fill="#000"/></mask>`;
+      `<mask id="${id}${suffix}"><rect x="-9" y="-9" width="${w + 18}" height="${h + 18}" fill="#fff"/><use href="#${id}" transform="translate(${dx} ${dx})"/></mask>`;
     let s = `<use href="#${id}" fill="${base}"/>`;
     if (hi) { this.defs.push(mask('h', k)); s += `<use href="#${id}" fill="${hic}" mask="url(#${id}h)"/>`; }
     if (sh) { this.defs.push(mask('s', -k)); s += `<use href="#${id}" fill="${shc}" mask="url(#${id}s)"/>`; }
