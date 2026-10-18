@@ -1,10 +1,13 @@
 Fonts bundled with Tower Merge - Last Stand
 ===========================================
 
-kenney-future.ttf         "Kenney Future"
-kenney-future-narrow.ttf  "Kenney Future Narrow"
+kenney-future.ttf   "Kenney Future"  (display font: titles, headings, numbers, button labels)
 
-Both are part of the Kenney "UI Pack" (2.0) by Kenney (www.kenney.nl), released under
+Part of the Kenney "UI Pack" (2.0) by Kenney (www.kenney.nl), released under
 Creative Commons Zero (CC0 1.0): https://creativecommons.org/publicdomain/zero/1.0/
 Free for personal, educational and commercial use; credit is appreciated but not required.
 Source: https://kenney.nl/assets/ui-pack
+
+Body text (descriptions, small print) deliberately uses the platform's bold UI font
+(system-ui / Roboto / Helvetica / Arial) so long sentences stay readable and the download
+stays small; nothing else is bundled.

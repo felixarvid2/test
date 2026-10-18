@@ -1,5 +1,13 @@
 [
   {
+    "key": "bg_board",
+    "file": "bg_board.svg"
+  },
+  {
+    "key": "bg_menu",
+    "file": "bg_menu.svg"
+  },
+  {
     "key": "boss_dragon",
     "file": "boss_dragon.svg"
   },
@@ -10,6 +18,10 @@
   {
     "key": "boss_stoneGolem",
     "file": "boss_stoneGolem.svg"
+  },
+  {
+    "key": "castle",
+    "file": "castle.svg"
   },
   {
     "key": "enemy_bat",
@@ -50,6 +62,242 @@
   {
     "key": "enemy_troll",
     "file": "enemy_troll.svg"
+  },
+  {
+    "key": "fx_coin",
+    "file": "fx_coin.svg"
+  },
+  {
+    "key": "fx_glow",
+    "file": "fx_glow.svg"
+  },
+  {
+    "key": "fx_ring",
+    "file": "fx_ring.svg"
+  },
+  {
+    "key": "fx_smoke",
+    "file": "fx_smoke.svg"
+  },
+  {
+    "key": "fx_spark",
+    "file": "fx_spark.svg"
+  },
+  {
+    "key": "fx_star",
+    "file": "fx_star.svg"
+  },
+  {
+    "key": "icon_arrow",
+    "file": "icon_arrow.svg"
+  },
+  {
+    "key": "icon_cannon",
+    "file": "icon_cannon.svg"
+  },
+  {
+    "key": "icon_castle",
+    "file": "icon_castle.svg"
+  },
+  {
+    "key": "icon_chain",
+    "file": "icon_chain.svg"
+  },
+  {
+    "key": "icon_chest",
+    "file": "icon_chest.svg"
+  },
+  {
+    "key": "icon_clock",
+    "file": "icon_clock.svg"
+  },
+  {
+    "key": "icon_coin",
+    "file": "icon_coin.svg"
+  },
+  {
+    "key": "icon_crit",
+    "file": "icon_crit.svg"
+  },
+  {
+    "key": "icon_crown",
+    "file": "icon_crown.svg"
+  },
+  {
+    "key": "icon_curse",
+    "file": "icon_curse.svg"
+  },
+  {
+    "key": "icon_damage",
+    "file": "icon_damage.svg"
+  },
+  {
+    "key": "icon_dragon",
+    "file": "icon_dragon.svg"
+  },
+  {
+    "key": "icon_elite",
+    "file": "icon_elite.svg"
+  },
+  {
+    "key": "icon_explosion",
+    "file": "icon_explosion.svg"
+  },
+  {
+    "key": "icon_eye",
+    "file": "icon_eye.svg"
+  },
+  {
+    "key": "icon_fire",
+    "file": "icon_fire.svg"
+  },
+  {
+    "key": "icon_freeze",
+    "file": "icon_freeze.svg"
+  },
+  {
+    "key": "icon_frenzy",
+    "file": "icon_frenzy.svg"
+  },
+  {
+    "key": "icon_frost",
+    "file": "icon_frost.svg"
+  },
+  {
+    "key": "icon_gem",
+    "file": "icon_gem.svg"
+  },
+  {
+    "key": "icon_golem",
+    "file": "icon_golem.svg"
+  },
+  {
+    "key": "icon_heart",
+    "file": "icon_heart.svg"
+  },
+  {
+    "key": "icon_lightning",
+    "file": "icon_lightning.svg"
+  },
+  {
+    "key": "icon_lock",
+    "file": "icon_lock.svg"
+  },
+  {
+    "key": "icon_magic",
+    "file": "icon_magic.svg"
+  },
+  {
+    "key": "icon_merchant",
+    "file": "icon_merchant.svg"
+  },
+  {
+    "key": "icon_merge",
+    "file": "icon_merge.svg"
+  },
+  {
+    "key": "icon_meteor",
+    "file": "icon_meteor.svg"
+  },
+  {
+    "key": "icon_poison",
+    "file": "icon_poison.svg"
+  },
+  {
+    "key": "icon_range",
+    "file": "icon_range.svg"
+  },
+  {
+    "key": "icon_repair",
+    "file": "icon_repair.svg"
+  },
+  {
+    "key": "icon_shield",
+    "file": "icon_shield.svg"
+  },
+  {
+    "key": "icon_skull",
+    "file": "icon_skull.svg"
+  },
+  {
+    "key": "icon_slot",
+    "file": "icon_slot.svg"
+  },
+  {
+    "key": "icon_sniper",
+    "file": "icon_sniper.svg"
+  },
+  {
+    "key": "icon_speed",
+    "file": "icon_speed.svg"
+  },
+  {
+    "key": "icon_split",
+    "file": "icon_split.svg"
+  },
+  {
+    "key": "icon_star",
+    "file": "icon_star.svg"
+  },
+  {
+    "key": "icon_target",
+    "file": "icon_target.svg"
+  },
+  {
+    "key": "icon_treasure",
+    "file": "icon_treasure.svg"
+  },
+  {
+    "key": "icon_trophy",
+    "file": "icon_trophy.svg"
+  },
+  {
+    "key": "icon_vortex",
+    "file": "icon_vortex.svg"
+  },
+  {
+    "key": "proj_arrow",
+    "file": "proj_arrow.svg"
+  },
+  {
+    "key": "proj_bomblet",
+    "file": "proj_bomblet.svg"
+  },
+  {
+    "key": "proj_cannonball",
+    "file": "proj_cannonball.svg"
+  },
+  {
+    "key": "proj_fireball",
+    "file": "proj_fireball.svg"
+  },
+  {
+    "key": "proj_frostShard",
+    "file": "proj_frostShard.svg"
+  },
+  {
+    "key": "proj_magicOrb",
+    "file": "proj_magicOrb.svg"
+  },
+  {
+    "key": "proj_meteor",
+    "file": "proj_meteor.svg"
+  },
+  {
+    "key": "proj_poisonGlob",
+    "file": "proj_poisonGlob.svg"
+  },
+  {
+    "key": "proj_shard",
+    "file": "proj_shard.svg"
+  },
+  {
+    "key": "slot_empty",
+    "file": "slot_empty.svg"
+  },
+  {
+    "key": "slot_locked",
+    "file": "slot_locked.svg"
   },
   {
     "key": "tower_arrow_1",

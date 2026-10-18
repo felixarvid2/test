@@ -44,7 +44,7 @@ function castle() {
     const wt = wb * 0.92, top = GROUND - 4 - h;
     d.shape(cylD(x, GROUND - 4, 10, wb + 6, wb + 5), STONE, { sh: [wb * 0.5, 2], hi: [wb * 0.12, 0], sw: 6 });
     d.shape(cylD(x, GROUND - 8, h, wb, wt), STONE, {
-      sh: [wb * 0.5, 3], hi: [wb * 0.16, 0], sw: 7, inner: bricks(x, GROUND - 8, h, wb, wt, 6, STONE.s),
+      sh: [wb * 0.5, 3], hi: [wb * 0.16, 0], sw: 7, inner: bricks(x, GROUND - 8, h, wb, wt, 5, STONE.s),
     });
     d.shape(cylD(x, top + 10, 11, wb + 7, wb + 6), GOLD, { sh: [wb * 0.5, 2], hi: [wb * 0.1, 0], sw: 6 });
     return { top, wb };
@@ -52,11 +52,11 @@ function castle() {
 
   // central keep (behind), roof, flag
   const keepX = 192, keepTop = 78;
-  d.shape(cylD(keepX, 170, 100, 54, 50), STONE, { sh: [26, 3], hi: [9, 0], sw: 7, inner: bricks(keepX, 170, 100, 54, 50, 5, STONE.s) });
+  d.shape(cylD(keepX, 170, 100, 54, 50), STONE, { sh: [26, 3], hi: [9, 0], sw: 7, inner: bricks(keepX, 170, 100, 54, 50, 4, STONE.s) });
   d.shape(cylD(keepX, keepTop + 11, 11, 61, 60), GOLD, { sh: [30, 2], hi: [6, 0], sw: 6 });
   win(keepX - 24, 98); win(keepX + 24, 98);
-  roof(keepX, keepTop - 2, 68, 60);
-  flagPole(keepX, keepTop - 58, 30);
+  roof(keepX, keepTop - 2, 68, 50);
+  flagPole(keepX, keepTop - 48, 22);
 
   // curtain wall between towers
   const wallTop = 148;
@@ -64,21 +64,23 @@ function castle() {
     d.use(merlon, 60 + k * 33 - 0, wallTop + 2);
   }
   d.shape(rect(40, wallTop, 304, GROUND - wallTop - 3, 4), STONE, { sh: [0, 9], hi: [0, 5], sw: 7,
-    inner: bricksFlat(40, wallTop, 304, GROUND - wallTop, 4, STONE.s) });
+    inner: bricksFlat(40, wallTop, 304, GROUND - wallTop, 3, STONE.s) });
 
   // corner towers
-  for (const x of [60, 324]) {
-    const t = tower(x, 38, 112, 56);
-    win(x, t.top + 34, 12, 22);
-    roof(x, t.top + 5, 50, 62);
-    flagPole(x, t.top - 56, 26);
-  }
+  const corner = d.group(() => {
+    const t = tower(0, 38, 112, 56);
+    win(0, t.top + 34, 12, 22);
+    roof(0, t.top + 5, 50, 62);
+    flagPole(0, t.top - 56, 26);
+  });
+  d.use(corner, 60, 0);
+  d.use(corner, 324, 0);
 
   // gatehouse (front, centred)
   const gx = 192, gw = 56, gTop = 112;
   for (let k = 0; k < 5; k++) d.use(merlon, 150 + k * 21, gTop + 2);
   d.shape(rect(136, gTop, 112, GROUND - gTop - 3, 5), STONE, { sh: [14, 0], hi: [6, 0], sw: 7,
-    inner: bricksFlat(136, gTop, 112, GROUND - gTop, 5, STONE.s) });
+    inner: bricksFlat(136, gTop, 112, GROUND - gTop, 3, STONE.s) });
   d.shape(rect(128, gTop - 2, 128, 12, 3), STONE, { sh: [0, 4], hi: [0, 3], sw: 6, base: STONE.h });
   // banners on the wall
   for (const bx of [106, 278]) {
@@ -125,21 +127,24 @@ function slot(locked) {
     return [cx + ox + Math.cos(a) * rx * s, cy + oy + Math.sin(a) * ry * s];
   };
   const hexPts = (ox = 0, oy = 0, s = 1) => [0, 1, 2, 3, 4, 5].map((k) => hex(k, ox, oy, s));
-  const base = locked ? mat('#5e6079', '#474963', '#7c7e99') : STONE;
+  const base = locked ? mat('#5e6079', '#474963', '#7c7e99') : mat('#9a9cb5', '#74768f', '#c3c5da');
   groundShadow(d, cx, cy + th + 8, rx + 6, ry - 2);
   const top = hexPts();
   // side wall
   d.shape(poly([top[0], top[1], top[2], top[3], [top[3][0], top[3][1] + th], [top[2][0], top[2][1] + th], [top[1][0], top[1][1] + th], [top[0][0], top[0][1] + th]]),
-    mat(base.s), { sh: [10, 0], hi: [0, 0] === null ? null : null, sw: 4.5, base: base.s });
+    mat(base.s), { sh: [10, 0], sw: 4.5, base: base.s });
   d.shape(poly(top), base, { sh: [4, 4], hi: [3, 2], sw: 4.5 });
   // inset (recessed) + rim light on lower-right inner edge
   d.add(`<path d="${poly(hexPts(0, 0, 0.7))()}" fill="${base.s}" stroke="none"/>`);
   d.add(`<path d="${poly(hexPts(1.6, 2.4, 0.66))()}" fill="${mix(base.b, '#ffffff', 0.04)}" stroke="none"/>`);
   d.add(`<path d="${poly(hexPts(0, 0, 0.7))()}" fill="none" stroke="${mix(base.s, OUT, 0.5)}" stroke-width="2.4"/>`);
+  let seams = '';
   for (const k of [0, 1, 2, 3, 4, 5]) {
-    const [x, y] = hex(k, 0, 0, 0.86);
-    d.add(`<ellipse cx="${f(x)}" cy="${f(y)}" rx="3.2" ry="2.2" fill="${base.h}" stroke-width="2.2"/>`);
+    const [x1, y1] = hex(k, 0, 0, 0.7), [x2, y2] = hex(k, 0, 0, 0.94);
+    seams += `M${f(x1)} ${f(y1)}L${f(x2)} ${f(y2)}`;
   }
+  d.add(`<path d="${seams}" fill="none" stroke="${base.s}" stroke-width="3"/>`);
+  d.add(`<path d="M${f(hex(4, 0, -2, 0.86)[0])} ${f(hex(4, 0, -2, 0.86)[1])}L${f(hex(5, 0, -2, 0.86)[0])} ${f(hex(5, 0, -2, 0.86)[1])}" stroke="${base.h}" stroke-width="2.4" stroke-opacity=".9"/>`);
   if (locked) {
     d.add(`<path d="M50 62V50a14 14 0 0 1 28 0V62" fill="none" stroke="${OUT}" stroke-width="12"/><path d="M50 62V50a14 14 0 0 1 28 0V62" fill="none" stroke="#d6d9ea" stroke-width="5.5"/>`);
     d.shape(rect(40, 58, 48, 34, 7), GOLD, { sh: [8, 6], hi: [3, 3], sw: 5 });
@@ -173,7 +178,6 @@ proj('frostShard', (d) => {
   const A = [62, 32], T = [34, 17], B = [34, 47], Lf = [4, 32];
   d.shape(poly([A, T, Lf, B]), mat('#7fdcff', '#4fb4e0', '#c9f3ff'), { sh: null, hi: null, sw: 3,
     inner: `<path d="${poly([A, T, Lf])()}" fill="#c9f3ff"/><path d="M62 32H4" stroke="#4fb4e0" stroke-width="2"/><path d="M${34} 26L${46} 29L${34} 31Z" fill="#fff" fill-opacity=".9"/>` });
-  d.fill(poly([[2, 32], [-6, 32]]), 'none');
 });
 proj('fireball', (d) => {
   const tail = 'M42 15C30 12 18 17 4 23C16 27 14 30 2 32C14 34 16 37 4 41C18 47 30 52 42 49Z';
@@ -208,8 +212,8 @@ proj('bomblet', (d) => {
   d.add(`<ellipse cx="25" cy="29" rx="5" ry="3.2" transform="rotate(-35 25 29)" fill="#fff" fill-opacity=".6" stroke="none"/>`);
 });
 proj('meteor', (d) => {
-  d.shape(poly([[2, 28], [26, 12], [30, 52], [3, 40], [16, 34]]), mat('#ff5a36', '#d93a1e', '#ff8a4a'), { sh: [0, 4], hi: [0, 3], sw: 3 });
-  d.add(`<path d="M26 22L10 31L26 38Z" fill="#ffb03b" stroke="none"/>`);
+  d.shape(() => 'M34 12C22 12 12 18 2 25C13 28 11 32 1 34C12 36 14 40 4 47C16 51 26 52 34 51Z', mat('#ff5a36', '#d93a1e', '#ff8a4a'), { sh: [0, 4], hi: [0, 3], sw: 3 });
+  d.add(`<path d="M32 22C24 23 16 27 10 31C18 32 24 36 32 40Z" fill="#ffb03b" stroke="none"/>`);
   d.shape(poly([[61, 29], [52, 14], [34, 13], [24, 28], [28, 46], [46, 52], [60, 42]]), mat('#7a6a5e', '#574a42', '#a8978a'), { sh: [5, 5], hi: [3, 3], sw: 3.2 });
   d.add(`<circle cx="46" cy="38" r="4" fill="#4a3a30" stroke="none"/><circle cx="36" cy="26" r="2.8" fill="#4a3a30" stroke="none"/><path d="M40 20L52 22L48 28L40 26Z" fill="#ffb03b" stroke="none"/>`);
 });
@@ -252,7 +256,7 @@ fx('ring',
   d.shape(circ(32, 31, 25), GOLD, { sh: [5, 5], hi: [3, 3], sw: 3.2 });
   d.add(`<circle cx="32" cy="31" r="17.5" fill="none" stroke="${GOLD.s}" stroke-width="3"/>`);
   d.add(`<circle cx="32" cy="31" r="14" fill="${GOLD.b}" stroke="none"/>`);
-  d.add(star4(32, 31, 10.5, GOLD.s, 0, 0.45).replace(/\/>$/, ' transform="rotate(0)"/>'));
+  d.add(star4(32, 31, 10.5, GOLD.s, 0, 0.45));
   d.add(`<path d="M16 22Q19 14 28 12" fill="none" stroke="#fff6cf" stroke-width="3.2" stroke-opacity=".95"/><circle cx="14" cy="28" r="1.8" fill="#fff6cf" stroke="none"/>`);
   files['fx_coin'] = d.toString();
 }

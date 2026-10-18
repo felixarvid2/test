@@ -13,9 +13,10 @@ export const MIN_TOUCH = 88;
 export const MARGIN = 24;
 
 export const FONT_DISPLAY = 'KenneyFuture, "Arial Black", Arial, sans-serif';
-export const FONT_BODY = 'KenneyFutureNarrow, KenneyFuture, Arial, sans-serif';
+/** Body text uses the platform's bold UI font: readable for sentences, costs no download. */
+export const FONT_BODY = 'system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 /** CSS font-face names to wait for before creating text (BootScene). */
-export const FONT_FAMILIES = ['KenneyFuture', 'KenneyFutureNarrow'] as const;
+export const FONT_FAMILIES = ['KenneyFuture'] as const;
 
 /** Colour numbers (0xRRGGBB) for Graphics / tints. Use `hex()` for CSS strings. */
 export const PALETTE = {
@@ -108,7 +109,7 @@ export interface TextStyleLike {
 
 /**
  * Text presets (sizes in world px). `title` 64 gold with a thick outline, `heading` 40, `body` 30
- * (narrow font, readable at phone size), `small` 24, `number` 40 for counters and damage.
+ * (bold system font, readable at phone size), `small` 24, `number` 40 for counters and damage.
  */
 export const TEXT_PRESETS: Record<TextPreset, TextStyleLike> = {
   title: {
@@ -122,11 +123,11 @@ export const TEXT_PRESETS: Record<TextPreset, TextStyleLike> = {
     shadow: { offsetX: 0, offsetY: 4, color: '#000000', blur: 0, stroke: true, fill: true },
   },
   body: {
-    fontFamily: FONT_BODY, fontSize: '30px', color: hex(PALETTE.text), align: 'center',
+    fontFamily: FONT_BODY, fontStyle: 'bold', fontSize: '30px', color: hex(PALETTE.text), align: 'center',
     stroke: hex(PALETTE.outline), strokeThickness: 4,
   },
   small: {
-    fontFamily: FONT_BODY, fontSize: '24px', color: hex(PALETTE.textDim), align: 'center',
+    fontFamily: FONT_BODY, fontStyle: 'bold', fontSize: '24px', color: hex(PALETTE.textDim), align: 'center',
     stroke: hex(PALETTE.outline), strokeThickness: 3,
   },
   number: {

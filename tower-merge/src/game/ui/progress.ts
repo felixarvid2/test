@@ -35,7 +35,7 @@ export function createProgressBar(
   track.fillStyle(PALETTE.outline, 1).fillRoundedRect(-w / 2 - 4, -h / 2 - 4, w + 8, h + 8, h / 2 + 4);
   track.fillStyle(PALETTE.panelDark, 1).fillRoundedRect(-w / 2, -h / 2, w, h, h / 2);
   const fill = scene.add.graphics();
-  const label = opts.label !== undefined ? crispText(scene, 0, 0, opts.label, { preset: 'small', size: Math.max(16, h * 0.62) }) : undefined;
+  const label = opts.label !== undefined ? crispText(scene, 0, 0, opts.label, { preset: 'small', size: Math.max(16, h * 0.62), colorNum: 0xffffff }) : undefined;
   container.add([track, fill]);
   if (label) container.add(label);
 

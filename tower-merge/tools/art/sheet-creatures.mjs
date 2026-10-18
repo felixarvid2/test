@@ -49,6 +49,20 @@ const sheets = {
   },
 };
 
+// crop: node sheet-creatures.mjs crop <sprite key> x y w h scale  -> art-creatures-crop.png (sprite in world px)
+if (process.argv[2] === 'crop') {
+  const [, , , key, x, y, w, h, sc] = process.argv.map((v, i) => (i > 3 ? +v : v));
+  const b = await chromium.launch();
+  const pg = await b.newPage({ viewport: { width: Math.round(w * sc), height: Math.round(h * sc) } });
+  const f = join(outDir, 'art-creatures-crop.html');
+  writeFileSync(f, `<body style="margin:0"><div style="width:${w * sc}px;height:${h * sc}px;overflow:hidden;position:relative"><img src="${url(key)}" style="position:absolute;left:${-x * sc}px;top:${-y * sc}px;width:${(key.startsWith('boss') ? 320 : key.startsWith('bg') ? 720 : 128) * sc}px"></div>`);
+  await pg.goto(pathToFileURL(f).href);
+  await pg.waitForTimeout(300);
+  await pg.screenshot({ path: join(outDir, 'art-creatures-crop.png') });
+  await b.close();
+  console.log(join(outDir, 'art-creatures-crop.png'));
+  process.exit(0);
+}
 const which = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(sheets).filter((k) => k !== 'zoom');
 const browser = await chromium.launch();
 for (const name of which) {

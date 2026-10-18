@@ -250,7 +250,7 @@ function paintTower(g: G, type: string, level: number): void {
   const baseY = 168;
   const cx = 96;
   const bodyW = 50 + level * 7;
-  const bodyH = 34 + level * 11;
+  const bodyH = 32 + level * 9;
   const footW = bodyW + 26;
   const wood = level === 1;
   const material = wood ? WOOD : type === 'cannon' ? mixColor(STONE, 0x4a4f63, 0.35) : mixColor(STONE, col, 0.14);
@@ -258,7 +258,7 @@ function paintTower(g: G, type: string, level: number): void {
   groundShadow(g, cx, baseY + 2, footW / 2 + 8, 12);
   if (level === 5) {
     g.fillStyle(col, 0.1);
-    for (let r = 92; r > 40; r -= 12) g.fillCircle(cx, baseY - 52, r);
+    for (let r = 78; r > 36; r -= 8) g.fillCircle(cx, baseY - 58, r);
   }
   // stone footing
   box(g, cx - footW / 2, baseY - 22, footW, 24, 9, STONE);
@@ -317,14 +317,14 @@ function paintTower(g: G, type: string, level: number): void {
     const pw = bodyW + 12;
     for (let i = -2; i <= 2; i++) poly(g, [[cx + i * 14 - 6, topY - 22], [cx + i * 14, topY - 36 + Math.abs(i) * 4], [cx + i * 14 + 6, topY - 22]], GOLD, 3, false);
     void pw;
-    weaponY = topY - 56;
+    weaponY = topY - 42;
   }
   // level pips on the footing
   for (let i = 0; i < level; i++) {
     const px = cx - (level - 1) * 7 + i * 14;
     circle(g, px, footTop + 12, 3.6, GOLD, 2);
   }
-  weaponGlyph(g, type, cx, weaponY, 14 + level * 3);
+  weaponGlyph(g, type, cx, weaponY, 12 + level * 2.4);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -525,8 +525,9 @@ function paintBoss(g: G, id: string): void {
   } else {
     // dragon: tail, wings, body, belly, head facing right
     const red = 0xd8452f;
-    arc(g, 26, 92, 26, Math.PI * 0.55, Math.PI * 1.45, red, 12, true);
-    poly(g, [[24, 98], [10, 92], [24, 82]], 0xffb03b, 3, false);
+    g.translateCanvas(-5, 0);
+    arc(g, 34, 92, 22, Math.PI * 0.55, Math.PI * 1.45, red, 12, true);
+    poly(g, [[34, 98], [22, 92], [34, 82]], 0xffb03b, 3, false);
     poly(g, [[44, 70], [24, 18], [56, 40], [64, 14], [78, 48], [96, 26], [94, 74]], darken(red, 0.12), 4);
     blob(g, 50, 106, 11, 8, darken(red, 0.2), 3);
     blob(g, 78, 106, 11, 8, darken(red, 0.2), 3);
@@ -815,9 +816,9 @@ function paintCastle(g: G): void {
   g.lineStyle(2, 0x686a85, 0.6);
   for (let y = 62; y < 230; y += 18) g.lineBetween(134, y, 246, y);
   for (let i = 0; i < 4; i++) box(g, 132 + i * 32, 22, 22, 22, 3, wall, 4);
-  poly(g, [[122, 40], [192, -4 + 4], [262, 40]], 0xc8553a, 5);
-  line(g, 192, 6, 192, -2, 0x7a4523, 4);
-  poly(g, [[193, 4], [222, 12], [193, 20]], 0xe0405a, 3, false);
+  poly(g, [[122, 40], [192, 16], [262, 40]], 0xc8553a, 5);
+  line(g, 192, 16, 192, 4, 0x7a4523, 4);
+  poly(g, [[193, 6], [222, 13], [193, 20]], 0xe0405a, 3, false);
   g.fillStyle(OUT, 1).fillRoundedRect(150, 150, 84, 90, { tl: 42, tr: 42, bl: 0, br: 0 });
   g.fillStyle(0x7a4523, 1).fillRoundedRect(156, 156, 72, 84, { tl: 36, tr: 36, bl: 0, br: 0 });
   g.lineStyle(3, 0x4a2a12, 1);
