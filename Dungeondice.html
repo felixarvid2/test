@@ -1072,6 +1072,54 @@ button:disabled{background:#4a555b!important;color:#9aa5aa;box-shadow:0 4px 0 #2
 /* 330 Siffror som ändras blinkar till (JS lägger på .pop) */
 .stat b.pop{animation:statPop .4s cubic-bezier(.34,1.56,.64,1)}
 @keyframes statPop{0%{transform:scale(1)}40%{transform:scale(1.35)}100%{transform:scale(1)}}
+/* ---- omgång 3: 331-345 tärningarna som kort ---- */
+/* 331 Klassiska tärningar i varmt elfenben (klassiska skinnet byts i skriptet) */
+/* 332 Tjock mörk kontur runt varje tärning */
+.die{border:3px solid var(--bl-ink)}
+/* 333 Hård förskjuten skugga under tärningen, ingen suddig */
+.die{box-shadow:0 5px 0 rgba(0,0,0,.55),3px 8px 0 rgba(0,0,0,.25),inset 0 2px 0 rgba(255,255,255,.6),inset 0 -5px 0 rgba(0,0,0,.12)}
+/* 334 Prickar i platt bläck utan gradient */
+.die .pip{background:var(--bl-ink);box-shadow:none}
+/* 335 Solfjäder: varje tärning lutar lite (noll specificitet så held/hover vinner) */
+.die:where(:nth-child(1)){transform:rotate(-6deg) translateY(6px)}
+.die:where(:nth-child(2)){transform:rotate(-3deg) translateY(1px)}
+.die:where(:nth-child(3)){transform:rotate(0deg)}
+.die:where(:nth-child(4)){transform:rotate(3deg) translateY(1px)}
+.die:where(:nth-child(5)){transform:rotate(6deg) translateY(6px)}
+.die:where(:nth-child(n+6)){transform:rotate(0deg)}
+/* 336 Hover: lyft, rakare och 3D-lutning efter muspekaren (variablerna sätts per tärning) */
+.die:hover{transform:translateY(-10px) rotate(0deg) scale(1.06) perspective(520px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg))}
+/* 337 Sparad tärning: högre, rak och med lång skugga */
+.die.held,.die.held:hover{transform:translateY(-22px) rotate(0deg) scale(1.04) perspective(520px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));
+  box-shadow:0 14px 0 rgba(0,0,0,.4),0 0 0 3px var(--bl-gold),inset 0 2px 0 rgba(255,255,255,.6)}
+/* 338 Sparad tärning med gul ram i stället för färgglöd */
+.die.held{outline:none}
+/* 339 Brickan som mörkgrön filtyta med rundade hörn */
+#dice-area{background:radial-gradient(ellipse at 50% 40%,#2c6a5b,#1a4337 75%);border-radius:22px;
+  box-shadow:inset 0 5px 0 rgba(0,0,0,.35),inset 0 0 40px rgba(0,0,0,.5),0 5px 0 var(--bl-ink)}
+/* 340 Brickans ram tonas ner så den inte slåss med filten */
+#dice-area::after{opacity:.4}
+/* 341 Modifierade tärningar med platt "edition"-färg och glans */
+.die[data-mod]{box-shadow:0 5px 0 rgba(0,0,0,.55),3px 8px 0 rgba(0,0,0,.25),inset 0 2px 0 rgba(255,255,255,.7),inset 0 0 0 3px rgba(255,255,255,.25)}
+/* 342 Modifierarmärket som rund etikett med tjock kontur */
+.die .mod-badge{border:3px solid var(--bl-ink);box-shadow:0 3px 0 var(--bl-ink)}
+/* 343 Tärningarna delas ut från höger som kort (engångsanimation) */
+@keyframes dieLand{
+  0%{transform:translate(160px,-40px) rotate(24deg) scale(.7);opacity:0}
+  65%{transform:translate(-6px,4px) rotate(-3deg) scale(1.03);opacity:1}
+  100%{transform:translate(0,0) rotate(0) scale(1)}
+}
+/* 344 Poängsatt tärning blixtrar vitt */
+.die.scored{box-shadow:0 0 0 4px #fff,0 0 26px rgba(255,255,255,.9),0 5px 0 rgba(0,0,0,.55)}
+/* Fix: textskugga lyste igenom den genomskinliga fyllningen, använd kontur i stället */
+#combo-name{text-shadow:none!important;-webkit-text-stroke:7px var(--bl-ink);paint-order:stroke fill;background:none;-webkit-text-fill-color:#fff;color:#fff}
+#combo-banner.tier-2 #combo-name{-webkit-text-fill-color:#9be2ff;filter:none}
+#combo-banner.tier-3 #combo-name{-webkit-text-fill-color:#ffe27a;filter:none}
+#combo-banner.tier-4 #combo-name{-webkit-text-fill-color:#ff9a1f;filter:none}
+#combo-banner.tier-5 #combo-name{-webkit-text-fill-color:#ff6a5d;filter:none}
+#combo-banner.tier-1 #combo-name{filter:none}
+/* 345 Muspekare som pekfinger över tärningar */
+.die{cursor:pointer}
 </style>
 </head>
 <body>
@@ -1328,6 +1376,14 @@ function setNum(id,v,tween){
   const step=t=>{const k=Math.min(1,(t-t0)/dur);el.textContent=Math.round(prev+(v-prev)*(1-Math.pow(1-k,3))).toLocaleString();if(k<1)el._raf=requestAnimationFrame(step)};
   el._raf=requestAnimationFrame(step);
 }
+/* 3D-lutning på tärningen under pekaren, påverkar inga andra tärningar */
+(function(){
+  const da=document.getElementById('dice-area');if(!da)return;
+  da.addEventListener('mousemove',e=>{const d=e.target.closest&&e.target.closest('.die');if(!d)return;
+    const r=d.getBoundingClientRect();const x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;
+    d.style.setProperty('--rx',(-y*16).toFixed(1)+'deg');d.style.setProperty('--ry',(x*16).toFixed(1)+'deg')});
+  da.addEventListener('mouseout',e=>{const d=e.target.closest&&e.target.closest('.die');if(!d)return;d.style.removeProperty('--rx');d.style.removeProperty('--ry')});
+})();
 function a11y(){document.querySelectorAll('.hbtn').forEach(b=>{if(b.title&&!b.getAttribute('aria-label'))b.setAttribute('aria-label',b.title)});
   const cb=document.getElementById('combo-banner');if(cb)cb.setAttribute('aria-live','polite');const ov=document.getElementById('overlay');if(ov)ov.setAttribute('role','dialog')}
 function hdrIcons(){const m={'Stats':'gi_leaderboardsSimple','Achv':'gi_trophy','Help':'gi_question','Quit':'gi_cross'};document.querySelectorAll('.hbtn').forEach(b=>{const k=m[b.title];if(k)b.innerHTML=spr(k)});updateMuteBtn();a11y()}
@@ -1578,7 +1634,7 @@ const VOUCHERS=[
    SKINS
    ======================== */
 const DICE_SKINS={
-  'classic':{name:{sv:'Klassisk',en:'Classic'},style:'linear-gradient(145deg,#fafaff 0%,#e8e8f0 45%,#b8b8c8 100%)',cost:0},
+  'classic':{name:{sv:'Klassisk',en:'Classic'},style:'linear-gradient(160deg,#f8f2e3 0%,#efe6d2 55%,#d8cbb0 100%)',cost:0},
   'obsidian':{name:{sv:'Obsidian',en:'Obsidian'},style:'linear-gradient(145deg,#3a3040,#1a1326)',cost:5,color:'#e8e0f0'},
   'ruby':{name:{sv:'Rubin',en:'Ruby'},style:'linear-gradient(145deg,#ff8090,#a02030)',cost:8},
   'emerald':{name:{sv:'Smaragd',en:'Emerald'},style:'linear-gradient(145deg,#80ffa0,#20a040)',cost:8},
