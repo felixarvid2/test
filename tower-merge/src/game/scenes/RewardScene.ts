@@ -122,7 +122,7 @@ export class RewardScene extends Phaser.Scene {
       }).setDepth(DEPTH.panel + 2);
     }
 
-    this.offer = createRewardOffer(this, W / 2, TOP + 758, {
+    this.offer = createRewardOffer(this, W / 2, TOP + 740, {
       placement: 'rareTower', ctx: { runId: this.ctx.runId, key: `boss-${this.ctx.wave}` }, prefix: 'Claim', width: 540, height: 112, fontSize: 40,
       depth: DEPTH.panel + 3, onBusyChange: (b) => this.setBusy(b),
       onGranted: () => {
@@ -138,31 +138,31 @@ export class RewardScene extends Phaser.Scene {
     this.offer.setBlocked(!free || !type);
     const unavailable = !this.offer.visible;
     if (unavailable) {
-      crispText(this, W / 2, TOP + 758, 'No reward available right now.', { preset: 'body', size: 28, colorNum: PALETTE.textDim }).setDepth(DEPTH.panel + 2);
+      crispText(this, W / 2, TOP + 740, 'No reward available right now.', { preset: 'body', size: 28, colorNum: PALETTE.textDim }).setDepth(DEPTH.panel + 2);
     }
-    this.addNoThanks(TOP + 868, unavailable ? 'Continue' : 'No thanks');
+    this.addNoThanks(TOP + 872, unavailable ? 'Continue' : 'No thanks');
   }
 
   // --- emergency power -------------------------------------------------------------------------
 
   private buildEmergencyPower(): void {
     this.heading('A boss approaches!', 'Take an emergency power?');
-    const cardW = 186, cardH = 340, gap = 14;
-    const cy = TOP + 400;
+    const cardW = 186, cardH = 380, gap = 14;
+    const cy = TOP + 410;
     EMERGENCY_POWERS.forEach((info, i) => {
       const x = W / 2 + (i - 1) * (cardW + gap);
       const frame = createCardFrame(this, 0, 0, cardW, cardH, info.rarity);
       const c = this.add.container(x, cy).setDepth(DEPTH.panel + 2).setSize(cardW, cardH);
       c.add(frame.container);
       c.add(crispText(this, 0, -cardH / 2 + 28, info.rarity.toUpperCase(), { preset: 'small', size: 20, colorNum: RARITY_COLORS[info.rarity] }));
-      const halo = addGlow(this, 0, -52, 150, RARITY_COLORS[info.rarity], 0.45);
+      const halo = addGlow(this, 0, -70, 150, RARITY_COLORS[info.rarity], 0.45);
       if (halo) c.add(halo);
-      c.add(uiIcon(this, 0, -52, `icon_${info.icon}`, 98));
-      const name = crispText(this, 0, 40, info.name, { preset: 'heading', size: 26, wordWrap: { width: cardW - 24 } });
+      c.add(uiIcon(this, 0, -70, `icon_${info.icon}`, 92));
+      const name = crispText(this, 0, 14, info.name, { preset: 'heading', size: 26, wordWrap: { width: cardW - 24 } });
       if (name.height > 66) name.setScale(66 / name.height);
       c.add(name);
       const desc = crispText(this, 0, 0, info.description, { preset: 'small', size: 21, wordWrap: { width: cardW - 28 }, colorNum: 0xe4eaff });
-      desc.setY(82 + desc.height / 2);
+      desc.setY(58 + desc.height / 2);
       c.add(desc);
       const zone = this.add.zone(0, 0, cardW, cardH).setInteractive({ useHandCursor: true });
       c.add(zone);
@@ -174,15 +174,15 @@ export class RewardScene extends Phaser.Scene {
       }
     });
 
-    this.hint = crispText(this, W / 2, TOP + 640, 'Pick one power', { preset: 'body', size: 28, colorNum: PALETTE.goldLight }).setDepth(DEPTH.panel + 2);
-    this.offer = createRewardOffer(this, W / 2, TOP + 740, {
+    this.hint = crispText(this, W / 2, TOP + 668, 'Pick one power', { preset: 'body', size: 28, colorNum: PALETTE.goldLight }).setDepth(DEPTH.panel + 2);
+    this.offer = createRewardOffer(this, W / 2, TOP + 760, {
       placement: 'emergencyPower', ctx: { runId: this.ctx.runId }, width: 540, height: 120, fontSize: 40, depth: DEPTH.panel + 3,
       onBusyChange: (b) => this.setBusy(b),
       onGranted: () => {
         const info = this.powerCards[this.selected]?.info;
         if (info && this.ctx.world.applyEmergencyPower(info.id)) {
           playSfx('upgrade_pick');
-          burst(this, W / 2, TOP + 400, RARITY_COLORS[info.rarity], 22, 230);
+          burst(this, W / 2, TOP + 410, RARITY_COLORS[info.rarity], 22, 230);
           if (this.scene.isActive()) showToast(this, `${info.name} active!`, { kind: 'gold', icon: `icon_${info.icon}` });
         } else if (this.scene.isActive()) {
           showToast(this, 'Could not apply the power', { kind: 'danger' });
@@ -196,7 +196,7 @@ export class RewardScene extends Phaser.Scene {
       this.hint.setText('No reward available right now.').setColor('#aab4d4');
       this.powerCards.forEach((p) => p.container.setAlpha(0.5));
     }
-    this.addNoThanks(TOP + 860, unavailable ? 'Continue' : 'No thanks');
+    this.addNoThanks(TOP + 874, unavailable ? 'Continue' : 'No thanks');
   }
 
   private selectPower(i: number): void {

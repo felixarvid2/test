@@ -21,8 +21,8 @@ const RING_CX = W / 2;
 const RING_CY = 510;
 const RING_R = 150;
 
-const ROW_H = 66;
-const ROWS_TOP = 250;
+const ROW_H = 62;
+const ROWS_TOP = 244;
 
 /**
  * Run end. First, if a revive is possible, the "castle has fallen" screen with the revive offer
@@ -103,17 +103,17 @@ export class GameOverScene extends Phaser.Scene {
     layer.add(this.secondsText);
     this.drawRing();
 
-    layer.add(crispText(this, W / 2, 770, 'Revive restores 50% castle HP\nand clears nearby enemies.', {
+    layer.add(crispText(this, W / 2, 755, 'Revive restores 50% castle HP\nand clears nearby enemies.', {
       preset: 'body', size: 30, lineSpacing: 6,
     }));
 
-    this.offer = createRewardOffer(this, W / 2, 890, {
+    this.offer = createRewardOffer(this, W / 2, 910, {
       placement: 'revive', ctx: { runId: this.ctx.runId }, prefix: 'REVIVE', width: 600, height: 140, fontSize: 44, depth: DEPTH.panel + 2,
       onBusyChange: (b) => { this.busy = b; },
       onGranted: () => this.onRevived(),
     });
     layer.add(this.offer.container);
-    layer.add(createButton(this, W / 2, 1030, {
+    layer.add(createButton(this, W / 2, 1050, {
       label: 'Give up', width: 340, height: 96, fontSize: 34, style: 'ghost', depth: DEPTH.panel + 2, onClick: () => { if (!this.busy) this.giveUp(); },
     }).container);
 
@@ -219,7 +219,7 @@ export class GameOverScene extends Phaser.Scene {
       y += 30;
       const shown = res.newAchievements.slice(0, 2);
       shown.forEach((a, i) => {
-        const row = this.add.container(W / 2, y + 26 + i * 54);
+        const row = this.add.container(W / 2, y + 26 + i * 52);
         const bg = this.add.graphics();
         bg.fillStyle(PALETTE.outline, 1).fillRoundedRect(-300, -24, 600, 48, 24);
         bg.fillStyle(PALETTE.panelDark, 1).fillRoundedRect(-297, -21, 594, 42, 21);
@@ -234,11 +234,11 @@ export class GameOverScene extends Phaser.Scene {
           this.tweens.add({ targets: row, alpha: 1, scale: 1, duration: 280, delay: 1100 + i * 140, ease: 'Back.Out' });
         }
       });
-      y += shown.length * 54 + 6;
+      y += shown.length * 52 + 6;
       const more = res.newAchievements.length - shown.length;
       if (more > 0) {
         layer.add(crispText(this, W / 2, y + 8, `+${more} more`, { preset: 'small', size: 22 }));
-        y += 26;
+        y += 36;
       }
       this.time.delayedCall(reducedMotion() ? 0 : 1100, () => playSfx('achievement'));
     }
@@ -254,7 +254,7 @@ export class GameOverScene extends Phaser.Scene {
 
     // double gems
     if (res.gemsBanked > 0) {
-      this.offer = createRewardOffer(this, W / 2, 1038, {
+      this.offer = createRewardOffer(this, W / 2, 1040, {
         placement: 'doubleGems', ctx: { runId: this.ctx.runId }, prefix: 'x2 gems', width: 580, height: 104, fontSize: 36, depth: DEPTH.panel + 2,
         onBusyChange: (b) => { this.busy = b; },
         onGranted: () => this.doubleGems(res),

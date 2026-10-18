@@ -47,7 +47,7 @@ const CLAIM_MESSAGES: Record<ClaimFailure, string | null> = {
 
 /** Toast text for a failed claim (null = say nothing). */
 export function claimFailureMessage(reason: ClaimFailure): string | null {
-  return CLAIM_MESSAGES[reason] ?? 'Not available right now';
+  return reason in CLAIM_MESSAGES ? CLAIM_MESSAGES[reason] : 'Not available right now';
 }
 
 /**

@@ -211,7 +211,7 @@ export class MenuScene extends Phaser.Scene {
       });
     }
     if (firstTime) {
-      const hint = this.add.container(W / 2, 986).setDepth(DEPTH.hud);
+      const hint = this.add.container(W / 2, 954).setDepth(DEPTH.hud);
       const arrow = this.add.graphics();
       arrow.fillStyle(PALETTE.outline, 1).fillTriangle(-30, 18, 30, 18, 0, -22);
       arrow.fillStyle(PALETTE.goldLight, 1).fillTriangle(-22, 12, 22, 12, 0, -14);
@@ -228,13 +228,13 @@ export class MenuScene extends Phaser.Scene {
 
   private createDaily(firstTime: boolean): void {
     const status = dailyStatus(services.save.data.daily, dailyKey(new Date()));
-    const holder = this.add.container(W / 2, firstTime ? 1090 : 1008).setDepth(DEPTH.hud);
+    const holder = this.add.container(W / 2, firstTime ? 1072 : 1008).setDepth(DEPTH.hud);
     const btn = createButton(this, 0, 0, {
       label: 'DAILY CHALLENGE', icon: iconKey('clock'), width: 500, height: 104, fontSize: 34, style: 'secondary',
       onClick: () => fadeToScene(this, SceneKeys.Daily),
     });
     holder.add(btn.container);
-    if (firstTime) { holder.setScale(0.78).setAlpha(0.7); return; }
+    if (firstTime) { holder.setScale(0.7).setAlpha(0.75); return; }
     // status chip on the corner: green "New!" until today's challenge was played, then today's best wave
     const chip = this.add.container(0, 0);
     const g = this.add.graphics();

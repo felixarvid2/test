@@ -47,7 +47,10 @@ export class CollectionScene extends Phaser.Scene {
     this.detailId = undefined;
     const header = createHeader(this, 'TOWERS', { gems: true });
     this.pill = header.gemPill as UIPill;
-    createTabs(this, HEADER_H + 62, ['TOWERS', 'BESTIARY'], (i) => this.showTab(i === 0 ? 'towers' : 'bestiary'));
+    createTabs(this, HEADER_H + 62, ['TOWERS', 'BESTIARY'], (i) => {
+      header.title.setText(i === 0 ? 'TOWERS' : 'BESTIARY');
+      this.showTab(i === 0 ? 'towers' : 'bestiary');
+    });
     const top = HEADER_H + 120;
     this.view = new ScrollView(this, 0, top, W, H - top);
     this.showTab('towers');
@@ -92,7 +95,8 @@ export class CollectionScene extends Phaser.Scene {
     const save = services.save.data;
     const def = towerDef(id);
     const unlocked = isTowerUnlocked(save, id);
-    const discovered = save.discoveredTowers.includes(id);
+    // start towers are never "new": only towers bought with gems wait to be discovered in a run
+    const discovered = save.discoveredTowers.includes(id) || towerUnlockCost(id) === 0;
     const color = TOWER_COLORS[id] ?? PALETTE.gold;
     const card = this.add.container(x, y);
     const bg = this.add.graphics();
@@ -314,7 +318,7 @@ export class CollectionScene extends Phaser.Scene {
     box.add(crispText(this, 0, top, 'LEVEL PERKS', { preset: 'small', size: 22, colorNum: PALETTE.gold }));
     for (let l = 2; l <= MAX_TOWER_LEVEL; l++) {
       const lv = def?.levels?.[l - 1];
-      const y = top + 52 + (l - 2) * 100;
+      const y = top + 68 + (l - 2) * 100;
       const on = l === selected;
       const reached = l <= selected;
       const g = this.add.graphics();
@@ -409,7 +413,7 @@ export class CollectionScene extends Phaser.Scene {
     const H_ = 180;
     const { c } = this.rowFrame(H_, known ? PALETTE.gold : 0x2c3358);
     c.setY(y);
-    const spr = spriteFit(this, -ROW_W / 2 + 18 + (H_ - 36) / 2, 0, bossKey(id), H_ - 30);
+    const spr = spriteFit(this, -ROW_W / 2 + 18 + (H_ - 36) / 2, 0, bossKey(id), H_ - 46);
     if (!known) silhouette(spr, 0x2a3158);
     c.add(spr);
     const tx = -ROW_W / 2 + H_ + 8;
