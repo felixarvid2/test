@@ -1120,6 +1120,54 @@ button:disabled{background:#4a555b!important;color:#9aa5aa;box-shadow:0 4px 0 #2
 #combo-banner.tier-1 #combo-name{filter:none}
 /* 345 Muspekare som pekfinger över tärningar */
 .die{cursor:pointer}
+/* ---- omgång 4: 346-360 reliker som kort, tooltips, butik, blindkort, modaler ---- */
+/* 346 Reliker som stående kort */
+.relic,.relic-slot{width:50px;height:68px;border-radius:9px}
+.relic{border-width:3px;border-color:var(--bl-ink);box-shadow:0 4px 0 var(--bl-ink)}
+/* 347 Relikkort lutar mot pekaren (variablerna sätts av skriptet) */
+.relic:hover{transform:translateY(-6px) scale(1.08) perspective(420px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg))}
+/* 348 Legendariska relikkort med guldfolie */
+.relic.legendary{background:linear-gradient(135deg,#6b5314,#f0c44a 45%,#7a5d17 70%,#f6df8f);box-shadow:0 4px 0 var(--bl-ink),0 0 0 2px var(--bl-gold)}
+/* 349 Tooltip som mörk skiffer med tjock kontur och hård skugga */
+.relic .tip{background:var(--bl-slate-d);border:3px solid var(--bl-ink)!important;border-radius:12px;box-shadow:0 6px 0 var(--bl-ink);width:236px;text-align:left}
+.relic .tip::before{display:none}
+/* 350 Värden i tooltips som färgade märken: chips blått, mult rött, guld gult */
+.t-chips,.t-mult,.t-gold{display:inline-block;border-radius:6px;padding:0 6px;margin:1px 0;color:#fff;font-weight:700;text-shadow:0 1px 0 rgba(0,0,0,.5)}
+.t-chips{background:var(--bl-blue)}.t-mult{background:var(--bl-red)}.t-gold{background:var(--bl-orange);color:#1a1004;text-shadow:none}
+/* 351 Sällsynthetsetikett längst ner i tooltipen */
+.rtag{display:inline-block;margin-top:8px;border-radius:7px;padding:1px 10px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#fff;border:2px solid var(--bl-ink)}
+.rtag-common{background:#5b7b8f}.rtag-uncommon{background:var(--bl-green-d)}.rtag-rare{background:var(--bl-red-d)}.rtag-legendary{background:#7a43c4}
+/* 352 Säljpris som guldflagga */
+.relic .tip .sell{display:inline-block;background:var(--bl-gold);color:#1a1004;border:2px solid var(--bl-ink);border-radius:7px;padding:1px 8px;margin-top:6px;border-top-width:2px}
+/* 353 Butikspris som platt guldskylt med kontur */
+.shop-item .price{background:var(--bl-gold);color:#1a1004;border:3px solid var(--bl-ink);box-shadow:0 3px 0 var(--bl-ink);text-shadow:none;font-weight:700}
+/* 354 Butikskort lutar lätt vid hover */
+.shop-item:hover:not(.sold){transform:translateY(-5px) rotate(-1.2deg)}
+/* 355 Butikens knappar: ommotta röd, nästa blind grön, vouchers blå */
+button[onclick="rerollShop()"]{background:var(--bl-red);box-shadow:0 5px 0 var(--bl-red-d),0 5px 0 3px var(--bl-ink)}
+button[onclick="nextBlind()"]{background:var(--bl-green);box-shadow:0 5px 0 var(--bl-green-d),0 5px 0 3px var(--bl-ink)}
+button[onclick="openVoucherShop()"]{background:var(--bl-blue);box-shadow:0 5px 0 var(--bl-blue-d),0 5px 0 3px var(--bl-ink)}
+/* 356 Voucherkort med blågrön kant */
+.shop-item.voucher{border-color:var(--bl-blue);box-shadow:0 5px 0 var(--bl-ink)}
+/* 357 Blindkort som plattor med färgad flik: liten blå, stor orange, boss röd */
+.blind-card{border:3px solid var(--bl-ink);border-top-width:12px;box-shadow:0 6px 0 var(--bl-ink)}
+.blind-card.blind-0{border-top-color:var(--bl-blue)}
+.blind-card.blind-1{border-top-color:var(--bl-orange)}
+.blind-card.blind-2{border-top-color:var(--bl-red)}
+/* 358 Målpoängen som vit siffra i rött block */
+.blind-card .target{background:var(--bl-red);color:#fff;border:3px solid var(--bl-ink);border-radius:10px;padding:2px 14px;box-shadow:0 4px 0 var(--bl-red-d),0 4px 0 3px var(--bl-ink);text-shadow:0 2px 0 rgba(0,0,0,.5)}
+/* 359 Modaler som platt skiffer med tjock kontur */
+.modal{background-color:var(--bl-slate);border:4px solid var(--bl-ink)}
+/* 359b Resten av ytorna i skiffer i stället för lila */
+.modal{background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.015) 0 2px,transparent 2px 7px),linear-gradient(160deg,#35454e,#232f36)}
+.shop-item,.blind-card,.tab,.ach-item{background-image:none;background-color:#2f3f48}
+.shop-item:hover:not(.sold),.blind-card:hover{background-color:#394b55}
+button{background:linear-gradient(180deg,#64777f,#4a5a62)}
+button.primary{background:var(--bl-blue);box-shadow:0 5px 0 var(--bl-blue-d),0 5px 0 3px var(--bl-ink)}
+.tab.active{background:var(--bl-blue)}
+button.primary[onclick="nextBlind()"]{background:var(--bl-green);box-shadow:0 5px 0 var(--bl-green-d),0 5px 0 3px var(--bl-ink)}
+/* 360 Overlay i mörk blågrön ton */
+#overlay{background:radial-gradient(ellipse at 50% 45%,rgba(10,30,30,.88),rgba(2,8,8,.96))!important}
 </style>
 </head>
 <body>
@@ -1383,6 +1431,24 @@ function setNum(id,v,tween){
     const r=d.getBoundingClientRect();const x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;
     d.style.setProperty('--rx',(-y*16).toFixed(1)+'deg');d.style.setProperty('--ry',(x*16).toFixed(1)+'deg')});
   da.addEventListener('mouseout',e=>{const d=e.target.closest&&e.target.closest('.die');if(!d)return;d.style.removeProperty('--rx');d.style.removeProperty('--ry')});
+})();
+/* Färgade värden i beskrivningar och sällsynthetsetiketter */
+function balaDesc(t){
+  return String(t)
+    .replace(/(×\s?\d+(?:[.,]\d+)?\s*mult|[+−-]\s?\d+(?:[.,]\d+)?\s*mult)/gi,'<span class="t-mult">$1</span>')
+    .replace(/([+−-]\s?\d+\s*chips)/gi,'<span class="t-chips">$1</span>')
+    .replace(/([+−-]\s?\d+\s*(?:guld|gold))/gi,'<span class="t-gold">$1</span>');
+}
+function rarityLabel(r){
+  const m={common:['Vanlig','Common'],uncommon:['Ovanlig','Uncommon'],rare:['Sällsynt','Rare'],legendary:['Legendarisk','Legendary']}[r]||['',''];
+  return LANG==='sv'?m[0]:m[1];
+}
+(function(){
+  const rb=document.getElementById('relics-bar');if(!rb)return;
+  rb.addEventListener('mousemove',e=>{const d=e.target.closest&&e.target.closest('.relic');if(!d)return;
+    const r=d.getBoundingClientRect();const x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;
+    d.style.setProperty('--rx',(-y*14).toFixed(1)+'deg');d.style.setProperty('--ry',(x*14).toFixed(1)+'deg')});
+  rb.addEventListener('mouseout',e=>{const d=e.target.closest&&e.target.closest('.relic');if(!d)return;d.style.removeProperty('--rx');d.style.removeProperty('--ry')});
 })();
 function a11y(){document.querySelectorAll('.hbtn').forEach(b=>{if(b.title&&!b.getAttribute('aria-label'))b.setAttribute('aria-label',b.title)});
   const cb=document.getElementById('combo-banner');if(cb)cb.setAttribute('aria-live','polite');const ov=document.getElementById('overlay');if(ov)ov.setAttribute('role','dialog')}
@@ -1997,7 +2063,7 @@ function render(){
     const tip=document.createElement('div');
     tip.className='tip';
     const sellPrice=Math.floor((r.price||4)/2);
-    tip.innerHTML=`<b>${r.name[LANG]}</b>${r.desc[LANG]}<span class="sell">${t('sell_for')}: ${ico('💰')}${sellPrice}</span>`;
+    tip.innerHTML=`<b>${r.name[LANG]}</b>${balaDesc(r.desc[LANG])}<br><span class="rtag rtag-${r.r}">${rarityLabel(r.r)}</span><br><span class="sell">${t('sell_for')}: ${ico('💰')}${sellPrice}</span>`;
     el.appendChild(tip);
     el.onclick=()=>sellRelic(i);
     rb.appendChild(el);
@@ -2104,7 +2170,7 @@ function showBlindSelect(){
     <div class="modal">
       <h2>${t('ante')} ${state.endless&&state.ante>8?'∞ '+state.ante:state.ante}</h2>
       <p>${t('choice_blind')}</p>
-      <div class="blind-card" onclick="startBlind()">
+      <div class="blind-card blind-${state.blindIdx}" onclick="startBlind()">
         <div class="icon">${state.boss?bossIcon(state.boss):BLIND_ICONS[state.blindIdx]}</div>
         <div class="info">
           <b>${state.boss?state.boss.name[LANG]:t(['small_blind','big_blind','boss_blind'][state.blindIdx])+' '+t('blind')}
@@ -2441,7 +2507,7 @@ function renderShop(){
     return `<div class="shop-item ${cls}" onclick="buyItem(${i})">
       <div class="icon">${it.type==='relic'?relicIco(it.data):ico(it.data.icon)}</div>
       <div class="name">${it.data.name[LANG]}</div>
-      <div class="desc">${it.data.desc[LANG]}</div>
+      <div class="desc">${balaDesc(it.data.desc[LANG])}</div>
       <div class="price">${ico('💰')} ${it.price}</div>
     </div>`;
   }).join('');
