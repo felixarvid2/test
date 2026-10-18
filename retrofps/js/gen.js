@@ -388,7 +388,7 @@
     const lo = Math.min(12, 8 + Math.floor((depth - 1) * 1.25)), hi = Math.min(14, lo + 2);
     const target = rng.int(lo, hi);
     const rooms = [];
-    const sizeW = [0, 0, 0, 0, 2, 4, 4, 3, 2, 1]; // vikt för storlek 4..9
+    const sizeW = [0, 0, 0, 0, 1, 4, 4, 3, 2, 1]; // vikt för storlek 4..9
     const rollSize = cap => rng.weighted([4, 5, 6, 7, 8, 9].filter(s => s <= cap), s => sizeW[s]);
     const gapOK = (a, b, gap) => a.x + a.w + gap <= b.x || b.x + b.w + gap <= a.x || a.y + a.h + gap <= b.y || b.y + b.h + gap <= a.y;
     const mk = (x, y, w, h, type) => ({ x, y, w, h, type, cx: x + (w >> 1), cy: y + (h >> 1), open: [], deg: 0, id: rooms.length });
@@ -421,11 +421,12 @@
         }
         r.shape = 'hall';
       } else {
-        const sh = [['rect', 2]];
-        if (w >= 7 && h >= 7) sh.push(['cross', 2], ['round', 2], ['block', 1.5]);
-        if (w >= 6 && h >= 6) sh.push(['L', 2]);
-        if ((w >= 8 && h >= 7) || (h >= 8 && w >= 7)) sh.push(['pillars', 2.5]);
-        if (w >= 9 && h >= 9) sh.push(['ring', 2.5]);
+        const sh = [['rect', 1.5]];
+        if (w >= 5 && h >= 5) sh.push(['round', 2], ['block', 1.5]);
+        if ((w >= 6 && h >= 5) || (w >= 5 && h >= 6)) sh.push(['L', 2]);
+        if (w >= 6 && h >= 6) sh.push(['cross', 2]);
+        if ((w >= 7 && h >= 5) || (h >= 7 && w >= 5)) sh.push(['pillars', 2]);
+        if (w >= 9 && h >= 9) sh.push(['ring', 3]);
         r.shape = rng.weighted(sh, s => s[1])[0];
         if (r.shape === 'cross') { const cw = Math.floor(w / 3), ch = Math.floor(h / 3); fillW(x, y, cw, ch); fillW(x + w - cw, y, cw, ch); fillW(x, y + h - ch, cw, ch); fillW(x + w - cw, y + h - ch, cw, ch); }
         else if (r.shape === 'L') { const qw = w >> 1, qh = h >> 1, c = rng.int(0, 3); fillW(c & 1 ? x + w - qw : x, c & 2 ? y + h - qh : y, qw, qh); }
@@ -961,7 +962,7 @@
       const i = c.y * W + c.x;
       g[c.y][c.x] = '.'; G.solid[i] = 0; G.fm[i] = lair.fIdx; G.sky[i] = lair.skyV; G.res[i] = 1;
       for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) G.lockMin(c.x + dx, c.y + dy, 1);
-      G.lockMin(c.in[0], c.in[1], 2); G.lockMin(c.out[0], c.out[1], 2);
+      G.lockMin(c.x, c.y, 2); G.lockMin(c.in[0], c.in[1], 2); G.lockMin(c.out[0], c.out[1], 2);
     }
     return out;
   }
@@ -1063,18 +1064,22 @@
       }
       return n - left;
     }
-    // bord i en rad genom rummets mitt längs långsidan (gap: varannan ruta)
+    // bord i en rad genom rummets mitt längs långsidan (gap: varannan ruta); är mittlinjen upptagen prövas linjerna bredvid,
+    // stora rum får två parallella rader
     function row(r, ch, n, gap) {
-      const b = r.box, hz = b.w >= b.h, done = [];
-      const lines = [hz ? r.cy : r.cx];
-      if ((hz ? b.h : b.w) >= 8 && n >= 4) lines.push(lines[0] + (rng.chance(0.5) ? 3 : -3));
-      for (const ln of lines) {
-        const a0 = (hz ? b.x : b.y) + 2, a1 = (hz ? b.x + b.w : b.y + b.h) - 3;
+      const b = r.box, hz = b.w >= b.h, done = [], c0 = hz ? r.cy : r.cx;
+      const maxLines = (hz ? b.h : b.w) >= 8 && n >= 4 ? 2 : 1, used = [];
+      for (const off of [0, 1, -1, 2, -2, 3, -3]) {
+        if (done.length >= n || used.length >= maxLines) break;
+        const ln = c0 + off;
+        if (used.some(u => Math.abs(u - ln) < 3)) continue;
+        const a0 = (hz ? b.x : b.y) + 2, a1 = (hz ? b.x + b.w : b.y + b.h) - 3, before = done.length;
         for (let a = a0; a <= a1 && done.length < n; a += gap ? 2 : 1) {
           const x = hz ? a : ln, y = hz ? ln : a, i = y * W + x;
           if (!G.inb(x, y) || rid[i] !== r.id || g[y][x] !== '.' || lock[i] || !can(ch) || !localOK(G, x, y)) continue;
           set(x, y, ch); done.push([x, y]);
         }
+        if (done.length > before) used.push(ln);
       }
       return done;
     }
@@ -1183,7 +1188,7 @@
     // ----- helgedom med helande brunn (halva banorna, och alltid för rum där inga fiender får stå) -----
     {
       const tooNear = () => normal().filter(a => a.far < 4);
-      const spare = rooms.filter(a => (a.type === 'normal' && a.far >= 4) || a.type === 'exit' || a.type === 'elite').length - (2 + Math.ceil(depth / 2));
+      const spare = rooms.filter(a => (a.type === 'normal' && a.far >= 4) || a.type === 'exit' || a.type === 'elite').length - (1 + Math.ceil(depth / 2));
       if ((rng.chance(0.5) && spare > 0) || tooNear().length) {
         const st = cfg.shrineTags || [];
         let c = tooNear();
@@ -1267,13 +1272,14 @@
     const want = new Map(fight.map(r => [r, 2]));
     const typeF = { normal: 1, exit: 1.3, elite: 1.4 };
     let left = 6 + 3 * depth + rng.int(-1, 2) - 2 * fight.length;
-    for (const [div, top] of [[7, 5], [4, 6]]) { // först normala grupper, sedan större om rummen är få
+    for (const [div, top] of [[7, 5], [4, 5]]) { // först normala grupper, sedan tätare om rummen är få (högst 5 per grupp)
       for (; left > 0; left--) {
         const r = rng.weighted(fight, q => (want.get(q) < Math.min(top, Math.max(2, Math.floor(q.far / div))) ? Math.sqrt(size(q)) * typeF[q.type] : 0));
         if (!r) break;
         want.set(r, want.get(r) + 1);
       }
     }
+    if (left > 4) return null; // för få/små stridsrum för våningens fiender: bygg om
     for (const r of fight) {
       const c = cands(r, { far: true });
       if (c.length < 2) return null;
@@ -1321,6 +1327,7 @@
     const out = rooms.map(r => {
       const b = r.outBox || r.box, o = { x: b.x, y: b.y, w: b.w, h: b.h, type: r.type, arch: r.arch };
       if (r.tag && r.tag !== 'room') o.tag = r.tag;
+      if (r.shape) o.shape = r.shape;
       if (r.type === 'guardian') o.guardian = L.gid;
       return o;
     });

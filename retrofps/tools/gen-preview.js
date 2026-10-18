@@ -67,7 +67,7 @@ for (let k = 0; k < n; k++) {
         if (ENEMY.includes(c)) en++; else if (PROPS.includes(c)) pr++;
         if ('ZhaA$CMw y'.includes(c) && c !== ' ') items += c;
       }
-      console.log(`  ${String(i).padStart(2)} ${String.fromCharCode(48 + i)} ${r.type.padEnd(9)} ${(r.arch || '').padEnd(10)} ${(r.tag || '').padEnd(9)} ${r.x},${r.y} ${r.w}x${r.h}  fiender ${en}  rekvisita ${pr}  ${items}` + (r.guardian ? '  vaktare ' + r.guardian : ''));
+      console.log(`  ${String(i).padStart(2)} ${String.fromCharCode(48 + i)} ${r.type.padEnd(9)} ${(r.arch || '').padEnd(10)} ${(r.tag || r.shape || '').padEnd(9)} ${r.x},${r.y} ${r.w}x${r.h}  fiender ${en}  rekvisita ${pr}  ${items}` + (r.guardian ? '  vaktare ' + r.guardian : ''));
     });
   }
   console.log('');

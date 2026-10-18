@@ -154,7 +154,7 @@ const PROP_DEFS = {
   J: { img: 'table', size: 0.5, block: true },
   T: { img: 'crate', size: 0.42, block: true, crate: true },
   z: { img: 'spikes', n: 2, size: 0.18, trap: true },
-  i: { img: 'crystal', n: 2, size: 0.5, anim: 1.5, light: 0.7, block: true },
+  i: { img: 'crystal', n: 2, size: 0.5, anim: 1.5, light: 0.7 },
   F: { img: 'mushroom', n: 2, size: 0.38, anim: 1.2, light: 0.45 },
 };
 const bossFor = depth => BOSSES[params.get('boss')] ? params.get('boss') : RNG(run.seed).fork('bossar').shuffle(BOSS_IDS.slice())[cycleOf(depth) % BOSS_IDS.length]; // ?boss=id för test
@@ -450,7 +450,7 @@ function makeGuardian(x, y) { // väktaren: en mindre version av en boss, vaktar
 }
 let guardianE = null; // väktaren man slåss mot just nu
 function wakeGuardian(g) {
-  g.asleep = false; guardianE = g; setMusic(true); bossBanner = 2.5; slowmo = 0.6; play('stinger', 0.7); play('bossroar', 0.8, 1.1, { x: g.x, y: g.y });
+  g.asleep = false; guardianE = g; setMusic(true); bossBanner = 2.5; levelBanner = 0; slowmo = 0.6; play('stinger', 0.7); play('bossroar', 0.8, 1.1, { x: g.x, y: g.y });
   // stäng och försegla dörrarna till väktarens rum
   const room = (lvl.rooms || []).find(r => r.type === 'guardian' && g.x >= r.x && g.y >= r.y && g.x < r.x + r.w && g.y < r.y + r.h);
   for (const d of Object.values(doors)) {
