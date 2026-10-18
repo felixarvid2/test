@@ -6,7 +6,7 @@ mappen) och klicka **NY RUNDA**.
 
 **Kontroller:** WASD gå · mus sikta · vänsterklick skjut · högerklick sikta med vapnet · R ladda om ·
 E öppna dörr, kista, hemlig vägg eller handla · Shift spring · 1–8/Q/mushjul byt vapen · C dina kort ·
-M/Tab karta · P/Esc paus · `[` `]` muskänslighet · `,` `.` synfält · `-` `+` volym · N ljud av · O helskärm.
+M/Tab karta · V spark · P/Esc paus (I inställningar, G ge upp) · Enter ny runda · `[` `]` muskänslighet · `,` `.` synfält · `-` `+` volym · N ljud av · O helskärm.
 
 **Mobil:** vänster tumme styr en flytande joystick (dra långt för att springa), höger tumme drar för att vrida, och ett snabbt tryck i bilden skjuter. Den stora knappen skjuter så länge man håller den, och man kan dra på den för att sikta samtidigt. Liggande läge ger störst bild. I stående läge ligger bilden överst, och hela bilden är vrid- och skjutyta. Joysticken och knapparna ligger under bilden. Texter som "R = LADDA OM" och "E: HANDLA" byts mot pekvarianter. Knapparna vid sidan av bilden siktar, laddar om, använder, byter vapen och öppnar karta, kort och paus. Helskärmsknappen finns både på startskärmen och i spelet (också i pausen), och på Android vrids skärmen till liggande läge. Där webbläsaren eller appen inte tillåter helskärm, till exempel på iPhone, visas ett meddelande om det. Knapparna kommer från Kenneys *Mobile Controls* (CC0, `assets/touch/`).
 
@@ -138,6 +138,155 @@ Spelare och gränssnitt
 53. Positionsljud i stereo som dämpas bakom väggar.
 54. Fotsteg i takt med farten.
 
+## Version 3: biomer, väktarrum och 100 förbättringar
+
+### Biomerna ser och låter olika
+| Biom | Färgton och dimma | Väder och partiklar | Ljud | Fotsteg |
+|---|---|---|---|---|
+| Kryptan | varm, gulbrun | dammkorn i ljuset | dovt mullrande och viskningar | sten |
+| Grottorna | kall, blågrön och tät dimma | droppar från taket, fladdermöss | droppande vatten | grus |
+| Kyrkogården | blåaktig natt | markdimma, irrbloss och blixtar med åska och kyrkklockor | vind | grus och gräs |
+| Skogen | grön | fallande löv och eldflugor | vind och grodor | gräs |
+| Borggården | neutral | regn som skvätter | regn | sten och trä |
+
+Varje biom har också egna föremål i rummen, till exempel kistor och kandelabrar i kryptan, kristaller och svampar i grottorna och bord och lådor i borggården.
+
+### Rummen
+- Inga rum är tomma, och inget rum har bara en fiende: varje rum utom startrummet har antingen minst två fiender eller något särskilt (brunn, altare, skatt, butik eller fälla).
+- **Föremål** (`tools/props/make.py`):
+  - *Kandelabrar, kristaller och svampar* lyser upp sin omgivning.
+  - *Likkistor, benhögar, bokhyllor, statyer, burar, rustningar och bord* står i vägen och tar kulor.
+  - En *helande brunn* ger 40 HP en gång.
+  - Ett *förbannat altare* ger 60 guld och ett förbannat kort, om man vågar.
+  - *Spikfällor* skjuter upp var tredje sekund. De klickar strax innan och skadar både dig och fienderna.
+  - *Krutfat* exploderar när man skjuter på dem och kan sätta igång en kedjereaktion.
+  - *Lådor* går sönder av skott och sparkar och kan innehålla ammo, hälsa, guld eller en rustningsskärva.
+- **Mimics**: kistor med tänder. De ligger stilla tills man kommer nära, försöker öppna dem eller skjuter på dem.
+
+### Väktarrum och bossrum
+- **Väktaren**: varje vanlig våning har ett väktarrum. Där väntar en av de andra bossarna i mindre format, och rummet har väggar och golv som passar den bossen:
+  - Bendemonen: blodröda tegelväggar med dödskallefris och ett blodigt golv.
+  - Helvetesbesten: basalt med glödande lavasprickor.
+  - Mardrömmen: blå runor bakom ett smidesstaket och ett jordgolv med blått sken.
+  - Ogern: en timmerpalissad med dödskallar och djurhudar och ett golv av trampad lera.
+  - Vålnaden: kall kapellsten med en blekt fresk och ett marmorgolv med blått sken.
+
+  När väktaren vaknar slår dörrarna igen, bossmusiken börjar och väktarens egen livmätare visas. Väktaren har bossens anfall och faser. Besegrar man den öppnas dörrarna och portalen till nästa våning, och man får väktarens skatt (ett kortval) plus guld och själar.
+- **Bossarenan** på våning 6, 12 och så vidare har samma texturer som sin boss.
+
+### 100 förbättringar
+**Strid och känsla**
+1. Spark (V, eller E när det inte finns något att använda): knuffar fiender och slår sönder krukor och lådor.
+2. Aktiv omladdning: tryck R igen i rätt ögonblick för en snabbare omladdning och +15 % skada på magasinet.
+3. Missar man ögonblicket kärvar vapnet och omladdningen tar längre tid.
+4. En omladdningsmätare under hårkorset visar ögonblicket.
+5. Vapnets namn visas när man byter.
+6. Q byter till förra vapnet.
+7. Tomhylsor flyger ut och studsar.
+8. Synfältet ger en liten stöt vid varje skott.
+9. Vapnet gungar lätt i takt med andningen när man står still (kan stängas av).
+10. Ett torrt klick när sista skottet går.
+11. Ett tydligare ljud när man träffar och när man dödar.
+12. Multikills (DUBBELT, TRIPPEL, FYRDUBBELT, MASSAKER) ger extra guld.
+13. Fiendernas eldklot och klot går att skjuta ned.
+14. Blodpölar blir kvar på golvet.
+15. Större siffror vid kritiska träffar.
+16. Varning när ammon håller på att ta slut.
+17. Explosioner lyser upp rummet och skärmen blixtrar till.
+18. Hårkorset blir rött över en fiende.
+19. Träffar knuffar fiender bakåt.
+20. Brinnande, förgiftade och frusna fiender har egna partiklar.
+
+**Fiender**
+21. Livmätare över skadade fiender.
+22. Ett "!" när en fiende upptäcker dig.
+23. Fiender flankerar i stället för att alla gå rakt mot dig.
+24. Magiker och shamaner flyr när du kommer nära.
+25. Brinnande fiender får panik och springer runt.
+26. Ny elitegenskap: teleporterande.
+27. Ny elitegenskap: läkande.
+28. Ny elitegenskap: sköld som tar skadan först.
+29. Från varv 2 kan eliter ha två egenskaper.
+30. Eliter kan tappa ett kortval.
+31. Bossen tappar ett bättre kortval (bossens skatt).
+32. Bossintro med titel och slow motion.
+33. Bossarna varnar innan sina stora anfall.
+34. Egna dödsljud för varje fiendetyp.
+35. Mimics.
+
+**Världen**
+36. Krukor kan innehålla en jackpott.
+37. Rustningsskärvor (+10 rustning) i krukor och lådor.
+38. Hälsa droppar oftare när du har lite HP kvar.
+39. Ammolådor ger 50 % mer till vapnet du håller.
+40. Kistorna blir bättre ju djupare du kommer.
+41. Guld i närheten följer med när du går in i portalen.
+42. Guldhögar glittrar.
+43. Utgången och portalerna lyser.
+44. Det drar damm vid hemliga väggar.
+45. Eldfaten sprakar.
+46. Dörrar öppnas när man går in i dem.
+47. En kompasspil pekar mot portalen.
+48. Helande brunnar.
+49. Förbannade altaren.
+50. Spikfällor.
+51. Krutfat med kedjereaktioner.
+52. Lådor som går sönder.
+53. Lysande kandelabrar, kristaller och svampar.
+54. Möbler och dekor: likkistor, benhögar, bokhyllor, statyer, burar, rustningar och bord.
+55. Väktarrum med en miniboss på varje vanlig våning.
+
+**Skärm och menyer**
+56. Kartan har tre lägen: av, liten i hörnet eller stor (M/Tab eller kartknappen). Valet sparas.
+57. Kartan visar fiender som syns och väktaren och bossen när man sett deras rum.
+58. Kartan visar brunnar, altaren, krutfat och möbler i egna färger.
+59. Aktiva effekter visas nere till vänster.
+60. Hjärtslag hörs när hälsan är låg.
+61. Mobilen vibrerar vid skada (kan stängas av).
+62. Statistiken efter våningen visar hur mycket du utforskat, träffsäkerhet och skada du tagit.
+63. En karta över varvet i statistiken visar var du är.
+64. 21 tips mellan våningarna.
+65. Sammanfattningen efter rundan visar favoritvapen och träffsäkerhet.
+66. Ett stort titelkort med våningens namn och biom.
+67. Pausen visar dina bonusar.
+68. Profil med statistik för alla rundor.
+69. FPS-räknare (val i inställningarna).
+70. Bestiarium med alla fiender du dödat och bossar du besegrat.
+71. 20 prestationer som ger 10 själar var.
+72. Topp 5-lista.
+73. Historik med biom och vad du dog av.
+74. Väktarens egen livmätare och titel.
+75. Enter startar en ny runda från startskärmen.
+
+**Inställningar** (startskärmen, I i pausen eller kugghjulet på mobilen)
+76. Skärmskakning: av, låg eller full.
+77. Hårkorsets form: kors, punkt eller cirkel.
+78. Hårkorsets färg.
+79. Ljusstyrka.
+80. Känslighet, synfält och volym på samma ställe.
+81. Spelet pausas när fönstret tappar fokus eller fliken byts.
+82. Minskade effekter (färre partiklar).
+83. Vapnets gungning kan stängas av.
+84. Vänsterhänt mobillayout och justerbar knappstorlek.
+85. Inställningar och "ge upp" går att nå från pausen, också på mobilen.
+
+**Progression**
+86. Själaaltaret: fem bestående uppgraderingar köps med själar (mer HP, startguld, startammo, startrustning och ett extra val av startkort).
+87. Ny svårighetsgrad: MARDRÖM.
+88. Dagens runda har en dagens utmaning: Glaskanon, Guldfeber, Mörkret, De snabba döda eller Elitjakten.
+89. Butiken: rensa bort ett kort ur leken.
+90. Butiken: mysteriekort som är minst sällsynt.
+91. Profilen räknar dödade fiender, speltid och dödade per vapen.
+92. Varje besegrad boss räknas per typ.
+93. Väktare och bossar ger själar.
+94. Ge upp rundan (G i pausen) och behåll själarna.
+95. Snabbhetsbonus: en våning på under 2 minuter ger 20 guld.
+96. Orörd-bonus: en våning utan skada ger 40 guld.
+97. Alla hemligheter på en våning ger 30 guld.
+98. Prestationer ger själar.
+99. Väktarens skatt: ett kortval.
+100. Väktarrummets dörrar förseglas tills väktaren är besegrad, och sedan öppnas portalen.
+
 ## Assets som används
 
 | Vad | Källa |
@@ -165,6 +314,9 @@ Spelare och gränssnitt
 | Kistor och mynt | `assets/2d-pixel/2D Pixel Dungeon Asset Pack v2.0` |
 | Kortbilder och kortbaksida | `assets/rune-ai/flux/relics` och `card-backs`. Vapenkorten kombinerar relikbilder med vapnen renderade ur RetroWeaponPack (`tools/weapon-cards`) |
 | Mobilknappar och joystick | Kenney *Mobile Controls* 1.0 (CC0), hämtad från kenney.nl. Kartikonen (`icon_map.png`) är ritad i samma stil |
+| Föremål (kandelabrar, kistor, bokhyllor, brunnar, altare, spikfällor, krutfat, lådor m.m.), mimic, partiklar och väktar-/bossrummens väggar och golv | ritade med `tools/props/make.py`. Mimicen bygger på kistan ur *2D Pixel Dungeon*, kristallen på Gothicvania *Rocky Pass* (CC0), dimman på Kenney *Particle Pack* (CC0). Texturerna har ytstruktur från Kenney *retro-textures-fantasy* och *Classic64* (CC0) |
+| Nya ljud (biomljud, fotsteg, bossmusik, klockor, hjärtslag m.m.) | `assets/audio/400 Sounds Pack` och `Horror.SFX.Free.zip`, konverterade med `tools/sounds/make.sh` |
+| Kugghjul och utgång (mobil) | Kenney *Game Icons* (CC0) |
 | Typsnitt | Press Start 2P (OFL) |
 
 Se licensfilerna i respektive källpaket.

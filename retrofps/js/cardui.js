@@ -215,6 +215,9 @@ function draft(cards, opts, onPick) {
 
 // ---------- Butik ----------
 const GLYPHS = {
+  purge: { color: '#e05a3a', map: ['X.......X', '.X.....X.', '..X...X..', '...X.X...', '....X....', '...X.X...', '..X...X..', '.X.....X.', 'X.......X'] },
+  mystery: { color: '#c080ff', map: ['..XXXXX..', '.XX...XX.', '......XX.', '.....XX..', '....XX...', '....XX...', '.........', '....XX...', '....XX...'] },
+  meta: { color: '#c0a0ff', map: ['....X....', '...XXX...', '..XXXXX..', '.XXXXXXX.', '...XXX...', '...XXX...', '...XXX...', '...XXX...'] },
   health: { color: '#d8442a', map: ['.XX...XX.', 'XXXX.XXXX', 'XXXXXXXXX', 'XXXXXXXXX', '.XXXXXXX.', '..XXXXX..', '...XXX...', '....X....'] },
   armor: { color: '#8ab4d8', map: ['XXXXXXXXX', 'XXXXXXXXX', 'XXXX.XXXX', 'XXXX.XXXX', 'XXXXXXXXX', '.XXXXXXX.', '.XXXXXXX.', '..XXXXX..', '...XXX...', '....X....'] },
   ammo: { color: '#ffd24a', map: ['.X..X..X.', 'XX.XX.XX.', 'XX.XX.XX.', 'XX.XX.XX.', 'XX.XX.XX.', 'XX.XX.XX.', 'XX.XX.XX.'] },
@@ -225,6 +228,9 @@ const DEFAULTS = {
   armor: ['RUSTNINGSBIT', 'GER RUSTNING'],
   ammo: ['KRUTLÅDA', 'FYLLER PÅ AMMO'],
   reroll: ['BYT UTBUD', 'NYA VAROR I HYLLAN'],
+  purge: ['RENSA', 'TA BORT ETT KORT'],
+  mystery: ['MYSTERIUM', 'ETT OKÄNT KORT'],
+  meta: ['UPPGRADERING', 'BESTÅENDE'],
 };
 function glyph(kind) {
   const g = GLYPHS[kind] || GLYPHS.reroll;
@@ -455,6 +461,39 @@ function choice(opts, onPick) {
   if (cur) cur.timers.push(setTimeout(() => { try { btns[0].focus({ preventScroll: true }); } catch (e) { /* ingen fokus */ } }, 60));
 }
 
+// ---------- Panel och lista (inställningar, bestiarium, prestationer, profil) ----------
+// panel: body(container) fyller i innehållet; onClose körs när panelen stängs (Esc, knappen eller klick utanför)
+function panel(title, subtitle, body, onClose) {
+  const node = el('div', 'cu-screen cu-deck cu-panel');
+  const box = el('div', 'cu-deckbox');
+  const wrap = el('div', 'cu-wrap'); wrap.appendChild(box); node.appendChild(wrap);
+  box.appendChild(el('h2', 'cu-title', title));
+  if (subtitle) box.appendChild(el('p', 'cu-sub', subtitle));
+  const content = el('div', 'cu-pbody'); box.appendChild(content);
+  body(content);
+  const foot = el('div', 'cu-foot');
+  const btn = el('button', 'cu-btn', esc('STÄNG')); btn.type = 'button';
+  foot.appendChild(btn); box.appendChild(foot);
+  let done = false;
+  const finish = () => { if (done) return; done = true; close(); if (onClose) onClose(); };
+  btn.addEventListener('click', ev => { ev.stopPropagation(); finish(); });
+  node.addEventListener('click', ev => { if (ev.target === node || ev.target === wrap) finish(); });
+  open('panel', node, e => { if (e.code === 'Escape') { finish(); return true; } return false; });
+}
+// list: rader { label, text, color, dim } i en panel
+function list(title, subtitle, rows, onClose) {
+  panel(title, subtitle, c => {
+    const ul = el('div', 'cu-list');
+    for (const r of rows) {
+      const li = el('div', 'cu-li' + (r.dim ? ' dim' : '') + (r.head ? ' head' : ''));
+      const lab = el('div', 'cu-ll', r.label); if (r.color) lab.style.color = r.color;
+      li.appendChild(lab); if (r.text) li.appendChild(el('div', 'cu-lt', r.text));
+      ul.appendChild(li);
+    }
+    c.appendChild(ul);
+  }, onClose);
+}
+
 // ---------- Toast ----------
 function toast(card, label) {
   ensureRoot();
@@ -472,7 +511,7 @@ function toast(card, label) {
   sfx('toast');
 }
 
-Object.assign(api, { draft, shop, deck, toast, choice, close: () => close(), isOpen: () => !!cur });
+Object.assign(api, { draft, shop, deck, toast, choice, panel, list, el, close: () => close(), isOpen: () => !!cur });
 window.CardUI = api;
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ensureRoot); else if (document.body) ensureRoot();
 })();

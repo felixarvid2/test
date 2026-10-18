@@ -20,7 +20,7 @@
   button:disabled { opacity: .5; cursor: wait; }
   button:hover:not(:disabled), button:focus-visible { background: var(--btn-hi); outline: 2px solid #ffe9a8; outline-offset: 2px; }
   button.ghost { background: transparent; border-color: var(--dim); color: var(--muted); font-size: 10px; padding: 9px 14px; }
-  #unlocks { border-color: var(--soul); color: var(--soul); }
+  #unlocks, #altar { border-color: var(--soul); color: var(--soul); }
   #diff button { font-size: 10px; padding: 9px 14px; background: transparent; border-color: var(--dim); color: var(--muted); }
   #diff button[aria-pressed="true"] { background: var(--btn); border-color: var(--edge); color: #ffe9a8; }
   .label { font-size: 9px; color: var(--dim); letter-spacing: 1px; }
@@ -33,7 +33,7 @@
   kbd { font-family: inherit; color: var(--ink); }
   /* mobilstyrning */
   #touch { position: fixed; inset: 0; z-index: 5; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
-    --b: min(14vh, 9vw); --m: calc((100vw - min(100vw, 160vh)) / 2); --g: 1.5vh;
+    --b: calc(min(14vh, 9vw) * var(--bs, 1)); --m: calc((100vw - min(100vw, 160vh)) / 2); --g: 1.5vh;
     --rx: max(1vw, calc(var(--m) / 2 - var(--b) / 2)); --sx: max(1vw, calc(var(--m) / 2 - var(--b) * .35)); }
   #touch .tb { position: absolute; width: var(--b); height: var(--b); padding: 0; border: 0; background: none; opacity: .6; touch-action: none; }
   #touch .tb img { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
@@ -50,7 +50,12 @@
   #touch .deck { top: calc(2vh + var(--b) * .8 + env(safe-area-inset-top, 0px)); }
   #touch .map { top: calc(2vh + var(--b) * 1.6 + env(safe-area-inset-top, 0px)); }
   #touch .fsbtn { top: calc(2vh + var(--b) * 2.4 + env(safe-area-inset-top, 0px)); }
+  #touch .gearbtn { top: calc(2vh + var(--b) * 3.2 + env(safe-area-inset-top, 0px)); }
+  #touch .giveupbtn { top: calc(2vh + var(--b) * 4 + env(safe-area-inset-top, 0px)); }
   #touch:not(.playing) .tb.fsbtn { display: block; } /* helskärm går att nå även i pausen */
+  #touch.paused .tb.gearbtn, #touch.paused .tb.giveupbtn { display: block; } /* inställningar och ge upp i pausen */
+  #touch.playing .tb.gearbtn, #touch.playing .tb.giveupbtn { display: none; }
+  #touch.lefty { transform: scaleX(-1); } /* vänsterhänt: spegelvänd layout */
   .fsonly { display: none; }
   body.touch .fsonly { display: inline-block; }
   #touch .swap { left: calc(var(--rx) + env(safe-area-inset-left, 0px)); bottom: calc(3vh + env(safe-area-inset-bottom, 0px)); }
@@ -62,7 +67,7 @@
   /* stående: bilden överst, små knappar under den, joysticken till vänster och eldknapparna nere till höger */
   @media (orientation: portrait) {
     #wrap { align-items: flex-start; padding-top: env(safe-area-inset-top, 0px); }
-    #touch { --b: min(17vw, 10vh); --cb: calc(env(safe-area-inset-top, 0px) + 62.5vw); --p: 4vw; --bot: calc(5vh + env(safe-area-inset-bottom, 0px)); }
+    #touch { --b: calc(min(17vw, 10vh) * var(--bs, 1)); --cb: calc(env(safe-area-inset-top, 0px) + 62.5vw); --p: 4vw; --bot: calc(5vh + env(safe-area-inset-bottom, 0px)); }
     #touch .fire { right: var(--p); bottom: var(--bot); }
     #touch .aim { right: calc(var(--p) + var(--b) * 1.6 + 3vw); bottom: var(--bot); }
     #touch .reload { right: calc(var(--p) + var(--b) * .3); bottom: calc(var(--bot) + var(--b) * 1.6 + 3vw); }
@@ -73,6 +78,8 @@
     #touch .fsbtn { right: calc(var(--p) + var(--b) * .7 + 3vw); }
     #touch .map { right: calc(var(--p) + var(--b) * 1.4 + 6vw); }
     #touch .deck { right: calc(var(--p) + var(--b) * 2.1 + 9vw); }
+    #touch .gearbtn { right: calc(var(--p) + var(--b) * 1.4 + 6vw); }
+    #touch .giveupbtn { right: calc(var(--p) + var(--b) * 2.1 + 9vw); }
     #touch .joy { width: 34vw; height: 34vw; }
   }
   .touchhint { display: none; }
@@ -85,7 +92,7 @@
 <div id="touch" hidden></div>
 <div id="title">
   <h1>KRYPTA</h1>
-  <p>En roguelike i borgens katakomber. Varje runda är ny: fem slumpade våningar och Bendemonen längst ner. Samla kort som ger bonusar, köp av dödgrävaren och lås upp nya kort med själarna från rundor som gått åt skogen.</p>
+  <p>En roguelike i borgens katakomber. Varje runda är ny: fem slumpade våningar i olika biomer och en boss längst ner. Samla kort som ger bonusar, köp av dödgrävaren och lås upp nya kort med själarna från rundor som gått åt skogen.</p>
   <div class="label">SVÅRIGHETSGRAD</div>
   <div class="row" id="diff"></div>
   <div class="row">
@@ -96,7 +103,14 @@
   <div class="row">
     <label class="label" for="seed">FRÖ</label><input id="seed" maxlength="16" placeholder="SLUMPAT" autocomplete="off">
     <button id="unlocks" class="ghost" disabled>LÅS UPP KORT</button>
+    <button id="altar" class="ghost soul" disabled>SJÄLAALTARET</button>
     <button id="fullscreen" class="ghost fsonly" type="button">HELSKÄRM</button>
+  </div>
+  <div class="row">
+    <button id="settingsbtn" class="ghost" type="button">INSTÄLLNINGAR</button>
+    <button id="profilebtn" class="ghost" type="button">PROFIL</button>
+    <button id="bestiary" class="ghost" type="button">BESTIARIUM</button>
+    <button id="achbtn" class="ghost" type="button">PRESTATIONER</button>
   </div>
   <div class="row sliders">
     <label class="label" for="sens">KÄNSLIGHET <output id="sensv"></output></label><input id="sens" type="range" min="0.2" max="3" step="0.1">
@@ -106,7 +120,8 @@
   <div id="best"></div>
   <p class="touchhint">VÄNSTER TUMME: GÅ (DRA LÅNGT FÖR ATT SPRINGA) · HÖGER TUMME: DRA FÖR ATT VRIDA, TRYCK SNABBT FÖR ATT SKJUTA · STORA KNAPPEN: HÅLL FÖR ATT SKJUTA (DRA PÅ DEN FÖR ATT SIKTA SAMTIDIGT) · ÖVRIGA KNAPPAR: SIKTA, LADDA OM, ANVÄND, BYT VAPEN, KARTA, KORT, PAUS. LIGGANDE GER STÖRST BILD.</p>
   <p class="keyhint"><kbd>WASD</kbd> gå · <kbd>MUS</kbd> sikta · <kbd>VÄNSTERKLICK</kbd> skjut · <kbd>HÖGERKLICK</kbd> sikta med vapnet · <kbd>R</kbd> ladda om · <kbd>E</kbd> öppna, handla<br>
-     <kbd>SHIFT</kbd> spring · <kbd>1-4</kbd>/<kbd>Q</kbd>/<kbd>HJUL</kbd> byt vapen · <kbd>C</kbd> dina kort · <kbd>M</kbd>/<kbd>TAB</kbd> karta · <kbd>P</kbd>/<kbd>ESC</kbd> paus · <kbd>[ ]</kbd> känslighet · <kbd>- +</kbd> volym · <kbd>N</kbd> ljud · <kbd>O</kbd> helskärm</p>
+     <kbd>SHIFT</kbd> spring · <kbd>1-4</kbd>/<kbd>Q</kbd>/<kbd>HJUL</kbd> byt vapen · <kbd>C</kbd> dina kort · <kbd>M</kbd>/<kbd>TAB</kbd> karta · <kbd>P</kbd>/<kbd>ESC</kbd> paus · <kbd>[ ]</kbd> känslighet · <kbd>- +</kbd> volym · <kbd>N</kbd> ljud · <kbd>O</kbd> helskärm<br>
+     <kbd>V</kbd> sparka · <kbd>R</kbd> i rätt ögonblick = snabb omladdning · <kbd>ENTER</kbd> ny runda · I pausen: <kbd>I</kbd> inställningar, <kbd>G</kbd> ge upp</p>
   <div id="status">Laddar…</div>
 </div>
 <script src="js/rng.js"></script>

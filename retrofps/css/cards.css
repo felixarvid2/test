@@ -210,3 +210,17 @@
 #cardui .cu-opt { text-align: left; padding: 1em 1.2em; }
 #cardui .cu-ol { font-size: 1em; }
 #cardui .cu-ot { font-size: .8em; opacity: .8; margin-top: .6em; line-height: 1.7; }
+
+/* panel och listor: inställningar, bestiarium, prestationer, profil */
+#cardui .cu-screen.cu-panel { background: radial-gradient(ellipse at center, #2a1810 0%, #080503 75%); }
+#cardui .cu-li.head { grid-column: 1 / -1; border: 0; background: none; padding: .6em 0 0; }
+#cardui .cu-panel .cu-deckbox { width: min(720px, 100%); max-width: 720px; }
+#cardui .cu-pbody { align-self: stretch; display: flex; flex-direction: column; gap: .7em; margin: 1em 0; text-align: left; max-height: 62vh; overflow-y: auto; }
+#cardui .cu-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: .55em; }
+#cardui .cu-li { padding: .55em .8em; border: 2px solid #4a3a28; background: rgba(20,14,10,.7); }
+#cardui .cu-li.dim { opacity: .45; }
+#cardui .cu-ll { font-size: .85em; color: #ffe9a8; }
+#cardui .cu-lt { font-size: .7em; color: #c9a87a; margin-top: .45em; line-height: 1.6; }
+#cardui .cu-row { display: flex; align-items: center; justify-content: space-between; gap: 1em; font-size: .75em; color: #e8d9b0; }
+#cardui .cu-row select, #cardui .cu-row input[type=range] { font: inherit; font-size: .9em; background: #1b1410; color: #e8d9b0; border: 2px solid #8a7550; padding: .3em; max-width: 50%; }
+#cardui .cu-row input[type=checkbox] { width: 1.4em; height: 1.4em; accent-color: #d8a24a; }
