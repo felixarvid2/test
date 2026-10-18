@@ -4,7 +4,7 @@ import { SYNERGIES } from '../data/synergies';
 import { EVENTS } from '../data/events';
 import { UPGRADES } from '../data/upgrades';
 import type { AbilityId, RandomEventDef, SynergyDef, TowerId, UpgradeDef, WaveModifier } from '../data/types';
-import { MAX_TOWER_LEVEL } from '../data/types';
+import { MAX_TOWER_LEVEL, TOWER_IDS } from '../data/types';
 import type {
   AbilityState, EmergencyPower, EnemyState, FireZoneState, MoveResult, PendingEvent, ProjectileState, RunOptions,
   RunPhase, RunStats, SimEvent, SlotState, TowerStatsView, WorldApi,
@@ -108,6 +108,15 @@ export class World implements WorldApi {
   }
 
   private step(): void {
+    this.stepInner();
+    const s = this.s;
+    if (s.towerDmgDirty) {
+      s.towerDmgDirty = false;
+      for (let i = 0; i < TOWER_IDS.length; i++) if (s.towerDmg[i] > 0) s.stats.towerDamage[TOWER_IDS[i]] = s.towerDmg[i];
+    }
+  }
+
+  private stepInner(): void {
     const s = this.s;
     s.time += STEP;
     s.stats.timeSeconds += STEP;

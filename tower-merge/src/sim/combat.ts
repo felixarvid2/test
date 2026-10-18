@@ -2,6 +2,7 @@ import { BALANCE, gemsFor } from '../data/balance';
 import { TOWERS } from '../data/towers';
 import type { EnemyId, TowerId } from '../data/types';
 import { FL } from './modifiers';
+import { TOWER_INDEX } from './refresh';
 import { applyBurn, applyFreeze, applyPoison, applySlow, applyStun, applyVulnerability } from './statuses';
 import { spawnEnemy } from './enemies';
 import type { DeathRec, Enemy, FireZone, Projectile, SimState, TowerInst } from './state';
@@ -36,13 +37,29 @@ export function useProc(s: SimState): boolean {
 /**
  * The single place enemy HP is reduced. Applies vulnerability, boss modifiers, armor (reduced by
  * armorPen), the front shield (only when a source position is given) and the temporary shield.
- * `dot` damage skips hit-flash and per-tick damage events. Returns the HP actually removed.
+ * `dot` damage skips hit-flash and per-tick damage events.
  */
 export function hurt(
   s: SimState, e: Enemy, raw: number, tower: TowerInst | null, armorPen: number,
   srcX: number, srcY: number, crit: boolean, dot: boolean,
-): number {
-  if (!e.active || !(raw > 0)) return 0;
+): void {
+  // Small enough to be inlined into callers: the doubles travel through HURT_ARGS, because a real call
+  // would box every double argument into a heap number (garbage per hit).
+  HURT_ARGS[0] = raw;
+  HURT_ARGS[1] = armorPen;
+  HURT_ARGS[2] = srcX;
+  HURT_ARGS[3] = srcY;
+  hurtCore(s, e, tower, crit, dot);
+}
+
+const HURT_ARGS = new Float64Array(4);
+
+function hurtCore(s: SimState, e: Enemy, tower: TowerInst | null, crit: boolean, dot: boolean): void {
+  const raw = HURT_ARGS[0];
+  const armorPen = HURT_ARGS[1];
+  const srcX = HURT_ARGS[2];
+  const srcY = HURT_ARGS[3];
+  if (!e.active || !(raw > 0)) return;
   let d = raw;
   if (e.vulnerable > 0) d *= 1 + e.vulnerable;
   if (e.isBoss) {
@@ -73,8 +90,8 @@ export function hurt(
   if (!dot) e.hitFlash = 0;
   if (tower) {
     tower.damageDealt += loss;
-    const td = s.stats.towerDamage;
-    td[tower.type] = (td[tower.type] ?? 0) + loss;
+    s.towerDmg[TOWER_INDEX[tower.type]] += loss;
+    s.towerDmgDirty = true;
   }
   if (dot) {
     e.dotAcc += shown;
@@ -92,7 +109,6 @@ export function hurt(
     s.emit({ type: 'damage', x: e.x, y: e.y - e.radius, amount: Math.max(1, Math.round(shown)), crit, enemyId: e.id });
   }
   if (e.hp <= 0) killEnemy(s, e, tower, false);
-  return loss;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -426,7 +442,8 @@ export function towerHit(
         s.emit({ type: 'damage', x: e.x, y: e.y - e.radius, amount: Math.max(1, Math.round(hpLeft)), crit: true, enemyId: e.id });
       }
       t.damageDealt += e.hp;
-      s.stats.towerDamage[t.type] = (s.stats.towerDamage[t.type] ?? 0) + e.hp;
+      s.towerDmg[TOWER_INDEX[t.type]] += e.hp;
+      s.towerDmgDirty = true;
       e.shield = 0;
       e.hp = 0;
       killEnemy(s, e, t, false);

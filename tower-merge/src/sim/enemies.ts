@@ -138,9 +138,9 @@ export function updateEnemies(s: SimState, dt: number): void {
   for (let i = 0; i < pool.length; i++) {
     const e = pool[i];
     if (!e.active) continue;
-    if (!tickStatuses(s, e, dt)) continue;
+    if (!tickStatuses(s, e)) continue;
     const paused = e.frozenTime > 0 || e.stunTime > 0;
-    if (e.def && !paused && e.def.abilities.length > 0) runAbilities(s, e, dt);
+    if (e.def && !paused && e.def.abilities.length > 0) runAbilities(s, e);
     if (e.isBoss) {
       updateBoss(s, e, dt, paused);
       if (!e.active) continue;
@@ -166,9 +166,9 @@ export function updateEnemies(s: SimState, dt: number): void {
   s.grid.rebuild();
 }
 
-function runAbilities(s: SimState, e: Enemy, dt: number): void {
+function runAbilities(s: SimState, e: Enemy): void {
   const def = e.def!;
-  e.abilityTimer -= dt;
+  e.abilityTimer -= s.dt;
   if (e.abilityTimer > 0) return;
   for (const a of def.abilities) {
     if (a.kind === 'heal') {

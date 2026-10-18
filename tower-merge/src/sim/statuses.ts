@@ -95,7 +95,8 @@ export function applyVulnerability(e: Enemy, frac: number, dur: number): void {
 }
 
 /** Counts statuses down and applies burn/poison damage. Returns false when the enemy died. */
-export function tickStatuses(s: SimState, e: Enemy, dt: number): boolean {
+export function tickStatuses(s: SimState, e: Enemy): boolean {
+  const dt = s.dt;
   e.hitFlash += dt;
   if (e.hitFlash > 9) e.hitFlash = 9;
   if (e.slowTime > 0) {

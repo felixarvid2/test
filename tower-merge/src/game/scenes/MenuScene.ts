@@ -44,7 +44,7 @@ export class MenuScene extends Phaser.Scene {
     this.createTitle();
     this.createCounters();
     this.createAttract(W / 2, 622);
-    if (!firstTime) this.createLoadoutChips(756);
+    if (!firstTime) this.createLoadoutChips(750);
     this.createPlay(firstTime);
     this.createDaily(firstTime);
     this.createIconRow(firstTime);
@@ -191,7 +191,7 @@ export class MenuScene extends Phaser.Scene {
   /** The run's tower loadout as small chips above PLAY; tapping them opens the collection. */
   private createLoadoutChips(y: number): void {
     const loadout = getLoadout(services.save.data);
-    const size = 78, gap = 12;
+    const size = 74, gap = 12;
     const row = this.add.container(W / 2, y).setDepth(DEPTH.hud);
     const label = crispText(this, 0, -size / 2 - 22, 'BATTLE LOADOUT', { preset: 'small', size: 20, colorNum: PALETTE.goldLight });
     const g = this.add.graphics();
@@ -225,7 +225,7 @@ export class MenuScene extends Phaser.Scene {
 
   private createPlay(firstTime: boolean): void {
     // The kit button owns its own scale (press squash), so the pulse runs on a holder around it.
-    const holder = this.add.container(W / 2, 866).setDepth(DEPTH.hud);
+    const holder = this.add.container(W / 2, 874).setDepth(DEPTH.hud);
     const play = createButton(this, 0, 0, {
       label: 'PLAY', width: 500, height: 140, fontSize: 72, style: 'primary',
       onClick: () => {
@@ -264,7 +264,7 @@ export class MenuScene extends Phaser.Scene {
 
   private createDaily(firstTime: boolean): void {
     const status = dailyStatus(services.save.data.daily, dailyKey(new Date()));
-    const holder = this.add.container(W / 2, firstTime ? 1080 : 1022).setDepth(DEPTH.hud);
+    const holder = this.add.container(W / 2, firstTime ? 1082 : 1028).setDepth(DEPTH.hud);
     const btn = createButton(this, 0, 0, {
       label: 'DAILY CHALLENGE', icon: iconKey('clock'), width: 500, height: 104, fontSize: 34, style: 'secondary',
       onClick: () => fadeToScene(this, SceneKeys.Daily),

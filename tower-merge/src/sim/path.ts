@@ -59,11 +59,33 @@ export class Lane {
 
   /**
    * Position for a distance along the lane, written to `out` as [x, y, angle, segment]. `seg` is a
-   * hint (the walker's previous segment) so lookups are O(1). Allocation-free and monomorphic.
+   * hint (the walker's previous segment) so lookups are O(1). Allocation-free: the doubles go through
+   * a typed array because passing them as call arguments would box them.
    */
   locate(dist: number, seg: number, lateral: number, out: Float64Array): void {
+    LOC_ARGS[0] = dist;
+    LOC_ARGS[1] = lateral;
+    LOC_ARGS[2] = seg;
+    this.locateArgs(out);
+  }
+
+  /** Writes x, y, angle (and the cached segment index) for the walker's progress. */
+  place(w: LaneWalker): void {
+    LOC_ARGS[0] = w.progress;
+    LOC_ARGS[1] = w.lateral;
+    LOC_ARGS[2] = w.seg;
+    this.locateArgs(PLACE_OUT);
+    w.x = PLACE_OUT[0];
+    w.y = PLACE_OUT[1];
+    w.angle = PLACE_OUT[2];
+    w.seg = PLACE_OUT[3];
+  }
+
+  private locateArgs(out: Float64Array): void {
     const last = this.segLen.length - 1;
-    let d = dist;
+    let d = LOC_ARGS[0];
+    const lateral = LOC_ARGS[1];
+    let seg = LOC_ARGS[2] | 0;
     if (d < 0) d = 0;
     else if (d > this.total) d = this.total;
     if (seg > last) seg = last;
@@ -85,24 +107,17 @@ export class Lane {
       nx = nx * (1 - wgt) + -this.dy[seg + 1] * wgt;
       ny = ny * (1 - wgt) + this.dx[seg + 1] * wgt;
     }
-    const nl = vlen(nx, ny) || 1;
+    let nl = Math.sqrt(nx * nx + ny * ny);
+    if (nl === 0) nl = 1;
     out[0] = this.px[seg] + dxs * t + (nx / nl) * lateral;
     out[1] = this.py[seg] + dys * t + (ny / nl) * lateral;
     out[2] = this.ang[seg];
     out[3] = seg;
   }
-
-  /** Writes x, y, angle (and the cached segment index) for the walker's progress. */
-  place(w: LaneWalker): void {
-    this.locate(w.progress, w.seg, w.lateral, PLACE_OUT);
-    w.x = PLACE_OUT[0];
-    w.y = PLACE_OUT[1];
-    w.angle = PLACE_OUT[2];
-    w.seg = PLACE_OUT[3];
-  }
 }
 
 const PLACE_OUT = new Float64Array(4);
+const LOC_ARGS = new Float64Array(3);
 
 export const GROUND_LANE = new Lane(PATH);
 export const AIR_LANE = new Lane(FLY_LANE);

@@ -233,6 +233,8 @@ export class SimState {
 
   // run state
   time = 0;
+  /** Length of the current substep in seconds (always 1/60); read instead of passing doubles through hot calls. */
+  dt = 1 / 60;
   phase: RunPhase = 'prewave';
   wave = 1;
   prewaveTime = BALANCE.waves.firstPrewave;
@@ -277,6 +279,9 @@ export class SimState {
   private readonly bufs: Int32Array[] = Array.from({ length: 12 }, () => new Int32Array(BALANCE.caps.maxEnemies + 16));
   private bufTop = 0;
   bossGems = 0;
+  /** Damage per tower type index, accumulated unboxed; copied into stats.towerDamage once per step. */
+  readonly towerDmg = new Float64Array(8);
+  towerDmgDirty = false;
   regenAcc = 0;
   // cached aggregated globals (set by refresh)
   coinGainMult = 1;

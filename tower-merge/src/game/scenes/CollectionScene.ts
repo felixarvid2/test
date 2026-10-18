@@ -30,7 +30,7 @@ const ROW_W = 664;
 type Tab = 'towers' | 'bestiary';
 type Sprite = Phaser.GameObjects.Image | Phaser.GameObjects.Arc;
 
-const LOADOUT_H = 290;
+const LOADOUT_H = 330;
 const SLOT_W = 146;
 const SLOT_H = 140;
 
@@ -118,7 +118,7 @@ export class CollectionScene extends Phaser.Scene {
     c.add(crispText(this, -ROW_W / 2 + 32, -LOADOUT_H / 2 + 44, 'BATTLE LOADOUT', { preset: 'heading', size: 34, colorNum: PALETTE.goldLight }).setOrigin(0, 0.5));
     const count = crispText(this, ROW_W / 2 - 32, -LOADOUT_H / 2 + 44, loadoutCount(loadout.length, LOADOUT_SIZE), { preset: 'number', size: 40, colorNum: PALETTE.gold }).setOrigin(1, 0.5);
     c.add(count);
-    const slotY = -10;
+    const slotY = 0;
     const gap = 12;
     loadoutSlots(loadout, LOADOUT_SIZE).forEach((id, i) => {
       const sx = (i - (LOADOUT_SIZE - 1) / 2) * (SLOT_W + gap);
@@ -144,7 +144,7 @@ export class CollectionScene extends Phaser.Scene {
       }
       c.add(slot);
     });
-    const hint = crispText(this, 0, LOADOUT_H / 2 - 52, LOADOUT_HINT, { preset: 'small', size: 21, wordWrap: { width: ROW_W - 70 }, colorNum: 0xc5cdea });
+    const hint = crispText(this, 0, LOADOUT_H / 2 - 48, LOADOUT_HINT, { preset: 'small', size: 21, wordWrap: { width: ROW_W - 70 }, colorNum: 0xc5cdea });
     c.add(hint);
     return c;
   }
@@ -367,9 +367,9 @@ export class CollectionScene extends Phaser.Scene {
     panel.add(crispText(this, 0, top + 112, def?.role ?? '', { preset: 'small', size: 23, wordWrap: { width: ROW_W - 90 }, colorNum: 0xc5cdea }).setOrigin(0.5, 0));
 
     // big sprite of the selected level
-    const heroY = top + 215;
-    if (this.textures.exists('fx_glow')) panel.add(this.add.image(0, heroY - 6, 'fx_glow').setTint(color).setAlpha(0.5).setDisplaySize(330, 330).setBlendMode(Phaser.BlendModes.ADD));
-    const hero = spriteFit(this, 0, heroY, towerKey(id, level), 190);
+    const heroY = top + 252;
+    if (this.textures.exists('fx_glow')) panel.add(this.add.image(0, heroY - 6, 'fx_glow').setTint(color).setAlpha(0.5).setDisplaySize(300, 300).setBlendMode(Phaser.BlendModes.ADD));
+    const hero = spriteFit(this, 0, heroY, towerKey(id, level), 168);
     if (!unlocked && !save.discoveredTowers.includes(id)) silhouette(hero);
     panel.add(hero);
 
@@ -394,7 +394,7 @@ export class CollectionScene extends Phaser.Scene {
       if (hero instanceof Phaser.GameObjects.Image) {
         hero.setTexture(towerKey(id, l));
         if (!unlocked && !save.discoveredTowers.includes(id)) hero.setTintFill(0x141a38);
-        if (animate && !reducedMotion()) { hero.setScale(hero.scaleX * 0.85); this.tweens.add({ targets: hero, scale: 190 / hero.width, duration: 260, ease: 'Back.Out' }); }
+        if (animate && !reducedMotion()) { hero.setScale(hero.scaleX * 0.85); this.tweens.add({ targets: hero, scale: 168 / hero.width, duration: 260, ease: 'Back.Out' }); }
       }
       this.fillStats(stats, id, l, top + 466);
       this.fillPerks(perks, id, l, top + 690, select);
@@ -476,22 +476,22 @@ export class CollectionScene extends Phaser.Scene {
     box.add(crispText(this, 0, top, 'LEVEL PERKS', { preset: 'small', size: 22, colorNum: PALETTE.gold }));
     for (let l = 2; l <= MAX_TOWER_LEVEL; l++) {
       const lv = def?.levels?.[l - 1];
-      const y = top + 68 + (l - 2) * 100;
+      const y = top + 66 + (l - 2) * 96;
       const on = l === selected;
       const reached = l <= selected;
       const g = this.add.graphics();
-      g.fillStyle(on ? PALETTE.gold : PALETTE.outline, 1).fillRoundedRect(-ROW_W / 2 + 34, y - 48, ROW_W - 68, 96, 18);
-      g.fillStyle(on ? 0x3b3560 : PALETTE.panelDark, 1).fillRoundedRect(-ROW_W / 2 + 38, y - 44, ROW_W - 76, 88, 15);
+      g.fillStyle(on ? PALETTE.gold : PALETTE.outline, 1).fillRoundedRect(-ROW_W / 2 + 34, y - 46, ROW_W - 68, 92, 18);
+      g.fillStyle(on ? 0x3b3560 : PALETTE.panelDark, 1).fillRoundedRect(-ROW_W / 2 + 38, y - 42, ROW_W - 76, 84, 15);
       const badge = this.add.graphics();
-      badge.fillStyle(reached ? PALETTE.gold : PALETTE.disabledDark, 1).fillRoundedRect(-ROW_W / 2 + 50, y - 29, 64, 58, 14);
+      badge.fillStyle(reached ? PALETTE.gold : PALETTE.disabledDark, 1).fillRoundedRect(-ROW_W / 2 + 50, y - 27, 64, 54, 14);
       const lab = crispText(this, -ROW_W / 2 + 82, y, `L${l}`, { preset: 'number', size: 28, colorNum: reached ? PALETTE.textDark : 0xffffff, strokeThickness: 0 });
-      const name = crispText(this, -ROW_W / 2 + 134, y - 25, lv?.perkName ?? 'Stronger', { preset: 'body', size: 26, colorNum: reached ? PALETTE.goldLight : 0xaab4d4, align: 'left' }).setOrigin(0, 0.5);
-      const desc = clampLines(crispText(this, -ROW_W / 2 + 134, y - 6, lv?.perkDesc ?? '', {
+      const name = crispText(this, -ROW_W / 2 + 134, y - 23, lv?.perkName ?? 'Stronger', { preset: 'body', size: 26, colorNum: reached ? PALETTE.goldLight : 0xaab4d4, align: 'left' }).setOrigin(0, 0.5);
+      const desc = clampLines(crispText(this, -ROW_W / 2 + 134, y - 5, lv?.perkDesc ?? '', {
         preset: 'small', size: 21, align: 'left', wordWrap: { width: ROW_W - 200 }, colorNum: reached ? 0xdfe5ff : 0x8a93b4,
       }).setOrigin(0, 0), 2);
       desc.setLineSpacing(-2);
       fitText(name, ROW_W - 200);
-      const z = this.add.zone(0, y, ROW_W - 68, 96).setInteractive({ useHandCursor: true });
+      const z = this.add.zone(0, y, ROW_W - 68, 92).setInteractive({ useHandCursor: true });
       z.on('pointerup', () => { playSfx('click'); onSelect(l); });
       box.add([g, badge, lab, name, desc, z]);
     }

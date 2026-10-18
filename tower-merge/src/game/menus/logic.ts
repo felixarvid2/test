@@ -247,7 +247,7 @@ export function formatRunDate(key: string): string {
 const LOADOUT_REASONS: Record<LoadoutBlock, string> = {
   locked: 'Unlock this tower first',
   full: 'Loadout is full - remove a tower first',
-  minimum: 'Keep at least 3 towers in your loadout',
+  minimum: 'Keep at least 3 towers',
   noAir: 'Keep a tower that can hit flying enemies',
 };
 
