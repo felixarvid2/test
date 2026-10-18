@@ -41,11 +41,15 @@ function hexA(hex, a) {
   return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
 }
 const img = card => (api.base || '') + card.icon;
+// etikett: FÖRBANNAD, PAKT eller vapnet en uppgradering hör till
+const tagOf = card => (window.Cards.tag ? window.Cards.tag(card) : card.curse ? 'FÖRBANNAD' : '');
+const tagPre = card => (tagOf(card) ? tagOf(card) + ' · ' : '');
 function tint(node, card) {
   const c = R()[card.rarity].color;
   node.style.setProperty('--rc', c);
   node.style.setProperty('--glow', hexA(c, 0.35));
   if (card.curse) node.classList.add('curse');
+  if (card.pact) node.classList.add('pact');
 }
 function fxLines(card) {
   const box = el('div', 'cu-fx');
@@ -146,12 +150,12 @@ function draft(cards, opts, onPick) {
     const r = R()[card.rarity];
     const c = el('div', 'cu-card down' + (card.rarity === 'legendarisk' ? ' legend' : ''));
     c.tabIndex = 0; c.setAttribute('role', 'button');
-    c.setAttribute('aria-label', (i + 1) + ': ' + card.name + ', ' + (card.curse ? 'FÖRBANNAD, ' : '') + r.label + '. ' + card.text.replace(/\n/g, ', '));
+    c.setAttribute('aria-label', (i + 1) + ': ' + card.name + ', ' + (tagOf(card) ? tagOf(card) + ', ' : '') + r.label + '. ' + card.text.replace(/\n/g, ', '));
     tint(c, card);
     const inner = el('div', 'cu-inner');
     const back = el('div', 'cu-face cu-back');
     const front = el('div', 'cu-face cu-front');
-    if (card.curse) front.appendChild(el('div', 'cu-ribbon', 'FÖRBANNAD'));
+    if (tagOf(card)) front.appendChild(el('div', 'cu-ribbon' + (card.curse ? '' : card.pact ? ' pact' : ' wpn'), tagOf(card)));
     const rar = el('div', 'cu-rar'); rar.appendChild(el('span', '', r.label)); rar.appendChild(el('span', 'cu-key', '[' + (i + 1) + ']'));
     front.appendChild(rar);
     front.appendChild(art(card));
@@ -279,7 +283,7 @@ function shop(items, gold, onBuy, onClose, opts) {
         top.appendChild(art(item.card));
         name = item.label || item.card.name;
         nm.appendChild(el('div', 'cu-iname', name));
-        nm.appendChild(el('div', 'cu-irar', (item.card.curse ? 'FÖRBANNAD · ' : '') + r.label));
+        nm.appendChild(el('div', 'cu-irar', tagPre(item.card) + r.label));
         fx = fxLines(item.card);
       } else {
         const d = DEFAULTS[item.kind] || DEFAULTS.reroll;
@@ -389,7 +393,7 @@ function deck(ownedIds, onClose) {
     const r = R()[e.card.rarity];
     const dn = el('div', 'cu-dn', e.card.name); dn.style.color = r.color;
     detail.appendChild(dn);
-    detail.appendChild(el('div', 'cu-dm', (e.card.curse ? 'FÖRBANNAD · ' : '') + r.label));
+    detail.appendChild(el('div', 'cu-dm', tagPre(e.card) + r.label));
     detail.appendChild(fxLines(e.card));
     detail.appendChild(el('div', 'cu-dm', 'ÄGER ' + e.n + ' AV MAX ' + e.card.max));
   }
@@ -429,7 +433,7 @@ function toast(card, label) {
   tint(t, card);
   const i = el('img'); i.src = img(card); i.alt = '';
   const body = el('div');
-  body.appendChild(el('div', 'cu-tk', label || (card.curse ? 'FÖRBANNAT KORT' : 'NYTT KORT')));
+  body.appendChild(el('div', 'cu-tk', label || (card.curse ? 'FÖRBANNAT KORT' : card.pact ? 'VAPENPAKT' : card.weapon ? 'VAPENUPPGRADERING' : 'NYTT KORT')));
   body.appendChild(el('div', 'cu-tnm', card.name));
   body.appendChild(el('div', 'cu-tfx', String(card.text).replace(/\n/g, ' · ')));
   t.appendChild(i); t.appendChild(body);

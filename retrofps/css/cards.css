@@ -77,6 +77,9 @@
 .cu-ribbon { align-self: stretch; text-align: center; font-size: .8em; padding: .35em 0; color: #f0c4ff; background: #4a1460; border: 2px solid var(--curse); letter-spacing: .12em; }
 
 /* Förbannade kort */
+.cu-ribbon.pact { color: #ffd8c0; background: #5a1408; border-color: #e05030; }
+.cu-ribbon.wpn { color: #ffe9a8; background: #3a2a10; border-color: #d8a24a; }
+.cu-card.pact, .cu-item.pact, .cu-tile.pact, .cu-toast.pact { --bc: #e05030; --glow: rgba(224,80,48,.55); }
 .cu-card.curse { --bc: var(--curse); --glow: rgba(176,64,216,.6); }
 .cu-card.curse .cu-front { background: linear-gradient(180deg, #2a1030 0%, #170c1a 45%, #0e060f 100%); animation: cu-curse 2.2s ease-in-out infinite; }
 .cu-card.curse .cu-fx { color: #d8b4e8; }

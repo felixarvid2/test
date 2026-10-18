@@ -57,9 +57,11 @@ for (let i = 0; i < TOTAL; i++) {
   if (count(m, 'C') < 1) fail(tag + ' kortkista saknas');
   if (types.secret) { stats.secret++; if (count(m, '*') !== 1) fail(tag + ' hemlig vägg ' + count(m, '*')); } else if (count(m, '*') !== 0) fail(tag + ' * utan hemligt rum');
   for (const w of 'grm') if (count(m, w) !== (opts.weapon === w ? 1 : 0)) fail(tag + ` vapen ${w}: ${count(m, w)}`);
-  const en = count(m, 'S') + count(m, 'K') + count(m, 'V'), want = 6 + 3 * depth;
+  const en = [...'SKVILNORW'].reduce((n, c) => n + count(m, c), 0), want = 6 + 3 * depth;
   if (en < want - 6 || en > want + 3) fail(tag + ` fiender ${en} (väntat ca ${want})`);
-  if (depth === 1 && count(m, 'V') > 0) fail(tag + ' vampyr på djup 1');
+  if (depth === 1 && [...'VIONRW'].some(c => count(m, c) > 0)) fail(tag + ' för svår fiende på djup 1');
+  if (depth === 2 && [...'NRW'].some(c => count(m, c) > 0)) fail(tag + ' för svår fiende på djup 2');
+  for (const c of 'SKVILNORW') stats['typ' + c] = (stats['typ' + c] || 0) + count(m, c);
   stats.enemies += en;
   const gold = count(m, '$'), pots = count(m, 'o'), nf = count(m, 'f');
   if (gold < 3 || gold > 8) fail(tag + ' guld ' + gold);
@@ -107,6 +109,7 @@ console.log('\n---');
 console.log(`Banor: ${stats.n}, bossarenor: 50`);
 console.log(`Genereringstid golv: snitt ${(stats.ms / stats.n).toFixed(2)} ms, max ${stats.maxMs.toFixed(2)} ms; boss snitt ${(bossMs / 50).toFixed(3)} ms`);
 console.log(`Rum: snitt ${(stats.rooms / stats.n).toFixed(1)} (min ${stats.minRooms}, max ${stats.maxRoomsSeen}); hemliga rum ${(100 * stats.secret / stats.n).toFixed(0)} %; fiender snitt ${(stats.enemies / stats.n).toFixed(1)}`);
+console.log('Fiendesorter: ' + [...'SKVILNORW'].map(c => c + '=' + (stats['typ' + c] || 0)).join(' '));
 console.log(`Omförsök i generatorn: ${Gen.floor.stats.retries - stats.retries0}`);
 if (failures) { console.log(`\n${failures} FEL`); process.exit(1); }
 console.log('\nALLA TESTER OK');

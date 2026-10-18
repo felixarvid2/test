@@ -14,7 +14,19 @@ M/Tab karta · P/Esc paus · `[` `]` muskänslighet · `,` `.` synfält · `-` `
 
 - **Genererade våningar** (`js/gen.js`, `js/rng.js`): rum och korridorer med minimalt uppspännande träd och slingor, dörrar, hemliga rum, skattrum med kortkista, butiksrum, elitfiender och eldfat. Storleken och fienderna ökar med djupet, och temat (väggar, golv, dimma, namn) varierar.
 - **Frö och dagens runda**: samma frö ger samma våningar. Fröet visas i pausen och efter rundan, och kan skrivas in på startskärmen. *Dagens runda* har samma frö för alla under dagen.
-- **Kort** (`js/cards.js`, `js/cardui.js`): 50 kort i fyra sällsyntheter (vanlig, ovanlig, sällsynt, legendarisk). Korten ger permanenta bonusar under rundan, till exempel skada, eldhastighet, krit, genomslag, explosioner, brand, livsstöld, sköld, extraliv, magnet och rabatt. Fem förbannade kort ger en stark fördel med en nackdel. Det finns synergier, som eld + explosion och krit + kritskada.
+- **Kort** (`js/cards.js`, `js/cardui.js`): 50 vanliga kort i fyra sällsyntheter (vanlig, ovanlig, sällsynt, legendarisk). Korten ger permanenta bonusar under rundan, till exempel skada, eldhastighet, krit, genomslag, explosioner, brand, livsstöld, sköld, extraliv, magnet och rabatt. Fem förbannade kort ger en stark fördel med en nackdel. Det finns synergier, som eld + explosion och krit + kritskada.
+- **Vapenpakter** (fyra sällsynta kort, en per vapen): man svär sig till ett vapen resten av rundan. De andra vapnen försvinner, vapen man hittar blir ammo och 20 guld, all ammo blir vapnets egen och skadan ökar med 15 %. Pakten öppnar vapnets unika uppgraderingar, som bara dyker upp efter pakten men då ofta. Uppgraderingarna ändrar hur vapnet fungerar:
+  - **Pistol:** *Studskulan* (träffen studsar till nästa fiende), *Hanefläkten* (håll in för att tömma magasinet i ett svep), *Sista kulan* (sista skottet gör 3× skada och exploderar), *Duellanten* (ovetande fiender dör av första träffen) och *Tomhylsan* (tomt magasin laddas om direkt).
+  - **Hagelgevär:** *Drakanden* (varje hagel tänder eld), *Dubbelpipan* (två patroner per skott, dubbelt så många hagel), *Slagkraften* (nära fiender slungas bakåt och skadas mot väggen), *Splitterhaglet* (döda fiender sprängs och skadar grannarna) och *Snigeln* (siktar man skjuts en snigel som går igenom alla med 7× skada).
+  - **Gevär:** *Kedjeblixten* (var fjärde träff hoppar till tre fiender), *Kalla blodet* (sikta en sekund så gör nästa skott 4× skada och går igenom; en ring runt hårkorset visar laddningen), *Kastmagasinet* (omladdningen kastar det gamla magasinet som en granat) och *Skarpskytten* (träffar på över 7 rutor är alltid kritiska).
+  - **Kpist:** *Spinnpipan* (eldhastigheten växer till det dubbla medan man håller in), *Rikoschetten* (kulor studsar mot väggar), *Dödsmärket* (åttonde träffen på samma fiende detonerar) och *Blybältet* (ingen omladdning, skjuter direkt ur reserven).
+- **Fiender**: förutom skelett, eldskelett och vampyr finns sex sorter med eget beteende, och nya sorter dyker upp ju djupare man kommer. Första gången man möter en sort visas ett tips.
+  - *Blodslem* (våning 1–): delar sig i två droppar när det dör.
+  - *Smådjävul* (2–): sicksackar och hoppar åt sidan när den träffas.
+  - *Orkshaman* (2–): helar och skyndar på fienderna runt sig och håller avstånd.
+  - *Benmagiker* (3–): väcker skelett och skjuter lila klot som svänger efter dig.
+  - *Gravrövare* (3–): nästan osynlig på avstånd och hugger hårdare i ryggen.
+  - *Orkkrigare* (3–): rustning som tar 0,6 av varje träff (bra mot hagel och kpist, dåligt mot tunga skott). Den stormar fram och blir yr om den krockar i en vägg.
 - **Var korten kommer ifrån**: ett startkort (1 av 3), ett kort efter varje våning (1 av 3, eller hoppa över för guld), kortkistor och butiken.
 - **Guld och butik**: fiender, krukor och guldhögar ger guld. Dödgrävaren på våning 2 och 4 säljer kort, hälsa, rustning, ammunition och nya kort.
 - **Elitfiender**: större, färgade fiender med livmätare och en egenskap (snabb, seg, blodtörstig, explosiv eller brutal). De tappar mer guld.
@@ -34,6 +46,7 @@ M/Tab karta · P/Esc paus · `[` `]` muskänslighet · `,` `.` synfält · `-` `
 - **Synfält och känslighet:** båda kan ställas in med reglage på startskärmen, `,` `.` och `[` `]` i spelet, och sparas.
 
 Testerna körs med `node tools/gen-test.js` (300 våningar och 50 bossarenor) och `node tools/cards-test.js`.
+Fiendearken byggs med `tools/enemy-sprites/prep.py` och vapenkortens bilder med `tools/weapon-cards/make.py`.
 `tools/cards-demo.html` visar kortgränssnittet fristående.
 
 ## Grundspelet (version 2)
@@ -107,6 +120,8 @@ Spelare och gränssnitt
 | Mynningsflamma | `RetroWeaponPack_V1.zip` → `FX/Textures/MuzzleFlash.png` |
 | Väggar, dörrar, golv, tak | `assets/textures/retro-textures-fantasy` (Kenney, CC0) |
 | Skelett, eldskelett, vampyr | `assets/2d-pixel/Enemy_Animations_Set` |
+| Benmagiker, orkshaman, gravrövare, orkkrigare | `assets/2d-pixel/Pixel Crawler - Free Pack 2.11` (Anokolisa). Anfalls- och smärtrutor ritas fram av `tools/enemy-sprites/prep.py` |
+| Smådjävul och blodslem | `assets/2d-pixel/Tiny RPG Character Asset Pack 02` (Demon_A och Blood Monster_A) |
 | Krukor och skärvor | `assets/2d-pixel/20.05b - Breakable Pots 1.1a` |
 | Eld, eldklot, kulnedslag | `assets/effects/Free Pixel Effects Pack` (public domain) |
 | Blod | `assets/effects/splat-pack` (Kenney, CC0) |
@@ -116,8 +131,8 @@ Spelare och gränssnitt
 | Boss: vingad demon | `assets/2d-pixel/Legacy Collection/.../Gothicvania/Characters/demon-Files` (Ansimuz, CC0) |
 | Köpman (liemannen) | `assets/2d-pixel/Legacy Collection/.../Gothicvania/Characters/death` (CC0) |
 | Kistor och mynt | `assets/2d-pixel/2D Pixel Dungeon Asset Pack v2.0` |
-| Kortbilder och kortbaksida | `assets/rune-ai/flux/relics` och `card-backs` |
-| Mobilknappar och joystick | Kenney *Mobile Controls* 1.0 (CC0), hämtad från kenney.nl |
+| Kortbilder och kortbaksida | `assets/rune-ai/flux/relics` och `card-backs`. Vapenkorten kombinerar relikbilder med vapnen renderade ur RetroWeaponPack (`tools/weapon-cards`) |
+| Mobilknappar och joystick | Kenney *Mobile Controls* 1.0 (CC0), hämtad från kenney.nl. Kartikonen (`icon_map.png`) är ritad i samma stil |
 | Typsnitt | Press Start 2P (OFL) |
 
 Se licensfilerna i respektive källpaket.

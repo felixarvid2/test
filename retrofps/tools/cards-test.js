@@ -22,7 +22,8 @@ function makeRng(seed) {
 
 const { ALL, RARITY, MOD_KEYS } = Cards;
 const keys = Object.keys(MOD_KEYS);
-ok(ALL.length >= 40 && ALL.length <= 50, 'antal kort ' + ALL.length + ' ska vara 40-50');
+const BASE = ALL.filter(c => !c.pact && !c.weapon);
+ok(BASE.length >= 40 && BASE.length <= 50, 'antal vanliga kort ' + BASE.length + ' ska vara 40-50');
 ok(keys.length === 41, 'MOD_KEYS ska ha 41 nycklar, har ' + keys.length);
 const ids = new Set(), used = new Set(), perRarity = {};
 for (const c of ALL) {
@@ -31,7 +32,8 @@ for (const c of ALL) {
   perRarity[c.rarity] = (perRarity[c.rarity] || 0) + 1;
   ok(c.name && c.text && c.icon, c.id + ': saknar name/text/icon');
   ok(c.max >= 1 && c.max <= 5, c.id + ': max utanför 1-5');
-  ok(c.mods && Object.keys(c.mods).length > 0, c.id + ': tomma mods');
+  if (c.weapon) ok(c.wup && c.mods && Object.keys(c.mods).length === 0, c.id + ': vapenuppgradering ska ha wup och inga mods');
+  else ok(c.mods && Object.keys(c.mods).length > 0, c.id + ': tomma mods');
   for (const k in c.mods) { ok(keys.includes(k), c.id + ': okänd mod-nyckel ' + k); ok(typeof c.mods[k] === 'number' && isFinite(c.mods[k]), c.id + ': ' + k + ' inte tal'); used.add(k); }
   ok(fs.existsSync(path.join(root, c.icon)), c.id + ': ikon saknas ' + c.icon);
   if (c.unlock != null) ok(c.unlock >= 10 && c.unlock <= 60, c.id + ': unlock utanför 10-60');
@@ -42,8 +44,23 @@ for (const c of ALL) {
 }
 for (const r of Object.keys(RARITY)) ok(perRarity[r] > 0, 'inga kort av rarity ' + r);
 for (const k of keys) ok(used.has(k), 'mod-nyckel ' + k + ' används av inget kort');
-const locked = ALL.filter(c => c.unlock != null).length;
-ok(locked / ALL.length > 0.25 && locked / ALL.length < 0.45, 'andel låsta kort ' + locked + '/' + ALL.length);
+const locked = BASE.filter(c => c.unlock != null).length;
+ok(locked / BASE.length > 0.25 && locked / BASE.length < 0.45, 'andel låsta kort ' + locked + '/' + BASE.length);
+// vapenpakter: en per vapen, minst fyra unika uppgraderingar var
+for (const w of ['pistol', 'shotgun', 'rifle', 'smg']) {
+  ok(ALL.filter(c => c.pact === w).length === 1, 'en pakt för ' + w);
+  const ups = ALL.filter(c => c.weapon === w);
+  ok(ups.length >= 4, w + ' har ' + ups.length + ' uppgraderingar, minst 4');
+  ok(new Set(ups.map(c => c.wup)).size === ups.length, w + ': unika wup');
+}
+for (let seed = 1; seed <= 300; seed++) {
+  const rng = makeRng(seed), pact = [null, 'pistol', 'shotgun', 'rifle', 'smg'][seed % 5];
+  const got = Cards.draw(rng, 4, { depth: seed % 5, pact });
+  for (const c of got) {
+    ok(!(pact && c.pact), 'andra pakt dragen med pakt ' + pact);
+    ok(!c.weapon || c.weapon === pact, c.id + ' dragen med pakt ' + pact);
+  }
+}
 ok(ALL.filter(c => c.curse).length >= 3, 'för få förbannade kort');
 ok(fs.existsSync(path.join(root, 'assets/cards/back.png')), 'kortbaksida saknas');
 

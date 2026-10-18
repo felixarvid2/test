@@ -113,6 +113,30 @@ const DEFS = [
   ['vaktarbanan', 'NATTKORPEN', 'legendarisk', { fireRate: 0.3, reloadSpeed: 0.3, ammoSave: 0.15, moveSpeed: 0.1 }, 1, '+30 % ELDHASTIGHET\n+30 % LADDNING\n15 % GRATIS SKOTT\n+10 % RÖRELSE', { unlock: 50 }],
   ['spegelvannen', 'SPEGELVÄNNEN', 'legendarisk', { extraPellets: 2, pierce: 1, magSize: 0.2 }, 1, '+2 KULOR PER SKOTT\nGÅR IGENOM +1 FIENDE\n+20 % MAGASIN', { unlock: 45 }],
   ['ouroboros', 'OUROBOROS', 'legendarisk', { extraLife: 1, regen: 1, lifesteal: 0.05, healMul: 0.25 }, 1, '+1 ÅTERUPPLIVNING\n+1 HP PER SEKUND\n5 % AV SKADAN BLIR HP\n+25 % HELNING', { unlock: 60 }],
+  // ---- VAPENPAKTER: låser rundan till ett vapen och öppnar dess unika uppgraderingar ----
+  ['pakt_pistol', 'REVOLVERMANNENS ED', 'sallsynt', { dmg: 0.15 }, 1, '+15 % SKADA\nALL AMMO BLIR 9MM\n5 UNIKA UPPGRADERINGAR\nBARA PISTOL RESTEN AV RUNDAN', { pact: 'pistol', bad: 1 }],
+  ['pakt_hagel', 'SLAKTARENS ED', 'sallsynt', { dmg: 0.15 }, 1, '+15 % SKADA\nALL AMMO BLIR PATRONER\n5 UNIKA UPPGRADERINGAR\nBARA HAGELGEVÄR RESTEN AV RUNDAN', { pact: 'shotgun', bad: 1 }],
+  ['pakt_gevar', 'SKYTTENS ED', 'sallsynt', { dmg: 0.15 }, 1, '+15 % SKADA\nALL AMMO BLIR 5.56\n4 UNIKA UPPGRADERINGAR\nBARA GEVÄR RESTEN AV RUNDAN', { pact: 'rifle', bad: 1 }],
+  ['pakt_kpist', 'BLYREGNETS ED', 'sallsynt', { dmg: 0.15 }, 1, '+15 % SKADA\nALL AMMO BLIR 9MM\n4 UNIKA UPPGRADERINGAR\nBARA KPIST RESTEN AV RUNDAN', { pact: 'smg', bad: 1 }],
+  // ---- VAPENUPPGRADERINGAR: dyker bara upp när man har vapnets pakt. Ändrar hur vapnet fungerar. ----
+  ['studskulan', 'STUDSKULAN', 'ovanlig', {}, 1, 'TRÄFFAR STUDSAR VIDARE\nTILL NÄSTA FIENDE', { weapon: 'pistol', wup: 'ricochet' }],
+  ['hanen', 'HANEFLÄKTEN', 'sallsynt', {}, 1, 'HÅLL IN: PISTOLEN TÖMMER\nMAGASINET I ETT SVEP\nSVEPET SPRIDER SIG', { weapon: 'pistol', wup: 'fan', bad: 1 }],
+  ['sista_kulan', 'SISTA KULAN', 'ovanlig', {}, 1, 'SISTA SKOTTET I MAGASINET\nGÖR 3× SKADA OCH EXPLODERAR', { weapon: 'pistol', wup: 'lastround' }],
+  ['duellanten', 'DUELLANTEN', 'sallsynt', {}, 1, 'OVETANDE FIENDER DÖR AV\nFÖRSTA TRÄFFEN\n3× SKADA PÅ OVETANDE ELIT', { weapon: 'pistol', wup: 'duel' }],
+  ['tomhylsan', 'TOMHYLSAN', 'ovanlig', {}, 1, 'TOMT MAGASIN LADDAS OM\nPÅ ETT ÖGONBLICK', { weapon: 'pistol', wup: 'quickload' }],
+  ['drakanden', 'DRAKANDEN', 'ovanlig', {}, 1, 'VARJE HAGEL SÄTTER\nFIENDEN I BRAND', { weapon: 'shotgun', wup: 'dragon' }],
+  ['dubbelpipan', 'DUBBELPIPAN', 'sallsynt', {}, 1, 'TVÅ PATRONER PER SKOTT:\nDUBBELT SÅ MÅNGA HAGEL\nLÄNGRE MELLAN SKOTTEN', { weapon: 'shotgun', wup: 'double', bad: 1 }],
+  ['slagkraften', 'SLAGKRAFTEN', 'ovanlig', {}, 1, 'NÄRA FIENDER SLUNGAS BAKÅT\nKROCK MOT VÄGG GER SKADA', { weapon: 'shotgun', wup: 'knock' }],
+  ['splitterhaglet', 'SPLITTERHAGLET', 'sallsynt', {}, 1, 'FIENDER SOM DÖR AV HAGEL\nSPRÄNGS I SPLITTER', { weapon: 'shotgun', wup: 'shrapnel' }],
+  ['snigeln', 'SNIGELN', 'legendarisk', {}, 1, 'SIKTA: SKJUTER EN SNIGEL SOM\nGÅR IGENOM ALLA FIENDER\nOCH GÖR 6× SKADA', { weapon: 'shotgun', wup: 'slug' }],
+  ['kedjeblixten', 'KEDJEBLIXTEN', 'sallsynt', {}, 1, 'VAR FJÄRDE TRÄFF HOPPAR\nSOM BLIXT TILL 3 FIENDER', { weapon: 'rifle', wup: 'chain' }],
+  ['kalla_blodet', 'KALLA BLODET', 'sallsynt', {}, 1, 'SIKTA 1 S: NÄSTA SKOTT GÖR\n4× SKADA OCH GÅR IGENOM', { weapon: 'rifle', wup: 'focus' }],
+  ['kastmagasinet', 'KASTMAGASINET', 'ovanlig', {}, 1, 'OMLADDNING KASTAR DET GAMLA\nMAGASINET SOM EN GRANAT', { weapon: 'rifle', wup: 'grenade' }],
+  ['skarpskytten', 'SKARPSKYTTEN', 'ovanlig', {}, 1, 'TRÄFFAR PÅ ÖVER 7 RUTOR ÄR\nALLTID KRITISKA, INGEN\nSKADEMINSKNING MED AVSTÅND', { weapon: 'rifle', wup: 'marksman' }],
+  ['spinnpipan', 'SPINNPIPAN', 'ovanlig', {}, 1, 'HÅLL IN: ELDHASTIGHETEN\nVÄXER TILL DET DUBBLA', { weapon: 'smg', wup: 'spin' }],
+  ['rikoschetten', 'RIKOSCHETTEN', 'ovanlig', {}, 1, 'KULOR STUDSAR MOT VÄGGAR\nOCH KAN TRÄFFA IGEN', { weapon: 'smg', wup: 'ricowall' }],
+  ['dodsmarket', 'DÖDSMÄRKET', 'sallsynt', {}, 1, 'VAR ÅTTONDE TRÄFF PÅ SAMMA\nFIENDE DETONERAR MÄRKET', { weapon: 'smg', wup: 'marks' }],
+  ['blybaltet', 'BLYBÄLTET', 'legendarisk', {}, 1, 'INGEN OMLADDNING: SKJUTER\nDIREKT UR RESERVEN\nSPRIDNINGEN VÄXER', { weapon: 'smg', wup: 'belt', bad: 1 }],
   ['tomhetsstenen', 'TOMHETSSTENEN', 'legendarisk', { dmg: 0.6, fireRate: 0.25, maxHp: -40, damageTaken: 0.35 }, 1, '+60 % SKADA\n+25 % ELDHASTIGHET\n-40 MAX HP\n+35 % SKADA DU TAR', { curse: true, bad: 2, unlock: 40 }],
 ];
 
@@ -138,6 +162,7 @@ function computeMods(ownedIds) {
 // ---------- Dragning ----------
 // Vikten skiftar mot sällsyntare med djup (våning, 0..) och luck (summan av luck-modden, 0.1 per kort).
 const CURSE_WEIGHT = 0.8; // förbannade kort dyker upp ibland
+const PACT_WEIGHT = 2.5, UPGRADE_WEIGHT = 6; // en pakt syns i ungefär var femte dragning; efter pakten kommer uppgraderingarna tätt
 function rarityWeight(rarity, depth, luck) {
   const t = Math.max(0, (depth || 0) * 0.25 + (luck || 0) * 2.5); // 0 = början av rundan
   const base = RARITY[rarity].weight;
@@ -162,10 +187,13 @@ function draw(rng, n, opts) {
   for (const id of opts.owned || []) owned[id] = (owned[id] || 0) + 1;
   const unlocked = opts.unlocked instanceof Set ? opts.unlocked : new Set(opts.unlocked || []);
   const depth = opts.depth || 0, luck = opts.luck || 0;
-  const pool = ALL.filter(c => (owned[c.id] || 0) < c.max && (!c.unlock || unlocked.has(c.id)));
+  // pakter: bara en per runda. Uppgraderingar: bara för vapnet man har svurit sig till, och då ofta.
+  const pact = opts.pact || null;
+  const pool = ALL.filter(c => (owned[c.id] || 0) < c.max && (!c.unlock || unlocked.has(c.id))
+    && (c.pact ? !pact : true) && (c.weapon ? c.weapon === pact : true));
   const out = [];
   while (out.length < n && pool.length) {
-    const c = pickWeighted(rng, pool, x => rarityWeight(x.rarity, depth, luck) * (x.curse ? CURSE_WEIGHT : 1));
+    const c = pickWeighted(rng, pool, x => rarityWeight(x.rarity, depth, luck) * (x.curse ? CURSE_WEIGHT : 1) * (x.pact ? PACT_WEIGHT : x.weapon ? UPGRADE_WEIGHT : 1));
     out.push(c);
     pool.splice(pool.indexOf(c), 1);
   }
@@ -179,11 +207,16 @@ function price(card, depth, discount) {
   return Math.max(5, Math.round(p / 5) * 5);
 }
 
+const WEAPON_NAME = { pistol: 'PISTOL', shotgun: 'HAGELGEVÄR', rifle: 'GEVÄR', smg: 'KPIST' };
+// etikett ovanför kortets namn: förbannelse, pakt eller vilket vapen uppgraderingen hör till
+function tag(card) {
+  return card.curse ? 'FÖRBANNAD' : card.pact ? 'PAKT' : card.weapon ? WEAPON_NAME[card.weapon] : '';
+}
 function describe(card) {
   const r = RARITY[card.rarity];
-  const head = card.name + ' (' + (card.curse ? 'FÖRBANNAD ' : '') + r.label + ')';
+  const head = card.name + ' (' + (tag(card) ? tag(card) + ' ' : '') + r.label + ')';
   return head + '\n' + card.text + (card.max > 1 ? '\nKAN TAS ' + card.max + ' GÅNGER' : '');
 }
 
-window.Cards = { ALL, byId, RARITY, RARITY_ORDER, MOD_KEYS, draw, computeMods, price, describe };
+window.Cards = { ALL, byId, RARITY, RARITY_ORDER, MOD_KEYS, WEAPON_NAME, draw, computeMods, price, describe, tag };
 })();

@@ -54,6 +54,14 @@ const ENEMY_DEFS = {
   S: { name: 'SKELETT', sheet: 'skeleton1', move: 'movement', hp: 5, speed: 1.35, melee: true, dmg: 9, range: 0.95, cd: 0.9, size: 1.0, growl: 'growl', score: 100, atkFps: 14, hitAt: 0.55 },
   K: { name: 'ELDSKELETT', sheet: 'skeleton2', move: 'movemen', hp: 6, speed: 0.95, melee: false, dmg: 8, range: 8.5, cd: 1.8, size: 1.05, growl: 'hiss', score: 150, atkFps: 12, hitAt: 0.5 },
   V: { name: 'VAMPYR', sheet: 'vampire', move: 'movement', hp: 9, speed: 2.15, melee: true, dmg: 14, range: 0.95, cd: 0.75, size: 1.1, growl: 'roar', score: 250, atkFps: 16, hitAt: 0.5 },
+  // nya fiender med eget beteende (ai), 64-pixelsrutor från tools/enemy-sprites/prep.py
+  I: { name: 'SMÅDJÄVUL', sheet: 'imp', fw: 64, move: 'movement', hp: 4, speed: 2.5, melee: true, dmg: 8, range: 0.9, cd: 0.7, size: 1.35, growl: 'hiss', score: 150, atkFps: 14, hitAt: 0.5, ai: 'blink', tip: 'HOPPAR UNDAN VID TRÄFF' },
+  L: { name: 'BLODSLEM', sheet: 'blob', fw: 64, move: 'movement', hp: 10, speed: 0.75, melee: true, dmg: 11, range: 0.95, cd: 1.1, size: 1.6, growl: 'growl', score: 150, atkFps: 12, hitAt: 0.55, ai: 'split', tip: 'DELAR SIG NÄR DEN DÖR' },
+  l: { name: 'BLODDROPPE', frames: 'L', hp: 2.5, speed: 1.8, melee: true, dmg: 5, range: 0.8, cd: 0.8, size: 0.95, growl: 'growl', score: 40, atkFps: 14, hitAt: 0.5 },
+  N: { name: 'BENMAGIKER', sheet: 'mage', fw: 64, move: 'movement', hp: 7, speed: 0.9, melee: false, dmg: 10, range: 9, cd: 2.4, size: 1.0, growl: 'hiss', score: 300, atkFps: 12, hitAt: 0.75, ai: 'summon', proj: 'orb', kite: 3.5, tip: 'VÄCKER DE DÖDA' },
+  O: { name: 'ORKSHAMAN', sheet: 'shaman', fw: 64, move: 'movement', hp: 6, speed: 1.15, melee: false, dmg: 6, range: 7, cd: 2.0, size: 1.0, growl: 'growl', score: 300, atkFps: 12, hitAt: 0.75, ai: 'heal', proj: 'bolt', kite: 4, tip: 'HELAR – DÖDA DEN FÖRST' },
+  R: { name: 'GRAVRÖVARE', sheet: 'rogue', fw: 64, move: 'movement', hp: 6, speed: 2.3, melee: true, dmg: 12, range: 0.95, cd: 0.8, size: 1.0, growl: 'hiss', score: 250, atkFps: 16, hitAt: 0.5, ai: 'stealth', tip: 'OSYNLIG PÅ AVSTÅND' },
+  W: { name: 'ORKKRIGARE', sheet: 'warrior', fw: 64, move: 'movement', hp: 16, speed: 1.05, melee: true, dmg: 16, range: 1.05, cd: 1.2, size: 1.1, growl: 'roar', score: 350, atkFps: 12, hitAt: 0.5, ai: 'charge', armor: 0.6, tip: 'STORMAR – LÅT DEN KROCKA' },
 };
 const BOSS_DEF = { name: 'BENDEMONEN', hp: 320, speed: 1.0, size: 2.6, melee: true, dmg: 22, range: 3.2, score: 5000, growl: 'bossroar' };
 const ELITE_MODS = [
@@ -69,10 +77,11 @@ async function loadAll(setStatus) {
   for (const n of walls.concat(floors)) tex[n] = pixels(await load(A + 'wall/' + n + '.png'));
   setStatus('Laddar fiender…');
   for (const [k, d] of Object.entries(ENEMY_DEFS)) {
+    if (d.frames) { enemyFrames[k] = enemyFrames[d.frames]; continue; }
     const sets = {};
     for (const [st, file] of [['idle', 'idle'], ['move', d.move], ['attack', 'attack'], ['pain', 'take_damage'], ['death', 'death']]) {
       const img = await load(`${A}gfx/enemies-${d.sheet}_${file}.png`);
-      sets[st] = strip(img, Math.floor(img.width / 32));
+      sets[st] = strip(img, Math.floor(img.width / (d.fw || 32)));
     }
     enemyFrames[k] = sets;
   }
@@ -145,9 +154,9 @@ const AMMO = { p9: { name: '9MM', max: 200 }, r556: { name: '5.56', max: 150 }, 
 const WF = window.WEAPON_FRAMES;
 
 // ---------- Spelstate ----------
-const P = { pitch: 0, ryaw: 0, burst: 0, burstT: 0, x: 2, y: 2, a: 0, vx: 0, vy: 0, hp: 100, armor: 0, shield: 0, shieldT: 0, haste: 0, weapon: 0, has: [true, false, false, false],
+const P = { pitch: 0, ryaw: 0, burst: 0, burstT: 0, chainN: 0, x: 2, y: 2, a: 0, vx: 0, vy: 0, hp: 100, armor: 0, shield: 0, shieldT: 0, haste: 0, weapon: 0, has: [true, false, false, false],
   ammo: { p9: 36, r556: 0, shells: 0 }, mags: [9, 0, 0, 0], flash: 0, bob: 0, bobAmp: 0, hurt: 0, pick: 0, shake: 0, camZ: 0.5, deadT: 0 };
-const WS = { state: 'draw', t: 0, aim: 0, next: -1, shot: 99, cd: 0, swayX: 0, swayY: 0, spread: 0, shellPhase: '' };
+const WS = { state: 'draw', t: 0, aim: 0, next: -1, shot: 99, cd: 0, swayX: 0, swayY: 0, spread: 0, shellPhase: '', spin: 0, focus: 0 };
 let map, mw, mh, doors, ents, items, pots, torches, chests, merchants, particles, projectiles, light, flow, flowCell = -1, seen;
 let lvl, totalEnemies, kills, secrets, totalSecrets, itemsTaken, totalItems, levelTime = 0, boss = null, bossBanner = 0;
 let state = 'title', tmr = 0, score = 0, showMap = false, hitMark = 0, hitKill = false, hitCrit = false, hurtDir = [], breathSnd = null, ambient = null, stepT = 0, fireHeld = false;
@@ -157,7 +166,12 @@ const msgs = [];
 const keys = {};
 let mouseDown = false, aimDown = false;
 const mod = k => M[k] || 0;
-function recomputeMods() { M = window.Cards && run ? Cards.computeMods(run.owned) : {}; }
+let UP = new Set(); // vapenuppgraderingar (kortens wup) för vapnet man har svurit sig till
+function recomputeMods() {
+  M = window.Cards && run ? Cards.computeMods(run.owned) : {};
+  UP = new Set(window.Cards && run ? run.owned.map(id => Cards.byId(id)).filter(c => c && c.wup).map(c => c.wup) : []);
+}
+const up = k => UP.has(k) && !!run && WEAPONS[P.weapon].id === run.pact;
 
 const plain = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '');
 function say(t, d = 2.5) { msgs.unshift({ text: plain(t), t: d }); if (msgs.length > 3) msgs.length = 3; }
@@ -246,7 +260,7 @@ function makeEnemy(type, x, y) {
   return { type, d, x, y, hp, maxHp: hp, state: 'idle', t: Math.random() * 3, cd: 1, alert: false, flip: Math.random() < 0.5, dead: false, flash: 0, growlT: 2 + Math.random() * 4, didHit: false, burn: 0, slow: 0, burnAcc: 0 };
 }
 function makeElite(rng, x, y) {
-  const type = run.depth >= 2 ? rng.pick(['S', 'K', 'V']) : rng.pick(['S', 'K']);
+  const type = rng.pick(run.depth >= 3 ? ['S', 'K', 'V', 'L', 'I', 'W', 'R'] : run.depth >= 2 ? ['S', 'K', 'V', 'L', 'I'] : ['S', 'K', 'L']);
   const e = makeEnemy(type, x, y), m = rng.pick(ELITE_MODS);
   e.elite = m; e.hp = e.maxHp = e.maxHp * (m.id === 'tough' ? 4 : 2.4);
   e.d = Object.assign({}, e.d, { size: e.d.size * 1.3, speed: e.d.speed * (m.id === 'fast' ? 1.7 : 1), dmg: e.d.dmg * (m.id === 'brute' ? 1.8 : 1.2), cd: e.d.cd * (m.id === 'fast' ? 0.7 : 1) });
@@ -414,8 +428,8 @@ function render() {
       if (o.boss) { if (!o.dead) drawSprite(bossFrame(o), o.x, o.y, o.d.size, o.dying ? -o.dying * 0.3 : 0, (o.x - P.x) * plX + (o.y - P.y) * plY > 0, null, o.flash > 0 ? o.flash : 0, 0.75, false, o.dying ? [255, 120, 60] : null); continue; }
       if (!o.dead && o.state === 'attack') o.flip = (o.x - P.x) * plX + (o.y - P.y) * plY > 0; // vänd mot mitten när den anfaller
       else if (!o.dead && (o.mvx || o.mvy)) o.flip = o.mvx * plX + o.mvy * plY < 0;
-      const tint = o.dead ? null : o.burn > 0 ? [255, 150, 70] : o.slow > 0 ? [120, 170, 255] : o.elite ? o.elite.tint : null;
-      drawSprite(enemyFrame(o), o.x, o.y, o.d.size * 1.15, 0, o.flip, null, o.flash > 0 ? o.flash : 0, o.elite ? 0.3 : 0, false, tint);
+      const tint = o.dead ? null : o.burn > 0 ? [255, 150, 70] : o.slow > 0 ? [120, 170, 255] : o.marks >= 4 ? [210, 110, 255] : o.haste > 0 ? [150, 255, 150] : o.elite ? o.elite.tint : null;
+      drawSprite(enemyFrame(o), o.x, o.y, o.d.size * 1.15, 0, o.flip, null, o.flash > 0 ? o.flash : 0, o.elite ? 0.3 : 0, false, tint, o.dead ? 0 : o.ghost || 0);
     } else if (s.k === 'i') {
       if (o.type === 'gold' || o.type === 'goldpile') { drawSprite(fx.coin[Math.floor(tmr * 8 + o.x * 3) % 4], o.x, o.y, o.type === 'goldpile' ? 0.24 : 0.16, 0.05 + 0.03 * Math.sin(tmr * 4 + o.y), false, null, 0, 0.6); continue; }
       const img = spr[o.type] || spr['pick_' + o.type];
@@ -425,13 +439,13 @@ function render() {
     else if (s.k === 't') drawSprite(fx.fire[Math.floor(tmr * 14 + o.ph * 5) % 16], o.x, o.y, 0.85, 0, false, 2.2, 0, 0, true);
     else if (s.k === 'c') drawSprite(o.open ? fx.chestOpen[Math.min(3, Math.floor(o.t * 10))] : fx.chest[Math.floor(tmr * 3) % 4], o.x, o.y, 0.5, 0, false, null, 0, 0.6);
     else if (s.k === 'm') drawSprite(fx.merchant[Math.floor(tmr * 5) % 6], o.x, o.y, 1.05, 0, (o.x - P.x) * plX + (o.y - P.y) * plY > 0, null, 0, 0.55);
-    else if (s.k === 'f') drawSprite(fx.fireball[Math.floor(tmr * 16) % 8], o.x, o.y, o.big ? 0.5 : 0.3, o.z - 0.15, false, 2.4, 0, 0, true);
-    else drawSprite(o.img, o.x, o.y, o.size, o.z, false, o.add ? 2 : null, 0, 0, o.add);
+    else if (s.k === 'f') drawSprite(fx.fireball[Math.floor(tmr * 16) % 8], o.x, o.y, o.big ? 0.5 : o.kind === 'gren' ? 0.18 : 0.3, o.z - 0.15, false, 2.4, 0, 0, true, PROJ_TINT[o.kind] || null);
+    else drawSprite(o.img, o.x, o.y, o.size, o.z, false, o.add ? 2 : null, 0, 0, o.add, o.tint || null);
   }
   ctx.putImageData(frame, 0, 0);
 }
 // Tecknar en billboard-sprite. size = höjd i världsenheter, z = höjd över golvet. tint = [r,g,b] färgton.
-function drawSprite(img, wx, wy, size, z, flip, fixedLight, whiteFlash = 0, minLight = 0, additive = false, tint = null) {
+function drawSprite(img, wx, wy, size, z, flip, fixedLight, whiteFlash = 0, minLight = 0, additive = false, tint = null, ghost = 0) {
   const { dirX, dirY, plX, plY, hor, camZ } = view;
   const rx = wx - P.x, ry = wy - P.y;
   const inv = 1 / (plX * dirY - dirX * plY);
@@ -457,10 +471,11 @@ function drawSprite(img, wx, wy, size, z, flip, fixedLight, whiteFlash = 0, minL
       let c = img.data[v * img.w + u];
       const al = c >>> 24;
       if (al < 100) continue;
+      if (ghost && ((x * 7 + y * 13) % 10) < ghost * 10) continue; // gravrövaren: bara några pixlar syns
       const i = y * W + x;
       if (additive) { // eld lyser: additiv blandning
         const d = px[i], k = ff * (al / 255);
-        const r = Math.min(255, (d & 255) + (c & 255) * k), g = Math.min(255, ((d >> 8) & 255) + ((c >> 8) & 255) * k), b = Math.min(255, ((d >> 16) & 255) + ((c >> 16) & 255) * k);
+        const r = Math.min(255, (d & 255) + (c & 255) * k * tr), g = Math.min(255, ((d >> 8) & 255) + ((c >> 8) & 255) * k * tg), b = Math.min(255, ((d >> 16) & 255) + ((c >> 16) & 255) * k * tb);
         px[i] = 0xff000000 | (b << 16) | (g << 8) | r;
       } else {
         if (tint) c = 0xff000000 | (Math.min(255, ((c >> 16) & 255) * tb) << 16) | (Math.min(255, ((c >> 8) & 255) * tg) << 8) | Math.min(255, (c & 255) * tr);
@@ -582,6 +597,10 @@ function drawHUD() {
     const gap = Math.round(2 + WS.spread * 160), cx = W / 2, cy = HORIZON;
     g.fillStyle = 'rgba(255,255,255,0.85)';
     g.fillRect(cx - gap - 3, cy, 3, 1); g.fillRect(cx + gap + 1, cy, 3, 1); g.fillRect(cx, cy - gap - 3, 1, 3); g.fillRect(cx, cy + gap + 1, 1, 3);
+    if (WS.focus > 0) { // kalla blodet laddas
+      g.strokeStyle = WS.focus >= 1 ? (tmr % 0.3 < 0.15 ? '#ffd24a' : '#ff8030') : 'rgba(255,210,74,0.7)'; g.lineWidth = 1;
+      g.beginPath(); g.arc(cx + 0.5, cy + 0.5, 9, -Math.PI / 2, -Math.PI / 2 + TAU * WS.focus); g.stroke();
+    }
     if (hitMark > 0) {
       g.fillStyle = hitKill ? '#ff4030' : hitCrit ? '#ffd24a' : '#ffffff';
       for (let i = 2; i < 5; i++) { g.fillRect(cx - i, cy - i, 1, 1); g.fillRect(cx + i, cy - i, 1, 1); g.fillRect(cx - i, cy + i, 1, 1); g.fillRect(cx + i, cy + i, 1, 1); }
@@ -611,7 +630,8 @@ function drawHUD() {
   txt(String(mag), 120, y0 + 16, mag === 0 ? (tmr % 0.5 < 0.25 ? '#ff4d3d' : '#7a2a20') : low ? '#ffb040' : '#e8d9b0', 2);
   txt('/' + res, 122 + String(mag).length * 16, y0 + 22, '#a89070');
   txt(wp.short, 208, y0 + 5, '#c9a87a');
-  for (let i = 0; i < 4; i++) txt(String(i + 1), 208 + i * 13, y0 + 15, P.has[i] ? (i === P.weapon ? '#ffd24a' : '#8a7550') : '#3a2c1e', 1, false);
+  if (run.pact) txt('EDEN', 208, y0 + 15, '#ff7050', 1, false);
+  else for (let i = 0; i < 4; i++) txt(String(i + 1), 208 + i * 13, y0 + 15, P.has[i] ? (i === P.weapon ? '#ffd24a' : '#8a7550') : '#3a2c1e', 1, false);
   txt(`${kills}/${totalEnemies}`, 208, y0 + 25, '#e8d9b0');
   txt(boss ? 'BOSS' : `VÅN ${run.depth}`, 270, y0 + 5, '#c9a87a');
   txt(`${run.gold}G`, 270, y0 + 15, '#ffd24a');
@@ -671,23 +691,42 @@ function fire() {
   }
   if (WS.state === 'reload') WS.state = 'idle'; // avbryt hagelomladdning
   const firstShot = P.mags[P.weapon] >= effMag(P.weapon);
+  // vapenuppgraderingar som ändrar själva skottet
+  const lastRound = up('lastround') && P.mags[P.weapon] === 1;
+  const slug = up('slug') && WS.aim > 0.5;
+  const dbl = up('double') && !slug && P.mags[P.weapon] >= 2;
+  const focus = up('focus') && WS.focus >= 1;
+  const fan = up('fan') && fireHeld; // hanefläkten: skotten efter det första i svepet
   if (Math.random() >= mod('ammoSave')) P.mags[P.weapon]--;
-  WS.shot = 0; WS.cd = effDelay(wp); P.flash = 0.07; P.shake = Math.max(P.shake, wp.kick * 0.5);
+  if (dbl) P.mags[P.weapon]--;
+  if (up('belt')) { const t = Math.min(P.ammo[wp.ammo], effMag(P.weapon) - P.mags[P.weapon]); P.mags[P.weapon] += t; P.ammo[wp.ammo] -= t; } // blybältet matar ur reserven
+  WS.shot = 0; WS.cd = effDelay(wp) * (fan ? 0.4 : 1) * (dbl ? 1.35 : 1) / (1 + WS.spin * 0.55);
+  if (focus) WS.focus = 0;
+  const kick = wp.kick * (dbl || slug ? 1.6 : 1);
+  P.flash = 0.07; P.shake = Math.max(P.shake, kick * 0.5);
   // lärbart rekylmönster: samma sidoryck i samma ordning varje salva, plus en uppåtknyck som återhämtar sig
   const kickYaw = wp.recoil[P.burst % wp.recoil.length] * (1 - WS.aim * 0.5);
-  P.a += kickYaw; P.ryaw += kickYaw * 0.6; P.pitch += wp.kick * 4 * (1 - WS.aim * 0.5);
+  P.a += kickYaw; P.ryaw += kickYaw * 0.6; P.pitch += kick * 4 * (1 - WS.aim * 0.5);
   P.burst++; P.burstT = effDelay(wp) + 0.25;
-  WS.swayY -= wp.kick * 2;
-  play(wp.sound[0], wp.sound[2], wp.sound[1] * rnd(0.96, 1.04));
+  WS.swayY -= kick * 2;
+  play(wp.sound[0], wp.sound[2], wp.sound[1] * rnd(0.96, 1.04) * (1 + WS.spin * 0.08));
   if (wp.id === 'shotgun') { play('boom', 0.45, 0.55); setTimeout(() => play('reload', 0.45, 1.4), 420 / (1 + mod('fireRate'))); }
+  if (dbl || slug || focus) play('boom', 0.6, slug ? 0.4 : 0.5);
+  // duellanten: vilka som inte hade märkt något när skottet gick
+  const unaware = up('duel') ? new Set(ents.filter(e => !e.dead && !e.alert)) : null;
   // ljudet väcker fiender som kan nå dig inom ~15 rutor
   for (const e of ents) if (!e.dead && pathDist(e) < 15) alertEnemy(e, false);
-  let anyHit = false, killed = false, crit = false;
-  const spread = (wp.spread + WS.spread * 0.5) * (1 - WS.aim * 0.6) / (1 + mod('accuracy'));
+  let anyHit = false, killed = false, crit = false, boomAt = null;
+  const hitSet = new Set(), killSet = new Set();
+  const spread = slug ? 0 : (wp.spread + WS.spread * 0.5) * (1 - WS.aim * 0.6) / (1 + mod('accuracy'))
+    * (fan ? 3 : 1) * (up('belt') ? 1 + Math.min(P.burst, 30) / 20 : 1);
   let base = wp.dmg * (1 + mod('dmg'));
   if (firstShot) base *= 1 + mod('firstShot');
   if (P.hp < maxHp() * 0.35) base *= 1 + mod('lowHpDmg');
-  const pellets = wp.pellets + Math.round(mod('extraPellets'));
+  if (lastRound) base *= 3;
+  if (slug) base *= 7;
+  if (focus) base *= 4;
+  const pellets = slug ? 1 : (wp.pellets + Math.round(mod('extraPellets'))) * (dbl ? 2 : 1);
   for (let p = 0; p < pellets; p++) {
     let a = P.a + (P.burst > 1 || pellets > 1 ? rnd(-1, 1) * spread : 0); // första skottet går där siktet är
     if (p === 0 && touch.active) a = aimAssist(a);
@@ -708,31 +747,99 @@ function fire() {
       if (Math.abs(rx * dy - ry * dx) < 0.22) hits.push({ o: pt, d: along, k: 'p' });
     }
     hits.sort((u, v) => u.d - v.d);
-    let left = 1 + Math.round(mod('pierce')), stopped = false;
+    let left = slug || focus ? 99 : 1 + Math.round(mod('pierce')), stopped = false;
     for (const h of hits) {
       if (left <= 0) { stopped = true; break; }
       if (h.k === 'p') { breakPot(h.o); left--; continue; }
-      let dmg = base * falloff(wp, h.d) * (h.d < 2 && wp.id === 'shotgun' ? 1.3 : 1);
-      const c = Math.random() < mod('critChance');
+      const far = up('marksman') && h.d > 7; // skarpskytten: långa träffar är alltid kritiska utan avståndsförlust
+      let dmg = base * (far || slug ? 1 : falloff(wp, h.d)) * (h.d < 2 && wp.id === 'shotgun' && !slug ? 1.3 : 1);
+      const c = far || Math.random() < mod('critChance');
       if (c) { dmg *= 2 + mod('critDmg'); crit = true; hitStop = Math.max(hitStop, 0.03); }
       if (h.o.elite || h.o.boss) dmg *= 1 + mod('bossDmg');
+      if (unaware && unaware.has(h.o)) { if (h.o.elite || h.o.boss) dmg *= 3; else dmg = Math.max(dmg, h.o.hp + 1); say('DUELLANTEN!', 0.8); }
+      if (up('dragon')) { h.o.burn = Math.max(h.o.burn, 3); h.o.burnAcc = Math.max(h.o.burnAcc, 0.3); }
       anyHit = true;
-      if (hurtEnemy(h.o, dmg, P.x + dx * h.d, P.y + dy * h.d, { crit: c })) killed = true;
+      const hx = P.x + dx * h.d, hy = P.y + dy * h.d;
+      const k = hurtEnemy(h.o, dmg, hx, hy, { crit: c });
+      if (k) { killed = true; killSet.add(h.o); } else hitSet.add(h.o);
+      if (!boomAt) boomAt = { x: hx, y: hy };
+      afterHit(h.o, dmg, hx, hy, p);
       left--;
     }
     if (!stopped && left > 0 && wall.dist < 30) { // kulnedslag på väggen
       const hx = P.x + dx * (wall.dist - 0.04), hy = P.y + dy * (wall.dist - 0.04);
       if (p < 3) spawnImpact(hx, hy, rnd(0.25, 0.7));
       if (p === 0 && Math.random() < 0.5) play('ricochet', 0.25, rnd(0.8, 1.3), { x: hx, y: hy });
+      if (!boomAt) boomAt = { x: hx, y: hy };
+      if (up('ricowall')) ricochetWall(hx, hy, dx, dy, wall.side, base * 0.8);
     }
   }
+  if (lastRound && boomAt) { explode(boomAt.x, boomAt.y, 5 * (1 + mod('dmg')), 1.7); play('bigboom', 0.6, 1.2); P.shake = Math.max(P.shake, 1.5); }
+  if (up('knock')) for (const e of hitSet) knockBack(e);
+  if (up('shrapnel')) for (const e of killSet) shrapnel(e, base);
   if (anyHit) { hitMark = 0.15; hitKill = killed; hitCrit = crit; }
   WS.spread = Math.min(0.06, WS.spread + wp.spread * 0.7 + (wp.id === 'shotgun' ? 0.02 : 0.004));
   if (P.mags[P.weapon] === 0 && P.ammo[wp.ammo] > 0) setTimeout(() => { if (WS.state === 'idle' && P.mags[P.weapon] === 0) startReload(); }, effDelay(wp) * 1000 + 120);
 }
+// ---------- Vapenuppgraderingar (kort med wup, kräver vapnets pakt) ----------
+function nearestFoes(e, r, n) { // levande fiender nära e som e har fri sikt till, närmast först
+  return ents.filter(o => o !== e && !o.dead && !o.dying && Math.hypot(o.x - e.x, o.y - e.y) < r && hasLOS(e.x, e.y, o.x, o.y))
+    .sort((a, b) => Math.hypot(a.x - e.x, a.y - e.y) - Math.hypot(b.x - e.x, b.y - e.y)).slice(0, n);
+}
+function zap(ax, ay, bx, by, tint) { // synlig stråle mellan två punkter (studs, blixt)
+  for (let i = 1; i <= 5; i++) { const t = i / 6; particles.push({ x: ax + (bx - ax) * t + rnd(-0.08, 0.08), y: ay + (by - ay) * t + rnd(-0.08, 0.08), z: 0.5 + rnd(-0.1, 0.1), vx: 0, vy: 0, vz: 0, life: 0.18, maxLife: 0.18, frames: fx.hit, img: fx.hit[0], size: 0.18, add: true, tint }); }
+}
+function afterHit(e, dmg, hx, hy, pellet) {
+  if (up('ricochet') && pellet === 0) { // studskulan
+    const o = nearestFoes(e, 6, 1)[0];
+    if (o) { zap(e.x, e.y, o.x, o.y, [255, 230, 160]); play('ricochet', 0.45, rnd(1.2, 1.5), { x: o.x, y: o.y }); hurtEnemy(o, dmg * 0.8, o.x, o.y, { noProc: true }); }
+  }
+  if (up('chain') && ++P.chainN % 4 === 0) { // kedjeblixten
+    let from = e;
+    for (const o of nearestFoes(e, 4.5, 3)) { zap(from.x, from.y, o.x, o.y, [140, 190, 255]); hurtEnemy(o, dmg * 1.2, o.x, o.y, { noProc: true }); from = o; }
+    play('whoosh', 0.5, 2, { x: e.x, y: e.y });
+  }
+  if (up('marks') && !e.dead) { // dödsmärket
+    e.marks = (e.marks || 0) + 1;
+    if (e.marks >= 8) { e.marks = 0; explode(e.x, e.y, 9 * (1 + mod('dmg')), 1.4); play('bigboom', 0.5, 1.4, { x: e.x, y: e.y }); say('DÖDSMÄRKET!', 0.8); }
+  }
+}
+function ricochetWall(hx, hy, dx, dy, side, dmg) { // rikoschetten: kulan studsar en gång mot väggen
+  if (side === 0) dx = -dx; else dy = -dy;
+  const w2 = cast(hx, hy, dx, dy, 10);
+  let best = null, bd = w2.dist;
+  for (const e of ents) {
+    if (e.dead) continue;
+    const rx = e.x - hx, ry = e.y - hy, along = rx * dx + ry * dy;
+    if (along > 0.05 && along < bd && Math.abs(rx * dy - ry * dx) < 0.3 * e.d.size) { best = e; bd = along; }
+  }
+  if (best) { zap(hx, hy, best.x, best.y, [255, 220, 150]); hurtEnemy(best, dmg, best.x, best.y, { noProc: true }); hitMark = 0.15; }
+  else if (Math.random() < 0.3) spawnImpact(hx + dx * (w2.dist - 0.04), hy + dy * (w2.dist - 0.04), rnd(0.3, 0.6));
+}
+function knockBack(e) { // slagkraften: nära fiender slungas bakåt, krock i vägg skadar
+  if (e.dead || e.boss) return;
+  const d = Math.hypot(e.x - P.x, e.y - P.y); if (d > 3.5) return;
+  const a = Math.atan2(e.y - P.y, e.x - P.x), dist = (1.6 - d * 0.3) * (e.elite ? 0.5 : 1);
+  const ox = e.x, oy = e.y;
+  for (let i = 0; i < 6; i++) tryMove(e, Math.cos(a) * dist / 6, Math.sin(a) * dist / 6, 0.28);
+  e.charge = 0; e.state = 'pain'; e.t = 0;
+  if (Math.hypot(e.x - ox, e.y - oy) < dist * 0.7) { hurtEnemy(e, 3 * (1 + mod('dmg')), e.x, e.y, { noProc: true }); play('bigboom', 0.35, 1.5, { x: e.x, y: e.y }); P.shake = Math.max(P.shake, 1.2); }
+}
+function shrapnel(e, dmg) { // splitterhaglet: döda fiender sprängs och skadar grannarna
+  play('fireburst', 0.5, 1.3, { x: e.x, y: e.y });
+  for (let i = 0; i < 8; i++) { const a = rnd(0, TAU), sp = rnd(1.5, 3); particles.push({ x: e.x, y: e.y, z: 0.5, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: rnd(0.5, 2), life: 0.5, img: fx.shards[(i * 5) % fx.shards.length], size: 0.12, grav: true }); }
+  for (const o of nearestFoes(e, 2.6, 3)) hurtEnemy(o, dmg * 1.5, o.x, o.y, { noProc: true });
+}
+function throwMag() { // kastmagasinet: det gamla magasinet flyger iväg som en granat
+  const a = P.a;
+  projectiles.push({ x: P.x + Math.cos(a) * 0.4, y: P.y + Math.sin(a) * 0.4, z: 0.5, vx: Math.cos(a) * 8, vy: Math.sin(a) * 8, dmg: 9 * (1 + mod('dmg')), src: P, friendly: true, kind: 'gren', life: 0.9 });
+  play('whoosh', 0.5, 0.8);
+}
 function startReload() {
   const wp = WEAPONS[P.weapon];
   if (WS.state !== 'idle' || P.mags[P.weapon] >= effMag(P.weapon) || P.ammo[wp.ammo] <= 0) return;
+  if (up('grenade')) throwMag();
+  if (up('quickload') && P.mags[P.weapon] === 0) { finishReload(); play('reload', 0.6, 1.8); WS.cd = Math.max(WS.cd, 0.1); WS.swayY += 6; return; } // tomhylsan
   WS.state = 'reload'; WS.t = 0; WS.aim = 0;
   if (wp.shellReload) WS.shellPhase = 'start';
   else play('reload', 0.6, 1.0 / reloadMul());
@@ -751,6 +858,8 @@ function autoSwitch() {
 // opt: { crit, noProc (ingen explosion/brand), source }
 function hurtEnemy(e, dmg, hx, hy, opt = {}) {
   if (e.dead || e.dying) return false;
+  if (e.d.armor) { const before = dmg; dmg = Math.max(dmg * 0.25, dmg - e.d.armor); if (dmg < before * 0.6 && !opt.quiet) play('ricochet', 0.35, rnd(1.2, 1.5), { x: e.x, y: e.y }); }
+  e.revealT = 2;
   if (!e.boss && !e.elite && mod('execute') > 0 && (e.hp - dmg) / e.maxHp < mod('execute')) dmg = e.hp;
   e.hp -= dmg; e.flash = 0.12; alertEnemy(e, true);
   if (mod('lifesteal') > 0) heal(dmg * mod('lifesteal'), true);
@@ -762,6 +871,7 @@ function hurtEnemy(e, dmg, hx, hy, opt = {}) {
     if (Math.random() < mod('explodeChance')) explode(hx ?? e.x, hy ?? e.y, dmg * 0.6, 1.4);
   }
   if (e.hp <= 0) { killEnemy(e); return true; }
+  if (e.d.ai === 'blink' && (e.blinkCd || 0) <= 0 && Math.random() < 0.45) blink(e);
   if (!e.boss && !opt.quiet && Math.random() < 0.55 && e.state !== 'attack') { e.state = 'pain'; e.t = 0; }
   return false;
 }
@@ -774,6 +884,7 @@ function killEnemy(e) {
   if (mod('killArmor')) P.armor = Math.min(200, P.armor + mod('killArmor'));
   if (mod('speedOnKill')) P.haste = Math.max(P.haste, mod('speedOnKill'));
   if (e.boss) { bossDefeated(e); return; }
+  if (e.d.ai === 'split') splitBlob(e);
   if (e.elite) {
     for (let i = 0; i < 4; i++) dropItem('gold', e.x, e.y);
     dropItem(Math.random() < 0.5 ? 'health' : 'ammo', e.x, e.y);
@@ -863,6 +974,10 @@ function occupied(d) { // dörren får inte stängas på någon
 }
 function alertEnemy(e, spread) {
   if (e.dead) return;
+  if (!e.alert && e.d.tip && run) { // första mötet med en ny sorts fiende i rundan
+    run.seen = run.seen || [];
+    if (!run.seen.includes(e.type)) { run.seen.push(e.type); say(`${e.d.name}: ${e.d.tip}`, 4); }
+  }
   if (!e.alert) { e.alert = true; e.cd = Math.max(e.cd, rnd(0.35, 0.8)); if (Math.random() < 0.7) play(e.d.growl, 0.5, rnd(0.9, 1.1), { x: e.x, y: e.y }); }
   if (spread) for (const o of ents) if (o !== e && !o.dead && !o.alert && Math.hypot(o.x - e.x, o.y - e.y) < 6 && hasLOS(o.x, o.y, e.x, e.y)) alertEnemy(o, false);
 }
@@ -873,12 +988,23 @@ function openUI(fn) {
   fn();
 }
 function closeUI(next = 'play') { state = next; if (next === 'play') lockPointer(); }
-function drawCards(n, opt = {}) { return Cards.draw(run.cardRng, n + Math.round(mod('cardChoices')), { owned: run.owned, depth: run.depth, luck: mod('luck') + (opt.luck || 0), unlocked: new Set(profile.unlocked) }); }
+function drawCards(n, opt = {}) { return Cards.draw(run.cardRng, n + Math.round(mod('cardChoices')), { owned: run.owned, depth: run.depth, luck: mod('luck') + (opt.luck || 0), unlocked: new Set(profile.unlocked), pact: run.pact }); }
 function gainCard(card) {
   if (!card) return;
   run.owned.push(card.id); recomputeMods(); play('card', 0.8);
+  if (card.pact) swearPact(card.pact);
   if (P.hp > maxHp()) P.hp = maxHp();
   P.shield = Math.min(P.shield, mod('shield'));
+}
+const pactAmmo = () => WEAPONS.find(w => w.id === run.pact).ammo;
+function swearPact(id) { // vapenpakt: bara ett vapen resten av rundan, men det kan få unika uppgraderingar
+  run.pact = id;
+  const i = WEAPONS.findIndex(w => w.id === id), wp = WEAPONS[i];
+  if (!P.has[i]) { P.has[i] = true; P.mags[i] = effMag(i); }
+  P.ammo[wp.ammo] = Math.min(AMMO[wp.ammo].max, P.ammo[wp.ammo] + (wp.ammo === 'shells' ? 12 : 40));
+  for (let k = 0; k < WEAPONS.length; k++) if (k !== i) P.has[k] = false;
+  if (P.weapon !== i) { P.weapon = i; WS.state = 'draw'; WS.t = 0; WS.next = -1; }
+  say('DU HAR SVURIT DIG TILL ' + wp.name, 3); play('secret', 0.7, 0.7);
 }
 function openChest(c) {
   c.open = true; c.t = 0; play('chest', 0.8); itemsTaken++; score += 100;
@@ -896,6 +1022,8 @@ function shopItems(m) {
       { kind: 'reroll', label: 'NYA KORT', price: 15 + 10 * run.rerolls },
     ]);
   }
+  // efter en pakt: inga andra pakter och bara uppgraderingar för det egna vapnet
+  m.stock = m.stock.filter(s => s.kind !== 'card' || (!(run.pact && s.card.pact) && (!s.card.weapon || s.card.weapon === run.pact)));
   return m.stock;
 }
 function openShop(m) {
@@ -903,7 +1031,7 @@ function openShop(m) {
     if (run.gold < item.price) return { ok: false, gold: run.gold };
     if (item.kind === 'health' && P.hp >= maxHp()) { say('DU ÄR REDAN FRISK', 1.2); return { ok: false, gold: run.gold }; }
     run.gold -= item.price; play('buy', 0.8);
-    if (item.kind === 'card') { gainCard(item.card); m.stock = m.stock.filter(s => s !== item); }
+    if (item.kind === 'card') { gainCard(item.card); m.stock = m.stock.filter(s => s !== item); if (item.card.pact) return { ok: true, gold: run.gold, items: shopItems(m) }; }
     else if (item.kind === 'health') heal(40 * (1 + mod('healMul')));
     else if (item.kind === 'armor') P.armor = Math.min(200, P.armor + 50);
     else if (item.kind === 'ammo') pickUp({ type: 'ammo' }, true);
@@ -1009,7 +1137,11 @@ function pickUp(it, bought) {
   }
   if (it.type === 'health') { if (P.hp >= maxHp()) return false; const n = Math.round(30 * (1 + mod('healMul'))); heal(n); say(`+${n} HÄLSA`, 1.5); play('health', 0.7); }
   else if (it.type === 'armor') { if (P.armor >= 200) return false; P.armor = Math.min(200, P.armor + 50); say('+50 RUSTNING', 1.5); play('armor', 0.7); }
-  else if (it.type === 'ammo') {
+  else if (it.type === 'ammo' && run.pact) { // pakten: all ammo blir vapnets egen
+    const k = pactAmmo(), n = Math.round({ p9: 30, r556: 28, shells: 9 }[k] * am);
+    if (P.ammo[k] >= AMMO[k].max && !bought) return false;
+    P.ammo[k] = Math.min(AMMO[k].max, P.ammo[k] + n); say(`AMMO +${n} ${AMMO[k].name}`, 2); play('pickup', 0.7);
+  } else if (it.type === 'ammo') {
     const full = Object.keys(AMMO).every(k => P.ammo[k] >= AMMO[k].max);
     if (full && !bought) return false;
     const add = { p9: Math.round(18 * am), r556: Math.round((P.has[2] ? 20 : 8) * am), shells: Math.round((P.has[1] ? 6 : 3) * am) };
@@ -1017,6 +1149,10 @@ function pickUp(it, bought) {
     say(`AMMO +${add.p9} 9MM +${add.r556} 5.56 +${add.shells} PATR`, 2); play('pickup', 0.7);
   } else {
     const i = { shotgun: 1, rifle: 2, smg: 3 }[it.type], w = WEAPONS[i];
+    if (run.pact && w.id !== run.pact) { // pakten: andra vapen blir ammo och guld
+      const k = pactAmmo(); P.ammo[k] = Math.min(AMMO[k].max, P.ammo[k] + (k === 'shells' ? 8 : 30)); run.gold += 20;
+      say(`EDEN: ${w.name} BLIR AMMO OCH 20 GULD`, 2.5); play('coin', 0.7); return true;
+    }
     const first = !P.has[i];
     P.has[i] = true;
     if (first) P.mags[i] = effMag(i);
@@ -1057,11 +1193,13 @@ function updateWeapon(dt) {
   if (WS.state !== 'reload') WS.loaded = false;
   if (touch.tap > 0) touch.tap -= dt;
   const trig = mouseDown || keys.ControlLeft || keys.KeyF || touch.tap > 0;
-  if (trig && (wp.auto || !fireHeld)) fire();
+  WS.spin = trig && up('spin') ? Math.min(2, WS.spin + dt) : Math.max(0, WS.spin - dt * 3);
+  WS.focus = up('focus') && WS.aim > 0.8 && WS.state === 'idle' ? Math.min(1, WS.focus + dt) : 0;
+  if (trig && (wp.auto || up('fan') || !fireHeld)) fire();
   fireHeld = trig;
 }
 function statusTick(e, dt) { // brand och långsamhet
-  e.slow = Math.max(0, e.slow - dt);
+  e.slow = Math.max(0, e.slow - dt); e.haste = Math.max(0, (e.haste || 0) - dt);
   if (e.burn > 0) {
     e.burn -= dt; e.burnAcc += dt;
     if (e.burnAcc >= 0.5) { e.burnAcc = 0; hurtEnemy(e, 0.8 * (1 + mod('dmg')), e.x, e.y, { noProc: true, quiet: true }); }
@@ -1075,7 +1213,8 @@ function updateEnemy(e, dt) {
   const los = dist < 14 && hasLOS(e.x, e.y, P.x, P.y);
   if (!e.alert && los && dist < 10) alertEnemy(e, true);
   if (!e.alert) { e.state = 'idle'; return; }
-  e.growlT -= dt; if (e.growlT <= 0) { e.growlT = rnd(4, 9); play(e.d.growl, 0.45, rnd(0.9, 1.2), { x: e.x, y: e.y }); }
+  e.growlT -= dt; if (e.growlT <= 0) { e.growlT = rnd(4, 9); play(e.d.growl, e.d.ai === 'stealth' ? 0.15 : 0.45, rnd(0.9, 1.2), { x: e.x, y: e.y }); }
+  if (e.d.ai && ENEMY_AI[e.d.ai](e, dt, dist, los)) return;
   if (e.state === 'pain') { if (e.t > 5 / 14) { e.state = 'move'; e.t = 0; } return; }
   e.cd -= dt;
   if (e.state === 'attack') {
@@ -1086,9 +1225,9 @@ function updateEnemy(e, dt) {
   }
   if (los && dist < e.d.range && e.cd <= 0) { e.state = 'attack'; e.t = 0; e.didHit = false; return; }
   e.state = 'move'; e.mvx = 0; e.mvy = 0;
-  const want = !(los && !e.d.melee && dist < e.d.range * 0.6) && dist > 0.75;
+  const want = (e.d.kite && los && dist < e.d.kite) || (!(los && !e.d.melee && dist < e.d.range * 0.6) && dist > 0.75);
   if (!want) return;
-  const sp = e.d.speed * diff().speed * dt * (e.slow > 0 ? 0.5 : 1);
+  const sp = e.d.speed * diff().speed * dt * (e.slow > 0 ? 0.5 : 1) * (e.haste > 0 ? 1.45 : 1);
   let tx = P.x, ty = P.y;
   if (!los || dist > 6) { // följ avståndsfältet runt hörn
     const cx = e.x | 0, cy = e.y | 0; let best = flow[cy * mw + cx], bx = -1, by = -1;
@@ -1102,7 +1241,9 @@ function updateEnemy(e, dt) {
       if (d && !d.gate && !d.secret && d.target === 0) { d.target = 1; play('door', 0.5, 1, { x: bx + 0.5, y: by + 0.5 }); }
     }
   }
-  const ang = Math.atan2(ty - e.y, tx - e.x);
+  let ang = Math.atan2(ty - e.y, tx - e.x);
+  if (e.d.kite && los && dist < e.d.kite) ang += Math.PI; // magiker och shamaner håller avstånd
+  else if (e.d.ai === 'blink' && los) ang += Math.sin(e.t * 5 + e.x * 3) * 0.7; // smådjävulen sicksackar
   const ox = e.x, oy = e.y;
   tryMove(e, Math.cos(ang) * sp, Math.sin(ang) * sp, 0.28);
   if (Math.hypot(e.x - ox, e.y - oy) < sp * 0.3) tryMove(e, Math.cos(ang + 1.2) * sp, Math.sin(ang + 1.2) * sp, 0.28);
@@ -1110,28 +1251,127 @@ function updateEnemy(e, dt) {
   e.mvx = e.x - ox; e.mvy = e.y - oy;
 }
 function enemyStrike(e, dist) {
-  const dmg = e.d.dmg * (1 + 0.1 * (run.depth - 1));
+  let dmg = e.d.dmg * (1 + 0.1 * (run.depth - 1));
   if (e.d.melee) {
     if (dist < e.d.range + 0.35) {
+      if (e.d.ai === 'stealth') { // rygghugg om spelaren tittar bort
+        let off = Math.abs(Math.atan2(e.y - P.y, e.x - P.x) - P.a) % TAU; if (off > Math.PI) off = TAU - off;
+        if (off > 1.75) { dmg *= 1.7; say('RYGGHUGG!', 1); }
+      }
       hurtPlayer(dmg, e.x, e.y, 'melee'); play('splat', 0.5, 0.7);
       if (mod('thorns') > 0) hurtEnemy(e, mod('thorns'), e.x, e.y, { noProc: true });
       if (e.elite && e.elite.id === 'vamp') e.hp = Math.min(e.maxHp, e.hp + dmg);
     } else play('whoosh', 0.4, 1.2, { x: e.x, y: e.y });
   } else { // eldklot som går att undvika
     const lead = 0.25, tx = P.x + P.vx * lead, ty = P.y + P.vy * lead, a = Math.atan2(ty - e.y, tx - e.x) + rnd(-0.05, 0.05);
-    shootFireball(e, a, 5.2, dmg);
-    if (e.elite) { shootFireball(e, a - 0.18, 5.2, dmg); shootFireball(e, a + 0.18, 5.2, dmg); }
+    const kind = e.d.proj, speed = kind === 'orb' ? 3.4 : kind === 'bolt' ? 6.5 : 5.2;
+    shootFireball(e, a, speed, dmg, false, kind);
+    if (e.elite) { shootFireball(e, a - 0.18, speed, dmg, false, kind); shootFireball(e, a + 0.18, speed, dmg, false, kind); }
     play('whoosh', 0.6, 0.8, { x: e.x, y: e.y });
   }
 }
-function shootFireball(src, a, speed, dmg, big) {
+// ---------- Specialfiender ----------
+function spawnPuff(x, y, n = 5) { // magisk rök när något dyker upp eller försvinner
+  for (let j = 0; j < n; j++) particles.push({ x: x + rnd(-0.2, 0.2), y: y + rnd(-0.2, 0.2), z: rnd(0.2, 0.6), vx: rnd(-0.8, 0.8), vy: rnd(-0.8, 0.8), vz: rnd(0.5, 1.5), life: 0.45, maxLife: 0.45, frames: fx.hit, img: fx.hit[0], size: 0.4, add: true });
+}
+function freeSpot(x, y, r) { return !solid(x, y) && !solid(x + r, y) && !solid(x - r, y) && !solid(x, y + r) && !solid(x, y - r); }
+function blink(e) { // smådjävulen hoppar åt sidan
+  const side = Math.atan2(P.y - e.y, P.x - e.x) + (Math.random() < 0.5 ? 1 : -1) * Math.PI / 2;
+  for (const d of [2.2, 1.6, 1.1]) {
+    const x = e.x + Math.cos(side) * d, y = e.y + Math.sin(side) * d;
+    if (freeSpot(x, y, 0.3)) { spawnPuff(e.x, e.y); e.x = x; e.y = y; spawnPuff(x, y); e.blinkCd = 1.6; play('whoosh', 0.5, 1.6, { x, y }); return; }
+  }
+}
+function splitBlob(e) { // blodslemmet delar sig i två droppar
+  for (const s of [-1, 1]) {
+    const a = Math.atan2(P.y - e.y, P.x - e.x) + s * 1.2, x = e.x + Math.cos(a) * 0.45, y = e.y + Math.sin(a) * 0.45;
+    const c = makeEnemy('l', freeSpot(x, y, 0.2) ? x : e.x, freeSpot(x, y, 0.2) ? y : e.y);
+    c.alert = true; c.state = 'move'; c.cd = 0.8; ents.push(c); totalEnemies++;
+  }
+  play('splat', 0.7, 0.6, { x: e.x, y: e.y });
+}
+const ENEMY_AI = { // returnerar true när beteendet tar över hela uppdateringen
+  blink(e, dt) { e.blinkCd = (e.blinkCd || 0) - dt; return false; },
+  split() { return false; },
+  summon(e, dt, dist, los) { // benmagikern väcker skelett, högst två åt gången
+    e.summonT = (e.summonT ?? rnd(2, 4)) - dt;
+    if (e.summonT > 0 || !los || dist > 12 || e.state !== 'move') return false;
+    e.summonT = rnd(8, 11);
+    if (ents.filter(o => o.master === e && !o.dead).length >= 2) return false;
+    const a0 = rnd(0, TAU); let x = 0, y = 0, found = false;
+    for (let k = 0; k < 8 && !found; k++) { const a = a0 + k * TAU / 8; x = e.x + Math.cos(a) * 1.3; y = e.y + Math.sin(a) * 1.3; found = freeSpot(x, y, 0.3); }
+    if (!found) return false;
+    const m = makeEnemy('S', x, y); m.alert = true; m.master = e; m.state = 'pain'; m.t = 0; ents.push(m); totalEnemies++;
+    spawnPuff(x, y, 8); play('hiss', 0.6, 0.6, { x, y }); say('BENMAGIKERN VÄCKER DE DÖDA', 1.5);
+    return false;
+  },
+  heal(e, dt) { // orkshamanen helar och driver på sina vänner
+    e.healT = (e.healT ?? rnd(1.5, 3)) - dt;
+    if (e.healT > 0 || e.state === 'attack' || e.state === 'pain') return false;
+    e.healT = 5;
+    let n = 0;
+    for (const o of ents) {
+      if (o.dead || o.boss || Math.hypot(o.x - e.x, o.y - e.y) > 5.5) continue;
+      if (o !== e && o.hp < o.maxHp) { o.hp = Math.min(o.maxHp, o.hp + o.maxHp * 0.35); n++; }
+      if (o !== e) { o.haste = 3.5; o.alert = true; }
+      for (let j = 0; j < 3; j++) particles.push({ x: o.x + rnd(-0.2, 0.2), y: o.y + rnd(-0.2, 0.2), z: rnd(0.2, 0.8), vx: 0, vy: 0, vz: rnd(0.6, 1.2), life: 0.6, maxLife: 0.6, frames: fx.hit, img: fx.hit[0], size: 0.22, add: true });
+    }
+    play('health', 0.4, 0.6, { x: e.x, y: e.y });
+    if (n) e.flash = 0.1;
+    return false;
+  },
+  stealth(e, dt, dist) { // gravrövaren syns bara på nära håll, när den anfaller eller har träffats
+    e.revealT = Math.max(0, (e.revealT || 0) - dt);
+    const want = e.state === 'attack' || e.state === 'pain' || dist < 2.2 || e.revealT > 0 ? 0 : 0.88;
+    e.ghost = e.ghost === undefined ? want : e.ghost + clamp(want - e.ghost, -dt * 3, dt * 1.2);
+    return false;
+  },
+  charge(e, dt, dist, los) { // orkkrigaren stormar fram och blir yr om den krockar i en vägg
+    e.chargeCd = (e.chargeCd ?? rnd(2, 4)) - dt;
+    if (e.stun > 0) { e.stun -= dt; e.state = 'pain'; e.t = Math.min(e.t, 0.25); return true; }
+    if (e.charge > 0) {
+      e.charge -= dt; e.state = 'move';
+      const sp = 5.2 * diff().speed * dt * (e.slow > 0 ? 0.5 : 1), ox = e.x, oy = e.y;
+      tryMove(e, Math.cos(e.chargeA) * sp, Math.sin(e.chargeA) * sp, 0.3);
+      e.mvx = e.x - ox; e.mvy = e.y - oy;
+      if (Math.hypot(P.x - e.x, P.y - e.y) < 0.8) { // träff: skada och knuff
+        e.charge = 0; e.cd = 1;
+        hurtPlayer(e.d.dmg * 1.3 * (1 + 0.1 * (run.depth - 1)), e.x, e.y, 'melee'); play('bigboom', 0.5, 1.3);
+        tryMove(P, Math.cos(e.chargeA) * 0.7, Math.sin(e.chargeA) * 0.7, 0.25); P.shake = Math.max(P.shake, 2);
+      } else if (Math.hypot(e.x - ox, e.y - oy) < sp * 0.35) { // krock i väggen
+        e.charge = 0; e.stun = 1.6; e.t = 0; play('bigboom', 0.5, 0.7, { x: e.x, y: e.y }); say('ORKKRIGAREN ÄR YR!', 1);
+      }
+      return true;
+    }
+    if (los && dist > 2.5 && dist < 8 && e.chargeCd <= 0 && e.state === 'move') {
+      e.chargeCd = rnd(5, 7); e.charge = 1.3; e.chargeA = Math.atan2(P.y - e.y, P.x - e.x);
+      play('roar', 0.7, 0.7, { x: e.x, y: e.y });
+      return true;
+    }
+    return false;
+  },
+};
+// kind: undefined = eldklot, 'orb' = benmagikerns sökande klot, 'bolt' = shamanens gröna blixt
+const PROJ_TINT = { orb: [190, 100, 255], bolt: [110, 255, 110], gren: [230, 230, 200] };
+function shootFireball(src, a, speed, dmg, big, kind) {
   const r = src.boss ? 1.1 : 0.4;
-  projectiles.push({ x: src.x + Math.cos(a) * r, y: src.y + Math.sin(a) * r, z: src.boss ? 0.8 : 0.55, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, dmg, src, big, life: 6 });
+  projectiles.push({ x: src.x + Math.cos(a) * r, y: src.y + Math.sin(a) * r, z: src.boss ? 0.8 : 0.55, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, dmg, src, big, kind, life: kind === 'orb' ? 5 : 6 });
 }
 function updateProjectiles(dt) {
   for (const p of projectiles) {
+    if (p.kind === 'orb') { // svänger mot spelaren, men långsamt nog att springa ifrån
+      const sp = Math.hypot(p.vx, p.vy), cur = Math.atan2(p.vy, p.vx);
+      let d = Math.atan2(P.y - p.y, P.x - p.x) - cur; d = Math.atan2(Math.sin(d), Math.cos(d));
+      const na = cur + clamp(d, -1.4 * dt, 1.4 * dt); p.vx = Math.cos(na) * sp; p.vy = Math.sin(na) * sp;
+    }
     p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
     if (p.z > 0.55) p.z -= dt * 0.25;
+    if (p.friendly) { // spelarens granat: smäller vid fiende, vägg eller när tiden är ute
+      if (solid(p.x, p.y) || p.life <= 0 || ents.some(e => !e.dead && Math.hypot(e.x - p.x, e.y - p.y) < 0.5)) {
+        p.dead = true; explode(p.x - p.vx * 0.03, p.y - p.vy * 0.03, p.dmg, 2.0); play('bigboom', 0.6, 1.1, { x: p.x, y: p.y }); P.shake = Math.max(P.shake, 1);
+      }
+      continue;
+    }
     if (Math.hypot(p.x - P.x, p.y - P.y) < (p.big ? 0.5 : 0.35)) { hurtPlayer(p.dmg, p.src.x, p.src.y, 'proj'); p.dead = true; }
     else if (solid(p.x, p.y) || p.life <= 0) p.dead = true;
     if (p.dead) {
@@ -1413,7 +1653,7 @@ function setupTouch() {
   const btn = (act, icon, cls) => `<button class="tb ${cls}" data-act="${act}" aria-label="${act}"><img src="${T}btn.png" alt=""><img class="ic${act === 'fullscreen' ? ' fsicon' : ''}" src="${T}icon_${icon}.png" alt=""></button>`;
   ui.innerHTML = `<div class="joy" hidden><img class="pad" src="${T}pad.png" alt=""><img class="nub" src="${T}nub.png" alt=""></div>
     ${btn('fire', 'crosshair', 'fire')}${btn('aim', 'target', 'aim')}${btn('reload', 'arrow_rotate', 'reload')}${btn('use', 'hand', 'use')}${btn('swap', 'arrow_curved', 'swap')}
-    ${btn('map', 'search', 'map small')}${btn('deck', 'star', 'deck small')}${btn('pause', 'pause', 'pausebtn small')}${btn('fullscreen', 'size_larger', 'fsbtn small')}`;
+    ${btn('map', 'map', 'map small')}${btn('deck', 'star', 'deck small')}${btn('pause', 'pause', 'pausebtn small')}${btn('fullscreen', 'size_larger', 'fsbtn small')}`;
   const joy = ui.querySelector('.joy'), nub = ui.querySelector('.nub');
   const ptrs = new Map(); // pointerId -> { kind, x, y, ox, oy }
   const R = () => Math.min(innerWidth, innerHeight) * 0.13; // joystickens radie
@@ -1522,7 +1762,8 @@ function openUnlocks() {
   requestAnimationFrame(loop);
   window.__game = { P, WS, ents: () => ents, items: () => items, pots: () => pots, chests: () => chests, merchants: () => merchants, state: () => state, run: () => run, kills: () => kills, begin, doors: () => doors,
     fire, useKey, startReload, switchWeapon, floorDone, nextFloor, projectiles: () => projectiles, secrets: () => secrets, keys, setMouse: (d, aim) => { mouseDown = d; aimDown = !!aim; }, pause, resume, hurtPlayer,
-    light: () => light, lvl: () => lvl, boss: () => boss, gainCard, mods: () => M, loadFloor, openShop, openChest, profile, showTitle, endRun, hurtEnemy };
+    light: () => light, lvl: () => lvl, boss: () => boss, gainCard, mods: () => M, loadFloor, openShop, openChest, profile, showTitle, endRun, hurtEnemy,
+    spawnEnemy: (type, x, y) => { const e = makeEnemy(type, x, y); ents.push(e); totalEnemies++; return e; } };
   if (params.has('autostart')) begin('new');
 })();
 document.getElementById('start').addEventListener('click', () => begin('new'));

@@ -468,7 +468,10 @@
 
     // fiender
     const nEnemies = 6 + 3 * depth + rng.int(-1, 2);
-    const eTypes = [['S', Math.max(5, 11 - depth)], ['K', 3 + 1.5 * depth], ['V', depth >= 2 ? 2 + 2 * (depth - 1) : 0]];
+    // vikter per våning: nya sorter dyker upp ju djupare man kommer
+    const eTypes = [['S', Math.max(4, 10 - depth)], ['K', 3 + 1.2 * depth], ['V', depth >= 2 ? 1.5 + 1.5 * (depth - 1) : 0],
+      ['L', 2 + 0.5 * depth], ['I', depth >= 2 ? 1 + depth : 0], ['O', depth >= 2 ? 0.8 + 0.4 * depth : 0],
+      ['N', depth >= 3 ? 0.5 + 0.5 * depth : 0], ['R', depth >= 3 ? 1 + 0.5 * depth : 0], ['W', depth >= 3 ? 0.6 + 0.6 * depth : 0]];
     const farFromP = (x, y) => Math.hypot(x - P[0], y - P[1]) >= 7;
     const enemyRooms = main.filter(r => r.type !== 'start' && r.type !== 'shop');
     const cnt = new Map();
@@ -541,7 +544,8 @@
   }
 
   // ---------- Validering ----------
-  const VALID = new Set('12345DG*xPSKVEBhaA$grmCMfo.'.split(''));
+  const ENEMY_CHARS = 'SKVILNORWE';
+  const VALID = new Set(('12345DG*xPBhaA$grmCMfo.' + ENEMY_CHARS).split(''));
   function validate(level) {
     const errs = [];
     const map = level && level.map;
@@ -598,7 +602,7 @@
     const inRoom = (r, x, y) => x >= r.x && y >= r.y && x < r.x + r.w && y < r.y + r.h;
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
       const c = map[y][x];
-      if (c === 'S' || c === 'K' || c === 'V' || c === 'E') {
+      if (ENEMY_CHARS.includes(c)) {
         if (nP === 1 && Math.hypot(x - px, y - py) < 6) errs.push('fiende ' + c + ' för nära P vid ' + x + ',' + y);
         if (startRoom && inRoom(startRoom, x, y)) errs.push('fiende ' + c + ' i startrummet vid ' + x + ',' + y);
       }
