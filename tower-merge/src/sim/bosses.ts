@@ -5,7 +5,7 @@ import { damageCastle, spawnEnemy } from './enemies';
 import type { Enemy, SimState } from './state';
 
 /** A tower slot counts as inside a fire line if its centre is within this extra margin of the beam. */
-const SLOT_MARGIN = 34;
+const SLOT_MARGIN = BALANCE.combat.fireLineSlotMargin;
 
 /** Starts a boss phase: resets ability timers (first use comes a bit sooner) and announces it. */
 export function enterPhase(s: SimState, e: Enemy, phase: number): void {
@@ -178,8 +178,8 @@ function towersInLine(s: SimState, x: number, y: number, tx: number, ty: number,
 /** Aims at the densest group of towers (falls back to the castle when the board is empty). */
 function aimFireBreath(s: SimState, e: Enemy, length: number, width: number): void {
   let best = -1;
-  let bx = CASTLE.x;
-  let by = CASTLE.y;
+  let bx: number = CASTLE.x;
+  let by: number = CASTLE.y;
   for (const slot of s.slots) {
     if (!slot.tower) continue;
     const tx = SLOTS[slot.id].x;
@@ -219,8 +219,8 @@ function finishBusy(s: SimState, e: Enemy): void {
         const along = px * ux + py * uy;
         const perp = Math.abs(px * uy - py * ux);
         if (along >= -20 && along <= ab.length && perp <= ab.width / 2 + SLOT_MARGIN) {
-          t.disabledTime = Math.max(t.disabledTime, 2);
-          s.emit({ type: 'towerDisabled', slot: slot.id, duration: 2 });
+          t.disabledTime = Math.max(t.disabledTime, BALANCE.combat.scorchSeconds);
+          s.emit({ type: 'towerDisabled', slot: slot.id, duration: BALANCE.combat.scorchSeconds });
         }
       }
       const cx = CASTLE.x - e.x;

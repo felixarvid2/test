@@ -85,9 +85,8 @@ export function spawnEnemy(s: SimState, kind: EnemyId | BossId, o: SpawnOpts = {
     e.armor = def.armor;
     e.baseSpeed = def.speed * speedMult;
     e.coinValue = def.coins * (1 + BALANCE.coins.killScalePerWave * (s.wave - 1)) * coinMult * (elite ? W.eliteCoinMult : 1);
-    e.castleDamage = def.castleDamage;
-    const spread = def.flying ? 22 : 14;
-    e.lateral = (s.rngW.next() * 2 - 1) * spread;
+    e.castleDamage = def.castleDamage * (1 + W.castleDamagePerWave * (s.wave - 1));
+    e.lateral = (s.rngW.next() * 2 - 1) * BALANCE.combat.lateralOffset;
     e.abilityTimer = 0;
     for (const a of def.abilities) {
       if (a.kind === 'heal' || a.kind === 'summon') e.abilityTimer = a.interval * 0.7;

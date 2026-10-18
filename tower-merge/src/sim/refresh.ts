@@ -165,6 +165,11 @@ export function refresh(s: SimState): void {
   s.abilityCdMult = Math.max(0.2, s.gm.value('abilityCooldown', 1));
   s.towerCostMult = Math.max(0.2, s.gm.value('towerCost', 1));
 
+  for (const a of s.abilities) {
+    a.maxCooldown = BALANCE.abilities[a.id].cooldown * s.abilityCdMult;
+    if (a.cooldown > a.maxCooldown) a.cooldown = a.maxCooldown;
+  }
+
   const newMax = Math.max(1, Math.round(s.gm.value('castleMaxHp', BALANCE.castle.hp)));
   if (s.castleMaxHp > 0 && newMax !== s.castleMaxHp) {
     if (newMax > s.castleMaxHp) s.castleHp += newMax - s.castleMaxHp;

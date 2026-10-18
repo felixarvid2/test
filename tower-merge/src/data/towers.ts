@@ -79,10 +79,10 @@ export const TOWERS: Record<TowerId, TowerDef> = {
     hitsAir: true, baseEffects: [flag('burnOnHit', 1.6)], color: 0xff6a2b, unlock: { kind: 'gems', cost: 200 }, buyWeight: 14,
     levels: [
       L1(),
-      lv(1.9, 1.1, 6, 'Stronger Burning', 'Burn strength +40%.', [stat('statusPower', 'pct', 0.4)]),
+      lv(2.0, 1.1, 6, 'Stronger Burning', 'Burn strength +40%.', [stat('statusPower', 'pct', 0.4)]),
       lv(3.9, 1.25, 12, 'Fire Spread', 'Burning enemies spread their fire to the nearest enemy every second and on death.', [flag('fireSpread', 1)]),
       lv(7.8, 1.4, 18, 'Flame Explosions', 'Burning enemies explode on death (70 px) for 200% of their burn damage per second.', [flag('flameExplosionOnDeath', 70)]),
-      lv(14.5, 1.6, 24, 'Persistent Fire Zones', 'Hits leave a burning patch (50 px, 2.5 s) that deals 14 damage per second.', [flag('fireZoneOnHit', 14)]),
+      lv(14.5, 1.6, 24, 'Persistent Fire Zones', 'Hits leave a burning patch (50 px, 2.5 s) that burns enemies for 60 damage per second.', [flag('fireZoneOnHit', 60)]),
     ],
   },
   poison: {
@@ -92,10 +92,10 @@ export const TOWERS: Record<TowerId, TowerDef> = {
     hitsAir: true, baseEffects: [flag('poisonOnHit', 1)], color: 0x7bd957, unlock: { kind: 'gems', cost: 250 }, buyWeight: 14,
     levels: [
       L1(),
-      lv(1.25, 1.1, 8, 'Increased Duration', 'Poison lasts 50% longer (4 s becomes 6 s).', [stat('statusDuration', 'pct', 0.5)]),
-      lv(2.3, 1.25, 16, 'Poison Spread', 'Poisoned enemies pass their stacks to up to 2 enemies within 90 px on death.', [flag('poisonSpreadOnDeath', 1)]),
-      lv(4.0, 1.4, 24, 'Enemy Vulnerability', 'Hits make the target take +15% damage from all sources for 3 s.', [flag('vulnerabilityOnHit', 0.15)]),
-      lv(6.4, 1.6, 32, 'Poison Explosions', 'Poisoned enemies explode on death (55 px) for 8 damage per stack.', [flag('poisonExplosionOnDeath', 55)]),
+      lv(1.5, 1.1, 8, 'Increased Duration', 'Poison lasts 50% longer (4 s becomes 6 s).', [stat('statusDuration', 'pct', 0.5)]),
+      lv(2.9, 1.25, 16, 'Poison Spread', 'Poisoned enemies pass their stacks to up to 2 enemies within 90 px on death.', [flag('poisonSpreadOnDeath', 1)]),
+      lv(5.7, 1.4, 24, 'Enemy Vulnerability', 'Hits make the target take +15% damage from all sources for 3 s.', [flag('vulnerabilityOnHit', 0.15)]),
+      lv(9.6, 1.6, 32, 'Poison Explosions', 'Poisoned enemies explode on death (55 px) for 8 damage per stack.', [flag('poisonExplosionOnDeath', 55)]),
     ],
   },
   sniper: {
@@ -106,9 +106,9 @@ export const TOWERS: Record<TowerId, TowerDef> = {
     levels: [
       L1(),
       lv(2.1, 1.1, 20, 'Increased Crit Damage', 'Critical hits deal +0.75x more damage (2.5x becomes 3.25x).', [stat('critMult', 'flat', 0.75)]),
-      lv(4.6, 1.2, 40, 'Execute', 'Non-boss enemies below 15% HP die instantly; bosses below 15% take +100% damage.', [flag('executeThreshold', 0.15)]),
-      lv(9.3, 1.3, 60, 'Armor Piercing', 'Ignores 40% more enemy armor.', [stat('armorPen', 'flat', 0.4)]),
-      lv(14.0, 1.4, 80, 'Faster Targeting', '+35% attack speed.', [stat('fireRate', 'pct', 0.35)]),
+      lv(4.3, 1.2, 40, 'Execute', 'Non-boss enemies below 15% HP die instantly; bosses below 15% take +100% damage.', [flag('executeThreshold', 0.15)]),
+      lv(8.5, 1.3, 60, 'Armor Piercing', 'Ignores 40% more enemy armor.', [stat('armorPen', 'flat', 0.4)]),
+      lv(12.5, 1.4, 80, 'Faster Targeting', '+35% attack speed.', [stat('fireRate', 'pct', 0.35)]),
     ],
   },
   magic: {
@@ -119,9 +119,9 @@ export const TOWERS: Record<TowerId, TowerDef> = {
     levels: [
       L1(),
       lv(2.1, 1.15, 8, 'Random Elements', 'Every hit applies a random effect: burn, slow, poison or stun.', [flag('randomElement', 1)]),
-      lv(2.6, 1.3, 16, 'Multiple Projectiles', 'Fires 1 extra orb at the same target with every shot.', [flag('extraProjectiles', 1)]),
-      lv(5.2, 1.45, 24, 'Area Damage', 'Orbs explode on impact: +45 px splash radius (60% damage to others).', [stat('splashRadius', 'flat', 45)]),
-      lv(7.8, 1.6, 32, 'Arcane Explosions', 'Every hit also explodes in a 70 px radius for 40% damage.', [flag('explosionOnHit', 70)]),
+      lv(2.05, 1.3, 16, 'Multiple Projectiles', 'Fires 1 extra orb at the same target with every shot.', [flag('extraProjectiles', 1)]),
+      lv(3.9, 1.45, 24, 'Area Damage', 'Orbs explode on impact: +45 px splash radius (60% damage to others).', [stat('splashRadius', 'flat', 45)]),
+      lv(7.2, 1.6, 32, 'Arcane Explosions', 'Every hit also explodes in a 70 px radius for 40% damage.', [flag('explosionOnHit', 70)]),
     ],
   },
 };

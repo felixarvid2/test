@@ -277,6 +277,7 @@ export class SimState {
   private readonly bufs: Int32Array[] = Array.from({ length: 12 }, () => new Int32Array(BALANCE.caps.maxEnemies + 16));
   private bufTop = 0;
   bossGems = 0;
+  regenAcc = 0;
   // cached aggregated globals (set by refresh)
   coinGainMult = 1;
   bossDamageMult = 1;
@@ -357,7 +358,7 @@ export class SimState {
     this.events.push(ev);
   }
 
-  /** Adds (or removes, if negative) coins; fractional gains are carried so rounding never loses coins. */
+  /** Adds (or removes, if negative) coins; fractional gains are carried so rounding never loses coins. Only gains emit 'coins' events. */
   addCoins(amount: number, x?: number, y?: number, earned = true): number {
     if (amount === 0) return 0;
     this.coinFrac += amount;
@@ -365,8 +366,10 @@ export class SimState {
     this.coinFrac -= whole;
     if (whole === 0) return 0;
     this.coins += whole;
-    if (earned && whole > 0) this.stats.coinsEarned += whole;
-    this.emit({ type: 'coins', amount: whole, total: this.coins, x, y });
+    if (whole > 0) {
+      if (earned) this.stats.coinsEarned += whole;
+      this.emit({ type: 'coins', amount: whole, total: this.coins, x, y });
+    }
     return whole;
   }
 }

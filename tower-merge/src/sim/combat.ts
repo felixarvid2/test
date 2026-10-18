@@ -472,10 +472,10 @@ function onHitProcs(s: SimState, t: TowerInst, e: Enemy, base: number, crit: boo
   let v = f[FL.explosionOnHit];
   if (v > 0 && useProc(s)) explosion(s, e.x, e.y, v, base * C.explosionOnHitDamage, t, towerElement(t.type), true, st.armorPen);
   v = f[FL.fireZoneOnHit];
-  if (v > 0 && !e.flying) addFireZone(s, e.x, e.y, v * st.dotScale, t);
+  if (v > 0 && !e.flying) addFireZone(s, e.x, e.y, v, t);
   v = f[FL.chainLightningChance];
   if (v > 0 && s.rngC.chance(Math.min(1, v)) && useProc(s)) {
-    chainStrike(s, t, e, base * C.procChainDamage, false, C.procChainJumps, 120, true, e.x, e.y);
+    chainStrike(s, t, e, base * C.procChainDamage, false, C.procChainJumps, C.procChainRange, true, e.x, e.y);
   }
   v = f[FL.critLightning];
   if (crit && v > 0 && useProc(s)) critBolts(s, t, e, base * C.critLightningDamage, Math.round(v));
@@ -554,12 +554,14 @@ export function chainStrike(
 export function applySecondary(s: SimState, t: TowerInst, e: Enemy, base: number): void {
   const st = t.stats;
   switch (t.type) {
-    case 'fire': applySlow(s, e, 0.4 * st.spRel, 2 * st.durRel); break;
-    case 'frost': applyBurn(s, e, 0.5 * base * st.spRel, C.burnDuration * st.durRel, t); break;
+    case 'fire': applySlow(s, e, C.secondarySlow * st.spRel, C.secondarySlowSeconds * st.durRel); break;
+    case 'frost': applyBurn(s, e, C.secondaryBurnFraction * base * st.spRel, C.burnDuration * st.durRel, t); break;
     case 'poison':
-      if (useProc(s)) chainStrike(s, t, e, base * C.procChainDamage, false, 2, 120, true, e.x, e.y);
+      if (useProc(s)) chainStrike(s, t, e, base * C.procChainDamage, false, C.secondaryChainJumps, C.procChainRange, true, e.x, e.y);
       break;
-    case 'lightning': applyPoison(s, e, 2, C.poisonDpsPerStack * st.spRel * st.dotScale, C.poisonDuration * st.durRel, t); break;
+    case 'lightning':
+      applyPoison(s, e, C.secondaryPoisonStacks, C.poisonDpsPerStack * st.spRel * st.dotScale, C.poisonDuration * st.durRel, t);
+      break;
     default:
       if (useProc(s)) explosion(s, e.x, e.y, C.arcaneBurstRadius, base * C.arcaneBurstDamage, t, 'arcane', true, st.armorPen);
   }
@@ -595,7 +597,7 @@ export function spawnShards(s: SimState, t: TowerInst, x: number, y: number, dmg
     p.tower = t;
     p.mode = 0;
     p.isProc = true;
-    p.speed = 620;
+    p.speed = C.shardSpeed;
     p.x = x;
     p.y = y;
     p.sx = x;

@@ -5,6 +5,8 @@ import { BootScene } from './game/scenes/BootScene';
 import { PreloadScene } from './game/scenes/PreloadScene';
 import { GAME_SCENES } from './game/scenes';
 
+if (import.meta.env.DEV) import('./game/overlays/devHarness');
+
 /**
  * Playables forbids the Page Visibility API: pausing must come only from ytgame.system.onPause.
  * Phaser registers its own `visibilitychange` listener while booting (synchronously, inside the

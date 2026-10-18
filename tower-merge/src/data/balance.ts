@@ -2,6 +2,8 @@
  * Every tunable number of the simulation lives here. Edit values, run `npm run sim` / the bot tests
  * and look at wave reached and run length. Targets (greedy bot, no meta bonuses): death around
  * waves 9-14, runs of about 3-6 simulated minutes; the 'noUpgrades' policy dies noticeably earlier.
+ * Last measured (24 seeds, default RunOptions, real upgrade/synergy/event data): greedy avg wave 11.0
+ * (8-15) in 334 s, noUpgrades 9.9 in 289 s, random 10.6, mergeHeavy 9.5, spreadOut 6.5.
  */
 export const BALANCE = {
   castle: {
@@ -27,21 +29,27 @@ export const BALANCE = {
 
   waves: {
     firstPrewave: 1.5,
-    prewave: 4,
+    prewave: 3,
     /** Threat budget of wave n = budgetBase + budgetPerWave * (n - 1) ^ budgetExp. */
     budgetBase: 8,
     budgetPerWave: 4.2,
     budgetExp: 1.12,
-    /** Enemy hp multiplier at wave n = hpGrowth ^ (n - 1) * (1 + hpLinear * (n - 1)). */
-    hpGrowth: 1.13,
+    /** Enemy hp multiplier at wave n = hpScale * hpGrowth ^ (n - 1) * (1 + hpLinear * (n - 1)). */
+    hpScale: 2,
+    hpGrowth: 1.3,
     hpLinear: 0.02,
+    /** Extra hp growth per wave beyond hpLateStart: the wall that ends most runs. */
+    hpLateStart: 7,
+    hpLateGrowth: 1.03,
+    /** Castle damage of regular enemies grows by this fraction per wave. */
+    castleDamagePerWave: 0.1,
     /** Enemy speed multiplier = min(speedCap, 1 + speedPerWave * (n - 1)). */
-    speedPerWave: 0.008,
-    speedCap: 1.3,
+    speedPerWave: 0.04,
+    speedCap: 1.8,
     /** Spawning window in seconds = min(spawnMax, spawnBase + spawnPerWave * (n - 1)). */
-    spawnBase: 9,
-    spawnPerWave: 0.45,
-    spawnMax: 16,
+    spawnBase: 5,
+    spawnPerWave: 0.3,
+    spawnMax: 8.5,
     /** Hard limit on enemies spawned by the generator in one regular wave. */
     maxEnemiesPerWave: 70,
     /** A boss wave's escorts use this fraction of the normal budget. */
@@ -64,8 +72,8 @@ export const BALANCE = {
     loopCoinMult: 1.6,
     loopDamageMult: 1.25,
     loopGemMult: 1.3,
-    /** Boss hp also grows mildly with the wave inside a loop (regular waves between bosses scale much faster). */
-    hpWaveExp: 0,
+    /** Boss hp is multiplied by (regular enemy hp multiplier of the wave) ^ hpWaveExp, so bosses keep pace with the waves. */
+    hpWaveExp: 0.5,
     /** How far a revive pushes a boss back, px. */
     reviveKnockback: 420,
     freezeSeconds: 0.3,
@@ -142,6 +150,7 @@ export const BALANCE = {
     chainDecayInfinite: 0.15,
     chainMinFraction: 0.05,
     shardDamage: 0.3,
+    shardSpeed: 620,
     shardCount: 6,
     shardRange: 170,
     bombletDamage: 0.35,
@@ -151,6 +160,8 @@ export const BALANCE = {
     nthExplosionDamage: 1.5,
     explosionOnHitDamage: 0.4,
     procChainJumps: 3,
+    /** Jump range of chain lightning that comes from procs (tower chains use their own chainRange). */
+    procChainRange: 120,
     procChainDamage: 0.5,
     critLightningDamage: 0.6,
     critLightningRange: 170,
@@ -183,6 +194,12 @@ export const BALANCE = {
     vulnerabilityDuration: 3,
     maxVulnerability: 0.5,
     elementalSecondaryEvery: 3,
+    /** Opposite-element hits of elementalSecondary: slow strength/seconds (fire tower), burn fraction (frost tower), poison stacks (lightning tower). */
+    secondarySlow: 0.4,
+    secondarySlowSeconds: 2,
+    secondaryBurnFraction: 0.5,
+    secondaryPoisonStacks: 2,
+    secondaryChainJumps: 2,
     randomElementBurnFraction: 0.8,
     randomElementSlow: 0.3,
     randomElementStun: 0.5,
@@ -202,6 +219,11 @@ export const BALANCE = {
     maxArmor: 0.9,
     /** Death-cascade depth: on-death effects of kills this deep are skipped. */
     maxDeathDepth: 3,
+    /** Sideways offset range of enemies on their lane, px. */
+    lateralOffset: 14,
+    /** Seconds towers scorched by a Dragon fire breath stay disabled, and the margin around the beam that still counts. */
+    scorchSeconds: 2,
+    fireLineSlotMargin: 34,
     thornsRadius: 110,
     thornsSplash: 0.5,
     mergeFrenzyFireRatePct: 0.5,
