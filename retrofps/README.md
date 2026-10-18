@@ -8,7 +8,7 @@ mappen) och klicka **NY RUNDA**.
 E öppna dörr, kista, hemlig vägg eller handla · Shift spring · 1–4/Q/mushjul byt vapen · C dina kort ·
 M/Tab karta · P/Esc paus · `[` `]` muskänslighet · `,` `.` synfält · `-` `+` volym · N ljud av · O helskärm.
 
-**Mobil (liggande läge):** vänster tumme styr en flytande joystick (dra långt för att springa), höger tumme drar för att vrida. Den stora knappen skjuter, och man kan dra på den för att sikta samtidigt. Knapparna vid sidan av bilden siktar, laddar om, använder, byter vapen och öppnar karta, kort och paus. Helskärmsknappen finns både på startskärmen och i spelet (också i pausen), och på Android vrids skärmen till liggande läge. Där webbläsaren eller appen inte tillåter helskärm, till exempel på iPhone, visas ett meddelande om det. Knapparna kommer från Kenneys *Mobile Controls* (CC0, `assets/touch/`).
+**Mobil:** vänster tumme styr en flytande joystick (dra långt för att springa), höger tumme drar för att vrida, och ett snabbt tryck i bilden skjuter. Den stora knappen skjuter så länge man håller den, och man kan dra på den för att sikta samtidigt. Liggande läge ger störst bild. I stående läge ligger bilden överst, och hela bilden är vrid- och skjutyta. Joysticken och knapparna ligger under bilden. Texter som "R = LADDA OM" och "E: HANDLA" byts mot pekvarianter. Knapparna vid sidan av bilden siktar, laddar om, använder, byter vapen och öppnar karta, kort och paus. Helskärmsknappen finns både på startskärmen och i spelet (också i pausen), och på Android vrids skärmen till liggande läge. Där webbläsaren eller appen inte tillåter helskärm, till exempel på iPhone, visas ett meddelande om det. Knapparna kommer från Kenneys *Mobile Controls* (CC0, `assets/touch/`).
 
 ## Roguelike
 

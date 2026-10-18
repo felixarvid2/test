@@ -4,7 +4,7 @@ from PIL import Image
 src=sys.argv[1] if len(sys.argv)>1 else 'qframes'
 OUT=sys.argv[2] if len(sys.argv)>2 else '../../'
 VW,VH=320,166
-TARGET={'pistol':(84,164,24),'shotgun':(112,196,40),'rifle':(112,184,42),'smg':(98,178,32)}  # höjd i px, mittpunkt x, hur mycket som skärs av nedtill
+TARGET={'pistol':(84,178,24),'shotgun':(112,196,40),'rifle':(112,184,42),'smg':(98,178,32)}  # höjd i px, mittpunkt x, hur mycket som skärs av nedtill
 d=json.load(open(src+'/meta.json'))
 out={}
 for w,st in d.items():

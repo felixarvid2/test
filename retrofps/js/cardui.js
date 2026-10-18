@@ -6,6 +6,8 @@
 const SCRIPT = document.currentScript;
 let BASE = '';
 try { BASE = new URL('../', SCRIPT.src).href; } catch (e) { BASE = ''; }
+const touchUI = () => !!(window.matchMedia && matchMedia('(pointer: coarse)').matches) || 'ontouchstart' in window; // inga tangentbordstips på pekskärm
+const esc = t => touchUI() ? t : t + ' (ESC)';
 const reduced = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
 const R = () => window.Cards.RARITY;
 
@@ -167,13 +169,13 @@ function draft(cards, opts, onPick) {
   const foot = el('div', 'cu-foot');
   const canSkip = opts.skipLabel !== false;
   if (canSkip) {
-    const skip = el('button', 'cu-btn ghost', (opts.skipLabel || 'HOPPA ÖVER') + ' (ESC)');
+    const skip = el('button', 'cu-btn ghost', esc(opts.skipLabel || 'HOPPA ÖVER'));
     skip.type = 'button';
     skip.addEventListener('click', skipIt);
     foot.appendChild(skip);
   }
   wrap.appendChild(foot);
-  wrap.appendChild(el('div', 'cu-hint', 'KLICKA ELLER TRYCK 1-' + Math.max(1, cards.length) + ' · PILTANGENTER OCH ENTER'));
+  wrap.appendChild(el('div', 'cu-hint', touchUI() ? 'TRYCK PÅ ETT KORT FÖR ATT VÄLJA' : 'KLICKA ELLER TRYCK 1-' + Math.max(1, cards.length) + ' · PILTANGENTER OCH ENTER'));
 
   function reveal(i) {
     if (revealed[i]) return;
@@ -254,7 +256,7 @@ function shop(items, gold, onBuy, onClose, opts) {
   const msg = el('div', 'cu-msg'); msg.setAttribute('aria-live', 'polite');
   box.appendChild(msg);
   const foot = el('div', 'cu-foot');
-  const leave = el('button', 'cu-btn', 'LÄMNA (ESC)'); leave.type = 'button';
+  const leave = el('button', 'cu-btn', esc('LÄMNA')); leave.type = 'button';
   foot.appendChild(leave); box.appendChild(foot);
   let tiles = []; // { item, node }
 
@@ -351,7 +353,7 @@ function shop(items, gold, onBuy, onClose, opts) {
   function leaveShop() { close(); if (onClose) onClose(); }
   leave.addEventListener('click', leaveShop);
   setGold(false); build();
-  setMsg('KLICKA ELLER TRYCK 1-9 FÖR ATT KÖPA');
+  setMsg(touchUI() ? 'TRYCK PÅ EN VARA FÖR ATT KÖPA' : 'KLICKA ELLER TRYCK 1-9 FÖR ATT KÖPA');
 
   open('shop', node, e => {
     const d = digit(e);
@@ -406,7 +408,7 @@ function deck(ownedIds, onClose) {
   if (entries.length) box.appendChild(grid);
   box.appendChild(detail);
   const foot = el('div', 'cu-foot');
-  const btn = el('button', 'cu-btn', 'STÄNG (ESC)'); btn.type = 'button';
+  const btn = el('button', 'cu-btn', esc('STÄNG')); btn.type = 'button';
   foot.appendChild(btn); box.appendChild(foot);
   const finish = () => { close(); if (onClose) onClose(); };
   btn.addEventListener('click', ev => { ev.stopPropagation(); finish(); });

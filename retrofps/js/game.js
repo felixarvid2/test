@@ -618,7 +618,7 @@ function drawHUD() {
   txt(`${run.owned.length} KORT`.slice(0, 6), 270, y0 + 25, '#b9a0e8');
   msgs.forEach((m, i) => { const w = textW(m.text); txt(m.text, (W - w) / 2, 6 + i * 11, i ? '#c9b080' : '#ffe9a8', 1, true, Math.min(1, m.t * 2)); });
   if (hint && state === 'play') txt(hint, (W - textW(hint)) / 2, HORIZON + 26, '#ffd24a');
-  else if (WS.state === 'idle' && P.mags[P.weapon] === 0 && P.ammo[wp.ammo] > 0 && state === 'play') { const s = 'R = LADDA OM', w = textW(s); txt(s, (W - w) / 2, HORIZON + 14, '#ffb040'); }
+  else if (WS.state === 'idle' && P.mags[P.weapon] === 0 && P.ammo[wp.ammo] > 0 && state === 'play') { const s = isTouch() ? 'LADDA OM!' : 'R = LADDA OM', w = textW(s); txt(s, (W - w) / 2, HORIZON + 14, '#ffb040'); }
   if (showMap) drawMap();
 }
 function textW(s) { ctx.font = '8px "PressStart2P"'; return ctx.measureText(plain(s)).width; }
@@ -993,8 +993,8 @@ function update(dt) {
     it.taken = true; P.pick = it.type.startsWith('gold') ? 0.3 : 1; score += 25; if (!it.drop) itemsTaken++;
   }
   hint = '';
-  for (const c of chests) if (!c.open && Math.hypot(c.x - P.x, c.y - P.y) < 1.2) hint = 'E: ÖPPNA KISTAN';
-  for (const m of merchants) if (Math.hypot(m.x - P.x, m.y - P.y) < 1.6) hint = 'E: HANDLA';
+  for (const c of chests) if (!c.open && Math.hypot(c.x - P.x, c.y - P.y) < 1.2) hint = isTouch() ? 'HANDEN: ÖPPNA KISTAN' : 'E: ÖPPNA KISTAN';
+  for (const m of merchants) if (Math.hypot(m.x - P.x, m.y - P.y) < 1.6) hint = isTouch() ? 'HANDEN: HANDLA' : 'E: HANDLA';
   if (lvl.exit && Math.floor(P.x) === lvl.exit.x && Math.floor(P.y) === lvl.exit.y) { floorDone(); return; }
   for (const e of ents) { if (e.boss) updateBoss(e, dt); else updateEnemy(e, dt); }
   updateProjectiles(dt);
@@ -1055,7 +1055,8 @@ function updateWeapon(dt) {
     }
   }
   if (WS.state !== 'reload') WS.loaded = false;
-  const trig = mouseDown || keys.ControlLeft || keys.KeyF;
+  if (touch.tap > 0) touch.tap -= dt;
+  const trig = mouseDown || keys.ControlLeft || keys.KeyF || touch.tap > 0;
   if (trig && (wp.auto || !fireHeld)) fire();
   fireHeld = trig;
 }
@@ -1270,7 +1271,9 @@ function loop(t) {
     updateLight(); render(); drawWeapon(); drawHUD();
     if (state === 'dead' && P.deadT > 1.2) drawRunOver(false);
     if (state === 'runover') drawRunOver(true);
-    if (state === 'pause') overlay('PAUS', ['KLICKA FÖR ATT FORTSÄTTA', `FRÖ ${seedText(run.seed)}  VÅNING ${run.depth}`, `KORT ${run.owned.length}  (C = VISA)`, `KÄNSLIGHET ${settings.sens.toFixed(1)}  [ ]`, `SYNFÄLT ${settings.fov}°  , .`, `VOLYM ${Math.round(settings.vol * 100)}%  - +`, `SVÅRIGHET ${DIFF[settings.diff].name}`], '#202040');
+    if (state === 'pause') overlay('PAUS', isTouch()
+    ? ['TRYCK FÖR ATT FORTSÄTTA', `FRÖ ${seedText(run.seed)}  VÅNING ${run.depth}`, `KORT ${run.owned.length}`, `SVÅRIGHET ${DIFF[settings.diff].name}`]
+    : ['KLICKA FÖR ATT FORTSÄTTA', `FRÖ ${seedText(run.seed)}  VÅNING ${run.depth}`, `KORT ${run.owned.length}  (C = VISA)`, `KÄNSLIGHET ${settings.sens.toFixed(1)}  [ ]`, `SYNFÄLT ${settings.fov}°  , .`, `VOLYM ${Math.round(settings.vol * 100)}%  - +`, `SVÅRIGHET ${DIFF[settings.diff].name}`], '#202040');
     if (state === 'stats') drawStats();
   }
   requestAnimationFrame(loop);
@@ -1287,7 +1290,7 @@ function drawStats() {
   const head = `${s.name} KLARAD`; txt(head, (W - textW(head)) / 2, 14, '#ffd24a');
   const rows = [['FIENDER', `${s.kills}/${s.totalEnemies}`], ['HEMLIGHETER', `${s.secrets}/${s.totalSecrets}`], ['FÖREMÅL', `${s.items}/${s.totalItems}`], ['TID', fmtTime(s.time)], ['BONUS', `+${s.bonus}`], ['GULD', String(run.gold)], ['POÄNG', String(score)]];
   rows.forEach(([k, v], i) => { const y = 36 + i * 14; txt(k, 70, y, '#c9a87a'); txt(v, 250 - textW(v), y, '#e8d9b0'); });
-  const f = 'KLICKA FÖR ATT VÄLJA KORT'; if (tmr % 1 < 0.7) txt(f, (W - textW(f)) / 2, 142, '#ffe9a8');
+  const f = isTouch() ? 'TRYCK FÖR ATT VÄLJA KORT' : 'KLICKA FÖR ATT VÄLJA KORT'; if (tmr % 1 < 0.7) txt(f, (W - textW(f)) / 2, 142, '#ffe9a8');
 }
 function drawRunOver(win) {
   const r = run;
@@ -1296,7 +1299,7 @@ function drawRunOver(win) {
   txt(t1, (W - w) / 2, 10, win ? '#9fe0a0' : '#ff5040', 2);
   const rows = [['VÅNING', win ? 'BOSSEN BESEGRAD' : `${r.depth} AV ${FLOORS + 1}`], ['FIENDER', String(r.kills)], ['KORT', String(r.owned.length)], ['GULD', String(r.gold)], ['TID', fmtTime(r.time)], ['POÄNG', String(score)], ['SJÄLAR', `+${r.souls || 0}`], ['FRÖ', seedText(r.seed)]];
   rows.forEach(([k, v], i) => { const y = 34 + i * 13; txt(k, 50, y, '#c9a87a'); txt(v, 270 - textW(v), y, k === 'SJÄLAR' ? '#c0a0ff' : '#e8d9b0'); });
-  const f = 'KLICKA FÖR MENYN'; if (tmr % 1 < 0.7) txt(f, (W - textW(f)) / 2, 145, '#ffe9a8');
+  const f = isTouch() ? 'TRYCK FÖR MENYN' : 'KLICKA FÖR MENYN'; if (tmr % 1 < 0.7) txt(f, (W - textW(f)) / 2, 145, '#ffe9a8');
 }
 
 // ---------- Indata ----------
@@ -1399,7 +1402,10 @@ document.addEventListener('fullscreenchange', syncFsIcons); document.addEventLis
 
 // ---------- Mobilstyrning (Kenney Mobile Controls, CC0) ----------
 // Vänster halva: flytande joystick (gå/springa). Höger halva: dra för att vrida. Knappar: skjut (dra också för att sikta), sikta, ladda om, använd, byt vapen, karta, kort, paus.
-const touch = { active: false, mx: 0, my: 0, mag: 0, look: 0, lookY: 0 };
+const touch = { active: false, mx: 0, my: 0, mag: 0, look: 0, lookY: 0, tap: 0 };
+const TAP_MOVE = 12, TAP_TIME = 250; // px, ms: kort tryck i vridzonen = ett skott, dra = vrid
+// stående: bilden ligger överst och hela bilden är vridzon, joysticken bor under den
+const lookFloor = () => innerHeight > innerWidth ? canvas.getBoundingClientRect().bottom : 0;
 const isTouch = () => matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 function setupTouch() {
   const ui = document.getElementById('touch');
@@ -1407,8 +1413,7 @@ function setupTouch() {
   const btn = (act, icon, cls) => `<button class="tb ${cls}" data-act="${act}" aria-label="${act}"><img src="${T}btn.png" alt=""><img class="ic${act === 'fullscreen' ? ' fsicon' : ''}" src="${T}icon_${icon}.png" alt=""></button>`;
   ui.innerHTML = `<div class="joy" hidden><img class="pad" src="${T}pad.png" alt=""><img class="nub" src="${T}nub.png" alt=""></div>
     ${btn('fire', 'crosshair', 'fire')}${btn('aim', 'target', 'aim')}${btn('reload', 'arrow_rotate', 'reload')}${btn('use', 'hand', 'use')}${btn('swap', 'arrow_curved', 'swap')}
-    ${btn('map', 'search', 'map small')}${btn('deck', 'star', 'deck small')}${btn('pause', 'pause', 'pausebtn small')}${btn('fullscreen', 'size_larger', 'fsbtn small')}
-    <div class="rotate">VRID TELEFONEN TILL LIGGANDE LÄGE</div>`;
+    ${btn('map', 'search', 'map small')}${btn('deck', 'star', 'deck small')}${btn('pause', 'pause', 'pausebtn small')}${btn('fullscreen', 'size_larger', 'fsbtn small')}`;
   const joy = ui.querySelector('.joy'), nub = ui.querySelector('.nub');
   const ptrs = new Map(); // pointerId -> { kind, x, y, ox, oy }
   const R = () => Math.min(innerWidth, innerHeight) * 0.13; // joystickens radie
@@ -1435,10 +1440,12 @@ function setupTouch() {
         if (act === 'deck') showDeck();
         if (act === 'pause') pause();
       }
-    } else if (e.clientX < innerWidth * 0.45) { // flytande joystick där tummen landar
+    } else if (e.clientX < innerWidth * 0.45 && e.clientY > lookFloor()) { // flytande joystick där tummen landar
       ptrs.set(e.pointerId, { kind: 'joy', ox: e.clientX, oy: e.clientY });
       joy.hidden = false; joy.style.left = e.clientX + 'px'; joy.style.top = e.clientY + 'px'; nub.style.transform = 'translate(-50%,-50%)';
-    } else ptrs.set(e.pointerId, { kind: 'look', x: e.clientX, y: e.clientY });
+    } else { // vridzon: tryck för att skjuta, dra för att vrida
+      ptrs.set(e.pointerId, { kind: 'look', x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, t0: performance.now(), tap: true });
+    }
     e.preventDefault();
   });
   ui.addEventListener('pointermove', e => {
@@ -1451,6 +1458,7 @@ function setupTouch() {
     } else if (p.kind === 'look') {
       touch.look += (e.clientX - p.x) * 320 / innerWidth; touch.lookY += (e.clientY - p.y) * 200 / innerHeight;
       p.x = e.clientX; p.y = e.clientY;
+      if (p.tap && Math.hypot(p.x - p.sx, p.y - p.sy) > TAP_MOVE) p.tap = false;
     }
     e.preventDefault();
   });
@@ -1460,6 +1468,7 @@ function setupTouch() {
     if (p.kind === 'joy') { touch.mx = touch.my = touch.mag = 0; joy.hidden = true; }
     if (p.btn) p.btn.classList.remove('on');
     if (p.fire) mouseDown = false;
+    if (p.tap && e.type === 'pointerup' && performance.now() - p.t0 < TAP_TIME && state === 'play') touch.tap = 0.12; // snabbt tryck = skott
     if (p.fs && e.type === 'pointerup') toggleFullscreen(); // helskärm måste begäras när fingret släpps (användargest)
   };
   ui.addEventListener('pointerup', end); ui.addEventListener('pointercancel', end);

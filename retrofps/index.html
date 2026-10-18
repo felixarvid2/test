@@ -59,8 +59,22 @@
   #touch .joy img { position: absolute; }
   #touch .joy .pad { inset: 0; width: 100%; height: 100%; }
   #touch .joy .nub { left: 50%; top: 50%; width: 46%; height: 46%; transform: translate(-50%, -50%); }
-  #touch .rotate { display: none; position: absolute; left: 0; right: 0; top: 40%; text-align: center; font-size: 11px; color: #ffe9a8; text-shadow: 2px 2px #000; pointer-events: none; }
-  @media (orientation: portrait) { #touch .rotate { display: block; } }
+  /* stående: bilden överst, små knappar under den, joysticken till vänster och eldknapparna nere till höger */
+  @media (orientation: portrait) {
+    #wrap { align-items: flex-start; padding-top: env(safe-area-inset-top, 0px); }
+    #touch { --b: min(17vw, 10vh); --cb: calc(env(safe-area-inset-top, 0px) + 62.5vw); --p: 4vw; --bot: calc(5vh + env(safe-area-inset-bottom, 0px)); }
+    #touch .fire { right: var(--p); bottom: var(--bot); }
+    #touch .aim { right: calc(var(--p) + var(--b) * 1.6 + 3vw); bottom: var(--bot); }
+    #touch .reload { right: calc(var(--p) + var(--b) * .3); bottom: calc(var(--bot) + var(--b) * 1.6 + 3vw); }
+    #touch .use { right: calc(var(--p) + var(--b) * 1.6 + 3vw); bottom: calc(var(--bot) + var(--b) + 3vw); }
+    #touch .swap { left: var(--p); bottom: auto; top: calc(var(--cb) + 3vw); }
+    #touch .small { left: auto; top: calc(var(--cb) + 3vw + var(--b) * .15); }
+    #touch .pausebtn { right: var(--p); }
+    #touch .fsbtn { right: calc(var(--p) + var(--b) * .7 + 3vw); }
+    #touch .map { right: calc(var(--p) + var(--b) * 1.4 + 6vw); }
+    #touch .deck { right: calc(var(--p) + var(--b) * 2.1 + 9vw); }
+    #touch .joy { width: 34vw; height: 34vw; }
+  }
   .touchhint { display: none; }
   body.touch .touchhint { display: block; }
   body.touch .keyhint { display: none; }
@@ -90,7 +104,7 @@
   </div>
   <div id="souls"></div>
   <div id="best"></div>
-  <p class="touchhint">VÄNSTER TUMME: GÅ (DRA LÅNGT FÖR ATT SPRINGA) · HÖGER TUMME: DRA FÖR ATT VRIDA · STORA KNAPPEN: SKJUT (DRA PÅ DEN FÖR ATT SIKTA SAMTIDIGT) · ÖVRIGA KNAPPAR: SIKTA, LADDA OM, ANVÄND, BYT VAPEN, KARTA, KORT, PAUS. SPELA LIGGANDE.</p>
+  <p class="touchhint">VÄNSTER TUMME: GÅ (DRA LÅNGT FÖR ATT SPRINGA) · HÖGER TUMME: DRA FÖR ATT VRIDA, TRYCK SNABBT FÖR ATT SKJUTA · STORA KNAPPEN: HÅLL FÖR ATT SKJUTA (DRA PÅ DEN FÖR ATT SIKTA SAMTIDIGT) · ÖVRIGA KNAPPAR: SIKTA, LADDA OM, ANVÄND, BYT VAPEN, KARTA, KORT, PAUS. LIGGANDE GER STÖRST BILD.</p>
   <p class="keyhint"><kbd>WASD</kbd> gå · <kbd>MUS</kbd> sikta · <kbd>VÄNSTERKLICK</kbd> skjut · <kbd>HÖGERKLICK</kbd> sikta med vapnet · <kbd>R</kbd> ladda om · <kbd>E</kbd> öppna, handla<br>
      <kbd>SHIFT</kbd> spring · <kbd>1-4</kbd>/<kbd>Q</kbd>/<kbd>HJUL</kbd> byt vapen · <kbd>C</kbd> dina kort · <kbd>M</kbd>/<kbd>TAB</kbd> karta · <kbd>P</kbd>/<kbd>ESC</kbd> paus · <kbd>[ ]</kbd> känslighet · <kbd>- +</kbd> volym · <kbd>N</kbd> ljud · <kbd>O</kbd> helskärm</p>
   <div id="status">Laddar…</div>
