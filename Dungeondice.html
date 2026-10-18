@@ -799,8 +799,8 @@ html{scrollbar-width:thin;scrollbar-color:rgba(140,110,200,.6) #120d1c}
 .die{width:clamp(64px,15vw,84px);height:auto;aspect-ratio:1/1}
 /* 237 Modifierarmärket tydligare */
 .die .mod-badge{width:28px;height:28px;font-size:15px;border-width:2px}
-/* 238 Rullande tärningar får lätt rörelseoskärpa */
-.die.rolling{filter:blur(.5px) brightness(1.1)}
+/* 238 Rullande tärningar blir något ljusare (ingen blur, den ritade om fem tärningar varje bildruta) */
+.die.rolling{filter:brightness(1.1)}
 /* 239 Poängsatt tärning får guldglöd */
 .die.scored{box-shadow:0 0 28px rgba(245,197,66,.9),0 0 8px #fff inset}
 /* 240 Tärningar syns skarpare på brickan med lätt kontur */
@@ -974,10 +974,16 @@ header{background:linear-gradient(180deg,rgb(52,38,80),rgb(26,19,38))}
 /* F4 Skanlinjerna borta (gav moiré mot rörligt innehåll) */
 body::after{display:none!important}
 /* F5 Inga animerade skuggor och filter på text och knappar */
-#combo-name{animation:none!important}
+#combo-name{animation:none}
 #roll-btn,#score-btn{animation:none!important}
 header::before{animation:none!important;display:none}
 #progress-fill{animation:none!important}
+/* F7 Statiska glöd i stället för oändliga box-shadow- och filteranimationer */
+.cursor-sparkle{display:none!important}
+.relic.rare,.relic.legendary,.shop-item.legendary,.shop-item.rare{animation:none!important}
+.die .mod-badge{animation:badgePop .4s cubic-bezier(.34,1.56,.64,1)!important}
+.die[data-mod="vild"]{animation:none!important}
+header.boss-header,#blind-icon.boss,.blind-card .boss-tag{animation:none!important}
 /* F6 Egen komposit för spelytan så att bakgrundslagren inte ritar om innehållet */
 #bg-layers{contain:strict;transform:translateZ(0)}
 #app{isolation:isolate}
@@ -1311,6 +1317,7 @@ function achPopup(a){
 }
 // Cursor sparkle trail
 document.addEventListener('mousemove', e=>{
+  return; // avstängt: glittret med blend-mode gav flimmer
   if(Math.random()>0.15) return;
   const s=document.createElement('div');
   s.className='cursor-sparkle';
