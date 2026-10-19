@@ -110,6 +110,10 @@ När ett fel är löst skickar du in en felrapport med **F**. En gul ruta uppe t
 
 Varje fel är simulerat på riktigt. Symptomen räknas fram ur konfigurationen: länkar, duplex, VLAN och trunkar, STP, routing, ARP, ACL, NAT, DHCP, DNS, PoE, port security, IPsec, MTU och lastbalansering. Ett fel försvinner därför bara när orsaken är rättad.
 
+## Version 10.4: ingen mörk ruta i 2D
+
+Hade du spelat i HD-2D och sedan bytt till 2D kunde en hög, mörk, rundad ruta dyka upp vid racken i serverrummet. Den blinkade när du gick fram och tillbaka. Det var tipsrutan ("E – Titta på Rack A"). I HD-2D följer den muspekaren, och dess position sattes direkt på elementet. I 2D ligger tipsrutan i stället en bit ovanför bildens nederkant, men den gamla positionen från HD-2D blev kvar, så rutan sträcktes ut från muspekarens senaste höjd ner till nederkanten. Den tändes och släcktes med tipset, och därför såg det ut som att det blinkade svart. Nu sätts positionen som CSS-variabler som bara HD-2D använder, så 2D och 3D påverkas inte. `test/v10.js` kontrollerar båda lägena.
+
 ## Version 10.3: frontpanelsvyn i HD-2D
 
 Uppifrån i HD-2D är switcharna och portarna små och svåra att se. Nu går hela racket att klicka på i HD-2D, och då öppnas samma frontpanelsvy som i 2D. Där ser du alla enheter på nära håll med lampor och portar, och du kan hålla musen över en port för att se dess status. Klicka på en switch eller router i vyn för att koppla in konsolkabeln. Klickar eller trycker du E på en enhet i racket öppnas också vyn, och tipset säger "Titta på Rack A (nät)". I förstapersonsläget (3D) fungerar racken som förut. Hjälpen (F1) beskriver det, och `test/v10.js` kontrollerar det.

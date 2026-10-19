@@ -9,7 +9,7 @@ const { chromium } = require('playwright');
   const errs = [];
   p.on('pageerror', e => errs.push('pageerror: ' + e.message + ' ' + (e.stack || '').split('\n').slice(0, 3).join(' | ')));
   await p.addInitScript(() => {
-    localStorage.setItem('krabba-passet.settings', JSON.stringify({ quality: 'low', mode: '3d', view3d: 'hd2d', modeChosen: true, tutorialDone: true, lastVersion: '10.3' }));
+    localStorage.setItem('krabba-passet.settings', JSON.stringify({ quality: 'low', mode: '3d', view3d: 'hd2d', modeChosen: true, tutorialDone: true, lastVersion: '10.4' }));
     // En låtsad handkontroll som håller vänster spak framåt
     window.__pad = { connected: true, id: 'Testkontroll', axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })) };
     navigator.getGamepads = () => [window.__pad];
@@ -81,6 +81,12 @@ const { chromium } = require('playwright');
     const unit = document.querySelector('#dialog .rack-unit.can canvas'); unit && unit.click();
     out.rackConsole = !!(g.terminal && g.terminal.open); g.terminal && g.terminal.open && g.terminal.hide(); g.ui.closeDialog();
     out.rackClickable = w.hdRackMeshes ? w.hdRackMeshes.filter(m => w.interactables.includes(m)).length : 0;
+    // Tipsrutan följer muspekaren i HD-2D, men får inte bli kvar utdragen i 2D (en hög mörk ruta)
+    g.setMode('hd2d'); step(2); w.hdCursor(420, 260); g.ui.setHint({ type: 'rack', id: 'A' });
+    const hh = g.ui.hint.getBoundingClientRect(); out.hintHd = { x: Math.round(hh.left), y: Math.round(hh.top), h: Math.round(hh.height) };
+    g.setMode('2d'); g.ui.setHint({ type: 'rack', id: 'A' });
+    const hr = g.ui.hint.getBoundingClientRect(); out.hint2d = { h: Math.round(hr.height), w: Math.round(hr.width), shown: getComputedStyle(g.ui.hint).display };
+    g.ui.setHint(null);
     // Rendering utan fel i alla lägen
     for (const v of ['hd2d', '3d']) { g.setMode(v); for (let i = 0; i < 4; i++) { w.update(1 / 30); w.render(1 / 30, w.zone()); } }
     return out;
@@ -104,6 +110,8 @@ const { chromium } = require('playwright');
   if (r.ach !== 11) errs.push('prestationer saknas: ' + r.ach);
   if (!(r.lumAfterPerf > 200 && r.lumAfterResize > 200 && r.pendingResize && r.prScale < 1)) errs.push('canvasen töms när upplösningen byts: ' + [r.lumAfterPerf, r.lumAfterResize, r.pendingResize, r.prScale].join(' '));
   if (!(r.rackUnits >= 5 && r.rackConsole && r.rackClickable > 5 && /Rack A/.test(r.rackDesc))) errs.push('frontpanelsvyn i HD-2D: ' + [r.rackUnits, r.rackConsole, r.rackClickable, r.rackDesc].join(' '));
+  if (!(r.hintHd && Math.abs(r.hintHd.x - 438) < 3 && Math.abs(r.hintHd.y - 274) < 3 && r.hintHd.h < 60)) errs.push('tipsrutan följer inte muspekaren i HD-2D: ' + JSON.stringify(r.hintHd));
+  if (!(r.hint2d && r.hint2d.h < 60)) errs.push('tipsrutan är utdragen i 2D: ' + JSON.stringify(r.hint2d));
   console.log(errs.length ? errs.join('\n') : 'inga fel');
   await b.close();
   process.exit(errs.length ? 1 : 0);
