@@ -81,6 +81,19 @@ const MOD_KEYS = {
   freeReroll: 'Gratis "nya kort" i butiken per våning (platt)',
   hazardImmune: 'Immun mot lava, vatten, is och nät (1 = på)',
   doubleJump: 'Dubbelhopp (1 = på)',
+  // version 5: drycker, följeslagare, närstrid, brand, kyla, huvudträffar och blödning
+  potionPower: 'Andel starkare drycker',
+  potionChance: 'Andel fler drycker',
+  petPower: 'Andel starkare följeslagare',
+  meleeDmg: 'Andel extra närstridsskada',
+  fireDmg: 'Andel extra brandskada',
+  coldResist: 'Andel mindre köld- och frostskada',
+  headshot: 'Andel extra skada vid huvudträff',
+  bleedChance: 'Chans (0-1) till blödning',
+  allyChance: 'Chans (0-1) att en dödad fiende reser sig som allierad en stund',
+  lightRadius: 'Extra ljusradie (platt)',
+  weaponDrop: 'Chans (0-1) att eliter tappar vapen',
+  npcDiscount: 'Andel rabatt hos alkemisten och prästen',
 };
 const KEYS = Object.keys(MOD_KEYS);
 
@@ -195,6 +208,41 @@ const DEFS = [
   ['travstaven', 'PILGRIMSSTAVEN', 'legendarisk', { dashCd: 0.3, dashDmg: 30, dodge: 0.08 }, 1, '30 % KORTARE ÅTERHÄMTNING\nFÖR RUSNING\nRUSNING GÖR 30 SKADA\n+8 % CHANS ATT UNDVIKA', { unlock: 40 }],
   ['brokiga', 'ÖDETS VÄV', 'legendarisk', { cardChoices: 1, chestChoice: 1, freeReroll: 1, luck: 0.15 }, 1, '+1 VAL VID KORTDRAGNING\n+1 VAL I KISTOR\n+1 GRATIS NYA KORT PER VÅNING\n+15 % LYCKA', { unlock: 55 }],
   ['ansiktslos', 'DEN ANSIKTSLÖSE', 'legendarisk', { backstab: 1, enemySense: 1, dmg: 0.2, maxHp: -30, healMul: -0.25 }, 1, '+100 % SKADA MOT OVETANDE\nFIENDER SYNS GENOM VÄGGAR\n+20 % SKADA\n-30 MAX HP\n-25 % HELNING', { curse: true, bad: 2, unlock: 40 }],
+  // ---- NYA KORT (version 5): drycker, följeslagare och allierade, närstrid, blödning, brand, kyla och huvudträffar ----
+  // vanliga
+  ['lakebladet', 'LÄKEBLADET', 'vanlig', { potionPower: 0.15 }, 4, '+15 % STARKARE DRYCKER'],
+  ['groddrunan', 'GRODDRUNAN', 'vanlig', { potionChance: 0.12 }, 3, '+12 % FLER DRYCKER'],
+  ['vargtanden', 'VARGTANDEN', 'vanlig', { petPower: 0.15 }, 4, '+15 % STARKARE\nFÖLJESLAGARE'],
+  ['jarnnaven', 'JÄRNNÄVEN', 'vanlig', { meleeDmg: 0.2 }, 4, '+20 % NÄRSTRIDSSKADA'],
+  ['eldrunan', 'ELDRUNAN', 'vanlig', { fireDmg: 0.15 }, 4, '+15 % BRANDSKADA'],
+  ['frosttoppen', 'FROSTTOPPEN', 'vanlig', { coldResist: 0.2 }, 3, '-20 % SKADA FRÅN\nKÖLD OCH FROST'],
+  ['slaktkroken', 'SLAKTKROKEN', 'vanlig', { bleedChance: 0.1 }, 3, '10 % CHANS ATT FIENDEN\nBÖRJAR BLÖDA'],
+  ['spejarkikaren', 'SPEJARKIKAREN', 'vanlig', { headshot: 0.2 }, 4, '+20 % SKADA VID HUVUDTRÄFF'],
+  ['manrunan', 'MÅNRUNAN', 'vanlig', { lightRadius: 1 }, 3, '+1 LJUSRADIE'],
+  ['marknadstaltet', 'MARKNADSTÄLTET', 'vanlig', { npcDiscount: 0.1 }, 3, '-10 % PRISER HOS\nALKEMISTEN OCH PRÄSTEN'],
+  ['vapenladorna', 'VAPENLÅDORNA', 'vanlig', { weaponDrop: 0.1 }, 3, '10 % CHANS ATT ELITER\nTAPPAR SITT VAPEN'],
+  ['dodsrunan', 'DÖDSRUNAN', 'vanlig', { allyChance: 0.04 }, 3, '4 % CHANS ATT EN DÖDAD\nFIENDE RESER SIG SOM\nDIN ALLIERADE'],
+  // ovanliga
+  ['blandbradet', 'BLANDBRÄDET', 'ovanlig', { potionPower: 0.12, potionChance: 0.12 }, 2, '+12 % STARKARE DRYCKER\n+12 % FLER DRYCKER', { unlock: 15 }],
+  ['flockens_horn', 'FLOCKENS HORN', 'ovanlig', { petPower: 0.2, allyChance: 0.03 }, 2, '+20 % STARKARE\nFÖLJESLAGARE\n3 % CHANS ATT DÖDADE\nFIENDER BLIR ALLIERADE'],
+  ['gapet', 'DET GRINANDE GAPET', 'ovanlig', { bleedChance: 0.15, meleeDmg: 0.15 }, 2, '15 % CHANS TILL BLÖDNING\n+15 % NÄRSTRIDSSKADA', { unlock: 15 }],
+  ['bodelsnalen', 'BÖDELSNÅLEN', 'ovanlig', { headshot: 0.3, critChance: 0.03 }, 3, '+30 % SKADA VID HUVUDTRÄFF\n+3 % KRITCHANS'],
+  ['ristarboden', 'RISTARBODEN', 'ovanlig', { npcDiscount: 0.15, shopDiscount: 0.05 }, 2, '-15 % PRISER HOS\nALKEMISTEN OCH PRÄSTEN\n-5 % PRISER I BUTIKEN'],
+  ['brinnande_tornet', 'DET BRINNANDE TORNET', 'ovanlig', { fireDmg: 0.2, burnChance: 0.08 }, 2, '+20 % BRANDSKADA\n8 % BRANDCHANS'],
+  ['trogna_anden', 'DEN TROGNA ANDEN', 'ovanlig', { allyChance: 0.05, petPower: 0.1 }, 2, '5 % CHANS ATT DÖDADE\nFIENDER BLIR ALLIERADE\n+10 % STARKARE\nFÖLJESLAGARE', { unlock: 15 }],
+  ['overflodet', 'ÖVERFLÖDETS KORG', 'ovanlig', { potionChance: 0.2, ammoMul: 0.1 }, 2, '+20 % FLER DRYCKER\n+10 % AMMO FRÅN FÖREMÅL'],
+  ['spokspegeln', 'SPÖKSPEGELN', 'ovanlig', { allyChance: 0.1, damageTaken: 0.15 }, 1, '10 % CHANS ATT DÖDADE\nFIENDER BLIR ALLIERADE\n+15 % SKADA DU TAR', { curse: true, bad: 1, unlock: 20 }],
+  // sällsynta
+  ['ishavet', 'ISHAVETS VÅG', 'sallsynt', { coldResist: 0.3, armorPerFloor: 8 }, 2, '-30 % SKADA FRÅN\nKÖLD OCH FROST\n+8 RUSTNING VID VARJE VÅNING'],
+  ['jagarogat', 'JÄGARÖGAT', 'sallsynt', { headshot: 0.4, critDmg: 0.2 }, 2, '+40 % SKADA VID HUVUDTRÄFF\n+20 % KRITSKADA', { unlock: 25 }],
+  ['dimvasen', 'DIMVÄSENDEN', 'sallsynt', { allyChance: 0.08, petPower: 0.2 }, 2, '8 % CHANS ATT DÖDADE\nFIENDER BLIR ALLIERADE\n+20 % STARKARE\nFÖLJESLAGARE', { unlock: 30 }],
+  ['gavoasken', 'DEN FÖRSEGLADE GÅVAN', 'sallsynt', { weaponDrop: 0.2, luck: 0.05 }, 1, '20 % CHANS ATT ELITER\nTAPPAR SITT VAPEN\n+5 % LYCKA', { unlock: 25 }],
+  ['haxkvasten', 'HÄXKVASTEN', 'sallsynt', { potionPower: 0.2, potionChance: 0.15, moveSpeed: 0.05 }, 2, '+20 % STARKARE DRYCKER\n+15 % FLER DRYCKER\n+5 % RÖRELSEHASTIGHET', { unlock: 25 }],
+  ['trallbojan', 'TRÄLBOJAN', 'sallsynt', { allyChance: 0.15, petPower: 0.3, moveSpeed: -0.1 }, 1, '15 % CHANS ATT DÖDADE\nFIENDER BLIR ALLIERADE\n+30 % STARKARE\nFÖLJESLAGARE\n-10 % RÖRELSEHASTIGHET', { curse: true, bad: 1, unlock: 20 }],
+  // legendariska
+  ['purpurkitteln', 'PURPURKITTELN', 'legendarisk', { potionPower: 0.4, potionChance: 0.3, healMul: 0.15, npcDiscount: 0.15 }, 1, '+40 % STARKARE DRYCKER\n+30 % FLER DRYCKER\n+15 % HELNING\n-15 % PRISER HOS\nALKEMISTEN OCH PRÄSTEN', { unlock: 45 }],
+  ['karmosinhjartat', 'KARMOSINHJÄRTAT', 'legendarisk', { bleedChance: 0.3, meleeDmg: 0.25, lifesteal: 0.04, maxHp: 20 }, 1, '30 % CHANS TILL BLÖDNING\n+25 % NÄRSTRIDSSKADA\n4 % AV SKADAN BLIR HP\n+20 MAX HP', { unlock: 50 }],
+  ['dodsbesvarjaren', 'DÖDSBESVÄRJARENS SINNE', 'legendarisk', { allyChance: 0.15, petPower: 0.4, killHeal: 1 }, 1, '15 % CHANS ATT DÖDADE\nFIENDER BLIR ALLIERADE\n+40 % STARKARE FÖLJESLAGARE\n+1 HP PER DÖDAD FIENDE', { unlock: 50 }],
   // ---- VAPENPAKTER: låser rundan till ett vapen och öppnar dess unika uppgraderingar ----
   ['pakt_pistol', 'REVOLVERMANNENS ED', 'sallsynt', { dmg: 0.15 }, 1, '+15 % SKADA\nALL AMMO BLIR 9MM\n5 UNIKA UPPGRADERINGAR\nBARA PISTOL RESTEN AV RUNDAN', { pact: 'pistol', bad: 1 }],
   ['pakt_hagel', 'SLAKTARENS ED', 'sallsynt', { dmg: 0.15 }, 1, '+15 % SKADA\nALL AMMO BLIR PATRONER\n5 UNIKA UPPGRADERINGAR\nBARA HAGELGEVÄR RESTEN AV RUNDAN', { pact: 'shotgun', bad: 1 }],
@@ -241,6 +289,22 @@ const DEFS = [
   ['tidsstoppet', 'TIDSSTOPPET', 'legendarisk', {}, 1, 'NÄR DU SIKTAR GÅR\nTIDEN I HALV FART', { weapon: 'sniper', wup: 'bullettime' }],
   ['sprangkulan', 'SPRÄNGKULAN', 'ovanlig', {}, 1, 'VARJE TRÄFF EXPLODERAR', { weapon: 'sniper', wup: 'explosive' }],
   ['tomhetsstenen', 'TOMHETSSTENEN', 'legendarisk', { dmg: 0.6, fireRate: 0.25, maxHp: -40, damageTaken: 0.35 }, 1, '+60 % SKADA\n+25 % ELDHASTIGHET\n-40 MAX HP\n+35 % SKADA DU TAR', { curse: true, bad: 2, unlock: 40 }],
+  // ---- pakter och uppgraderingar för yxan, eldkastaren och granatkastaren (version 5) ----
+  ['pakt_yxa', 'BÄRSÄRKENS ED', 'sallsynt', { dmg: 0.15 }, 1, '+15 % SKADA\nYXAN BEHÖVER INGEN AMMO\n4 UNIKA UPPGRADERINGAR\nBARA YXA RESTEN AV RUNDAN', { pact: 'axe', bad: 1 }],
+  ['pakt_eld', 'MORDBRÄNNARENS ED', 'sallsynt', { dmg: 0.15 }, 1, '+15 % SKADA\nALL AMMO BLIR BRÄNSLE\n4 UNIKA UPPGRADERINGAR\nBARA ELDKASTARE RESTEN AV RUNDAN', { pact: 'flamer', bad: 1 }],
+  ['pakt_gk', 'SPRÄNGMÄSTARENS ED', 'sallsynt', { dmg: 0.15 }, 1, '+15 % SKADA\nALL AMMO BLIR GRANATER\n4 UNIKA UPPGRADERINGAR\nBARA GRANATKASTARE RESTEN AV RUNDAN', { pact: 'launcher', bad: 1 }],
+  ['virvelhugget', 'VIRVELHUGGET', 'sallsynt', {}, 1, 'LADDAT SLAG SNURRAR RUNT\nOCH TRÄFFAR ALLA\nOMKRING DIG', { weapon: 'axe', wup: 'axe_whirl' }],
+  ['aderlataren', 'ÅDERLÅTAREN', 'ovanlig', {}, 1, 'TRÄFFAR GER BLÖDNING:\nSKADA ÖVER TID', { weapon: 'axe', wup: 'axe_bleed' }],
+  ['returkastet', 'RETURKASTET', 'sallsynt', {}, 1, 'DEN KASTADE YXAN STUDSAR\nVIDARE TILL EN ANDRA FIENDE', { weapon: 'axe', wup: 'axe_boomerang' }],
+  ['skordehugget', 'SKÖRDEHUGGET', 'ovanlig', {}, 1, 'DÖDANDE SLAG GER 5 HP', { weapon: 'axe', wup: 'axe_butcher' }],
+  ['brinnande_jord', 'BRINNANDE JORD', 'sallsynt', {}, 1, 'LÅGAN LÄMNAR BRINNANDE\nMARK EFTER SIG', { weapon: 'flamer', wup: 'fl_napalm' }],
+  ['bla_lagan', 'BLÅ LÅGAN', 'legendarisk', {}, 1, 'BLÅ LÅGA: +50 % SKADA\nOCH LÄNGRE RÄCKVIDD', { weapon: 'flamer', wup: 'fl_blue' }],
+  ['sparlagan', 'SPARLÅGAN', 'ovanlig', {}, 1, 'HALVA BRÄNSLEÅTGÅNGEN', { weapon: 'flamer', wup: 'fl_frugal' }],
+  ['eldmuren', 'ELDMUREN', 'sallsynt', {}, 1, 'HÖGERKLICK SPRUTAR EN\nELDVÄGG FRAMFÖR DIG', { weapon: 'flamer', wup: 'fl_wall' }],
+  ['splitterskalet', 'SPLITTERSKALET', 'sallsynt', {}, 1, 'GRANATEN SPLITTRAS\nI TRE SMÅ GRANATER', { weapon: 'launcher', wup: 'gl_cluster' }],
+  ['tjarbomben', 'TJÄRBOMBEN', 'ovanlig', {}, 1, 'GRANATEN FASTNAR\nPÅ FIENDER', { weapon: 'launcher', wup: 'gl_sticky' }],
+  ['jattegranaten', 'JÄTTEGRANATEN', 'legendarisk', {}, 1, 'DUBBEL SPRÄNGRADIE\nGRANATEN FLYGER LÅNGSAMMARE', { weapon: 'launcher', wup: 'gl_mega', bad: 1 }],
+  ['trummagasinet', 'TRUMMAGASINET', 'sallsynt', {}, 1, 'TRE GRANATER I SNABB FÖLJD', { weapon: 'launcher', wup: 'gl_drum' }],
 ];
 
 // ---------- Set och synergier ----------
@@ -253,9 +317,12 @@ const SETS = {
   krit:   { name: 'BÖDELNS BLICK',    text: '+5 % KRITCHANS\n+30 % KRITSKADA\n+1 HP PER KRITISK TRÄFF', mods: { critChance: 0.05, critDmg: 0.3, critHeal: 1 } },
   skugga: { name: 'SKUGGANS VÄG',     text: '+30 % SKADA MOT OVETANDE\n+5 % CHANS ATT UNDVIKA\nFIENDER SYNS PÅ KARTAN', mods: { backstab: 0.3, dodge: 0.05, enemySense: 1 } },
   luft:   { name: 'VINDENS BARN',     text: 'DUBBELHOPP\n+15 % SKADA I LUFTEN\n+5 % RÖRELSEHASTIGHET', mods: { doubleJump: 1, airDmg: 0.15, moveSpeed: 0.05 } },
+  alkemi: { name: 'ALKEMISTENS LÄRA', text: '+20 % STARKARE DRYCKER\n+15 % FLER DRYCKER\n-10 % PRISER HOS ALKEMIST OCH PRÄST', mods: { potionPower: 0.2, potionChance: 0.15, npcDiscount: 0.1 } },
+  flock:  { name: 'FLOCKENS BAND',    text: '+25 % STARKARE FÖLJESLAGARE\n+5 % CHANS TILL ALLIERADE\n+1 HP PER DÖDAD FIENDE', mods: { petPower: 0.25, allyChance: 0.05, killHeal: 1 } },
 };
 // Synergitaggar: kort med samma tagg spelar bra ihop (t.ex. eld + explosion, krit + kritskada).
-const SYN = { eld: 'ELD', krit: 'KRIT', gift: 'GIFT', frost: 'FROST', blixt: 'BLIXT', skold: 'SKÖLD', guld: 'GULD', liv: 'LIV', rusning: 'RUSNING', skugga: 'SKUGGA', granat: 'GRANAT' };
+const SYN = { eld: 'ELD', krit: 'KRIT', gift: 'GIFT', frost: 'FROST', blixt: 'BLIXT', skold: 'SKÖLD', guld: 'GULD', liv: 'LIV', rusning: 'RUSNING', skugga: 'SKUGGA', granat: 'GRANAT',
+  dryck: 'DRYCK', flock: 'FLOCK', blod: 'BLOD', narstrid: 'NÄRSTRID' };
 // set och syn för alla kort samlas här: id: [set eller '', syn-taggar...]
 const TAGS = {
   // eld och explosioner
@@ -281,6 +348,16 @@ const TAGS = {
   askstav: ['', 'blixt'], tankestormen: ['', 'blixt'], runsten: ['', 'blixt'],
   glorian: ['', 'skold'], stenmuren: ['', 'skold'], murbruket: ['', 'skold'], fyrkanten: ['', 'skold'], kubtornet: ['', 'skold'],
   vampyren: ['', 'liv'], seansen: ['', 'liv'], ouroboros: ['', 'liv'], lagerelden: ['', 'liv'], gronskan: ['', 'liv'], rotknuta: ['', 'liv'], eremiten: ['', 'liv'],
+  // version 5: drycker (alkemi), följeslagare och allierade (flock), blödning och närstrid
+  lakebladet: ['alkemi', 'dryck', 'liv'], groddrunan: ['alkemi', 'dryck'], blandbradet: ['alkemi', 'dryck'], haxkvasten: ['alkemi', 'dryck'],
+  purpurkitteln: ['alkemi', 'dryck', 'liv'], overflodet: ['', 'dryck'], blomkrukan: ['', 'dryck', 'liv'],
+  vargtanden: ['flock', 'flock'], dodsrunan: ['flock', 'flock'], flockens_horn: ['flock', 'flock'], trogna_anden: ['flock', 'flock'],
+  dimvasen: ['flock', 'flock'], dodsbesvarjaren: ['flock', 'flock', 'liv'], spokspegeln: ['', 'flock'], trallbojan: ['', 'flock'],
+  slaktkroken: ['', 'blod'], gapet: ['', 'blod', 'narstrid'], karmosinhjartat: ['', 'blod', 'narstrid', 'liv'], jarnnaven: ['', 'narstrid'],
+  stenhjartat: ['', 'narstrid'], spegelskarvan: ['', 'narstrid'],
+  eldrunan: ['', 'eld'], brinnande_tornet: ['', 'eld'], frosttoppen: ['frost', 'frost'], ishavet: ['', 'frost', 'skold'],
+  bodelsnalen: ['krit', 'krit'], jagarogat: ['', 'krit'], spejarkikaren: ['', 'krit'],
+  ristarboden: ['', 'guld'], marknadstaltet: ['', 'guld'], gavoasken: ['', 'guld'],
 };
 
 const ALL = DEFS.map(([id, name, rarity, mods, max, text, extra]) => {
@@ -289,18 +366,28 @@ const ALL = DEFS.map(([id, name, rarity, mods, max, text, extra]) => {
   if (t) { if (t[0]) c.set = t[0]; if (t.length > 1) c.syn = t.slice(1); }
   return c;
 });
-const BY_ID = {};
+const BY_ID = Object.create(null);
 for (const c of ALL) BY_ID[c.id] = c;
-const byId = id => BY_ID[id] || null;
+// byId klarar också sammansmälta kort ('<id>+'), som skapas första gången de efterfrågas.
+function byId(id) {
+  if (typeof id !== 'string') return null;
+  const c = BY_ID[id];
+  if (c) return c;
+  if (isFused(id)) {
+    const b = BY_ID[baseId(id)];
+    if (b && fusable(b)) return (BY_ID[id] = makeFused(b));
+  }
+  return null;
+}
 const setCards = setId => ALL.filter(c => c.set === setId);
 
-// Antal olika ägda kort per set
+// Antal olika ägda kort per set (ett sammansmält kort räknas som sitt grundkort)
 function setCounts(ownedIds) {
   const seen = new Set(), n = {};
   for (const id of ownedIds || []) {
-    const c = BY_ID[id];
-    if (!c || !c.set || seen.has(id)) continue;
-    seen.add(id); n[c.set] = (n[c.set] || 0) + 1;
+    const c = byId(id), b = baseId(id);
+    if (!c || !c.set || seen.has(b)) continue;
+    seen.add(b); n[c.set] = (n[c.set] || 0) + 1;
   }
   return n;
 }
@@ -313,8 +400,9 @@ function setProgress(ownedIds) {
 // Kort skäl (svenska) till att kortet passar med de ägda korten, eller ''.
 function synergy(card, ownedIds) {
   if (!card) return '';
-  const owned = new Set(ownedIds || []);
-  if (card.set && SETS[card.set] && !owned.has(card.id)) {
+  const owned = new Set((ownedIds || []).map(baseId));
+  const self = baseId(card.id);
+  if (card.set && SETS[card.set] && !owned.has(self)) {
     const have = setCounts(ownedIds)[card.set] || 0;
     if (have > 0 && have < SET_NEED) {
       const s = SETS[card.set];
@@ -323,7 +411,7 @@ function synergy(card, ownedIds) {
   }
   for (const tag of card.syn || []) {
     for (const id of owned) {
-      if (id === card.id) continue;
+      if (id === self) continue;
       const o = BY_ID[id];
       if (o && o.syn && o.syn.includes(tag)) return (SYN[tag] || tag.toUpperCase()) + ' + ' + o.name;
     }
@@ -336,7 +424,7 @@ function computeMods(ownedIds) {
   const m = {};
   for (const k of KEYS) m[k] = 0;
   for (const id of ownedIds || []) {
-    const c = BY_ID[id];
+    const c = byId(id); // '<id>+' ger det sammansmälta kortets starkare mods
     if (!c) continue;
     for (const k in c.mods) if (k in m) m[k] += c.mods[k];
   }
@@ -369,6 +457,10 @@ const FMT = {
   shieldOnKill: ['n', 'SKÖLD PER DÖDAD'], ammoRegen: ['p', 'MAGASIN PER S I RESERVEN'], knockback: ['p', 'KNUFF'],
   chestChoice: ['n', 'VAL I KISTOR'], freeReroll: ['n', 'GRATIS NYA KORT PER VÅNING'], hazardImmune: ['f', 'IMMUN MOT LAVA, VATTEN, IS OCH NÄT'],
   doubleJump: ['f', 'DUBBELHOPP'],
+  potionPower: ['p', 'STARKARE DRYCKER'], potionChance: ['p', 'FLER DRYCKER'], petPower: ['p', 'STARKARE FÖLJESLAGARE'],
+  meleeDmg: ['p', 'NÄRSTRIDSSKADA'], fireDmg: ['p', 'BRANDSKADA'], coldResist: ['p', 'SKYDD MOT KÖLD OCH FROST'],
+  headshot: ['p', 'SKADA VID HUVUDTRÄFF'], bleedChance: ['p', 'CHANS TILL BLÖDNING'], allyChance: ['p', 'CHANS TILL ALLIERADE'],
+  lightRadius: ['n', 'LJUSRADIE'], weaponDrop: ['p', 'CHANS ATT ELIT TAPPAR VAPEN'], npcDiscount: ['p', 'RABATT HOS ALKEMIST OCH PRÄST'],
 };
 const INVERT = { damageTaken: true };
 const num = v => String(Math.round(v * 100) / 100).replace('.', ',');
@@ -387,10 +479,76 @@ function modLines(cardOrMods) {
   return out;
 }
 
+// ---------- Sammansmältning ----------
+// Två exemplar av samma kort kan smältas ihop till '<id>+': samma kort med namn + '+', mods ×1,6
+// (avrundat: andelar till hela procent, platta tal till heltal eller tiondelar, på/av oförändrat),
+// ett steg sällsyntare (högst legendarisk) och samma bild. Pakter, vapenuppgraderingar och kort
+// som bara kan tas en gång kan inte smältas.
+const FUSE_MUL = 1.6;
+const PLURAL = { KULA: 'KULOR', RUTA: 'RUTOR', GRANAT: 'GRANATER' }; // '+1 KULA' blir '+2 KULOR'
+function isFused(id) { return typeof id === 'string' && id.length > 1 && id.charAt(id.length - 1) === '+'; }
+function baseId(id) { return isFused(id) ? id.slice(0, -1) : id; }
+function fusable(card) { return !!card && !card.fused && !card.pact && !card.weapon && card.max >= 2; }
+function fuseVal(key, v) {
+  const u = FMT[key] ? FMT[key][0] : 'p';
+  if (u === 'f' || !v) return v;
+  const step = u === 'p' ? 0.01 : Number.isInteger(v) ? 1 : 0.1;
+  let r = Math.round(v * FUSE_MUL / step) * step;
+  if (Math.abs(r) <= Math.abs(v)) r = v + Math.sign(v) * step; // alltid märkbart starkare
+  return Math.round(r * 1e6) / 1e6;
+}
+// Byter talen i kortets text mot de nya, i modsens ordning. Går det inte: rader ur modLines.
+function fuseText(card, mods) {
+  let text = card.text, pos = 0;
+  for (const k in card.mods) {
+    const f = FMT[k];
+    if (!f || f[0] === 'f' || !card.mods[k]) continue;
+    const show = v => num(Math.abs(v) * (f[0] === 'p' ? 100 : 1));
+    const a = show(card.mods[k]), b = show(mods[k]);
+    const re = new RegExp('(^|[^\\d,])' + a + '(?![\\d,])', 'g');
+    re.lastIndex = pos;
+    const m = re.exec(text);
+    if (!m) { text = null; break; }
+    const at = m.index + m[1].length;
+    text = text.slice(0, at) + b + text.slice(at + a.length);
+    pos = at + b.length;
+  }
+  if (text != null) return { text: text.replace(/\b(\d+) (MAX )?(KULA|RUTA|GRANAT)\b/g, (m, n, mx, w) => (n === '1' ? m : n + ' ' + (mx || '') + PLURAL[w])), bad: card.bad || 0 };
+  const lines = modLines(mods), good = lines.filter(l => l.good), bad = lines.filter(l => !l.good);
+  return { text: good.concat(bad).map(l => l.text).join('\n'), bad: bad.length };
+}
+function makeFused(base) {
+  const mods = {};
+  for (const k in base.mods) mods[k] = fuseVal(k, base.mods[k]);
+  const ri = Math.min(RARITY_ORDER.length - 1, RARITY_ORDER.indexOf(base.rarity) + 1);
+  const t = fuseText(base, mods);
+  const c = Object.assign({}, base, {
+    id: base.id + '+', name: base.name + '+', rarity: RARITY_ORDER[ri], mods, text: t.text,
+    max: Math.max(1, Math.floor(base.max / 2)), fused: true, base: base.id,
+  });
+  if (base.syn) c.syn = base.syn.slice();
+  delete c.unlock;
+  if (t.bad) c.bad = t.bad; else delete c.bad;
+  return c;
+}
+// fuse(id): id för det sammansmälta kortet ('<id>+'), eller null om kortet inte kan smältas.
+function fuse(id) {
+  const c = BY_ID[id];
+  return fusable(c) ? byId(id + '+').id : null;
+}
+// canFuse(ägda id): id (i ordning) som finns i minst två exemplar och kan smältas.
+function canFuse(ownedIds) {
+  const n = new Map();
+  for (const id of ownedIds || []) n.set(id, (n.get(id) || 0) + 1);
+  const out = [];
+  for (const [id, k] of n) if (k >= 2 && fusable(BY_ID[id])) out.push(id);
+  return out;
+}
+
 // ---------- Dragning ----------
 // Vikten skiftar mot sällsyntare med djup (våning, 0..) och luck (summan av luck-modden, 0.1 per kort).
 const CURSE_WEIGHT = 0.8; // förbannade kort dyker upp ibland
-const PACT_WEIGHT = 1.3, UPGRADE_WEIGHT = 6; // åtta pakter: en pakt syns i ungefär var fjärde dragning; efter pakten kommer uppgraderingarna tätt
+const PACT_WEIGHT = 1.3, UPGRADE_WEIGHT = 6; // elva pakter: en pakt syns i ungefär var fjärde dragning; efter pakten kommer uppgraderingarna tätt
 function rarityWeight(rarity, depth, luck) {
   const t = Math.max(0, (depth || 0) * 0.25 + (luck || 0) * 2.5); // 0 = början av rundan
   const base = RARITY[rarity].weight;
@@ -412,7 +570,7 @@ function pickWeighted(rng, arr, fn) {
 function draw(rng, n, opts) {
   opts = opts || {};
   const owned = {};
-  for (const id of opts.owned || []) owned[id] = (owned[id] || 0) + 1;
+  for (const id of opts.owned || []) { const b = baseId(id); owned[b] = (owned[b] || 0) + (isFused(id) ? 2 : 1); } // '<id>+' är två exemplar
   const unlocked = opts.unlocked instanceof Set ? opts.unlocked : new Set(opts.unlocked || []);
   const depth = opts.depth || 0, luck = opts.luck || 0;
   // pakter: bara en per runda. Uppgraderingar: bara för vapnet man har svurit sig till, och då ofta.
@@ -435,10 +593,11 @@ function price(card, depth, discount) {
   return Math.max(5, Math.round(p / 5) * 5);
 }
 
-const WEAPON_NAME = { pistol: 'PISTOL', shotgun: 'HAGELGEVÄR', rifle: 'GEVÄR', smg: 'KPIST', dbshotgun: 'DUBBELBÖSSA', crossbow: 'ARMBORST', flaregun: 'SIGNALPISTOL', sniper: 'PRICKSKYTTE' };
-// etikett ovanför kortets namn: förbannelse, pakt eller vilket vapen uppgraderingen hör till
+const WEAPON_NAME = { pistol: 'PISTOL', shotgun: 'HAGELGEVÄR', rifle: 'GEVÄR', smg: 'KPIST', dbshotgun: 'DUBBELBÖSSA', crossbow: 'ARMBORST', flaregun: 'SIGNALPISTOL', sniper: 'PRICKSKYTTE',
+  axe: 'YXA', flamer: 'ELDKASTARE', launcher: 'GRANATKASTARE' };
+// etikett ovanför kortets namn: förbannelse, pakt, vilket vapen uppgraderingen hör till eller sammansmält
 function tag(card) {
-  return card.curse ? 'FÖRBANNAD' : card.pact ? 'PAKT' : card.weapon ? WEAPON_NAME[card.weapon] : '';
+  return card.curse ? 'FÖRBANNAD' : card.pact ? 'PAKT' : card.weapon ? WEAPON_NAME[card.weapon] : card.fused ? 'SAMMANSMÄLT' : '';
 }
 function describe(card) {
   const r = RARITY[card.rarity];
@@ -447,5 +606,6 @@ function describe(card) {
     + (card.set && SETS[card.set] ? '\nSET: ' + SETS[card.set].name : '');
 }
 
-window.Cards = { ALL, byId, RARITY, RARITY_ORDER, MOD_KEYS, WEAPON_NAME, SETS, SYN, draw, computeMods, price, describe, tag, setProgress, synergy, modLines };
+window.Cards = { ALL, byId, RARITY, RARITY_ORDER, MOD_KEYS, WEAPON_NAME, SETS, SYN, draw, computeMods, price, describe, tag, setProgress, synergy, modLines,
+  fuse, canFuse, fusable, isFused, baseId, FUSE_MUL };
 })();

@@ -1,13 +1,16 @@
 'use strict';
 // Skriver ut en genererad bana som ASCII: node tools/gen-preview.js <biom> [seed] [djup] [flaggor]
-//   biom: dungeon | caves | graveyard | forest | courtyard | swamp | boss | boss:hall | boss:graveyard | boss:cave | boss:forest
-//         | boss:swamp | random   (eller --biome=swamp)
-//   flaggor: --biome=swamp  --shop  --weapon=g  --guardian=demon (vaktare på vanliga våningar)  --boss=ghost (bossens tema i arenan)
+//   biom: dungeon | caves | graveyard | forest | courtyard | swamp | frost | boss | boss:hall | boss:graveyard | boss:cave
+//         | boss:forest | boss:swamp | boss:frost | random   (eller --biome=frost)
+//   flaggor: --biome=swamp  --shop  --weapon=g (eller --weapon=axe)  --guardian=demon (vaktare på vanliga våningar, även frost)
+//            --boss=ghost (bossens tema i arenan)
 //            --sky (visa himmelmasken)  --floor (visa golvmasken)  --mask (visa rumsmasken)  --rooms (lista rummen med rumstyp)
 //            --legend (teckenförklaring)  --n=3 (flera seeds i följd)  --stats (bara statistik över n banor: nya saker, fiendemix)
 // Golv visas som . (alla golvtexturer), vaktarens/bossens golv som ` så att salen syns (--floor visar golvmasken).
 // Exempel: node tools/gen-preview.js forest 123 3 --shop --rooms
 //          node tools/gen-preview.js --biome=swamp 7 3 --legend
+//          node tools/gen-preview.js --biome=frost 7 3 --rooms --guardian=frost
+//          node tools/gen-preview.js boss:frost 3 --boss=frost
 //          node tools/gen-preview.js caves 1 --stats --n=200
 const fs = require('fs');
 const path = require('path');
@@ -33,9 +36,14 @@ const LEGEND = [
   'interaktiva (blockerar): ( städ  ) spåaltare  [ fångbur  ? utmaningsaltare  ; offerskål  / spak',
   'grindar/lås: | järngrind (öppnas med spaken)  ] låst dörr (öppnas med nyckeln)  { sprucken vägg (sprängs)',
   "föremål: , granatknippe  ' skattkarta  } nyckel",
+  'version 5: väggar Ø frusen sten (frostfästet)  ¦ frostväktarens isvägg      vapen: å yxa  ä eldkastare  ö granatkastare',
+  'nya fiender: Å ghoul  Ä kultist  Ö gargoyle (vilande staty)  É isvarg  Ü frostirrbloss',
+  'NPC:er (blockerar): £ alkemist  € präst  © husdjursbur      ¥ dryck      Ç istapp (faller när den skjuts)',
+  'frostfästet: salar och korridorer i Ø kring snögårdar under himlen (--sky visar gårdarna), : isfält/frusna sjöar',
 ];
-const OLD_EN = 'SKVILNORW', NEW_EN = 'UXY!@^+';
-const FEAT = { anvil: '(', fortune: ')', prisoner: '[', challenge: '?', offering: ';', lever: '/', locked: ']', cracked: '{', arrows: '<', gas: '>', lava: '_', water: '-', ice: ':', webs: '"' };
+const OLD_EN = 'SKVILNORW', NEW_EN = 'UXY!@^+ÅÄÖÉÜ';
+const FEAT = { anvil: '(', fortune: ')', prisoner: '[', challenge: '?', offering: ';', lever: '/', locked: ']', cracked: '{', arrows: '<', gas: '>', lava: '_', water: '-', ice: ':', webs: '"',
+  alchemist: '£', priest: '€', petcage: '©', potions: '¥', icicles: 'Ç' };
 const makeLevel = (seed, d, shop) => (biome.startsWith('boss') ? Gen.boss(seed, { arena: biome.split(':')[1], boss: flag('boss') })
   : Gen.floor(seed, d, { biome: biome === 'random' ? undefined : biome, shop, weapon: flag('weapon'), guardian: flag('guardian') }));
 if (flag('stats')) {
@@ -78,7 +86,7 @@ for (let k = 0; k < n; k++) {
     let s = '';
     for (let x = 0; x < W; x++) {
       const c = lv.map[y][x];
-      if (show) { s += (c >= '0' && c <= '9') || '#%~&='.includes(c) ? '#' : (show[y] ? show[y][x] : '?'); continue; }
+      if (show) { s += (c >= '0' && c <= '9') || '#%~&=Ø¦'.includes(c) ? '#' : (show[y] ? show[y][x] : '?'); continue; }
       if (c !== '.') { s += c; continue; }
       const fi = lv.floorMask ? +lv.floorMask[y][x] : 0;
       s += fi === bossF ? '`' : '.';
@@ -87,7 +95,7 @@ for (let k = 0; k < n; k++) {
   }
   if (flag('rooms')) {
     // per rum: typ, rumstyp, ruta, antal fiender och rekvisita (räknat via rumsmasken när den finns)
-    const ENEMY = 'SKVILNORWEQ' + NEW_EN, PROPS = 'ckjquvwyzeiFHJT()[?;/';
+    const ENEMY = 'SKVILNORWEQ' + NEW_EN, PROPS = 'ckjquvwyzeiFHJT()[?;/£€©';
     lv.rooms.forEach((r, i) => {
       let en = 0, pr = 0, items = '';
       for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
@@ -95,7 +103,7 @@ for (let k = 0; k < n; k++) {
         if (!inside) continue;
         const c = lv.map[y][x];
         if (ENEMY.includes(c)) en++; else if (PROPS.includes(c)) pr++;
-        if ("ZhaA$CMwy,'}".includes(c)) items += c;
+        if ("ZhaA$CMwy,'}¥".includes(c) || (Gen.WEAPONS && Gen.WEAPONS[c])) items += c;
       }
       console.log(`  ${String(i).padStart(2)} ${String.fromCharCode(48 + i)} ${r.type.padEnd(9)} ${(r.arch || '').padEnd(12)} ${(r.tag || r.shape || '').padEnd(9)} ${r.x},${r.y} ${r.w}x${r.h}  fiender ${en}  rekvisita ${pr}  ${items}` + (r.guardian ? '  vaktare ' + r.guardian : '') + (r.lock ? '  lås ' + r.lock : ''));
     });

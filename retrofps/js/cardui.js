@@ -50,8 +50,14 @@ function tint(node, card) {
   node.style.setProperty('--glow', hexA(c, 0.35));
   if (card.curse) node.classList.add('curse');
   if (card.pact) node.classList.add('pact');
+  if (card.fused) node.classList.add('fused');
   if (card.rarity === 'legendarisk') node.classList.add('legend');
 }
+const ribbonCls = card => 'cu-ribbon' + (card.curse ? '' : card.pact ? ' pact' : card.weapon ? ' wpn' : card.fused ? ' fused' : ' wpn');
+// "VALD 1 GÅNG", "VALD 3 GÅNGER"
+const timesTxt = n => 'VALD ' + n + (n === 1 ? ' GÅNG' : ' GÅNGER');
+// 12345 -> "12 345"
+const bigNum = v => String(Math.round(+v || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 // Tal med tecken eller procent färgas: gröna på fördelar, röda på nackdelar (de sista `bad` raderna).
 const NUM_RE = /[+\-\u2212]\d+(?:,\d+)?(?:\s?%)?|\d+(?:,\d+)?\s?%/g;
 function fxLine(text, bad) {
@@ -183,7 +189,9 @@ function activate(e) { // Enter/Mellanslag klickar fokuserat element i UI:t
 
 // ---------- Draft ----------
 // opts: { title, subtitle, skipLabel, owned: [id], seen: Set(id), banish: card => ersättare|null,
-//         reroll: { price (tal eller funktion), gold, onReroll: () => [kort] | null } }
+//         reroll: { price (tal eller funktion), gold, onReroll: () => [kort] | null },
+//         ownedCount: { [id]: antal } – märket "DU HAR n" på kort man redan har }
+// Legendariska kort laddas upp och vänds med en egen ljusexplosion (inte med prefers-reduced-motion).
 function draft(cards, opts, onPick) {
   if (typeof opts === 'function') { onPick = opts; opts = {}; }
   opts = opts || {};
@@ -192,6 +200,8 @@ function draft(cards, opts, onPick) {
   const owned = {};
   for (const id of ownedList) owned[id] = (owned[id] || 0) + 1;
   const seen = opts.seen ? (opts.seen instanceof Set ? opts.seen : new Set(opts.seen)) : null;
+  const have = opts.ownedCount && typeof opts.ownedCount === 'object' ? opts.ownedCount : null;
+  const haveOf = card => (have ? Math.max(0, +have[card.id] || 0) : 0);
   const synOf = card => (opts.owned && window.Cards.synergy ? window.Cards.synergy(card, ownedList) : '');
   const canBanish = typeof opts.banish === 'function';
   const rr = opts.reroll && typeof opts.reroll.onReroll === 'function' ? opts.reroll : null;
@@ -216,23 +226,30 @@ function draft(cards, opts, onPick) {
     c.tabIndex = 0; c.setAttribute('role', 'button');
     const syn = synOf(card);
     const isNew = seen && !seen.has(card.id);
+    const nHave = haveOf(card);
+    const canFuse = nHave >= 1 && window.Cards.fusable && window.Cards.fusable(card);
     c.setAttribute('aria-label', (i + 1) + ': ' + card.name + ', ' + (tagOf(card) ? tagOf(card) + ', ' : '') + r.label + '. ' + card.text.replace(/\n/g, ', ')
-      + (isNew ? '. NY' : '') + (syn ? '. SYNERGI: ' + syn : ''));
+      + (isNew ? '. NY' : '') + (nHave ? '. DU HAR ' + nHave + (canFuse ? ', TVÅ KAN SMÄLTAS SAMMAN' : '') : '') + (syn ? '. SYNERGI: ' + syn : ''));
     tint(c, card);
     const inner = el('div', 'cu-inner');
     const back = el('div', 'cu-face cu-back');
     const front = el('div', 'cu-face cu-front');
-    if (tagOf(card)) front.appendChild(el('div', 'cu-ribbon' + (card.curse ? '' : card.pact ? ' pact' : ' wpn'), tagOf(card)));
+    if (tagOf(card)) front.appendChild(el('div', ribbonCls(card), tagOf(card)));
     const rar = el('div', 'cu-rar'); rar.appendChild(el('span', '', r.label)); rar.appendChild(el('span', 'cu-key', '[' + (i + 1) + ']'));
     front.appendChild(rar);
     front.appendChild(art(card));
     front.appendChild(el('div', 'cu-name', card.name));
     front.appendChild(el('div', 'cu-sep'));
     front.appendChild(fxLines(card));
-    if (owned[card.id]) front.appendChild(el('div', 'cu-own', 'ÄGER ' + owned[card.id] + '/' + card.max));
+    if (owned[card.id] && !have) front.appendChild(el('div', 'cu-own', 'ÄGER ' + owned[card.id] + '/' + card.max));
     inner.appendChild(back); inner.appendChild(front);
     c.appendChild(inner);
     if (isNew) c.appendChild(el('div', 'cu-new', 'NY'));
+    if (nHave) {
+      const h = el('div', 'cu-have' + (canFuse ? ' fz' : ''), 'DU HAR ' + nHave);
+      h.title = canFuse ? 'VÄLJER DU KORTET KAN DE TVÅ SMÄLTAS SAMMAN I KORTLEKEN' : 'DU HAR REDAN ' + nHave + ' AV ' + card.max;
+      c.appendChild(h);
+    }
     c.addEventListener('click', () => pick(slots.findIndex(s => s.el === c)));
     slot.appendChild(c);
     const s = { card, slot, el: c, revealed: false, ban: null };
@@ -251,12 +268,20 @@ function draft(cards, opts, onPick) {
     }
     return s;
   }
+  const CHARGE = 650; // så länge ett legendariskt kort laddar upp innan det vänds
   function build(animate) {
     row.textContent = '';
     row.style.setProperty('--n', Math.max(1, cards.length));
     slots = cards.map((card, i) => { const s = makeSlot(card, i); row.appendChild(s.slot); return s; });
     if (reduced() || !animate) slots.forEach((_, i) => reveal(i, animate));
-    else slots.forEach((_, i) => later(() => reveal(i), 300 + i * 380));
+    else {
+      let t = 300;
+      slots.forEach((s, i) => {
+        if (s.card.rarity === 'legendarisk') { later(() => { if (!s.revealed) { s.el.classList.add('charging'); sfx('charge'); } }, t); t += CHARGE; }
+        later(() => reveal(i), t);
+        t += 380;
+      });
+    }
     hint.textContent = touchUI() ? 'TRYCK PÅ ETT KORT FÖR ATT VÄLJA' : 'KLICKA ELLER TRYCK 1-' + Math.max(1, cards.length) + ' · PILTANGENTER OCH ENTER' + (rr ? ' · R = NYA KORT' : '');
   }
 
@@ -295,7 +320,11 @@ function draft(cards, opts, onPick) {
     if (!s || s.revealed) return;
     s.revealed = true;
     if (flip === false) { s.el.classList.remove('down'); s.slot.classList.remove('down'); return; }
-    s.el.classList.remove('down'); s.slot.classList.remove('down'); sfx('flip');
+    s.el.classList.remove('down', 'charging'); s.slot.classList.remove('down');
+    if (s.card.rarity === 'legendarisk' && !reduced()) { // ljusexplosion; klassen tas bort efteråt så kortets vanliga animationer kommer tillbaka
+      s.slot.classList.add('legrev'); sfx('legend');
+      later(() => s.slot.classList.remove('legrev'), 1700);
+    } else sfx('flip');
   }
   const allRevealed = () => slots.every(s => s.revealed);
   function revealAll() { cur && cur.timers.forEach(clearTimeout); slots.forEach((_, i) => reveal(i)); }
@@ -376,6 +405,14 @@ const GLYPHS = {
   armor: { color: '#8ab4d8', map: ['XXXXXXXXX', 'XXXXXXXXX', 'XXXX.XXXX', 'XXXX.XXXX', 'XXXXXXXXX', '.XXXXXXX.', '.XXXXXXX.', '..XXXXX..', '...XXX...', '....X....'] },
   ammo: { color: '#ffd24a', map: ['.X..X..X.', 'XX.XX.XX.', 'XX.XX.XX.', 'XX.XX.XX.', 'XX.XX.XX.', 'XX.XX.XX.', 'XX.XX.XX.'] },
   reroll: { color: '#e8d9b0', map: ['XXXXXXXXX', 'X.......X', 'X.XX.XX.X', 'X.XX.XX.X', 'X.......X', 'X.XX.XX.X', 'X.XX.XX.X', 'X.......X', 'XXXXXXXXX'] },
+  // version 5: alkemisten, prästen, kartor, vapen och följeslagare
+  potion: { color: '#e04080', map: ['...XXX...', '...X.X...', '...XXX...', '..X...X..', '.X.....X.', 'X.XXXXX.X', 'XXXXXXXXX', 'XXXXXXXXX', '.XXXXXXX.'] },
+  blend: { color: '#c080ff', map: ['.XX...XX.', '.XX...XX.', 'XXXX.XXXX', 'X..X.X..X', 'X..X.X..X', 'XXXX.XXXX', 'XXXX.XXXX', 'XXXX.XXXX', '.XX...XX.'] },
+  map: { color: '#e8d9b0', map: ['XXXXXXXX.', 'X......XX', '.X.XX..X.', '.X...X.X.', '.X.X...X.', '.X..XX.X.', '.X.....X.', 'XX......X', '.XXXXXXXX'] },
+  bless: { color: '#fff0a0', map: ['..XXXXX..', '.X.....X.', '....X....', '.XXXXXXX.', '....X....', '....X....', '....X....', '....X....', '...XXX...'] },
+  curse: { color: '#a050e0', map: ['..XXXXX..', '.XXXXXXX.', 'XXXXXXXXX', 'XX..X..XX', 'XX..X..XX', 'XXXXXXXXX', '.XXX.XXX.', '..X.X.X..', '..XXXXX..'] },
+  weapon: { color: '#c9a87a', map: ['.XXX.....', 'XXXXX.X..', 'XXXXXXX..', 'XXXXX.X..', '.XXX..X..', '......X..', '......X..', '......X..', '.....XXX.'] },
+  pet: { color: '#c0d0e0', map: ['..X...X..', '.XXX.XXX.', '..X...X..', 'X.......X', 'XX.XXX.XX', '..XXXXX..', '.XXXXXXX.', '.XXXXXXX.', '..XX.XX..'] },
 };
 const DEFAULTS = {
   health: ['LÄKEDRYCK', 'ÅTERSTÄLLER HP'],
@@ -387,17 +424,28 @@ const DEFAULTS = {
   meta: ['UPPGRADERING', 'BESTÅENDE'],
   grenade: ['GRANAT', '+1 GRANAT'],
   gamble: ['TÄRNINGSSPEL', 'SATSA GULD'],
+  potion: ['DRYCK', 'EN DRYCK FRÅN ALKEMISTEN'],
+  blend: ['BLANDNING', 'BLANDA TVÅ DRYCKER'],
+  map: ['KARTA', 'VISAR VÅNINGEN'],
+  bless: ['VÄLSIGNELSE', 'PRÄSTENS VÄLSIGNELSE'],
+  curse: ['FÖRBANNELSE', 'MAKT MED ETT PRIS'],
+  weapon: ['VAPEN', 'ETT NYTT VAPEN'],
+  pet: ['FÖLJESLAGARE', 'EN TROGEN VÄN'],
 };
-function glyph(kind) {
+// glyph(sort, färg?): pixelikon för varor som inte är kort. color (valfri CSS-färg) ersätter standardfärgen.
+function glyph(kind, color) {
   const g = GLYPHS[kind] || GLYPHS.reroll;
   const h = g.map.length, w = g.map[0].length;
   let rects = '';
   g.map.forEach((line, y) => { for (let x = 0; x < w; x++) if (line[x] === 'X') rects += '<rect x="' + x + '" y="' + y + '" width="1" height="1"/>'; });
   const box = el('div', 'cu-ico');
   box.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + h + '" fill="' + g.color + '" aria-hidden="true">' + rects + '</svg>';
+  if (typeof color === 'string' && color) box.firstChild.setAttribute('fill', color); // attribut, inte HTML: färgen kan inte bryta sig ut
   return box;
 }
 
+// items: [{ kind: 'card', card, price } | { kind, price, label?, text?, color?, owned? }]; kind för andra varor:
+// health, armor, ammo, reroll, purge, mystery, meta, grenade, gamble, potion, blend, map, bless, curse, weapon, pet.
 function shop(items, gold, onBuy, onClose, opts) {
   opts = opts || {};
   const title = opts.title || 'BUTIKEN';
@@ -449,7 +497,7 @@ function shop(items, gold, onBuy, onClose, opts) {
         fx = fxLines(item.card);
       } else {
         const d = DEFAULTS[item.kind] || DEFAULTS.reroll;
-        top.appendChild(glyph(item.kind));
+        top.appendChild(glyph(item.kind, item.color));
         name = item.label || d[0];
         nm.appendChild(el('div', 'cu-iname', name));
         fx = el('div', 'cu-fx'); fx.appendChild(el('div', '', item.text || d[1]));
@@ -595,24 +643,69 @@ function detailFor(detail, card, n) {
     detail.appendChild(ml);
   }
 }
-function deck(ownedIds, onClose) {
+// Statistik för ett kort under rundan: { dmg, kills, picks } (alla valfria)
+function statsBox(st) {
+  const box = el('div', 'cu-stats');
+  if (!st || typeof st !== 'object') { box.appendChild(el('div', 'cu-stx', 'INGEN STATISTIK ÄNNU')); return box; }
+  const add = (label, v) => { const d = el('div', 'cu-st'); d.appendChild(el('span', 'cu-stv', v)); d.appendChild(el('span', 'cu-stl', label)); box.appendChild(d); };
+  if (st.dmg != null) add('SKADA', bigNum(st.dmg));
+  if (st.kills != null) add('DÖDADE', bigNum(st.kills));
+  if (st.picks != null) add(+st.picks === 1 ? 'GÅNG' : 'GÅNGER', 'VALD ' + bigNum(st.picks));
+  if (!box.childNodes.length) box.appendChild(el('div', 'cu-stx', 'INGEN STATISTIK ÄNNU'));
+  return box;
+}
+// deck(ägda id, onClose, opts)
+// opts: { stats: { [id]: { dmg, kills, picks } }  – visas i detaljrutan,
+//         onFuse: id => ny lista med ägda id | false | undefined – knappen SMÄLT SAMMAN på kort med två
+//                 exemplar (Cards.canFuse). Returnerar spelet en lista visas den; false = nekad;
+//                 annat (t.ex. undefined) = kortleken byter själv två id mot Cards.fuse(id). Får vara ett Promise. }
+// Gamla anrop deck(ids) och deck(ids, onClose) fungerar som förut.
+function deck(ownedIds, onClose, opts) {
+  if (onClose && typeof onClose === 'object') { opts = onClose; onClose = null; }
+  opts = opts || {};
   const C = window.Cards;
-  const counts = new Map();
-  for (const id of ownedIds || []) if (C.byId(id)) counts.set(id, (counts.get(id) || 0) + 1);
-  const entries = [...counts].map(([id, n]) => ({ card: C.byId(id), n }));
+  const stats = opts.stats && typeof opts.stats === 'object' ? opts.stats : null;
+  const onFuse = typeof opts.onFuse === 'function' && C.canFuse && C.fuse ? opts.onFuse : null;
+  let owned = (ownedIds || []).slice();
+  let entries = [], fusable = new Set();
+  function recount() {
+    const counts = new Map();
+    for (const id of owned) if (C.byId(id)) counts.set(id, (counts.get(id) || 0) + 1);
+    entries = [...counts].map(([id, n]) => ({ card: C.byId(id), n }));
+    fusable = new Set(onFuse ? C.canFuse(owned) : []);
+  }
+  recount();
   const node = el('div', 'cu-screen cu-deck');
   node.setAttribute('aria-label', 'DINA KORT');
   const box = el('div', 'cu-deckbox');
   const wrap = el('div', 'cu-wrap'); wrap.appendChild(box); node.appendChild(wrap);
   box.appendChild(el('h2', 'cu-title', 'DINA KORT'));
-  const total = entries.reduce((s, e) => s + e.n, 0);
-  box.appendChild(el('p', 'cu-sub', total ? total + ' KORT SAMLADE DENNA RUNDA' : 'DU HAR INGA KORT ÄNNU.'));
+  const sub = el('p', 'cu-sub'); box.appendChild(sub);
   const detail = el('div', 'cu-detail empty', 'VÄLJ ETT KORT FÖR ATT SE DETALJER');
   const grid = el('div', 'cu-grid');
-  let tiles = [];
+  const msg = el('div', 'cu-msg'); msg.setAttribute('aria-live', 'polite');
+  const setMsg = (t, cls) => { msg.textContent = t || ''; msg.className = 'cu-msg' + (cls ? ' ' + cls : ''); };
+  let tiles = [], selId = null, busy = false;
+  function subText() {
+    const total = entries.reduce((s, e) => s + e.n, 0);
+    sub.textContent = total ? total + ' KORT SAMLADE DENNA RUNDA' + (fusable.size ? ' · ' + fusable.size + ' KAN SMÄLTAS SAMMAN' : '') : 'DU HAR INGA KORT ÄNNU.';
+  }
   function show(e, t) {
+    selId = e.card.id;
     tiles.forEach(x => x.classList.toggle('sel', x === t));
     detailFor(detail, e.card, e.n);
+    if (stats) detail.appendChild(statsBox(stats[e.card.id]));
+    if (fusable.has(e.card.id)) {
+      const f = C.byId(C.fuse(e.card.id));
+      const fz = el('div', 'cu-fzbox');
+      fz.appendChild(el('div', 'cu-dm', 'TVÅ ' + e.card.name + ' BLIR ' + (f ? f.name : '') + ' (' + (f ? R()[f.rarity].label : '') + ')'));
+      if (f) fz.appendChild(modList(f, 1));
+      const b = el('button', 'cu-btn cu-fuse', touchUI() ? 'SMÄLT SAMMAN' : 'SMÄLT SAMMAN (F)'); b.type = 'button';
+      b.setAttribute('aria-label', 'SMÄLT SAMMAN TVÅ ' + e.card.name);
+      b.addEventListener('click', ev => { ev.stopPropagation(); fuseIt(e.card.id, b); });
+      fz.appendChild(b);
+      detail.appendChild(fz);
+    }
   }
   function build() {
     grid.textContent = ''; tiles = [];
@@ -623,18 +716,52 @@ function deck(ownedIds, onClose) {
         const g = groupOf(e.card);
         if (g !== group) { group = g; grid.appendChild(el('div', 'cu-ghead', g)); }
       }
+      const canF = fusable.has(e.card.id);
       const t = el('div', 'cu-tile'); t.tabIndex = 0; t.setAttribute('role', 'button');
-      t.setAttribute('aria-label', e.card.name + (e.n > 1 ? ' x' + e.n : '') + ': ' + e.card.text.replace(/\n/g, ', '));
+      t.dataset.id = e.card.id;
+      t.setAttribute('aria-label', e.card.name + (e.n > 1 ? ' x' + e.n : '') + ': ' + e.card.text.replace(/\n/g, ', ') + (canF ? '. KAN SMÄLTAS SAMMAN' : ''));
       tint(t, e.card);
       t.title = C.describe(e.card);
       t.appendChild(art(e.card));
       t.appendChild(el('div', 'cu-tn', e.card.name));
       if (e.n > 1) t.appendChild(el('div', 'cu-cnt', '×' + e.n));
+      if (canF) t.appendChild(el('div', 'cu-mark fz', 'SMÄLT'));
       t.addEventListener('click', ev => { ev.stopPropagation(); show(e, t); });
       t.addEventListener('focus', () => show(e, t));
       grid.appendChild(t); tiles.push(t);
     });
   }
+  let setBox = setSection(owned);
+  function fuseIt(id, btn) {
+    if (busy || !fusable.has(id)) return;
+    busy = true;
+    let res;
+    try { res = onFuse(id); } catch (err) { res = false; }
+    Promise.resolve(res).then(r => {
+      busy = false;
+      if (!cur || cur.node !== node) return; // fönstret har stängts
+      if (r === false) { sfx('deny'); setMsg('KAN INTE SMÄLTAS SAMMAN', 'bad'); if (btn) { btn.classList.remove('shake'); void btn.offsetWidth; btn.classList.add('shake'); } return; }
+      const fid = C.fuse(id);
+      if (Array.isArray(r)) owned = r.slice();
+      else { // kortleken byter själv två exemplar mot det sammansmälta kortet
+        for (let k = 0; k < 2; k++) { const i = owned.indexOf(id); if (i >= 0) owned.splice(i, 1); }
+        owned.push(fid);
+      }
+      recount(); subText(); build();
+      const nb = setSection(owned); box.replaceChild(nb, setBox); setBox = nb;
+      const f = C.byId(fid);
+      setMsg('SAMMANSMÄLT: ' + (f ? f.name : fid), 'ok');
+      sfx('fuse');
+      const t = tiles.find(x => x.dataset.id === fid) || tiles.find(x => x.dataset.id === id);
+      if (t) {
+        try { t.focus({ preventScroll: false }); } catch (err) { /* ingen fokus */ }
+        const e = entries.find(x => x.card.id === t.dataset.id);
+        if (e) show(e, t);
+        if (!reduced()) { t.classList.remove('fusing'); void t.offsetWidth; t.classList.add('fusing'); }
+      } else { detail.className = 'cu-detail empty'; detail.textContent = 'VÄLJ ETT KORT FÖR ATT SE DETALJER'; }
+    });
+  }
+  subText();
   let seg = null;
   if (entries.length) {
     const bar = el('div', 'cu-bar');
@@ -645,31 +772,38 @@ function deck(ownedIds, onClose) {
     build();
     box.appendChild(grid);
     box.appendChild(detail);
+    if (onFuse) box.appendChild(msg);
   }
-  box.appendChild(setSection(ownedIds));
+  box.appendChild(setBox);
   const foot = el('div', 'cu-foot');
   const btn = el('button', 'cu-btn', esc('STÄNG')); btn.type = 'button';
   foot.appendChild(btn); box.appendChild(foot);
-  const finish = () => { close(); if (onClose) onClose(); };
+  let done = false;
+  const finish = () => { if (done) return; done = true; close(); if (onClose) onClose(); };
   btn.addEventListener('click', ev => { ev.stopPropagation(); finish(); });
   node.addEventListener('click', ev => { if (ev.target === node || ev.target === wrap) finish(); }); // klick utanför stänger
   open('deck', node, e => {
     if (e.code === 'Escape') { finish(); return true; }
     if (e.code === 'KeyS' && seg) { const i = SORTS.findIndex(x => x[0] === deckSort); deckSort = SORTS[(i + 1) % SORTS.length][0]; seg.set(deckSort); build(); return true; }
+    if (e.code === 'KeyF' && onFuse) { if (selId && fusable.has(selId)) fuseIt(selId, detail.querySelector('.cu-fuse')); return true; }
     if (gridMove(tiles, e, grid)) return true;
     return activate(e);
   });
 }
 
 // ---------- Kortarkiv (codex) ----------
-// codex(allCards, { seen: Set, owned: Set, unlocked: Set }, onClose): alla kort, osedda som silhuetter.
+// codex(allCards, { seen: Set, owned: Set, unlocked: Set, picks: { [id]: antal } }, onClose[, opts]): alla kort,
+// osedda som silhuetter. picks (i info eller opts) visar "VALD X GÅNGER" i detaljrutan.
 let codexFilter = 'alla';
-function codex(allCards, info, onClose) {
-  if (typeof info === 'function') { onClose = info; info = {}; }
-  info = info || {};
+function codex(allCards, info, onClose, opts) {
+  if (typeof info === 'function') { opts = onClose; onClose = info; info = {}; }
+  if (onClose && typeof onClose === 'object') { opts = onClose; onClose = null; }
+  info = Object.assign({}, info || {}, opts || {});
+  const picks = info.picks && typeof info.picks === 'object' ? info.picks : null;
   const C = window.Cards;
   const asSet = v => (v instanceof Set ? v : new Set(v || []));
-  const seen = asSet(info.seen), owned = asSet(info.owned), unlocked = asSet(info.unlocked);
+  const seen = asSet(info.seen), unlocked = asSet(info.unlocked);
+  const owned = new Set([...asSet(info.owned)].map(id => (C.baseId ? C.baseId(id) : id))); // ett sammansmält kort räknas som ägt grundkort
   const cards = (allCards || C.ALL).slice()
     .sort((a, b) => C.RARITY_ORDER.indexOf(a.rarity) - C.RARITY_ORDER.indexOf(b.rarity) || TYPE_RANK(a) - TYPE_RANK(b) || a.name.localeCompare(b.name, 'sv'));
   const node = el('div', 'cu-screen cu-deck cu-codex');
@@ -701,11 +835,13 @@ function codex(allCards, info, onClose) {
     t.appendChild(el('div', 'cu-tn', isSeen ? card.name : '???'));
     if (owned.has(card.id)) t.appendChild(el('div', 'cu-mark own', 'ÄGD'));
     else if (locked) t.appendChild(el('div', 'cu-mark', 'LÅST'));
+    if (isSeen && picks && +picks[card.id] > 0) t.appendChild(el('div', 'cu-pk', '×' + bigNum(picks[card.id])));
     t.setAttribute('aria-label', isSeen ? card.name + ', ' + R()[card.rarity].label : 'OKÄNT KORT, ' + R()[card.rarity].label);
     const show = () => {
       tiles.forEach(x => x.node.classList.toggle('sel', x.node === t));
       if (isSeen) {
         detailFor(detail, card, 1);
+        if (picks) { const n = Math.max(0, +picks[card.id] || 0); detail.appendChild(el('div', 'cu-picks' + (n ? '' : ' none'), n ? timesTxt(n) : 'ALDRIG VALD')); }
         if (locked) detail.appendChild(el('div', 'cu-dm', 'LÅST · ' + card.unlock + ' SJÄLAR PÅ ALTARET'));
       } else {
         detail.className = 'cu-detail'; detail.textContent = '';
@@ -819,7 +955,7 @@ function toast(card, label) {
   tint(t, card);
   const i = el('img'); i.src = img(card); i.alt = '';
   const body = el('div');
-  body.appendChild(el('div', 'cu-tk', label || (card.curse ? 'FÖRBANNAT KORT' : card.pact ? 'VAPENPAKT' : card.weapon ? 'VAPENUPPGRADERING' : 'NYTT KORT')));
+  body.appendChild(el('div', 'cu-tk', label || (card.curse ? 'FÖRBANNAT KORT' : card.pact ? 'VAPENPAKT' : card.weapon ? 'VAPENUPPGRADERING' : card.fused ? 'SAMMANSMÄLT KORT' : 'NYTT KORT')));
   body.appendChild(el('div', 'cu-tnm', card.name));
   body.appendChild(el('div', 'cu-tfx', String(card.text).replace(/\n/g, ' · ')));
   t.appendChild(i); t.appendChild(body);

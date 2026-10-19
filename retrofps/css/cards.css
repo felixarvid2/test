@@ -336,3 +336,71 @@
 #cardui .cu-sec { margin-top: 1em; padding-top: .6em; border-top: 2px solid #4a3a28; font-size: .8em; color: #ffd24a; letter-spacing: 1px; }
 #cardui .cu-pbody > .cu-btn { margin-top: .5em; align-self: flex-start; }
 #cardui .cu-row .cu-btn { font-size: .85em; padding: .4em .7em; }
+
+/* ---------- Version 5: sammansmälta kort, "DU HAR", statistik och legendarisk vändning ---------- */
+.cu-ribbon.fused { color: #fff0c8; background: #5a2c08; border-color: #ff9a30; }
+.cu-card.fused .cu-front { background: linear-gradient(180deg, #3a1e0c 0%, var(--panel) 45%, #120d09 100%); }
+.cu-tile.fused, .cu-item.fused { background: linear-gradient(180deg, #2e1a0c 0%, var(--panel) 60%); }
+.cu-tile.fused .cu-tn, .cu-toast.fused .cu-tnm { color: #ffc070; }
+.cu-have {
+  position: absolute; bottom: -9px; left: -9px; z-index: 3; pointer-events: none;
+  font-size: 7px; padding: 4px 6px; color: #e8d9b0; background: #2a1d12; border: 2px solid var(--muted);
+  box-shadow: 2px 2px 0 #000; transform: rotate(-6deg); transition: opacity .3s .35s;
+}
+.cu-have.fz { color: #1b1410; background: #ff9a30; border-color: #000; }
+.cu-card.down .cu-have { opacity: 0; transition: none; }
+
+/* legendariskt kort: baksidan laddar upp i guld, sedan en ljusexplosion när det vänds */
+.cu-card.charging .cu-back { animation: cu-charge .2s linear infinite alternate, cu-charge-glow .65s ease-in both; }
+@keyframes cu-charge { from { transform: rotateY(180deg) translate(-2px, 1px); } to { transform: rotateY(180deg) translate(2px, -1px); } }
+@keyframes cu-charge-glow {
+  from { box-shadow: 0 0 0 2px var(--edge), 4px 4px 0 #000; filter: brightness(1); }
+  to { box-shadow: 0 0 0 2px #ffd24a, 0 0 34px 10px rgba(255,210,74,.75), 4px 4px 0 #000; filter: brightness(1.5) sepia(.4); }
+}
+.cu-slot.legrev .cu-card { animation: cu-leg-pop .7s cubic-bezier(.2,1.6,.4,1) backwards; }
+.cu-slot.legrev .cu-front { animation: cu-leg-burst 1.4s ease-out backwards; }
+.cu-slot.legrev .cu-front::before {
+  content: ""; position: absolute; inset: -60%; z-index: 0; pointer-events: none;
+  background: repeating-conic-gradient(from 0deg, rgba(255,226,130,.38) 0deg 8deg, transparent 8deg 24deg);
+  animation: cu-leg-rays 1.6s ease-out both;
+}
+.cu-slot.legrev .cu-front > * { position: relative; z-index: 1; }
+.cu-slot.legrev .cu-rar span:first-child { animation: cu-leg-text 1.4s ease-out both; }
+@keyframes cu-leg-pop { 0% { transform: scale(.94); } 45% { transform: scale(1.07); } 100% { transform: scale(1); } }
+@keyframes cu-leg-burst {
+  0% { box-shadow: 0 0 0 2px #000, 0 0 0 0 rgba(255,236,160,.95), 5px 5px 0 #000; filter: brightness(2.4) saturate(.6); }
+  30% { box-shadow: 0 0 0 2px #000, 0 0 70px 26px rgba(255,210,74,.7), 5px 5px 0 #000; filter: brightness(1.4); }
+  100% { box-shadow: 0 0 0 2px #000, 0 0 14px 1px var(--glow), 5px 5px 0 #000; filter: none; }
+}
+@keyframes cu-leg-rays { 0% { opacity: 0; transform: rotate(0deg) scale(.4); } 25% { opacity: 1; } 100% { opacity: 0; transform: rotate(70deg) scale(1.1); } }
+@keyframes cu-leg-text { 0%, 60% { text-shadow: 0 0 8px #fff3b0, 0 0 16px #ffd24a; color: #fff6c8; } 100% { text-shadow: none; } }
+
+/* kortlek: statistik och sammansmältning */
+.cu-stats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.cu-st { display: flex; flex-direction: column; gap: 3px; min-width: 84px; padding: 6px 8px; background: #120d09; border: 2px solid var(--edge); }
+.cu-stv { font-size: 10px; color: var(--gold); }
+.cu-stl { font-size: 6px; color: var(--dim); letter-spacing: 1px; }
+.cu-stx { font-size: 7px; color: var(--dim); }
+.cu-fzbox { margin-top: 10px; padding: 8px 10px; border: 2px dashed #ff9a30; background: rgba(90,44,8,.25); display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.cu-fzbox .cu-dm { margin-top: 0; color: #ffc070; }
+.cu-btn.cu-fuse { background: #6a3008; border-color: #ff9a30; color: #fff0c8; font-size: 9px; padding: 9px 12px; }
+.cu-btn.cu-fuse:hover, .cu-btn.cu-fuse:focus-visible { background: #8a420c; }
+.cu-btn.shake { animation: cu-shake .3s; }
+.cu-tile .cu-mark.fz { color: #1b1410; background: #ff9a30; border-color: #000; }
+.cu-tile.fusing { animation: cu-fusing .9s ease-out; }
+@keyframes cu-fusing {
+  0% { box-shadow: 0 0 0 0 rgba(255,154,48,.9), 3px 3px 0 #000; filter: brightness(2); transform: scale(.9); }
+  40% { box-shadow: 0 0 30px 10px rgba(255,154,48,.6), 3px 3px 0 #000; transform: scale(1.06); }
+  100% { box-shadow: 0 0 8px var(--glow), 3px 3px 0 #000; filter: none; transform: none; }
+}
+.cu-deck .cu-msg { min-height: 1.6em; }
+
+/* kortarkiv: hur ofta kortet har valts */
+.cu-picks { margin-top: 6px; font-size: 8px; color: #7ee07a; }
+.cu-picks.none { color: var(--dim); }
+.cu-tile .cu-pk { position: absolute; top: 4px; right: 4px; font-size: 6px; padding: 2px 3px; background: #000; color: var(--gold); border: 1px solid var(--edge); }
+
+@media (max-width: 720px) {
+  .cu-have { top: -5px; bottom: auto; left: -5px; }
+  .cu-st { min-width: 0; flex: 1 1 30%; }
+}

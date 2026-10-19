@@ -22,9 +22,9 @@
   button.ghost { background: transparent; border-color: var(--dim); color: var(--muted); font-size: 10px; padding: 9px 14px; }
   #unlocks, #altar { border-color: var(--soul); color: var(--soul); }
   #diff button { font-size: 10px; padding: 9px 14px; background: transparent; border-color: var(--dim); color: var(--muted); }
-  #classes button, #asc button { font-size: 9px; padding: 8px 11px; background: transparent; border-color: var(--dim); color: var(--muted); }
-  #classes button.locked { opacity: .55; }
-  #classes button[aria-pressed="true"], #asc button[aria-pressed="true"] { background: var(--btn); border-color: var(--edge); color: #ffe9a8; }
+  #classes button, #asc button, #pets button { font-size: 9px; padding: 8px 11px; background: transparent; border-color: var(--dim); color: var(--muted); }
+  #classes button.locked, #pets button.locked { opacity: .55; }
+  #classes button[aria-pressed="true"], #asc button[aria-pressed="true"], #pets button[aria-pressed="true"] { background: var(--btn); border-color: var(--edge); color: #ffe9a8; }
   #diff button[aria-pressed="true"] { background: var(--btn); border-color: var(--edge); color: #ffe9a8; }
   .label { font-size: 9px; color: var(--dim); letter-spacing: 1px; }
   input { font: inherit; font-size: 10px; padding: 9px 10px; width: 11em; background: #1b1410; color: var(--ink); border: 2px solid var(--dim); text-transform: uppercase; }
@@ -44,6 +44,8 @@
   #touch .jumpb { bottom: calc(min(62.5vw, 100vh) * .2 + 1vh); }
   #touch .grenb { bottom: calc(min(62.5vw, 100vh) * .2 + 1vh + var(--b) * .85 + var(--g)); }
   #touch .dashb { bottom: calc(min(62.5vw, 100vh) * .2 + 1vh + var(--b) * 1.7 + var(--g) * 2); }
+  #touch .potb { width: calc(var(--b) * .85); height: calc(var(--b) * .85); right: calc(var(--m) + 1vw + env(safe-area-inset-right, 0px)); bottom: calc(min(62.5vw, 100vh) * .2 + 1vh + var(--b) * 2.55 + var(--g) * 3); }
+  #touch .potb.empty { opacity: calc(var(--bo, .6) * .4); }
   #touch .crouchb { left: calc(var(--rx) + env(safe-area-inset-left, 0px)); bottom: calc(3vh + var(--b) + var(--g) + env(safe-area-inset-bottom, 0px)); }
   #cardui .cu-screen, #title { zoom: var(--ui-zoom, 1); }
   #touch .tb img { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
@@ -95,6 +97,7 @@
     #touch .jumpb { right: var(--p); bottom: calc(var(--bot) + var(--b) * 1.6 + 3vw + var(--b) + 3vw); }
     #touch .grenb { right: calc(var(--p) + var(--b) + 3vw); bottom: calc(var(--bot) + var(--b) * 1.6 + 3vw + var(--b) + 3vw); }
     #touch .dashb { right: calc(var(--p) + var(--b) * 2 + 6vw); bottom: calc(var(--bot) + var(--b) * 1.6 + 3vw + var(--b) + 3vw); }
+    #touch .potb { width: var(--b); height: var(--b); right: calc(var(--p) + var(--b) * 3 + 9vw); bottom: calc(var(--bot) + var(--b) * 1.6 + 3vw + var(--b) + 3vw); }
     #touch .crouchb { left: var(--p); bottom: auto; top: calc(var(--cb) + 3vw + var(--b) + 3vw); }
   }
   .touchhint { display: none; }
@@ -113,6 +116,7 @@
   <div class="row" id="asc" hidden></div>
   <div class="label">KLASS</div>
   <div class="row" id="classes"></div>
+  <div class="row" id="pets" hidden></div>
   <div class="row">
     <button id="start" disabled>NY RUNDA</button>
     <button id="daily" disabled>DAGENS RUNDA</button>

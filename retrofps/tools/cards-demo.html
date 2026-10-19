@@ -30,6 +30,9 @@
     <button class="d" id="b-deck">KORTLEK</button>
     <button class="d" id="b-draftx">DRAFT MED SYNERGI, FÖRVISA OCH NYA KORT</button>
     <button class="d" id="b-codex">KORTARKIV</button>
+    <button class="d" id="b-deck5">KORTLEK: STATISTIK OCH SMÄLT SAMMAN</button>
+    <button class="d" id="b-draft5x">DRAFT: DU HAR + LEGENDARISK</button>
+    <button class="d" id="b-alk">ALKEMISTEN (NYA VAROR)</button>
   </div>
   <div id="log">Tangenter 1-9, pilar, Enter och Esc fungerar i fönstren. Spelkänslig tangent-test: tryck på tangenter medan ett fönster är öppet och se om de loggas nedan.</div>
 </main>
@@ -100,14 +103,43 @@
   }
   $('b-draftx').onclick = () => draftX();
   $('b-codex').onclick = () => CardUI.codex(Cards.ALL, { seen, owned: new Set(state.owned), unlocked: new Set(Cards.ALL.filter(c => !c.unlock || c.unlock < 30).map(c => c.id)) }, () => log('stängde arkivet'));
+  // version 5: statistik per kort, sammansmältning, "DU HAR" och legendarisk vändning
+  const stats = {};
+  for (const id of new Set(state.owned)) stats[id] = { dmg: (id.length * 977) % 9000, kills: id.length * 3, picks: 1 + (id.length % 3) };
+  const counts = () => { const n = {}; for (const id of state.owned) n[id] = (n[id] || 0) + 1; return n; };
+  function deck5() {
+    CardUI.deck(state.owned, () => log('stängde kortleken'), {
+      stats,
+      onFuse: id => { // spelet byter två exemplar mot det sammansmälta kortet och lämnar tillbaka listan
+        const fid = Cards.fuse(id);
+        for (let k = 0; k < 2; k++) state.owned.splice(state.owned.indexOf(id), 1);
+        state.owned.push(fid); stat(); log('smälte samman ' + id + ' -> ' + fid);
+        stats[fid] = { dmg: 0, kills: 0, picks: 0 };
+        return state.owned.slice();
+      },
+    });
+  }
+  const draft5x = () => CardUI.draft(['slipstenen', 'solkonungen', 'purpurkitteln'].map(Cards.byId), { title: 'VÄLJ ETT KORT', owned: state.owned, ownedCount: counts(), seen: new Set(seen) }, c => { if (c) { state.owned.push(c.id); log('valde ' + c.name); } stat(); });
+  function alk() {
+    const items = [{ kind: 'potion', price: 30, label: 'HELANDE DRYCK', text: '+40 HP' }, { kind: 'potion', price: 45, label: 'RASERIDRYCK', text: '+30 % SKADA I 20 S', color: '#ff6030' },
+      { kind: 'blend', price: 60 }, { kind: 'map', price: 25 }, { kind: 'bless', price: 80 }, { kind: 'curse', price: 0, text: 'GRATIS, MEN DU FÅR ETT FÖRBANNAT KORT' }, { kind: 'weapon', price: 90, label: 'YXAN' }, { kind: 'pet', price: 120, label: 'SVART KATT' }];
+    CardUI.shop(items, state.gold, item => { state.gold -= item.price; stat(); return { ok: true, gold: state.gold }; }, null, { title: 'ALKEMISTEN' });
+  }
+  $('b-deck5').onclick = deck5;
+  $('b-draft5x').onclick = draft5x;
+  $('b-alk').onclick = alk;
   const auto = q.get('auto');
   if (auto === 'draft') draft(3); else if (auto === 'draft5') draft(5); else if (auto === 'shop') shop(); else if (auto === 'souls') souls(); else if (auto === 'deck') CardUI.deck(state.owned);
   else if (auto === 'legend') CardUI.draft(['tomhetsstenen', 'gravvaktaren', 'ouroboros', 'askkungen', 'vaktarbanan'].map(Cards.byId), { title: 'LEGENDARISKA TESTKORT' }, () => {})
   else if (auto === 'draftx') draftX(['bronda_runan', 'spakvinnan', 'prismakronan'].map(Cards.byId));
   else if (auto === 'curse') draftX(['maskerna', 'ansiktslos', 'feltrycket'].map(Cards.byId));
   else if (auto === 'codex') $('b-codex').click();
+  else if (auto === 'deck5') deck5();
+  else if (auto === 'draft5x') draft5x();
+  else if (auto === 'alk') alk();
+  else if (auto === 'codex5') CardUI.codex(Cards.ALL.filter(c => !c.weapon), { seen: new Set(Cards.ALL.map(c => c.id)), owned: new Set(state.owned.concat(['slipstenen+'])), unlocked: new Set(Cards.ALL.map(c => c.id)), picks: { slipstenen: 7, glodkol: 1, lakebladet: 3 } }, () => log('stängde arkivet'));
   else if (auto === 'toast') { CardUI.toast(Cards.byId('forbannade_kronan')); CardUI.toast(Cards.byId('ouroboros')); }
-  window.__demo = { state, draw, seen, draftX };
+  window.__demo = { state, draw, seen, draftX, deck5, draft5x, alk, stats };
 })();
 </script>
 </body>

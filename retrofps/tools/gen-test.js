@@ -1,8 +1,9 @@
 'use strict';
 // Testar bangeneratorn: node tools/gen-test.js
-// Genererar 300 fängelsehålor + 75 banor per övrig biom (även träsket) + bossarenor av alla sorter (med och utan bosstema),
-// validerar allt (rumstyper, vaktarens sal, fiendegrupper, rekvisita, fällor, valv med grindar/lås, farliga golv, nya
-// fiender per biom och djup, specialrum) och avslutar med exit 1 vid fel. Skriver statistik per biom.
+// Genererar 300 fängelsehålor + 75 banor per övrig biom (även träsket och frostfästet) + bossarenor av alla sorter (med och
+// utan bosstema, även ishallen), validerar allt (rumstyper, vaktarens sal, fiendegrupper, rekvisita, fällor, valv med
+// grindar/lås, farliga golv, nya fiender per biom och djup, specialrum, NPC:er, husdjursbur, drycker, istappar, nya vapen)
+// och avslutar med exit 1 vid fel. Skriver statistik per biom.
 // --show visar en bana per biom/arena.
 const fs = require('fs');
 const path = require('path');
@@ -15,17 +16,20 @@ for (const f of ['rng.js', 'gen.js']) {
 let failures = 0;
 const fail = msg => { failures++; if (failures <= 25) console.log('FEL: ' + msg); };
 const count = (map, ch) => map.reduce((n, r) => n + r.split(ch).length - 1, 0);
-const isWall = c => (c >= '0' && c <= '9') || '#%~&='.includes(c);
-const INTERACT = '()[?;/', GATES = '|]{', DOORS = 'DG*|]{';
-const isBlock = c => isWall(c) || ('fMtnkquvwyeHJT' + INTERACT + GATES).includes(c);
-const NEW_EN = 'UXY!@^+', OLD_EN = 'SKVILNORW', ENEMIES = OLD_EN + NEW_EN + 'EQ', PROPS = 'ckjquvwyzeiFHJT' + INTERACT, LIGHTS = 'cfiF';
-const HAZ = '_-:"z<>', LOOT = 'CAha$,';
+const isWall = c => (c >= '0' && c <= '9') || '#%~&=Ø¦'.includes(c);
+const INTERACT = '()[?;/', GATES = '|]{', DOORS = 'DG*|]{', NPCS = '£€©';
+const isBlock = c => isWall(c) || ('fMtnkquvwyeHJT' + INTERACT + GATES + NPCS).includes(c);
+const NEW_EN = 'UXY!@^+ÅÄÖÉÜ', OLD_EN = 'SKVILNORW', ENEMIES = OLD_EN + NEW_EN + 'EQ', PROPS = 'ckjquvwyzeiFHJT' + INTERACT, LIGHTS = 'cfiF';
+const HAZ = '_-:"z<>Ç', LOOT = 'CAha$,¥';
+const WCH = Object.keys(Gen.WEAPONS).join(''); // vapentecknen (g r m d b s p å ä ö)
+const wchOf = w => (!w ? null : Gen.WEAPONS[w] ? w : [...WCH].find(c => Gen.WEAPONS[c] === w));
 const SPECIAL = ['shop', 'shrine', 'treasure', 'secret', 'guardian', 'special', 'vault'];
 // nya fiender: första djup och biomer där de får finnas
-const NEW_DEPTH = { U: 1, X: 1, Y: 2, '^': 2, '+': 2, '!': 3, '@': 3 };
-const NEW_BIOME = { caves: 'UX', forest: 'YUX', graveyard: 'X!^', dungeon: '@!U+', courtyard: '@Y!', swamp: '^UYX' };
-const FEAT = { anvil: '(', fortune: ')', prisoner: '[', challenge: '?', offering: ';', lever: '/', locked: ']', cracked: '{', arrows: '<', gas: '>', lava: '_', water: '-', ice: ':', webs: '"' };
-const SP_CH = { fortune: ')', challenge: '?', offering: ';', smithy: '(' };
+const NEW_DEPTH = { U: 1, X: 1, Y: 2, '^': 2, '+': 2, '!': 3, '@': 3, 'Å': 1, 'Ä': 2, 'Ö': 2, 'É': 1, 'Ü': 2 };
+const NEW_BIOME = { caves: 'UXÜ', forest: 'YUXÉ', graveyard: 'X!^ÅÄÖ', dungeon: '@!U+ÅÄÖ', courtyard: '@Y!ÄÖ', swamp: '^UYXÅ', frost: 'ÉÜ@' };
+const FEAT = { anvil: '(', fortune: ')', prisoner: '[', challenge: '?', offering: ';', lever: '/', locked: ']', cracked: '{', arrows: '<', gas: '>', lava: '_', water: '-', ice: ':', webs: '"',
+  alchemist: '£', priest: '€', petcage: '©', potions: '¥', icicles: 'Ç' };
+const SP_CH = { fortune: ')', challenge: '?', offering: ';', smithy: '(', alchemy: '£', chapel2: '€' };
 const GUARD = Gen.GUARDIANS, GUARD_IDS = Object.keys(GUARD);
 const timed = f => { const t0 = process.hrtime.bigint(); const v = f(); return [v, Number(process.hrtime.bigint() - t0) / 1e6]; };
 // flood fill från (sx, sy) med pass(tecken); returnerar avstånd (-1 = nås inte)
@@ -73,14 +77,18 @@ function pathPX(m) {
   if (typeof RNG.randomSeed() !== 'number') fail('RNG.randomSeed');
 }
 
-const weaponOpts = [undefined, 'g', 'r', 'm', 'd', 'b', 's', 'p'];
+const weaponOpts = [undefined, 'g', 'r', 'm', 'd', 'b', 's', 'p', 'å', 'ä', 'ö', 'flamer'];
 const BIOME_IDS = Gen.BIOMES.map(b => b.id);
-if (BIOME_IDS.join() !== 'dungeon,caves,graveyard,forest,courtyard,swamp') fail('Gen.BIOMES ' + BIOME_IDS.join());
-const OUTDOOR = { dungeon: false, caves: false, graveyard: true, forest: true, courtyard: true, swamp: true };
-const AMB = { dungeon: [0.12, 0.22], caves: [0.12, 0.17], graveyard: [0.24, 0.32], forest: [0.24, 0.32], courtyard: [0.24, 0.32], swamp: [0.2, 0.3] };
-const SKY_MIN = { graveyard: 0.75, forest: 0.85, courtyard: 0.25, swamp: 0.85 }; // andel himmel bland gångbara rutor
-for (const a of ['lava', 'nest', 'frozen', 'flooded', 'smithy', 'trap', 'gas', 'fortune', 'prison', 'challenge', 'offering', 'levervault', 'lockedvault', 'hut', 'sunkenshrine', 'bog'])
+if (BIOME_IDS.join() !== 'dungeon,caves,graveyard,forest,courtyard,swamp,frost') fail('Gen.BIOMES ' + BIOME_IDS.join());
+const OUTDOOR = { dungeon: false, caves: false, graveyard: true, forest: true, courtyard: true, swamp: true, frost: true };
+const AMB = { dungeon: [0.12, 0.22], caves: [0.12, 0.17], graveyard: [0.24, 0.32], forest: [0.24, 0.32], courtyard: [0.24, 0.32], swamp: [0.2, 0.3], frost: [0.2, 0.26] };
+const SKY_MIN = { graveyard: 0.75, forest: 0.85, courtyard: 0.25, swamp: 0.85, frost: 0.2 }; // andel himmel bland gångbara rutor
+for (const a of ['lava', 'nest', 'frozen', 'flooded', 'smithy', 'trap', 'gas', 'fortune', 'prison', 'challenge', 'offering', 'levervault', 'lockedvault', 'hut', 'sunkenshrine', 'bog',
+  'throne', 'frozenlake', 'barracks', 'crystalhall', 'alchemy', 'chapel2'])
   if (!Gen.ARCHES.includes(a)) fail('Gen.ARCHES saknar ' + a);
+if (Gen.WEAPONS['å'] !== 'axe' || Gen.WEAPONS['ä'] !== 'flamer' || Gen.WEAPONS['ö'] !== 'launcher' || Gen.WEAPONS.g !== 'shotgun') fail('Gen.WEAPONS ' + JSON.stringify(Gen.WEAPONS));
+if (!Gen.GUARDIANS.frost || Gen.GUARDIANS.frost.wall !== '¦' || Gen.GUARDIANS.frost.floor !== 'floor_boss_frost' || Gen.GUARDIANS.frost.light !== 'c') fail('Gen.GUARDIANS.frost');
+if (!Gen.ARENAS.includes('frost')) fail('Gen.ARENAS saknar frost');
 const stats = { retries0: Gen.floor.stats.retries };
 const B = {}; // statistik per biom
 const samples = {};
@@ -102,7 +110,7 @@ function checkLevel(lv, seed, depth, opts, biome) {
   if (count(m, 'M') !== (opts.shop ? 1 : 0)) fail(tag + ' antal M ' + count(m, 'M'));
   if (count(m, 'C') < 1) fail(tag + ' kortkista saknas');
   if (types.secret) { if (count(m, '*') + count(m, '{') !== 1) fail(tag + ' hemlig/sprucken vägg ' + count(m, '*') + '/' + count(m, '{')); } else if (count(m, '*') + count(m, '{') !== 0) fail(tag + ' * eller { utan hemligt rum');
-  for (const w of 'grmdbsp') if (count(m, w) !== (opts.weapon === w ? 1 : 0)) fail(tag + ` vapen ${w}: ${count(m, w)}`);
+  for (const w of WCH) if (count(m, w) !== (wchOf(opts.weapon) === w ? 1 : 0)) fail(tag + ` vapen ${w}: ${count(m, w)}`);
   const en = [...OLD_EN + NEW_EN].reduce((n, c) => n + count(m, c), 0), want = 6 + 3 * depth;
   if (en < want - 6 || en > Math.round(want * 1.3) + 2) fail(tag + ` fiender ${en} (väntat ca ${want})`);
   const st0 = B[biome] = B[biome] || { n: 0, ms: [], cells: 0, open: 0, px: 0, pxMin: 99, props: 0, secret: 0, areas: 0, sky: 0 };
@@ -139,7 +147,7 @@ function checkLevel(lv, seed, depth, opts, biome) {
   // utgången långt bort: väglängd P->x i förhållande till kartans storlek
   const dPX = pathPX(m), rel = dPX / Math.max(W, H);
   if (dPX < 0) fail(tag + ' ingen väg P->x');
-  else if (rel < (biome === 'dungeon' ? 0.5 : 0.8)) fail(tag + ` utgången för nära: ${dPX} steg (${rel.toFixed(2)} av kartbredden)`);
+  else if (rel < (biome === 'dungeon' || biome === 'frost' ? 0.5 : 0.8)) fail(tag + ` utgången för nära: ${dPX} steg (${rel.toFixed(2)} av kartbredden)`);
   // träd och gravstenar får aldrig stänga av något: ta bort dem och jämför nåbar yta (validate har redan kollat nåbarheten med dem)
   const s = B[biome];
   s.n++; s.cells += W * H; s.open += open / (W * H); s.px += rel; s.pxMin = Math.min(s.pxMin, rel); s.props += props; s.areas += lv.rooms.length;
@@ -163,7 +171,7 @@ function checkRooms(lv, tag, s, px, py) {
     r.cells++;
     if (ENEMIES.includes(c)) r.en++;
     if (PROPS.includes(c)) r.props++;
-    if ('ZMwyChaA$grmdbsp'.includes(c)) r.loot += c;
+    if (('ZMwyChaA$¥' + WCH).includes(c)) r.loot += c;
     if (c !== '.' && !isWall(c)) r.chars += c;
   }
   // vaktaren: exakt ett Z, i salen av typen guardian, väggar i vaktarens tecken, golv i vaktarens textur, fri 5x5
@@ -238,7 +246,7 @@ function checkRooms(lv, tag, s, px, py) {
     if (closed[i] >= 0 && r && r.type === 'vault') fail(tag + ` valvet nås utan att öppna grinden/låset vid ${x},${y}`);
   }
   if (bad) fail(tag + ` ${bad} rutor nås inte (rekvisita, lava, spikar eller grindar stänger av)`);
-  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) if (('kquvwyeHJT' + INTERACT).includes(m[y][x]))
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) if (('kquvwyeHJT' + INTERACT + NPCS).includes(m[y][x]))
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (DOORS.includes(m[y + dy][x + dx])) fail(tag + ` ${m[y][x]} i dörröppning vid ${x},${y}`);
   // säker väg (utan lava och spikar) P->x och P->Z
   const X = findCh(m, 'x'), Zc = findCh(m, 'Z');
@@ -260,6 +268,7 @@ function checkNew(lv, tag, s, biome, px, py) {
   if (N('<') > 4) fail(tag + ' pilplattor ' + N('<'));
   if (N('>') > 3) fail(tag + ' gasventiler ' + N('>'));
   if (N(',') < 1 || N(',') > 5) fail(tag + ' granatknippen ' + N(','));
+  if (N('£') > 1 || N('€') > 1 || N('©') > 1 || N('¥') > 2 || N('Ç') > 8) fail(tag + ` tak: £${N('£')} €${N('€')} ©${N('©')} ¥${N('¥')} Ç${N('Ç')}`);
   if (!!N('|') !== !!N('/')) fail(tag + ` grindar ${N('|')} men spakar ${N('/')}`);
   if (!!N(']') !== !!N('}')) fail(tag + ` låsta dörrar ${N(']')} men nycklar ${N('}')}`);
   // valv: type vault med lock, ingångar bara | (spak) eller en ] (nyckel), inga fiender, något att hämta
@@ -296,13 +305,25 @@ function checkNew(lv, tag, s, biome, px, py) {
       if (!ok) fail(tag + ` pilplatta utan vägg inom 6 vid ${x},${y}`);
       if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => DOORS.includes(m[y + dy][x + dx]))) fail(tag + ` pilplatta i dörröppning vid ${x},${y}`);
     }
-    if (INTERACT.includes(c) && ![[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => closed[(y + dy) * W + x + dx] >= 0)) fail(tag + ` ${c} nås inte vid ${x},${y}`);
+    if ((INTERACT + NPCS).includes(c) && ![[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => closed[(y + dy) * W + x + dx] >= 0)) fail(tag + ` ${c} nås inte vid ${x},${y}`);
     if ('/}'.includes(c) && (!r || r.type === 'vault' || r.type === 'secret' || r.type === 'guardian')) fail(tag + ` ${c} ligger i ${r ? r.type : 'korridor'} vid ${x},${y}`);
     if (c === '}' && closed[y * W + x] < 0) fail(tag + ` nyckeln nås inte utan att öppna något vid ${x},${y}`);
     // nya tecken bara där de hör hemma
     const arch = r ? r.arch : '';
     if (c === '_' && (biome !== 'caves' || arch !== 'lava')) fail(tag + ` lava utanför lavarum (${arch}) vid ${x},${y}`);
-    if (c === ':' && arch !== 'frozen') fail(tag + ` is utanför frusna rum (${arch}) vid ${x},${y}`);
+    if (c === ':' && arch !== 'frozen' && !(biome === 'frost' && r)) fail(tag + ` is utanför frusna rum (${arch}) vid ${x},${y}`);
+    // version 5: istappar bara i frostfästets rum (eller frusna rum), aldrig vid dörrar; NPC:er i sina rum, butiken eller specialrum;
+    // husdjursburen i ett stridsrum; drycker i rum
+    if (c === 'Ç') {
+      if (!r || (biome !== 'frost' && arch !== 'frozen')) fail(tag + ` istapp i ${biome}/${arch} vid ${x},${y}`);
+      if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => DOORS.includes(m[y + dy][x + dx]))) fail(tag + ` istapp i dörröppning vid ${x},${y}`);
+      if (![[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => isWall(m[y + dy][x + dx]))) fail(tag + ` istapp inte vid en vägg ${x},${y}`);
+    }
+    if ((c === '£' || c === '€') && (!r || !(r.type === 'shop' || (r.type === 'special' && r.arch !== 'challenge')))) fail(tag + ` NPC ${c} i ${r ? r.type + '/' + arch : 'korridor'} vid ${x},${y}`);
+    if (c === '£' && r && r.type === 'special' && !['alchemy', 'fortune', 'offering', 'smithy', 'chapel2'].includes(arch)) fail(tag + ` alkemist i ${arch}`);
+    if (c === '©' && (!r || !['normal', 'elite', 'exit'].includes(r.type))) fail(tag + ` husdjursbur i ${r && r.type}`);
+    if (c === '¥' && !r) fail(tag + ` dryck utanför rum vid ${x},${y}`);
+    if (NPCS.includes(c) && [[1, 0], [-1, 0], [0, 1], [0, -1]].every(([dx, dy]) => isBlock(m[y + dy][x + dx]))) fail(tag + ` ${c} har ingen fri sida vid ${x},${y}`);
     if (c === '-' && biome !== 'swamp' && !['flooded', 'mudflat'].includes(arch)) fail(tag + ` vatten i ${biome}/${arch} vid ${x},${y}`);
     if (c === '>' && arch !== 'gas' && biome !== 'caves' && biome !== 'swamp') fail(tag + ` gasventil i ${biome}/${arch} vid ${x},${y}`);
     if (c === '"' && !r) fail(tag + ` spindelväv utanför rum vid ${x},${y}`);
@@ -315,6 +336,7 @@ function checkNew(lv, tag, s, biome, px, py) {
   }
   for (const k in FEAT) { s.feat[k] = (s.feat[k] || 0) + (N(FEAT[k]) ? 1 : 0); s.featN[k] = (s.featN[k] || 0) + N(FEAT[k]); }
   for (const c of ",'}") { s.feat[c] = (s.feat[c] || 0) + (N(c) ? 1 : 0); s.featN[c] = (s.featN[c] || 0) + N(c); }
+  for (const c of WCH) s.wpn = (s.wpn || 0) + N(c);
   if (lv.rooms.some(r => r.type === 'secret')) s.secretN = (s.secretN || 0) + 1;
   // spindelbon har spindlar och väv, lavarum har lava, frusna rum is
   lv.rooms.forEach((r, i) => {
@@ -325,6 +347,9 @@ function checkNew(lv, tag, s, biome, px, py) {
     if (r.arch === 'nest' && ['normal', 'exit'].includes(r.type) && !ch.includes('U')) fail(tag + ` spindelbo ${i} utan spindlar`);
     if (r.arch === 'frozen' && !ch.includes(':')) fail(tag + ` fruset rum ${i} utan is`);
     if (r.arch === 'flooded' && !ch.includes('-')) fail(tag + ` översvämmat rum ${i} utan vatten`);
+    if (r.arch === 'frozenlake' && !ch.includes(':')) fail(tag + ` frusen sjö ${i} utan is`);
+    if (r.arch === 'alchemy' && !ch.includes('£')) fail(tag + ` alkemistens rum ${i} utan alkemist`);
+    if (r.arch === 'chapel2' && !ch.includes('€')) fail(tag + ` prästens kapell ${i} utan präst`);
   });
 }
 
@@ -380,7 +405,49 @@ for (const biome of BIOME_IDS.slice(1)) {
       if (!(lv.fog[1] > lv.fog[0] && lv.fog[1] > lv.fog[2])) fail(tag + ' dimman är inte grön ' + lv.fog);
       B.swamp.huts = (B.swamp.huts || 0) + lv.rooms.filter(r => r.tag === 'hut').length;
     }
+    if (biome === 'frost') {
+      // frostfästet: väggar av frusen sten Ø (vaktarens salar i sitt tecken), snögårdar under himlen, golv frusen sten/snö,
+      // kall blåvit dimma, istappar högst 8 och bara intill väggar
+      const m = lv.map, gw = GUARD[lv.guardian].wall, walls = new Set();
+      for (const r of m) for (const c of r) if (isWall(c)) walls.add(c);
+      for (const c of walls) if (c !== 'Ø' && c !== gw) fail(tag + ' frostfästet har väggen ' + c);
+      if (m[0].replace(/Ø/g, '') !== '' || m.some(r => r[0] !== 'Ø' || r[r.length - 1] !== 'Ø')) fail(tag + ' kanten är inte Ø');
+      if (lv.floors[0] !== 'floor_frost_stone' || !lv.floors.includes('floor_snow') || lv.floor !== 'floor_frost_stone') fail(tag + ' golv ' + lv.floors.join());
+      if (!(lv.fog[2] > lv.fog[1] && lv.fog[1] > lv.fog[0] && lv.fog[0] >= 15)) fail(tag + ' dimman är inte kall blåvit ' + lv.fog);
+      if (lv.theme !== 'frost' || lv.secretWall !== 'Ø' || typeof lv.ceil !== 'string') fail(tag + ' tema/hemlig vägg/tak');
+      const snow = lv.floors.indexOf('floor_snow'), yards = lv.rooms.map((r, i) => [r, i]).filter(([r]) => r.tag === 'yard');
+      if (!yards.length) fail(tag + ' inga gårdar');
+      for (const [r, i] of yards) {
+        let n = 0, sky = 0, sn = 0;
+        for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) if (lv.roomMask[y].charCodeAt(x) - 48 === i) { n++; if (lv.sky[y][x] === '1') sky++; if (+lv.floorMask[y][x] === snow) sn++; }
+        if (sky < n || sn < n * 0.6) fail(tag + ` gård ${i}: himmel ${sky}/${n}, snö ${sn}/${n}`);
+      }
+      // inomhus (utom gårdarna) är taket på
+      lv.rooms.forEach((r, i) => { if (r.tag !== 'yard') for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) if (lv.roomMask[y].charCodeAt(x) - 48 === i && lv.sky[y][x] === '1') { fail(tag + ` himmel i salen ${i} (${r.arch})`); return; } });
+      if (count(m, 'Ç') !== lv.features.icicles || count(m, 'Ç') > 8) fail(tag + ' istappar ' + count(m, 'Ç'));
+      if (opts.guardian === 'frost' && count(m, '¦') < 30) fail(tag + ' frostväktarens sal saknar isväggar ¦');
+      const st = B.frost; st.yards = (st.yards || 0) + yards.length; st.ice = (st.ice || 0) + count(m, ':'); st.icic = (st.icic || 0) + count(m, 'Ç');
+      for (const r of lv.rooms) if (r.arch === 'throne') st.throne = (st.throne || 0) + 1;
+    }
     if (!samples[biome]) samples[biome] = lv;
+  }
+}
+
+// ---- NPC:er, husdjursbur, drycker och nya vapen: frekvenser över alla biomer ----
+{
+  let n = 0; const f = { alchemist: 0, priest: 0, petcage: 0, potions: 0, icicles: 0 }, fn = { potions: 0 };
+  for (const id of BIOME_IDS) { const s = B[id]; n += s.n; for (const k in f) f[k] += s.feat[k] || 0; fn.potions += s.featN.potions || 0; }
+  const pc = k => f[k] / n;
+  if (pc('alchemist') < 0.18 || pc('alchemist') > 0.42) fail('alkemist på ' + (100 * pc('alchemist')).toFixed(0) + ' % av banorna (väntat ~30 %)');
+  if (pc('priest') < 0.14 || pc('priest') > 0.36) fail('präst på ' + (100 * pc('priest')).toFixed(0) + ' % av banorna (väntat ~25 %)');
+  if (pc('petcage') < 0.07 || pc('petcage') > 0.25) fail('husdjursbur på ' + (100 * pc('petcage')).toFixed(0) + ' % av banorna (väntat ~15 %)');
+  if (fn.potions / n < 0.3 || fn.potions / n > 1.6) fail('drycker per bana ' + (fn.potions / n).toFixed(2));
+  if ((B.frost.feat.icicles || 0) < B.frost.n * 0.8) fail('för få frostbanor med istappar ' + B.frost.feat.icicles);
+  stats.npc = Object.keys(f).map(k => `${k} ${(100 * pc(k)).toFixed(0)} %`).join(', ') + `, drycker ${(fn.potions / n).toFixed(2)} per bana`;
+  // de nya vapnen går att lägga ut i alla biomer (tecken och id)
+  for (const id of BIOME_IDS) for (const w of ['å', 'ä', 'ö', 'axe', 'launcher']) {
+    const lv = Gen.floor('wpn-' + id + w, 3, { biome: id, weapon: w });
+    if (count(lv.map, wchOf(w)) !== 1) fail(`[${id}] vapnet ${w} lades inte ut`);
   }
 }
 
@@ -402,7 +469,7 @@ for (const biome of BIOME_IDS.slice(1)) {
 
 // ---- bossarenor ----
 const bossMs = {};
-for (const arena of ['hall', 'graveyard', 'cave', 'forest', 'swamp']) {
+for (const arena of ['hall', 'graveyard', 'cave', 'forest', 'swamp', 'frost']) {
   bossMs[arena] = 0;
   for (let i = 0; i < 30; i++) {
     const bossId = i % 6 === 5 ? undefined : GUARD_IDS[i % GUARD_IDS.length];
@@ -416,6 +483,12 @@ for (const arena of ['hall', 'graveyard', 'cave', 'forest', 'swamp']) {
     if (!lv.features || lv.features.water !== count(m, '-')) fail(tag + ' level.features');
     m.forEach((r, y) => [...r].forEach((c, x) => { if (HAZ.includes(c) && [-1, 0, 1].some(dy => [-1, 0, 1].some(dx => 'PxB'.includes((m[y + dy] || '')[x + dx])))) fail(tag + ` ${c} intill P/x/B vid ${x},${y}`); }));
     if (arena === 'swamp' && count(m, '-') < 30) fail(tag + ' för lite vatten i träskarenan ' + count(m, '-'));
+    if (arena === 'frost') { // ishallen: frusen sjö i mitten, pelare av Ø, istappar, inomhus, snö och frusen sten
+      if (count(m, ':') < 30 || m[14][12] !== ':' && m[14][12] !== 'h' && m[14][12] !== 'a') fail(tag + ' ingen frusen sjö i mitten ' + count(m, ':'));
+      if (count(m, 'Ø') < 60 + 8) fail(tag + ' för få pelare av Ø');
+      if (count(m, 'Ç') < 2 || count(m, 'Ç') > 8 || lv.features.icicles !== count(m, 'Ç')) fail(tag + ' istappar ' + count(m, 'Ç'));
+      if (lv.floors[0] !== 'floor_frost_stone' || lv.floors[1] !== 'floor_snow' || lv.biome !== 'frost') fail(tag + ' golv/biom ' + lv.floors + ' ' + lv.biome);
+    }
     if (count(m, 'h') < 3 || count(m, 'a') < 3) fail(tag + ' för få h/a');
     if (count(m, 'f') < 6) fail(tag + ' för få eldfat ' + count(m, 'f'));
     if (JSON.stringify(Gen.boss(seed, opts)) !== JSON.stringify(lv)) fail(tag + ' inte deterministisk');
@@ -435,11 +508,11 @@ for (const arena of ['hall', 'graveyard', 'cave', 'forest', 'swamp']) {
       for (let y = 10; y <= 18; y++) for (let x = 8; x <= 16; x++) if (isBlock(m[y][x])) fail(tag + ` hinder ${m[y][x]} i mitten vid ${x},${y}`);
       if ([...'SKVILNORWEQZ'].some(c => count(m, c))) fail(tag + ' vanliga fiender i bossarenan');
       for (let y = 5; y <= 9; y++) for (let x = 10; x <= 14; x++) if (isBlock(m[y][x])) fail(tag + ` hinder ${m[y][x]} vid bossen ${x},${y}`);
-      const outdoor = arena !== 'cave';
+      const outdoor = arena !== 'cave' && arena !== 'frost';
       if (!!lv.sky !== outdoor) fail(tag + ' sky');
-      const wall = { graveyard: '7', cave: '8', forest: '6', swamp: '0' }[arena];
+      const wall = { graveyard: '7', cave: '8', forest: '6', swamp: '0', frost: 'Ø' }[arena];
       if (m[0][0] !== wall) fail(tag + ' väggtecken ' + m[0][0]);
-      if (arena !== 'cave' && count(m, 'n') + count(m, 't') < 4) fail(tag + ' för lite skydd');
+      if (outdoor && count(m, 'n') + count(m, 't') < 4) fail(tag + ' för lite skydd');
     }
     if (!samples['boss:' + arena]) samples['boss:' + arena] = lv;
   }
@@ -461,6 +534,9 @@ for (const arena of ['hall', 'graveyard', 'cave', 'forest', 'swamp']) {
   if (!hack(bad, l => { const y = l.map.findIndex(r => r.includes('P')), x = l.map[y].indexOf('P'); l.map[y] = l.map[y].slice(0, x + 1) + 'z' + l.map[y].slice(x + 2); })) fail('validate: spikfälla intill P ej upptäckt');
   if (!hack(bad, l => { l.map[3] = l.map[3].slice(0, 2) + 'ww' + l.map[3].slice(4); })) fail('validate: två brunnar ej upptäckt');
   if (!hack(bad, l => { l.floors = Array(11).fill(l.floor); })) fail('validate: för många golv ej upptäckt');
+  if (!hack(bad, l => { l.map[3] = l.map[3].slice(0, 2) + '££' + l.map[3].slice(4); })) fail('validate: två alkemister ej upptäckt');
+  if (!hack(bad, l => { const y = l.map.findIndex(r => r.includes('P')), x = l.map[y].indexOf('P'); l.map[y] = l.map[y].slice(0, x + 1) + 'Ç' + l.map[y].slice(x + 2); })) fail('validate: istapp intill P ej upptäckt');
+  if (!hack(bad, l => { l.map[3] = l.map[3].slice(0, 2) + 'ÿ' + l.map[3].slice(3); })) fail('validate: okänt tecken ej upptäckt');
   if (!hack(out, l => { l.floors = ['floor_mud']; })) fail('validate: floors[0] != floor ej upptäckt');
   // en ring av träd runt P stänger in spelaren
   if (!hack(out, l => { const y = l.map.findIndex(r => r.includes('P')), x = l.map[y].indexOf('P'); for (let dy = -1; dy <= 1; dy++) l.map[y + dy] = l.map[y + dy].split('').map((c, xx) => (Math.abs(xx - x) <= 1 && (dy || xx !== x) && !(c >= '1' && c <= '9') ? 't' : c)).join(''); })) fail('validate: instängd av träd ej upptäckt');
@@ -485,6 +561,8 @@ const FK = Object.keys(FEAT).concat([',', "'", '}']);
 for (const id of BIOME_IDS) { const s = B[id]; console.log(`  ${id.padEnd(10)} ` + FK.map(k => `${k}=${(100 * (s.feat[k] || 0) / s.n).toFixed(0)}%/${((s.featN[k] || 0) / s.n).toFixed(1)}`).join(' ')); }
 console.log('Valv (antal): ' + BIOME_IDS.map(id => `${id} spak ${B[id].vault.lever} lås ${B[id].vault.key} (utmejslade ${B[id].vault.pocket})`).join(', '));
 console.log(`Träsket: vattenandel ${(100 * B.swamp.wet / B.swamp.n).toFixed(0)} % av gångbara rutor, hyddor ${(B.swamp.huts / B.swamp.n).toFixed(1)} per bana`);
+console.log(`Frostfästet: gårdar ${(B.frost.yards / B.frost.n).toFixed(1)} per bana, is ${(B.frost.ice / B.frost.n).toFixed(0)} rutor, istappar ${(B.frost.icic / B.frost.n).toFixed(1)}, istronsalar ${B.frost.throne || 0}`);
+console.log('NPC:er m.m. (andel banor, alla biomer): ' + stats.npc);
 console.log('\nFiender per rum (alla rum utom start: antal fiender -> antal rum):');
 for (const id of BIOME_IDS) { const h = B[id].hist; console.log(`  ${id.padEnd(10)} ` + Object.keys(h).sort((a, b) => a - b).map(k => k + ':' + h[k]).join(' ') + `   fiender/budget ${(B[id].enRel / B[id].n).toFixed(2)}  mimics ${B[id].mimic}  P->Z ${(B[id].gdist / B[id].n).toFixed(2)} (min ${B[id].gmin.toFixed(2)}) av längsta vägen`); }
 console.log('Rekvisita per bana:');
@@ -492,7 +570,7 @@ for (const id of BIOME_IDS) { const p = B[id].propN; console.log(`  ${id.padEnd(
 console.log('Rumstyper (antal):');
 for (const id of BIOME_IDS) { const a = B[id].arch; console.log(`  ${id.padEnd(10)} ` + Object.keys(a).sort((u, v) => a[v] - a[u]).map(k => k + '=' + a[k]).join(' ')); }
 console.log('Slumpad biom (1000 st): ' + stats.mix);
-console.log('Bossarenor 5 x 30: ' + Object.entries(bossMs).map(([k, v]) => `${k} ${(v / 30).toFixed(2)} ms`).join(', '));
+console.log('Bossarenor 6 x 30: ' + Object.entries(bossMs).map(([k, v]) => `${k} ${(v / 30).toFixed(2)} ms`).join(', '));
 console.log(`Omförsök i generatorn: ${Gen.floor.stats.retries - stats.retries0}`);
 if (failures) { console.log(`\n${failures} FEL`); process.exit(1); }
 console.log('\nALLA TESTER OK');
