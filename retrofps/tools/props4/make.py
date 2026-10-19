@@ -190,7 +190,7 @@ WIZ_P = [(147, 45, 139), (95, 46, 92), (67, 35, 65), (38, 26, 38)]
 NECRO_MAP = {WIZ_P[0]: (46, 44, 56), WIZ_P[1]: (32, 30, 42), WIZ_P[2]: (24, 22, 32), WIZ_P[3]: (16, 14, 22),
              (240, 154, 83): (176, 186, 160), (128, 74, 30): (54, 124, 58), (71, 40, 13): (30, 74, 36),
              (253, 253, 253): (196, 200, 190), (203, 195, 188): (150, 154, 146), (124, 108, 94): (96, 98, 92),
-             (70, 61, 53): (60, 62, 58), (20, 20, 18): OUT}
+             (70, 61, 53): (60, 62, 58), (181, 108, 48): (40, 36, 44), (20, 20, 18): OUT}
 STAFF0, STAFF1 = (52, 34, 34), (84, 58, 50)
 
 
@@ -916,6 +916,8 @@ def make_boss():
     H_ = src[0].height
     feet = max(np.nonzero(np.array(f)[:, :, 3].any(1))[0].max() for f in (src[0], src[5]))
     ground = lambda f: shift(f, 0, feet - np.nonzero(np.array(f)[:, :, 3].any(1))[0].max())
+    for j in (0, 1, 5):                     # all standing frames share one bottom row
+        src[j] = ground(src[j])
     lift = 14   # the jump is lowered a little so the strips stay compact
     idle = [jd_flames(src[j], i / 6) for i, j in enumerate((0, 0, 1, 1, 1, 0))]
     # attack: crouch, leap, fall with the arms spread, land in a burst of lava and dust
@@ -976,6 +978,10 @@ def make_boss():
         bb = b if bb is None else (min(bb[0], b[0]), min(bb[1], b[1]), max(bb[2], b[2]), max(bb[3], b[3]))
     bb = (bb[0] - 1, bb[1] - 1, bb[2] + 1, feet + 2)
     W_, Hh = bb[2] - bb[0], bb[3] - bb[1]
+    if Hh != W_:                            # square frames (the game splits a strip by its height)
+        n_ = max(W_, Hh)
+        bb = (bb[0] - (n_ - W_) // 2, bb[1] - (n_ - Hh), bb[0] - (n_ - W_) // 2 + n_, bb[3])
+        W_, Hh = n_, n_
 
     def save_b(name, frames):
         out = Image.new('RGBA', (W_ * len(frames), Hh), (0, 0, 0, 0))
