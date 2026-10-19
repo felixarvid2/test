@@ -813,6 +813,214 @@ Version 5 lägger till 200 förbättringar. Nya bilder ritas med `tools/props3/m
 199. Felrapporten i profilen kan kopieras
 200. Version och nyheter visas på startskärmen
 
+## Version 6: 200 nya förbättringar
+
+Version 6 lägger till 200 förbättringar:
+- **Bilder:** ritas med `tools/props4/make.py` och `tools/weapon-frames`.
+- **Ljud och musik:** byggs med `tools/sounds/make4.sh`.
+- **Kort:** byggs med `tools/card-art/make.py`.
+- **Bangeneratorn:** har fått biomen Vulkanen, en vulkanarena, hemliga våningar (`Gen.secret`), fällor, lägereldar, anslagstavlor och runstenar.
+
+**Nya vapen (1–20)**
+1. Spikgeväret (é): snabba spikar som projektiler
+2. Spikar nålar fast fiender mot väggen
+3. Spikarna studsar ibland mot sten
+4. Blixtstaven (ü): kedjeblixt mellan fiender
+5. Staven använder MANA som laddas av sig själv, även när staven ligger i fickan
+6. Högerklick laddar ett blixtklot som zappar allt i närheten
+7. Långbågen (ñ): håll för att spänna, släpp för att skjuta
+8. Fullt spänd båge gör dubbel skada och går igenom fiender
+9. Pilar fastnar i väggar och kan plockas upp igen
+10. Spiksmedens ed: pakt för spikgeväret med fyra uppgraderingar
+11. Stormmagerns ed: pakt för blixtstaven med fyra uppgraderingar
+12. Bågskyttens ed: pakt för långbågen med fyra uppgraderingar
+13. Nya ammotyper: SPIKAR, MANA och PILAR (armborstet har nu BULTAR)
+14. Vapenhjulet och vapenraden i HUD klarar fjorton vapen
+15. Alternativa skott med högerklick: en spikbrasa och ett blixtklot
+16. Siktet drar ihop sig när bågen spänns
+17. Spikgeväret skjuter snabbare ju längre du håller inne
+18. Blixten leder i vatten: alla som står i samma vatten får en stöt
+19. De nya vapnen finns i butiken och som elitbyte
+20. Träffljud efter väggens material (sten, trä, metall)
+
+**Nya fiender (21–40)**
+21. Nekromant (Ñ): väcker döda fiender
+22. Eldelemental (Æ): delar sig i små flammor när den dör
+23. Lavamask (Þ): gräver sig fram och dyker upp under dig
+24. Dödsriddare (Ð): tung, med sköldstöt och svärdsvåg
+25. Banshee (Ý): skriket saktar ned och får dig att tappa fotfästet
+26. Nekromanten håller avstånd
+27. Marken glöder och spricker innan lavamasken dyker upp
+28. Dödsriddarens sköld stoppar skott framifrån
+29. Bansheen syns bara som en skugga på håll
+30. Eldelementalen tänder marken där den går och bränner nät
+31. Fiender undviker granater
+32. Skadade fiender söker sig till shamanen för att helas
+33. Vissa fiender bär ett föremål som syns och tappas när de dör
+34. Grupper har en ledare: när den dör tvekar de andra
+35. Fiender hör när du öppnar dörrar
+36. Ny elitegenskap: brinnande aura
+37. Ny elitegenskap: magnetisk (drar dig närmare)
+38. Ny elitegenskap: odödlig en gång (återuppstår med halv hälsa)
+39. De nya fienderna finns i bestiariet
+40. Livmätarna visar statusprickar (brand, gift, frost, blödning, bedövning)
+
+**Vulkanen (41–55)**
+41. Ny biom: Vulkanen, med obsidianhallar, lavafloder och askfält
+42. Obsidianväggar, askgolv och basaltgolv
+43. Askregn och stigande glöd
+44. Värmedis i bilden
+45. Hetta: nära lava blir du varm, vatten och isdrycken kyler
+46. Utbrott: lavabomber faller med varning på marken
+47. Rumstyper: smedjehall, lavasjö med bro, askfält och magmakammare
+48. Lavan lyser rött på väggarna (färgat ljus)
+49. Egen musik och mullrande miljöljud
+50. Röd himmel av glöd och rök
+51. Vulkanens väktarrum och bossarena
+52. Eldjetar (°) som sprutar eld i takt
+53. Sköra golvplattor (¬) som rasar efter att du gått på dem
+54. Pendelblad (±) som svänger i korridorerna
+55. Vulkanens namn och titelkort
+
+**Ny boss (56–65)**
+56. Den sjunde bossen, Eldkungen, med en egen vulkanarena
+57. Eldklot i salvor
+58. Ett slag som får lava att spruta upp i en ring
+59. Lavapölar i fas 2 och raseri i fas 3
+60. Två specialanfall: utbrott och eldelementaler
+61. Egna väggar och golv i väktarrum och arena
+62. Egen bossmusik och eget vrål
+63. Eldkungen är med i bossrushen (sju bossar)
+64. Eldkungen kan vakta vanliga våningar
+65. Bossintro: kameran vänder sig mot bossen innan striden
+
+**Runor (66–80)**
+66. Runstenar (ª) på våningarna
+67. Runor fästs i vapen, direkt eller vid smedjan
+68. Eldrunan tänder eld
+69. Isrunan saktar ned och fryser ibland
+70. Giftrunan förgiftar
+71. Stormrunan slår ibland ned blixt i en annan fiende
+72. Blodrunan ger liv tillbaka
+73. Ekorunan upprepar var femte träff
+74. Runorna syns på vapnet i HUD
+75. Vapnet glöder i runans färg
+76. En runplats per vapen, två med själaaltarets uppgradering
+77. En ny runa ersätter den äldsta
+78. Runstenar i butiken
+79. Runorna förklaras i handboken
+80. Ljud när en runa fästs och när den slår till
+
+**Lägerelden och uppdrag (81–100)**
+81. Lägerelden (¶): en vilplats på vissa våningar
+82. Vila: läk 40 % hälsa
+83. Smida: vapnet går upp en nivå gratis
+84. Förädla: ett kort blir starkare (+)
+85. Laga mat: kött från djur ger hälsa, max hälsa och mer skada på våningen
+86. Lägerelden värmer i kylan och lyser
+87. Anslagstavlan (®): tre sidouppdrag per våning
+88. Uppdrag: döda fiender med ett visst vapen
+89. Uppdrag: hitta en hemlighet
+90. Uppdrag: klara våningen utan drycker
+91. Uppdrag: döda en elit innan tiden går ut, nå en kombo, ta ingen skada en minut
+92. Belöningen är guld, ett kortval eller en runa
+93. Uppdragen syns i pausen
+94. Ljud när ett uppdrag tas och klaras
+95. Hemlig trappa (÷) i hemliga rum
+96. Den hemliga våningen: en skattkammare med eliter
+97. Den hemliga våningen har egen musik
+98. Giftfat (µ) och isfat (ß) som smäller med effekt
+99. Tryckplattor (¨) öppnar en hemlighet i närheten
+100. Fångar viskar ett tips om våningen
+
+**Aktiva förmågor (101–115)**
+101. Fem kort ger en aktiv förmåga (T)
+102. Blinken: teleport framåt
+103. Tidsbubblan: allt runt dig saktar ned
+104. Sköldbubblan: blockerar projektiler
+105. Vålnadskallet: två allierade
+106. Jordskalvet: slår omkull fiender runt dig
+107. Förmågans nedräkning syns i HUD
+108. Mobil: förmågeknapp
+109. Handkontroll: förmåga på höger spak (går att byta)
+110. Kort som sänker nedräkningen
+111. Ljud för varje förmåga och när den är redo
+112. Dödanden laddar förmågan snabbare, mer vid kombo
+113. Bara en förmåga åt gången: det senaste kortet gäller
+114. Förmågan syns i kortleken ("I BRUK")
+115. Tips första gången du får en förmåga
+
+**Kort (116–145)**
+116–140. 25 nya kort med nya bonusar: runplatser, runstyrka, hettaskydd, mana, pilar som kommer tillbaka, uppdragsguld, vila, nedräkning, hemligheter och måltider
+141. Två nya kortset: ASKANS ARV och JÄGARENS LÄRA
+142. Förädling: ett kort blir + utan att du behöver ett till
+143. Kortvalet visar FÖRE → EFTER för det kortet ändrar
+144. Kortleken kan sorteras och filtreras
+145. Kortleken visar dina aktuella värden
+
+**Lägen och meta (146–175)**
+146. Överlevnadsläget: vågor i en arena, med rekordlista
+147. Spöket: din bästa tid på samma våning syns som en skugga
+148. Introduktion för nya spelare, steg för steg
+149. Själaaltaret: en andra runplats
+150. Själaaltaret: lägereldar oftare
+151. Själaaltaret: börja med en runa
+152. 20 nya prestationer
+153. Statistik per biom och boss
+154. Slutskärmens graf visar skadan per våning
+155. Vanligaste dödsorsakerna i statistiken
+156. Nytt läge: snabb runda (portalen öppnas tidigare)
+157. Hjälpläge: långsammare spel
+158. Hjälpläge: extra hälsa
+159. Byt svårighet mellan våningarna (D)
+160. Spara slutskärmen som bild (S)
+161. Fotoläget har filter: svartvit, sepia och nattseende (1–4)
+162. Ny klass: Spejaren (långbåge och lykta)
+163. Ny klass: Smeden (smidd pistol med eldruna)
+164. Dagliga uppdrag: tre om dagen, själar som belöning
+165. Tre nya regler för dagens och veckans utmaning
+166. Bossrush med alla sju bossar och topptid
+167. Själarna hittills syns efter varje våning
+168. Kortarkivet visar saknade kort och hur de låses upp
+169. Bestiariet visar fiendernas svagheter
+170. Rörlig bakgrund på startskärmen
+171. Startskärmen visar senaste rundan
+172. Ny meny: statistik
+173. Favoritvapen per biom
+174. Bästa tid per boss
+175. Pausen visar runor, förmåga och uppdrag
+
+**Grafik, ljud och känsla (176–190)**
+176. Värmedis och askfilter i vulkanen
+177. Blixtstaven lyser upp rummet
+178. Spårljus efter spikar
+179. Brinnande fiender lyser
+180. Stora fiender skakar marken när de går nära
+181. Explosioner lämnar glödande rester
+182. Spårljus efter fullt spända pilar
+183. Hjärtat slår hårdare vid mycket låg hälsa
+184. Musiken blir intensivare när en elit är nära
+185. Ljudet dämpas när du duckar i vatten
+186. Fönsterljuset i husväggarna flimrar
+187. Spindelnät fladdrar när du går igenom dem
+188. Du hör fotsteg från fiender du inte ser
+189. Partiklar när runor slår till
+190. Bossens steg skakar kameran
+
+**Tillgänglighet och mobil (191–200)**
+191. Flytta mobilknapparna (layoutläge i inställningarna)
+192. Byt knappar på handkontrollen
+193. Hög kontrast på fiender
+194. Stora undertexter
+195. Siktstödets styrka kan väljas
+196. Spring automatiskt på mobil
+197. Pilar mot uppdragets mål i cyan
+198. Spelhastighet (hjälpläge)
+199. Sparläge: 30 bilder i sekunden för svaga enheter
+200. Version 6 i nyheter och handbok
+
+Siktstödet på mobil är också rättat. Två funktioner hette `aimAssist`, så första skottet saknade riktning när man spelade med pekskärm.
+
 ## Assets som används
 
 | Vad | Källa |
@@ -850,6 +1058,10 @@ Version 5 lägger till 200 förbättringar. Nya bilder ritas med `tools/props3/m
 | Version 5: ghoul, kultist, gargoyl, isvarg, irrbloss, Isdraken, följeslagare, drycker, alkemist, präst, djurbur, Frostfästets texturer och partiklar | `tools/props3/make.py`. Isvargen och Isdraken ur Gothicvania (Ansimuz, CC0), omfärgade; ghoul, kultist, alkemist och präst bygger på *Pixel Crawler* (Anokolisa); ytor från *Classic64* (CC0); resten ritas i skriptet |
 | Version 5: 40 ljud och musiken för Frostfästet och Isdraken | `tools/sounds/make3.sh`: Kenney-paket (CC0), 400 Sounds Pack, Horror SFX Free; musiken och flera ljud syntetiseras i skriptet |
 | Version 5: 45 nya kortbilder | `tools/card-art/make.py` ur `assets/rune-ai/flux` (relics, bosses, vouchers, tags, rune-symbols) |
+| Version 6: spikgevär, blixtstav, långbåge | blixtstaven och bågen ur KayKit *Fantasy Weapons Bits* (CC0), spikgeväret byggt på *Guns&Explosives*, renderade med `tools/weapon-frames` |
+| Version 6: nekromant, dödsriddare, banshee, eldelemental, lavamask, Eldkungen, Vulkanens texturer, rekvisita, runor och ikoner | `tools/props4/make.py`. Nekromanten och dödsriddaren bygger på *Pixel Crawler* (Anokolisa), bansheen på Gothicvania (Ansimuz, CC0), Eldkungen på TinyRPG *Jumping Demon* (Legacy Collection, CC0), ytor från *Classic64* och Kenney (CC0); resten ritas i skriptet |
+| Version 6: 47 ljud och musiken för Vulkanen, Eldkungen, hemliga våningar och överlevnad | `tools/sounds/make4.sh`: Kenney-paket (CC0), 400 Sounds Pack, Horror SFX Free; musiken syntetiseras i skriptet |
+| Version 6: 45 nya kortbilder | `tools/card-art/make.py` ur `assets/rune-ai/flux` och `assets/ashfall-ai/flux/vfx` |
 | Typsnitt | Press Start 2P (OFL) |
 
 Se licensfilerna i respektive källpaket.
