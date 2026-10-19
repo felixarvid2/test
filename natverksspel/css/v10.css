@@ -1,6 +1,6 @@
 /* Version 10: HD-2D och 3D (punkt 149–152, 180–183) */
 /* 149: tipsrutan följer muspekaren i HD-2D */
-body.mode-hd2d:not(.touch) #hint { transform: none; left: 0; top: 0; font-size: 13px; padding: 5px 11px; }
+body.mode-hd2d:not(.touch) #hint { transform: none; left: var(--hx, 50%); top: var(--hy, 60%); font-size: 13px; padding: 5px 11px; }
 /* 150: inget sikte i HD-2D; 114: siktets färg följer det du tittar på */
 body.mode-hd2d #crosshair { display: none; }
 #crosshair.active { background: var(--ch, var(--accent)); box-shadow: 0 0 8px var(--ch, transparent); }

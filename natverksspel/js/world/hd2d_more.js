@@ -196,7 +196,9 @@
   W.hdCursor = function (x, y) {
     var ui = this.game.ui;
     this.canvas.style.cursor = this.hover ? 'pointer' : 'default';
-    if (ui && ui.hint) { ui.hint.style.left = Math.min(window.innerWidth - 160, x + 18) + 'px'; ui.hint.style.top = (y + 14) + 'px'; }
+    // Som variabler som bara HD-2D:s regel i v10.css läser: satt left/top direkt blev de kvar i 2D,
+    // där tipsrutan då sträcktes ut till en hög mörk ruta som blinkade när tipset tändes och släcktes
+    if (ui && ui.hint) { ui.hint.style.setProperty('--hx', Math.min(window.innerWidth - 160, x + 18) + 'px'); ui.hint.style.setProperty('--hy', (y + 14) + 'px'); }
   };
 
   // ------------------------------------------------------------------ Varje bildruta
