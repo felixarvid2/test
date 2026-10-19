@@ -404,3 +404,74 @@
   .cu-have { top: -5px; bottom: auto; left: -5px; }
   .cu-st { min-width: 0; flex: 1 1 30%; }
 }
+
+/* ---------- Aktiva förmågor, före → efter, kortleksfilter, förädling och saknade kort ---------- */
+#cardui { --act: #50c8ff; }
+.cu-ribbon.act { color: #d8f4ff; background: #0c3048; border-color: var(--act); }
+.cu-card.act, .cu-tile.act, .cu-item.act, .cu-toast.act { --glow: rgba(80,200,255,.5); }
+.cu-card.act .cu-front { background: linear-gradient(180deg, #10283a 0%, var(--panel) 50%, #120d09 100%); }
+.cu-tile.act { background: linear-gradient(180deg, #0f2232 0%, var(--panel) 60%); }
+.cu-act { font-size: 6px; padding: 3px 5px; color: #d8f4ff; background: #0c3048; border: 1px solid var(--act); letter-spacing: 1px; }
+.cu-actl { color: var(--act) !important; }
+.cu-tile .cu-mark.use { color: #0b1a24; background: var(--act); border-color: #000; }
+.cu-tile .cu-mark.miss { color: #ffb080; border-color: #8a4a20; }
+.cu-unl { font-size: 6px; color: #b8a0ff; }
+.cu-unlock { margin-top: 6px; font-size: 8px; color: #b8a0ff; }
+
+/* före → efter */
+.cu-cmp { display: flex; flex-direction: column; gap: 3px; padding: 6px 7px; font-size: 7px; line-height: 1.5; text-align: left;
+  background: #120d09; border: 2px solid var(--edge); box-shadow: 2px 2px 0 #000; transition: opacity .3s .3s; }
+.cu-cmph { font-size: 6px; color: var(--dim); letter-spacing: 1px; }
+.cu-cl { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; color: var(--muted); }
+.cu-cll { color: var(--muted); overflow-wrap: anywhere; min-width: 0; }
+.cu-clv { flex: none; white-space: nowrap; color: var(--ink); }
+.cu-cl.pos .cu-clv { color: #7ee07a; }
+.cu-cl.neg .cu-clv { color: #ff6a50; }
+.cu-cl.act { flex-wrap: wrap; gap: 2px 8px; }
+.cu-cl.act .cu-cll { flex: none; }
+.cu-cl.act .cu-clv { color: var(--act); white-space: normal; text-align: right; margin-left: auto; }
+.cu-slot.down .cu-cmp { opacity: 0; visibility: hidden; transition: none; }
+.cu-slot.done .cu-cmp { opacity: .15; }
+.cu-detail .cu-cmp { margin-top: 6px; font-size: 8px; align-self: stretch; }
+.cu-now { margin-top: 8px; display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; background: #120d09; border: 2px solid var(--edge); font-size: 8px; }
+.cu-now .cu-clv { color: var(--gold); }
+.cu-upv { display: flex; flex-direction: column; gap: 4px; align-self: stretch; }
+.cu-upv .cu-dm { margin-top: 0; }
+.cu-fzbox .cu-upv .cu-cmp { margin-top: 0; }
+
+/* kortlek: sortering och filter, dina värden */
+.cu-barg { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.cu-bar { gap: 8px 16px; }
+.cu-vals { width: 100%; text-align: left; background: var(--panel); border: 2px solid var(--edge); padding: 8px 10px; font-size: 8px; }
+.cu-vals summary { cursor: pointer; color: var(--gold); }
+.cu-vals summary:focus-visible { outline: 2px solid #ffe9a8; outline-offset: 2px; }
+.cu-valg { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); gap: 3px 12px; margin-top: 8px; font-size: 7px; line-height: 1.6; }
+.cu-valg .pos { color: #7ee07a; }
+.cu-valg .neg { color: #ff6a50; }
+
+/* förädling vid lägerelden */
+.cu-refine .cu-deckbox { width: min(720px, 100%); }
+.cu-rlist { width: 100%; display: flex; flex-direction: column; gap: 10px; max-height: 60vh; overflow-y: auto; padding: 4px; }
+.cu-rrow {
+  --rc: #c9a87a; --bc: var(--rc); --glow: rgba(201,168,122,.3);
+  display: grid; grid-template-columns: 72px 1fr; gap: 12px; align-items: start; padding: 10px; text-align: left; cursor: pointer; outline: none;
+  background: var(--panel); border: 3px solid var(--bc); box-shadow: 0 0 8px var(--glow), 3px 3px 0 #000; font-size: 8px; line-height: 1.6;
+}
+.cu-rrow:hover, .cu-rrow:focus-visible { background: #2a1d12; box-shadow: 0 0 16px 3px var(--glow), 3px 3px 0 #000; }
+.cu-rrow:focus-visible { outline: 2px solid #ffe9a8; outline-offset: 2px; }
+.cu-rrow .cu-art { width: 72px; border-width: 2px; }
+.cu-rbody { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.cu-rname { font-size: 9px; color: var(--ink); overflow-wrap: anywhere; }
+.cu-rname .cu-key { color: var(--dim); }
+.cu-rup { color: #ffc070; }
+.cu-rrow .cu-dm { font-size: 7px; color: var(--rc); }
+
+@media (max-width: 720px) {
+  .cu-cmp { font-size: 6px; }
+  .cu-slot .cu-cmp { padding: 5px 6px; }
+  .cu-bar { flex-direction: column; align-items: center; }
+  .cu-barg { justify-content: center; }
+  .cu-rrow { grid-template-columns: 52px 1fr; gap: 8px; padding: 8px; }
+  .cu-rrow .cu-art { width: 52px; }
+  .cu-rlist { max-height: 64vh; }
+}

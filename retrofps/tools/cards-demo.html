@@ -33,6 +33,10 @@
     <button class="d" id="b-deck5">KORTLEK: STATISTIK OCH SMÄLT SAMMAN</button>
     <button class="d" id="b-draft5x">DRAFT: DU HAR + LEGENDARISK</button>
     <button class="d" id="b-alk">ALKEMISTEN (NYA VAROR)</button>
+    <button class="d" id="b-draft6">DRAFT: FÖRE → EFTER</button>
+    <button class="d" id="b-deck6">KORTLEK: FILTER, FÖRMÅGOR OCH VÄRDEN</button>
+    <button class="d" id="b-refine">LÄGERELDEN: FÖRÄDLA</button>
+    <button class="d" id="b-codex6">KORTARKIV: SAKNADE KORT</button>
   </div>
   <div id="log">Tangenter 1-9, pilar, Enter och Esc fungerar i fönstren. Spelkänslig tangent-test: tryck på tangenter medan ett fönster är öppet och se om de loggas nedan.</div>
 </main>
@@ -128,6 +132,20 @@
   $('b-deck5').onclick = deck5;
   $('b-draft5x').onclick = draft5x;
   $('b-alk').onclick = alk;
+  // nya kort: före → efter i kortvalet (spelets M som opts.mods), förmågor, filter, förädling och saknade kort
+  const draft6 = () => { // spelaren har två kort ur ASKANS ARV och förmågan BLINKEN
+    const own = state.owned.concat(['eldrunan', 'brinnande_tornet', 'blinken']);
+    CardUI.draft(['askbrevet', 'tidsbubblan', 'slipstenen', 'stjarnskytten'].map(Cards.byId), { title: 'VÄLJ ETT KORT', owned: own, ownedCount: counts(), seen: new Set(seen), mods: Cards.computeMods(own) }, c => { if (c) { state.owned.push(c.id); log('valde ' + c.name); } stat(); });
+  };
+  const deck6 = () => CardUI.deck(state.owned.concat(['blinken', 'askbrevet', 'jordskalvet', 'svarta_gavan', 'pakt_bage', 'solfjadern', 'runskivan']), () => log('stängde kortleken'), { stats, mods: Cards.computeMods(state.owned.concat(['askbrevet', 'svarta_gavan', 'runskivan', 'blinken', 'jordskalvet'])) });
+  const refine6 = () => CardUI.refine(state.owned.concat(['blinken', 'runskivan', 'pakt_pistol', 'hamstraren']), (id, rid) => {
+    const i = state.owned.indexOf(id); if (i >= 0) state.owned[i] = rid; else state.owned.push(rid); stat(); log('förädlade ' + id + ' -> ' + rid); CardUI.toast(Cards.byId(rid), 'FÖRÄDLAT KORT');
+  }, () => log('avbröt förädlingen'));
+  const codex6 = () => CardUI.codex(Cards.ALL.filter(c => !c.weapon), { seen: new Set(Cards.ALL.filter((c, i) => i % 3 === 0).map(c => c.id).concat(['blinken'])), owned: new Set(state.owned), unlocked: new Set(Cards.ALL.filter(c => !c.unlock || c.unlock < 25).map(c => c.id)) }, () => log('stängde arkivet'));
+  $('b-draft6').onclick = draft6;
+  $('b-deck6').onclick = deck6;
+  $('b-refine').onclick = refine6;
+  $('b-codex6').onclick = codex6;
   const auto = q.get('auto');
   if (auto === 'draft') draft(3); else if (auto === 'draft5') draft(5); else if (auto === 'shop') shop(); else if (auto === 'souls') souls(); else if (auto === 'deck') CardUI.deck(state.owned);
   else if (auto === 'legend') CardUI.draft(['tomhetsstenen', 'gravvaktaren', 'ouroboros', 'askkungen', 'vaktarbanan'].map(Cards.byId), { title: 'LEGENDARISKA TESTKORT' }, () => {})
@@ -137,9 +155,13 @@
   else if (auto === 'deck5') deck5();
   else if (auto === 'draft5x') draft5x();
   else if (auto === 'alk') alk();
+  else if (auto === 'draft6') draft6();
+  else if (auto === 'deck6') deck6();
+  else if (auto === 'refine') refine6();
+  else if (auto === 'codex6') codex6();
   else if (auto === 'codex5') CardUI.codex(Cards.ALL.filter(c => !c.weapon), { seen: new Set(Cards.ALL.map(c => c.id)), owned: new Set(state.owned.concat(['slipstenen+'])), unlocked: new Set(Cards.ALL.map(c => c.id)), picks: { slipstenen: 7, glodkol: 1, lakebladet: 3 } }, () => log('stängde arkivet'));
   else if (auto === 'toast') { CardUI.toast(Cards.byId('forbannade_kronan')); CardUI.toast(Cards.byId('ouroboros')); }
-  window.__demo = { state, draw, seen, draftX, deck5, draft5x, alk, stats };
+  window.__demo = { state, draw, seen, draftX, deck5, draft5x, alk, stats, draft6, deck6, refine6, codex6 };
 })();
 </script>
 </body>

@@ -12,7 +12,7 @@
   html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; font-family: "PressStart2P", monospace; color: var(--ink); }
   #wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #000; }
   canvas { image-rendering: pixelated; width: min(100vw, 160vh); height: min(62.5vw, 100vh); background: #000; outline: none; cursor: crosshair; }
-  #title { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; background: radial-gradient(#2a1810, var(--bg) 70%); text-align: center; padding: 16px; overflow-y: auto; }
+  #title { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; background: radial-gradient(rgba(42,24,16,0.82), rgba(11,8,6,0.78) 70%); text-align: center; padding: 16px; overflow-y: auto; }
   h1 { font-size: clamp(28px, 7vw, 64px); margin: 0; color: var(--blood); text-shadow: 4px 4px #000, 0 0 24px #6a1408; letter-spacing: 6px; }
   p { font-size: clamp(8px, 1.3vw, 11px); line-height: 2.1; margin: 0; color: var(--muted); max-width: 780px; }
   .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; align-items: center; }
@@ -110,6 +110,9 @@
   #touch.onehand .walkb { display: block; width: calc(var(--b) * .85); height: calc(var(--b) * .85); right: calc(var(--m) + 1vw + var(--b) * .95); bottom: calc(min(62.5vw, 100vh) * .2 + 1vh); }
   #touch.onehand .crouchb { left: auto; right: calc(var(--m) + 1vw + var(--b) * .95); bottom: calc(min(62.5vw, 100vh) * .2 + 1vh + var(--b) * .85 + var(--g)); top: auto; }
   #touch .tb.lit { opacity: 1; filter: drop-shadow(0 0 6px #ffd24a); }
+  #touch.layout .tb { opacity: 1; outline: 2px dashed #ffd24a; display: block; }
+  .layoutbar { position: fixed; left: 50%; top: 8px; transform: translateX(-50%); z-index: 60; display: flex; gap: 8px; align-items: center; background: #000c; padding: 8px; font: 10px "PressStart2P", monospace; color: #ffe9a8; }
+  .layoutbar button { font: inherit; padding: 8px; background: #3a2c1e; color: #ffe9a8; border: 1px solid #c9a87a; }
   .touchhint { display: none; }
   body.touch .touchhint { display: block; }
   body.touch .keyhint { display: none; }
@@ -133,6 +136,7 @@
     <button id="daily" disabled>DAGENS RUNDA</button>
     <button id="bossrush" class="ghost" type="button">BOSSRUSH</button>
     <button id="weekly" class="ghost" type="button">VECKANS UTMANING</button>
+    <button id="survival" class="ghost" type="button">ÖVERLEVNAD</button>
     <button id="continue" hidden>FORTSÄTT</button>
   </div>
   <div class="row">
@@ -149,6 +153,7 @@
     <button id="codexbtn" class="ghost" type="button">KORTARKIV</button>
     <button id="practicebtn" class="ghost" type="button">ÖVNING</button>
     <button id="manualbtn" class="ghost" type="button">HANDBOK</button>
+    <button id="statsbtn" class="ghost" type="button">STATISTIK</button>
     <button id="newsbtn" class="ghost" type="button">NYHETER</button>
   </div>
   <div class="row sliders">
@@ -158,7 +163,7 @@
   <div id="souls"></div>
   <div id="best"></div>
   <div id="dailyinfo" class="label"></div>
-  <div id="version" class="label">VERSION 5 · 200 NYA FÖRBÄTTRINGAR – SE NYHETER</div>
+  <div id="version" class="label">VERSION 6 · 200 NYA FÖRBÄTTRINGAR – SE NYHETER</div>
   <p class="touchhint">VÄNSTER TUMME: GÅ (DRA LÅNGT FÖR ATT SPRINGA) · HÖGER TUMME: DRA FÖR ATT VRIDA, TRYCK SNABBT FÖR ATT SKJUTA · STORA KNAPPEN: HÅLL FÖR ATT SKJUTA (DRA PÅ DEN FÖR ATT SIKTA SAMTIDIGT) · ÖVRIGA KNAPPAR: SIKTA, LADDA OM, ANVÄND, BYT VAPEN, KARTA, KORT, PAUS. LIGGANDE GER STÖRST BILD.</p>
   <p class="keyhint"><kbd>WASD</kbd> gå · <kbd>MUS</kbd> sikta · <kbd>VÄNSTERKLICK</kbd> skjut · <kbd>HÖGERKLICK</kbd> sikta med vapnet · <kbd>R</kbd> ladda om · <kbd>E</kbd> öppna, handla<br>
      <kbd>SHIFT</kbd> spring · <kbd>1-4</kbd>/<kbd>Q</kbd>/<kbd>HJUL</kbd> byt vapen · <kbd>C</kbd> dina kort · <kbd>M</kbd>/<kbd>TAB</kbd> karta · <kbd>P</kbd>/<kbd>ESC</kbd> paus · <kbd>[ ]</kbd> känslighet · <kbd>- +</kbd> volym · <kbd>N</kbd> ljud · <kbd>O</kbd> helskärm<br>

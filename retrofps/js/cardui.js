@@ -51,9 +51,12 @@ function tint(node, card) {
   if (card.curse) node.classList.add('curse');
   if (card.pact) node.classList.add('pact');
   if (card.fused) node.classList.add('fused');
+  if (card.active) node.classList.add('act');
   if (card.rarity === 'legendarisk') node.classList.add('legend');
 }
-const ribbonCls = card => 'cu-ribbon' + (card.curse ? '' : card.pact ? ' pact' : card.weapon ? ' wpn' : card.fused ? ' fused' : ' wpn');
+const ribbonCls = card => 'cu-ribbon' + (card.curse ? '' : card.pact ? ' pact' : card.active ? ' act' : card.weapon ? ' wpn' : card.fused ? ' fused' : ' wpn');
+// "AKTIV · 8 S" för kort med en aktiv förmåga
+const actTxt = card => 'AKTIV · ' + String(card.cd || 0).replace('.', ',') + ' S';
 // "VALD 1 GÅNG", "VALD 3 GÅNGER"
 const timesTxt = n => 'VALD ' + n + (n === 1 ? ' GÅNG' : ' GÅNGER');
 // 12345 -> "12 345"
@@ -118,6 +121,30 @@ function segmented(opts, value, onPick, label) {
   set(value);
   g.set = set;
   return g;
+}
+// Före → efter: rader ur Cards.diffLines/preview. Etikett till vänster, "20 % → 30 %" till höger.
+function cmpBox(lines, head, max) {
+  const C = window.Cards, box = el('div', 'cu-cmp');
+  if (head) box.appendChild(el('div', 'cu-cmph', head));
+  const show = max ? lines.slice(0, max) : lines;
+  for (const l of show) {
+    const d = el('div', 'cu-cl ' + (l.good ? 'pos' : 'neg'));
+    d.appendChild(el('span', 'cu-cll', l.label));
+    d.appendChild(el('span', 'cu-clv', C.fmtVal(l.key, l.before) + ' → ' + C.fmtVal(l.key, l.after)));
+    box.appendChild(d);
+  }
+  if (lines.length > show.length) box.appendChild(el('div', 'cu-cll', '+' + (lines.length - show.length) + ' TILL'));
+  return box;
+}
+// Förhandsvisning av ett starkare kort (sammansmältning och förädling): "X BLIR X+ (VANLIG → OVANLIG)" och talen före → efter
+function upPreview(card, up, head) {
+  const r0 = R()[card.rarity], r1 = R()[up.rarity];
+  const box = el('div', 'cu-upv');
+  box.appendChild(el('div', 'cu-dm', (head || card.name + ' BLIR ' + up.name) + ' (' + (r0 === r1 ? r1.label : r0.label + ' → ' + r1.label) + ')'));
+  const lines = window.Cards.diffLines ? window.Cards.diffLines(card.mods, up.mods) : [];
+  if (lines.length) box.appendChild(cmpBox(lines));
+  else box.appendChild(modList(up, 1));
+  return box;
 }
 function art(card) {
   const a = el('div', 'cu-art');
@@ -190,7 +217,9 @@ function activate(e) { // Enter/Mellanslag klickar fokuserat element i UI:t
 // ---------- Draft ----------
 // opts: { title, subtitle, skipLabel, owned: [id], seen: Set(id), banish: card => ersättare|null,
 //         reroll: { price (tal eller funktion), gold, onReroll: () => [kort] | null },
-//         ownedCount: { [id]: antal } – märket "DU HAR n" på kort man redan har }
+//         ownedCount: { [id]: antal } – märket "DU HAR n" på kort man redan har,
+//         mods: { nyckel: värde } – spelets nuvarande M; varje kort visar då "FÖRE → EFTER" för talen det ändrar
+//               (setbonusar som kortet fullbordar räknas med). En ny aktiv förmåga visar vilken den ersätter. }
 // Legendariska kort laddas upp och vänds med en egen ljusexplosion (inte med prefers-reduced-motion).
 function draft(cards, opts, onPick) {
   if (typeof opts === 'function') { onPick = opts; opts = {}; }
@@ -204,6 +233,24 @@ function draft(cards, opts, onPick) {
   const haveOf = card => (have ? Math.max(0, +have[card.id] || 0) : 0);
   const synOf = card => (opts.owned && window.Cards.synergy ? window.Cards.synergy(card, ownedList) : '');
   const canBanish = typeof opts.banish === 'function';
+  const curMods = opts.mods && typeof opts.mods === 'object' ? opts.mods : null;
+  const nowActive = window.Cards.activeOf ? window.Cards.activeOf(ownedList) : null;
+  // "FÖRE → EFTER" för talen kortet ändrar, och vilken aktiv förmåga ett nytt förmågekort ersätter
+  function compare(card) {
+    const C = window.Cards;
+    const lines = curMods && C.preview ? C.preview(card, curMods, ownedList) : [];
+    const swap = card.active && nowActive && nowActive.id !== card.id ? nowActive : null;
+    if (!lines.length && !swap) return null;
+    const box = cmpBox(lines, 'FÖRE → EFTER', 4);
+    if (swap) {
+      const d = el('div', 'cu-cl act');
+      d.appendChild(el('span', 'cu-cll', 'FÖRMÅGA'));
+      d.appendChild(el('span', 'cu-clv', swap.name + ' → ' + card.name));
+      box.appendChild(d);
+    }
+    box.setAttribute('aria-hidden', 'true'); // samma text finns i kortets aria-label
+    return { box, text: lines.map(l => l.text).concat(swap ? ['FÖRMÅGA ' + swap.name + ' → ' + card.name] : []).join(', ') };
+  }
   const rr = opts.reroll && typeof opts.reroll.onReroll === 'function' ? opts.reroll : null;
   let gold = rr ? (+rr.gold || 0) : 0;
   const rrPrice = () => (rr ? Math.max(0, +(typeof rr.price === 'function' ? rr.price() : rr.price) || 0) : 0);
@@ -214,7 +261,7 @@ function draft(cards, opts, onPick) {
   node.setAttribute('aria-label', opts.title || 'VÄLJ ETT KORT');
   wrap.appendChild(el('h2', 'cu-title', opts.title || 'VÄLJ ETT KORT'));
   if (opts.subtitle) wrap.appendChild(el('p', 'cu-sub', opts.subtitle));
-  const row = el('div', 'cu-cards' + (canBanish || opts.owned || seen ? ' extra' : ''));
+  const row = el('div', 'cu-cards' + (canBanish || opts.owned || seen || curMods ? ' extra' : ''));
   wrap.appendChild(row);
   let slots = []; // { card, slot, el, revealed, ban }
   let picked = false, banishUsed = false;
@@ -228,8 +275,9 @@ function draft(cards, opts, onPick) {
     const isNew = seen && !seen.has(card.id);
     const nHave = haveOf(card);
     const canFuse = nHave >= 1 && window.Cards.fusable && window.Cards.fusable(card);
+    const cmp = compare(card);
     c.setAttribute('aria-label', (i + 1) + ': ' + card.name + ', ' + (tagOf(card) ? tagOf(card) + ', ' : '') + r.label + '. ' + card.text.replace(/\n/g, ', ')
-      + (isNew ? '. NY' : '') + (nHave ? '. DU HAR ' + nHave + (canFuse ? ', TVÅ KAN SMÄLTAS SAMMAN' : '') : '') + (syn ? '. SYNERGI: ' + syn : ''));
+      + (isNew ? '. NY' : '') + (nHave ? '. DU HAR ' + nHave + (canFuse ? ', TVÅ KAN SMÄLTAS SAMMAN' : '') : '') + (syn ? '. SYNERGI: ' + syn : '') + (cmp ? '. FÖRE → EFTER: ' + cmp.text : ''));
     tint(c, card);
     const inner = el('div', 'cu-inner');
     const back = el('div', 'cu-face cu-back');
@@ -266,6 +314,7 @@ function draft(cards, opts, onPick) {
       }
       slot.appendChild(x);
     }
+    if (cmp) slot.appendChild(cmp.box);
     return s;
   }
   const CHARGE = 650; // så länge ett legendariskt kort laddar upp innan det vänds
@@ -581,13 +630,14 @@ function shop(items, gold, onBuy, onClose, opts) {
 }
 
 // ---------- Kortlek ----------
-let deckSort = 'rar'; // kommer ihåg valet under sessionen
-const TYPE_RANK = c => (c.set ? 0 : c.pact ? 3 : c.weapon ? 4 : c.curse ? 2 : 1);
+let deckSort = 'rar', deckFilter = 'alla'; // kommer ihåg valen under sessionen
+const TYPE_RANK = c => (c.set ? 0 : c.pact ? 3 : c.weapon ? 4 : c.active ? 5 : c.curse ? 2 : 1);
 function groupOf(c) {
   const C = window.Cards;
   if (c.set && C.SETS && C.SETS[c.set]) return 'SET: ' + C.SETS[c.set].name;
   if (c.pact) return 'PAKTER';
   if (c.weapon) return 'UPPGRADERINGAR: ' + (C.WEAPON_NAME ? C.WEAPON_NAME[c.weapon] : c.weapon);
+  if (c.active) return 'AKTIVA FÖRMÅGOR';
   if (c.curse) return 'FÖRBANNADE';
   return 'ÖVRIGA KORT';
 }
@@ -600,7 +650,11 @@ function sortCards(list, mode, get) {
   if (mode === 'type') return list.sort((a, b) => TYPE_RANK(get(a)) - TYPE_RANK(get(b)) || groupOf(get(a)).localeCompare(groupOf(get(b)), 'sv') || byRar(a, b) || byName(a, b));
   return list.sort((a, b) => byRar(a, b) || byName(a, b));
 }
-const SORTS = [['rar', 'SÄLLSYNTHET'], ['name', 'NAMN'], ['type', 'TYP']];
+const SORTS = [['rar', 'RARITET'], ['name', 'NAMN'], ['new', 'SENAST'], ['type', 'TYP']];
+const DECK_FILTERS = [['alla', 'ALLA'], ['aktiva', 'AKTIVA'], ['curse', 'FÖRBANNADE'], ['set', 'SET']];
+const deckPass = (c, f) => (f === 'aktiva' ? !!c.active : f === 'curse' ? !!c.curse : f === 'set' ? !!c.set : true);
+// nedräkningen med activeCd (andel kortare, högst 90 %)
+const cdNow = (card, mods) => Math.round(card.cd * (1 - Math.min(0.9, Math.max(0, +(mods && mods.activeCd) || 0))) * 10) / 10;
 function setSection(ownedIds) {
   const C = window.Cards;
   const box = el('div', 'cu-sets');
@@ -659,6 +713,9 @@ function statsBox(st) {
 //         onFuse: id => ny lista med ägda id | false | undefined – knappen SMÄLT SAMMAN på kort med två
 //                 exemplar (Cards.canFuse). Returnerar spelet en lista visas den; false = nekad;
 //                 annat (t.ex. undefined) = kortleken byter själv två id mot Cards.fuse(id). Får vara ett Promise. }
+//         mods: { nyckel: värde } – spelets nuvarande M: detaljrutan visar dina nuvarande tal för kortets effekter
+//               och rutan DINA VÄRDEN listar alla. }
+// Sortering: RARITET, NAMN, SENAST (senast tagna först) och TYP. Filter: ALLA, AKTIVA (förmågor), FÖRBANNADE och SET.
 // Gamla anrop deck(ids) och deck(ids, onClose) fungerar som förut.
 function deck(ownedIds, onClose, opts) {
   if (onClose && typeof onClose === 'object') { opts = onClose; onClose = null; }
@@ -666,13 +723,15 @@ function deck(ownedIds, onClose, opts) {
   const C = window.Cards;
   const stats = opts.stats && typeof opts.stats === 'object' ? opts.stats : null;
   const onFuse = typeof opts.onFuse === 'function' && C.canFuse && C.fuse ? opts.onFuse : null;
+  const mods = opts.mods && typeof opts.mods === 'object' ? opts.mods : null;
   let owned = (ownedIds || []).slice();
-  let entries = [], fusable = new Set();
+  let entries = [], fusable = new Set(), act = null;
   function recount() {
-    const counts = new Map();
-    for (const id of owned) if (C.byId(id)) counts.set(id, (counts.get(id) || 0) + 1);
-    entries = [...counts].map(([id, n]) => ({ card: C.byId(id), n }));
+    const counts = new Map(), last = new Map();
+    owned.forEach((id, i) => { if (C.byId(id)) { counts.set(id, (counts.get(id) || 0) + 1); last.set(id, i); } });
+    entries = [...counts].map(([id, n]) => ({ card: C.byId(id), n, last: last.get(id) }));
     fusable = new Set(onFuse ? C.canFuse(owned) : []);
+    act = C.activeOf ? C.activeOf(owned) : null;
   }
   recount();
   const node = el('div', 'cu-screen cu-deck');
@@ -688,18 +747,31 @@ function deck(ownedIds, onClose, opts) {
   let tiles = [], selId = null, busy = false;
   function subText() {
     const total = entries.reduce((s, e) => s + e.n, 0);
-    sub.textContent = total ? total + ' KORT SAMLADE DENNA RUNDA' + (fusable.size ? ' · ' + fusable.size + ' KAN SMÄLTAS SAMMAN' : '') : 'DU HAR INGA KORT ÄNNU.';
+    sub.textContent = total ? total + ' KORT SAMLADE DENNA RUNDA' + (act ? ' · FÖRMÅGA: ' + act.name : '') + (fusable.size ? ' · ' + fusable.size + ' KAN SMÄLTAS SAMMAN' : '') : 'DU HAR INGA KORT ÄNNU.';
   }
   function show(e, t) {
     selId = e.card.id;
     tiles.forEach(x => x.classList.toggle('sel', x === t));
     detailFor(detail, e.card, e.n);
+    if (e.card.active) {
+      const cd = mods ? cdNow(e.card, mods) : e.card.cd;
+      detail.appendChild(el('div', 'cu-dm cu-actl', 'AKTIV FÖRMÅGA · NEDRÄKNING ' + String(e.card.cd).replace('.', ',') + ' S'
+        + (cd !== e.card.cd ? ' (NU ' + String(cd).replace('.', ',') + ' S)' : '') + (act && act.id === e.card.id ? ' · I BRUK' : act ? ' · ERSATT AV ' + act.name : '')));
+    }
+    if (mods && C.fmtVal) { // dina nuvarande tal för kortets effekter
+      const keys = Object.keys(e.card.mods || {});
+      if (keys.length) {
+        const now = el('div', 'cu-now');
+        now.appendChild(el('div', 'cu-cmph', 'DINA VÄRDEN NU'));
+        for (const k of keys) { const d = el('div', 'cu-cl'); d.appendChild(el('span', 'cu-cll', C.modLabel(k))); d.appendChild(el('span', 'cu-clv', C.fmtVal(k, mods[k] || 0))); now.appendChild(d); }
+        detail.appendChild(now);
+      }
+    }
     if (stats) detail.appendChild(statsBox(stats[e.card.id]));
     if (fusable.has(e.card.id)) {
       const f = C.byId(C.fuse(e.card.id));
       const fz = el('div', 'cu-fzbox');
-      fz.appendChild(el('div', 'cu-dm', 'TVÅ ' + e.card.name + ' BLIR ' + (f ? f.name : '') + ' (' + (f ? R()[f.rarity].label : '') + ')'));
-      if (f) fz.appendChild(modList(f, 1));
+      if (f) fz.appendChild(upPreview(e.card, f, 'TVÅ ' + e.card.name + ' BLIR ' + f.name));
       const b = el('button', 'cu-btn cu-fuse', touchUI() ? 'SMÄLT SAMMAN' : 'SMÄLT SAMMAN (F)'); b.type = 'button';
       b.setAttribute('aria-label', 'SMÄLT SAMMAN TVÅ ' + e.card.name);
       b.addEventListener('click', ev => { ev.stopPropagation(); fuseIt(e.card.id, b); });
@@ -709,9 +781,12 @@ function deck(ownedIds, onClose, opts) {
   }
   function build() {
     grid.textContent = ''; tiles = [];
-    sortCards(entries, deckSort, e => e.card);
+    if (deckSort === 'new') entries.sort((a, b) => b.last - a.last);
+    else sortCards(entries, deckSort, e => e.card);
     let group = null;
-    entries.forEach(e => {
+    const shown = entries.filter(e => deckPass(e.card, deckFilter));
+    if (!shown.length) grid.appendChild(el('div', 'cu-empty', 'INGA KORT HÄR.'));
+    shown.forEach(e => {
       if (deckSort === 'type') {
         const g = groupOf(e.card);
         if (g !== group) { group = g; grid.appendChild(el('div', 'cu-ghead', g)); }
@@ -726,6 +801,10 @@ function deck(ownedIds, onClose, opts) {
       t.appendChild(el('div', 'cu-tn', e.card.name));
       if (e.n > 1) t.appendChild(el('div', 'cu-cnt', '×' + e.n));
       if (canF) t.appendChild(el('div', 'cu-mark fz', 'SMÄLT'));
+      if (e.card.active) {
+        if (act && act.id === e.card.id) t.appendChild(el('div', 'cu-mark use', 'I BRUK'));
+        t.appendChild(el('div', 'cu-act', actTxt(e.card)));
+      }
       t.addEventListener('click', ev => { ev.stopPropagation(); show(e, t); });
       t.addEventListener('focus', () => show(e, t));
       grid.appendChild(t); tiles.push(t);
@@ -762,17 +841,35 @@ function deck(ownedIds, onClose, opts) {
     });
   }
   subText();
-  let seg = null;
+  let seg = null, fseg = null, valBox = null;
+  const refilter = () => { build(); if (selId && !tiles.some(t => t.dataset.id === selId)) { selId = null; detail.className = 'cu-detail empty'; detail.textContent = 'VÄLJ ETT KORT FÖR ATT SE DETALJER'; } };
   if (entries.length) {
     const bar = el('div', 'cu-bar');
-    bar.appendChild(el('span', 'cu-barl', 'SORTERA'));
+    const sl = el('div', 'cu-barg');
+    sl.appendChild(el('span', 'cu-barl', 'SORTERA'));
     seg = segmented(SORTS, deckSort, v => { deckSort = v; build(); }, 'SORTERA');
-    bar.appendChild(seg);
+    sl.appendChild(seg);
+    const fl = el('div', 'cu-barg');
+    fl.appendChild(el('span', 'cu-barl', 'VISA'));
+    fseg = segmented(DECK_FILTERS, deckFilter, v => { deckFilter = v; refilter(); }, 'FILTER');
+    fl.appendChild(fseg);
+    bar.appendChild(sl); bar.appendChild(fl);
     box.appendChild(bar);
     build();
     box.appendChild(grid);
     box.appendChild(detail);
     if (onFuse) box.appendChild(msg);
+  }
+  if (mods && C.modLines) { // alla dina nuvarande tal (spelets M)
+    const lines = C.modLines(mods);
+    if (lines.length) {
+      valBox = document.createElement('details'); valBox.className = 'cu-vals';
+      valBox.appendChild(el('summary', '', 'DINA VÄRDEN · ' + lines.length + (lines.length === 1 ? ' EFFEKT' : ' EFFEKTER')));
+      const g = el('div', 'cu-valg');
+      for (const l of lines) g.appendChild(el('div', l.good ? 'pos' : 'neg', l.text));
+      valBox.appendChild(g);
+      box.appendChild(valBox);
+    }
   }
   box.appendChild(setBox);
   const foot = el('div', 'cu-foot');
@@ -785,6 +882,7 @@ function deck(ownedIds, onClose, opts) {
   open('deck', node, e => {
     if (e.code === 'Escape') { finish(); return true; }
     if (e.code === 'KeyS' && seg) { const i = SORTS.findIndex(x => x[0] === deckSort); deckSort = SORTS[(i + 1) % SORTS.length][0]; seg.set(deckSort); build(); return true; }
+    if (e.code === 'KeyV' && fseg) { const i = DECK_FILTERS.findIndex(x => x[0] === deckFilter); deckFilter = DECK_FILTERS[(i + 1) % DECK_FILTERS.length][0]; fseg.set(deckFilter); refilter(); return true; }
     if (e.code === 'KeyF' && onFuse) { if (selId && fusable.has(selId)) fuseIt(selId, detail.querySelector('.cu-fuse')); return true; }
     if (gridMove(tiles, e, grid)) return true;
     return activate(e);
@@ -793,7 +891,8 @@ function deck(ownedIds, onClose, opts) {
 
 // ---------- Kortarkiv (codex) ----------
 // codex(allCards, { seen: Set, owned: Set, unlocked: Set, picks: { [id]: antal } }, onClose[, opts]): alla kort,
-// osedda som silhuetter. picks (i info eller opts) visar "VALD X GÅNGER" i detaljrutan.
+// saknade (osedda) som silhuetter med "SAKNAS". Låsta kort säger "LÅS UPP FÖR X SJÄLAR".
+// picks (i info eller opts) visar "VALD X GÅNGER" i detaljrutan.
 let codexFilter = 'alla';
 function codex(allCards, info, onClose, opts) {
   if (typeof info === 'function') { opts = onClose; onClose = info; info = {}; }
@@ -834,21 +933,27 @@ function codex(allCards, info, onClose, opts) {
     }
     t.appendChild(el('div', 'cu-tn', isSeen ? card.name : '???'));
     if (owned.has(card.id)) t.appendChild(el('div', 'cu-mark own', 'ÄGD'));
+    else if (!isSeen) t.appendChild(el('div', 'cu-mark miss', 'SAKNAS'));
     else if (locked) t.appendChild(el('div', 'cu-mark', 'LÅST'));
+    if (locked) t.appendChild(el('div', 'cu-unl', card.unlock + ' SJÄLAR'));
+    if (isSeen && card.active) t.appendChild(el('div', 'cu-act', actTxt(card)));
     if (isSeen && picks && +picks[card.id] > 0) t.appendChild(el('div', 'cu-pk', '×' + bigNum(picks[card.id])));
-    t.setAttribute('aria-label', isSeen ? card.name + ', ' + R()[card.rarity].label : 'OKÄNT KORT, ' + R()[card.rarity].label);
+    const unlockTxt = locked ? 'LÅS UPP FÖR ' + card.unlock + ' SJÄLAR' : '';
+    t.setAttribute('aria-label', isSeen ? card.name + ', ' + R()[card.rarity].label + (locked ? ', ' + unlockTxt : '') : 'SAKNAS, ' + R()[card.rarity].label + (locked ? ', ' + unlockTxt : ''));
     const show = () => {
       tiles.forEach(x => x.node.classList.toggle('sel', x.node === t));
       if (isSeen) {
         detailFor(detail, card, 1);
         if (picks) { const n = Math.max(0, +picks[card.id] || 0); detail.appendChild(el('div', 'cu-picks' + (n ? '' : ' none'), n ? timesTxt(n) : 'ALDRIG VALD')); }
-        if (locked) detail.appendChild(el('div', 'cu-dm', 'LÅST · ' + card.unlock + ' SJÄLAR PÅ ALTARET'));
+        if (card.active) detail.appendChild(el('div', 'cu-dm cu-actl', 'AKTIV FÖRMÅGA · NEDRÄKNING ' + String(card.cd).replace('.', ',') + ' S'));
+        if (locked) detail.appendChild(el('div', 'cu-unlock', unlockTxt + ' PÅ SJÄLAALTARET'));
       } else {
         detail.className = 'cu-detail'; detail.textContent = '';
         detail.appendChild(el('div', 'cu-dn', '???'));
-        detail.appendChild(el('div', 'cu-dm', R()[card.rarity].label));
-        detail.appendChild(el('div', 'cu-fx', 'DU HAR INTE SETT DET HÄR KORTET ÄNNU.'));
-        if (locked) detail.appendChild(el('div', 'cu-dm', 'LÅST · ' + card.unlock + ' SJÄLAR PÅ ALTARET'));
+        const kind = card.pact ? 'PAKT · ' : card.active ? 'AKTIV FÖRMÅGA · ' : card.curse ? 'FÖRBANNAT · ' : '';
+        detail.appendChild(el('div', 'cu-dm', 'SAKNAS · ' + kind + R()[card.rarity].label));
+        detail.appendChild(el('div', 'cu-fx', 'DU HAR INTE HITTAT DET HÄR KORTET ÄNNU.'));
+        detail.appendChild(locked ? el('div', 'cu-unlock', unlockTxt + ' PÅ SJÄLAALTARET') : el('div', 'cu-dm', 'KAN DYKA UPP I KORTVAL, KISTOR OCH BUTIKER'));
       }
     };
     t.addEventListener('click', ev => { ev.stopPropagation(); show(); });
@@ -878,6 +983,65 @@ function codex(allCards, info, onClose, opts) {
     const d = digit(e);
     if (d && FILTERS[d - 1]) { codexFilter = FILTERS[d - 1][0]; seg.set(codexFilter); apply(); return true; }
     if (gridMove(tiles.filter(t => !t.node.hidden).map(t => t.node), e, grid)) return true;
+    return activate(e);
+  });
+}
+
+// ---------- Förädling (vid lägerelden) ----------
+// refine(ägda id, onPick(id, förädlat id), onCancel[, opts]): välj ett kort som blir sin starkare '+'-version.
+// Visar korten Cards.canRefine ger, var och en med talen före → efter. opts: { title, subtitle, cancelLabel }
+function refine(ownedIds, onPick, onCancel, opts) {
+  if (onCancel && typeof onCancel === 'object') { opts = onCancel; onCancel = null; }
+  opts = opts || {};
+  const C = window.Cards;
+  const ids = C.canRefine ? C.canRefine(ownedIds || []) : [];
+  const node = el('div', 'cu-screen cu-deck cu-refine');
+  const box = el('div', 'cu-deckbox');
+  const wrap = el('div', 'cu-wrap'); wrap.appendChild(box); node.appendChild(wrap);
+  const title = opts.title || 'FÖRÄDLA ETT KORT';
+  node.setAttribute('aria-label', title);
+  box.appendChild(el('h2', 'cu-title', title));
+  box.appendChild(el('p', 'cu-sub', opts.subtitle || 'VID LÄGERELDEN BLIR ETT KORT DIN STARKARE (+) VERSION. DET RÄCKER MED ETT EXEMPLAR.'));
+  const list = el('div', 'cu-rlist'), rows = [];
+  let done = false;
+  const finish = id => {
+    if (done) return; done = true;
+    if (id) { sfx('fuse'); close(true); if (onPick) onPick(id, C.refine(id)); }
+    else { close(); if (onCancel) onCancel(); }
+  };
+  ids.forEach((id, i) => {
+    const card = C.byId(id), up = C.byId(C.refine(id));
+    if (!card || !up) return;
+    const row = el('div', 'cu-rrow'); row.tabIndex = 0; row.setAttribute('role', 'button');
+    tint(row, up);
+    row.appendChild(art(card));
+    const body = el('div', 'cu-rbody');
+    const nm = el('div', 'cu-rname');
+    if (i < 9) nm.appendChild(el('span', 'cu-key', '[' + (i + 1) + '] '));
+    nm.appendChild(document.createTextNode(card.name + ' → '));
+    nm.appendChild(el('span', 'cu-rup', up.name));
+    body.appendChild(nm);
+    body.appendChild(upPreview(card, up, 'RARITET'));
+    row.appendChild(body);
+    const lines = C.diffLines ? C.diffLines(card.mods, up.mods) : [];
+    row.setAttribute('aria-label', 'FÖRÄDLA ' + card.name + ' TILL ' + up.name + ', ' + R()[up.rarity].label + (lines.length ? '. ' + lines.map(l => l.text).join(', ') : ''));
+    row.addEventListener('click', ev => { ev.stopPropagation(); finish(id); });
+    list.appendChild(row); rows.push(row);
+  });
+  if (!rows.length) list.appendChild(el('div', 'cu-empty', 'INGA KORT KAN FÖRÄDLAS.'));
+  box.appendChild(list);
+  const foot = el('div', 'cu-foot');
+  const btn = el('button', 'cu-btn ghost', esc(opts.cancelLabel || 'AVBRYT')); btn.type = 'button';
+  btn.addEventListener('click', ev => { ev.stopPropagation(); finish(null); });
+  foot.appendChild(btn); box.appendChild(foot);
+  if (rows.length && !touchUI()) box.appendChild(el('div', 'cu-hint', 'KLICKA ELLER TRYCK 1-' + Math.min(9, rows.length) + ' · PILTANGENTER OCH ENTER'));
+  node.addEventListener('click', ev => { if (ev.target === node || ev.target === wrap) finish(null); });
+  open('refine', node, e => {
+    if (e.code === 'Escape') { finish(null); return true; }
+    const d = digit(e);
+    if (d) { if (rows[d - 1]) rows[d - 1].click(); return true; }
+    if (e.code === 'ArrowUp' || e.code === 'ArrowLeft') { moveFocus(rows, -1); return true; }
+    if (e.code === 'ArrowDown' || e.code === 'ArrowRight') { moveFocus(rows, 1); return true; }
     return activate(e);
   });
 }
@@ -955,7 +1119,7 @@ function toast(card, label) {
   tint(t, card);
   const i = el('img'); i.src = img(card); i.alt = '';
   const body = el('div');
-  body.appendChild(el('div', 'cu-tk', label || (card.curse ? 'FÖRBANNAT KORT' : card.pact ? 'VAPENPAKT' : card.weapon ? 'VAPENUPPGRADERING' : card.fused ? 'SAMMANSMÄLT KORT' : 'NYTT KORT')));
+  body.appendChild(el('div', 'cu-tk', label || (card.curse ? 'FÖRBANNAT KORT' : card.pact ? 'VAPENPAKT' : card.active ? 'AKTIV FÖRMÅGA · ' + String(card.cd || 0).replace('.', ',') + ' S' : card.weapon ? 'VAPENUPPGRADERING' : card.fused ? 'SAMMANSMÄLT KORT' : 'NYTT KORT')));
   body.appendChild(el('div', 'cu-tnm', card.name));
   body.appendChild(el('div', 'cu-tfx', String(card.text).replace(/\n/g, ' · ')));
   t.appendChild(i); t.appendChild(body);
@@ -964,7 +1128,7 @@ function toast(card, label) {
   sfx('toast');
 }
 
-Object.assign(api, { draft, shop, deck, codex, toast, choice, panel, list, el, close: () => close(), isOpen: () => !!cur });
+Object.assign(api, { draft, shop, deck, codex, refine, toast, choice, panel, list, el, close: () => close(), isOpen: () => !!cur });
 window.CardUI = api;
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ensureRoot); else if (document.body) ensureRoot();
 })();
