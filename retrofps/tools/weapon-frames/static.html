@@ -4,6 +4,8 @@
 // Rak förstapersonsbild av en statisk vapenmodell (ingen armrigg): pipan längs +X, kameran snett bakom och ovanför.
 // Tillägg (version 5): .glb/.gltf-modeller, `parts` (hopbyggda vapen av flera modeller och enkla former) och
 // närstridsläge `melee` där vapnet placeras fritt framför kameran (yxans sving).
+// Version 6: `split` delar ut en del av en modell efter texturfärgen (stavens kristall) som kan lysa (`glow`) per bildruta,
+// och `bow` bygger bågsträng och pil kring KayKits båge (spänd med `draw`).
 import * as THREE from 'three';
 import {FBXLoader} from 'three/addons/loaders/FBXLoader.js';
 import {OBJLoader} from 'three/addons/loaders/OBJLoader.js';
@@ -14,12 +16,12 @@ const sc=new THREE.Scene();sc.add(new THREE.HemisphereLight(0xfff0e0,0x403028,2.
 const cam=new THREE.PerspectiveCamera(40,W/H,0.01,5000);
 const cache={};
 const texCache={};
-async function loadTex(u){if(texCache[u])return texCache[u];const t=await new THREE.TextureLoader().loadAsync(u);t.colorSpace=THREE.SRGBColorSpace;t.magFilter=THREE.NearestFilter;return texCache[u]=t;}
+async function loadTex(u,flip=true){const k=u+flip;if(texCache[k])return texCache[k];const t=await new THREE.TextureLoader().loadAsync(u);t.colorSpace=THREE.SRGBColorSpace;t.magFilter=THREE.NearestFilter;t.flipY=flip;return texCache[k]=t;} // glTF-UV:er räknas utan flipY
 async function loadObj(model,tex,hide){
   let obj;
   if(/\.(glb|gltf)$/i.test(model)){obj=(await new GLTFLoader().loadAsync(model)).scene;}
   else obj=model.endsWith('.obj')?await new OBJLoader().loadAsync(model):await new FBXLoader().loadAsync(model);
-  const m=tex?new THREE.MeshLambertMaterial({map:await loadTex(tex),side:THREE.DoubleSide}):null;
+  const m=tex?new THREE.MeshLambertMaterial({map:await loadTex(tex,!/\.(glb|gltf)$/i.test(model)),side:THREE.DoubleSide}):null;
   obj.traverse(o=>{if(o.isMesh){
     if(m)o.material=Array.isArray(o.material)?o.material.map(()=>m):m;
     else{const cv=mm=>{const n=new THREE.MeshLambertMaterial({map:mm.map||null,color:mm.color||0xffffff,side:THREE.DoubleSide});if(n.map){n.map.magFilter=THREE.NearestFilter;}return n};o.material=Array.isArray(o.material)?o.material.map(cv):cv(o.material);}
@@ -39,7 +41,7 @@ function prim(d){
   mesh.name=d.name||d.prim;mesh.frustumCulled=false;return mesh;
 }
 async function model(p){
-  const key=p.model+'|'+p.tex+'|'+JSON.stringify(p.parts||[]);if(cache[key])return cache[key];
+  const key=p.model+'|'+p.tex+'|'+JSON.stringify(p.parts||[])+'|'+JSON.stringify(p.split||null);if(cache[key])return cache[key];
   const obj=await loadObj(p.model,p.tex,p.hide);
   const body=new THREE.Group();body.add(obj);
   const parts=[];
@@ -50,12 +52,60 @@ async function model(p){
     const sz=bx.getSize(new THREE.Vector3());holder.userData={d,max:Math.max(sz.x,sz.y,sz.z)};
     body.add(holder);parts.push(holder);
   }
+  let split=null;if(p.split)split=splitByTexel(obj,p.split);
   const inner=new THREE.Group();inner.add(body);const pv=new THREE.Group();pv.add(inner);sc.add(pv);
-  return cache[key]={pv,obj,inner,body,parts};
+  return cache[key]={pv,obj,inner,body,parts,split};
+}
+
+// split: trianglar vars texel (mitt i trianglens UV) uppfyller testet flyttas till ett eget mesh med namnet split.name
+function splitByTexel(obj,sp){
+  const test=new Function('r','g','b','return '+sp.test);let made=null;
+  obj.traverse(o=>{if(made||!o.isMesh)return;const mat=Array.isArray(o.material)?o.material[0]:o.material;if(!mat.map||!mat.map.image)return;
+    const img=mat.map.image,cv=document.createElement('canvas');cv.width=img.width;cv.height=img.height;const cx=cv.getContext('2d');cx.drawImage(img,0,0);const px=cx.getImageData(0,0,img.width,img.height).data;
+    const g=o.geometry.index?o.geometry.toNonIndexed():o.geometry;const pos=g.attributes.position,uv=g.attributes.uv,nor=g.attributes.normal;
+    const A={p:[],u:[],n:[]},B={p:[],u:[],n:[]};
+    for(let t=0;t<pos.count;t+=3){let u=0,v=0;for(let k=0;k<3;k++){u+=uv.getX(t+k)/3;v+=uv.getY(t+k)/3;}
+      u=((u%1)+1)%1;v=((v%1)+1)%1;const x=Math.min(img.width-1,Math.floor(u*img.width)),y=Math.min(img.height-1,Math.floor((mat.map.flipY?1-v:v)*img.height));const i=(y*img.width+x)*4;
+      const D=test(px[i],px[i+1],px[i+2])?B:A;for(let k=0;k<3;k++){D.p.push(pos.getX(t+k),pos.getY(t+k),pos.getZ(t+k));D.u.push(uv.getX(t+k),uv.getY(t+k));if(nor)D.n.push(nor.getX(t+k),nor.getY(t+k),nor.getZ(t+k));}}
+    const mk=D=>{const q=new THREE.BufferGeometry();q.setAttribute('position',new THREE.Float32BufferAttribute(D.p,3));q.setAttribute('uv',new THREE.Float32BufferAttribute(D.u,2));if(D.n.length)q.setAttribute('normal',new THREE.Float32BufferAttribute(D.n,3));else q.computeVertexNormals();return q};
+    o.geometry=mk(A);const m2=new THREE.Mesh(mk(B),mat.clone());m2.name=sp.name;m2.frustumCulled=false;m2.userData.lit=m2.material;
+    m2.userData.self=new THREE.MeshBasicMaterial({map:mat.map,side:THREE.DoubleSide});m2.userData.flare=new THREE.MeshBasicMaterial({color:sp.flare||'#eafcff',side:THREE.DoubleSide});
+    m2.geometry.computeBoundingBox();m2.userData.c=m2.geometry.boundingBox.getCenter(new THREE.Vector3());
+    m2.geometry.translate(-m2.userData.c.x,-m2.userData.c.y,-m2.userData.c.z);m2.position.copy(m2.userData.c);
+    o.add(m2);made=m2;});
+  return made;
+}
+// glow: 0 = vanligt ljus, 1 = självlysande textur, 2 = vit-blå blixt; scale förstorar delen kring sin mittpunkt
+function setGlow(split,g){if(!split)return;const k=g?.k||0,s=g?.scale||1;split.material=k>=2?split.userData.flare:k>=1?split.userData.self:split.userData.lit;split.scale.setScalar(s);}
+// båge: sträng i två delar från spetsarna till nockpunkten och en pil (i modellens egna koordinater: längd längs X, framåt +Z)
+const bowExtra={};
+async function bowParts(obj,b,key){
+  if(bowExtra[key]){obj.remove(bowExtra[key]);}
+  const g=new THREE.Group();g.name='bowExtra';
+  if(!obj.userData.tips){obj.updateMatrixWorld(true);const v=new THREE.Vector3();const pts=[];
+    const inv=new THREE.Matrix4().copy(obj.matrixWorld).invert();
+    obj.traverse(o=>{if(o.isMesh&&o.name!=='bowExtra'){const pos=o.geometry.attributes.position;for(let i=0;i<pos.count;i++){o.getVertexPosition(i,v).applyMatrix4(o.matrixWorld).applyMatrix4(inv);pts.push(v.clone())}}});
+    let mx=-1e9,mn=1e9;for(const q of pts){mx=Math.max(mx,q.x);mn=Math.min(mn,q.x)}const span=mx-mn;
+    const tip=(sgn)=>{const sel=pts.filter(q=>sgn>0?q.x>mx-span*0.02:q.x<mn+span*0.02);const c=new THREE.Vector3();sel.forEach(q=>c.add(q));return c.divideScalar(sel.length)};
+    obj.userData.tips=[tip(1),tip(-1)];obj.userData.span=span;}
+  const [t1,t0]=obj.userData.tips,span=obj.userData.span;
+  const zr=(t0.z+t1.z)/2+(b.rest||0)*span,zn=zr-(b.draw||0)*(b.maxDraw||0.32)*span;
+  const nock=new THREE.Vector3((t0.x+t1.x)/2+(b.nockX||0)*span,(t0.y+t1.y)/2,zn);
+  const mat=new THREE.MeshLambertMaterial({color:b.stringColor||'#e8e0c8',emissive:'#3a3428'});
+  for(const t of [t0,t1]){const d=nock.clone().sub(t);const len=d.length();const cyl=new THREE.Mesh(new THREE.CylinderGeometry(b.string*span,b.string*span,len,6),mat);
+    cyl.position.copy(t).add(nock).multiplyScalar(0.5);cyl.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());cyl.name='string';cyl.frustumCulled=false;g.add(cyl);}
+  if(b.arrow){const a=await loadObj(b.arrowModel,b.arrowTex,null);a.traverse(o=>{if(o.isMesh)o.name='arrow'});
+    const hold=new THREE.Group();hold.add(a);a.rotation.set(...(b.arrowRot||[0,0,0]).map(x=>x*Math.PI/180));hold.updateMatrixWorld(true);
+    const bx=new THREE.Box3().setFromObject(a);const al=bx.max.z-bx.min.z;const sc_=(b.arrowLen||0.55)*span/al;a.scale.multiplyScalar(sc_);a.position.set(0,0,0);hold.updateMatrixWorld(true);
+    const bx2=new THREE.Box3().setFromObject(a);a.position.set(-(bx2.min.x+bx2.max.x)/2,-(bx2.min.y+bx2.max.y)/2,-bx2.min.z); // nocken i origo, spetsen längs +Z
+    hold.position.set(nock.x+(b.arrowOff?.[0]||0)*span,nock.y+(b.arrowOff?.[1]||0)*span,nock.z);g.add(hold);}
+  obj.add(g);bowExtra[key]=g;
 }
 window.renderFrame=async(p)=>{
   for(const k in cache)cache[k].pv.visible=false;
-  const {pv,obj,inner,body,parts}=await model(p);pv.visible=true;
+  const {pv,obj,inner,body,parts,split}=await model(p);pv.visible=true;
+  if(bowExtra[p.model]){obj.remove(bowExtra[p.model]);delete bowExtra[p.model];}
+  setGlow(split,p.glow||(p.melee&&p.melee.glow));
   // delar som är modellerade i ett annat läge (t.ex. en uppfälld pipa) rättas med meshRot {namn:[x,y,z]}
   for(const [nm,rr] of Object.entries(p.meshRot||{}))obj.traverse(o=>{if(o.name===nm)o.rotation.set(...rr.map(x=>x*Math.PI/180))});
   // orientering: rot (grader) vrider modellen så att pipan pekar längs +X och ovansidan uppåt, tilt lutar den runt Z
@@ -77,12 +127,16 @@ window.renderFrame=async(p)=>{
     inner.rotation.set(0,0,0);
     const [hx,hy,hz]=m.hand,[ax,ay,az]=m.ang;
     pv.position.set(hx*L,hy*L,hz*L);pv.rotation.set(ax*Math.PI/180,ay*Math.PI/180,az*Math.PI/180,'XZY');pv.updateMatrixWorld(true);
+    if(p.bow){await bowParts(obj,{...p.bow,...(m.bow||{})},p.model);pv.updateMatrixWorld(true);}
     cam.fov=p.fov||40;cam.position.set(0,0,0);cam.up.set(0,1,0);cam.lookAt(1,0,0);cam.near=L*0.01;cam.far=L*50;cam.updateProjectionMatrix();cam.updateMatrixWorld(true);
     // "mynningen" för närstrid: eggens mitt (punkterna längst upp i vapnets egen ram)
     const pts=[],v=new THREE.Vector3();let top=-1e9;
     body.updateMatrixWorld(true);const inv=new THREE.Matrix4().copy(body.matrixWorld).invert();
     body.traverse(o=>{if(o.isMesh&&o.visible){const pos=o.geometry.attributes.position;for(let i=0;i<pos.count;i++){o.getVertexPosition(i,v).applyMatrix4(o.matrixWorld);const lv=v.clone().applyMatrix4(inv);pts.push([v.clone(),lv.y]);if(lv.y>top)top=lv.y}}});
-    const hd=pts.filter(q=>q[1]>top-L*0.25);const mc=new THREE.Vector3();hd.forEach(q=>mc.add(q[0]));mc.divideScalar(hd.length||1);
+    let hd=pts.filter(q=>q[1]>top-L*0.25);
+    if(p.nozzle){const np=[];body.traverse(o=>{if(o.isMesh&&o.visible&&new RegExp(p.nozzle).test(o.name)){const pos=o.geometry.attributes.position;for(let i=0;i<pos.count;i++){o.getVertexPosition(i,v).applyMatrix4(o.matrixWorld);np.push(v.clone())}}});
+      if(np.length){if(p.nozzleFront){const mx=Math.max(...np.map(q=>q.x));hd=np.filter(q=>q.x>mx-L*0.02).map(q=>[q]);}else hd=np.map(q=>[q]);}}
+    const mc=new THREE.Vector3();hd.forEach(q=>mc.add(q[0]));mc.divideScalar(hd.length||1);
     const ndc=mc.clone().project(cam);r.render(sc,cam);
     return {png:r.domElement.toDataURL('image/png'),muzzle:[(ndc.x+1)/2*W,(1-ndc.y)/2*H],len:L};
   }
@@ -93,6 +147,7 @@ window.renderFrame=async(p)=>{
   const [mnx,mny,mnz]=b.min.toArray(),[mxx,mxy,mxz]=b.max.toArray(),cz=(mnz+mxz)/2;
   // kameran räknas från vilobilden så att rekylen syns som rörelse
   const L=p.len0||len,base=p.base||{mnx,mxx,mxy,cz};
+  r.localClippingEnabled=false;r.clippingPlanes=p.clipBack&&p.view!=='side'?[new THREE.Plane(new THREE.Vector3(1,0,0),-(base.mnx+p.clipBack*L))]:[]; // version 6: skär bort kolven (spikgeväret)
   if(p.view==='side'){const md=Math.max(...b.getSize(new THREE.Vector3()).toArray());cam.fov=30;cam.position.set(0,0,md*2.6);cam.up.set(0,1,0);cam.lookAt(0,0,0);}
   else{const [bk,up,sd,fw,dr]=p.cam;cam.fov=p.fov||40;cam.position.set(base.mnx-bk*L,base.mxy+up*L,base.cz+sd*L);cam.up.set(0,1,0);cam.lookAt(base.mxx+fw*L,base.mxy+up*L-dr*L*fw,base.cz+sd*L);}
   cam.near=L*0.01;cam.far=L*50;cam.updateProjectionMatrix();cam.updateMatrixWorld(true);

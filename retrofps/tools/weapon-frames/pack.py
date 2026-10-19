@@ -11,9 +11,10 @@ ONLY=sys.argv[3].split(',') if len(sys.argv)>3 else None
 VW,VH=320,166
 TARGET={'pistol':(84,178,24),'shotgun':(112,196,40),'rifle':(112,184,42),'smg':(98,178,32),
         'dbshotgun':(110,194,40),'crossbow':(66,166,14),'flaregun':(80,180,22),'sniper':(118,186,46),
-        'flamer':(104,226,34),'launcher':(100,188,30)}  # höjd i px, mittpunkt x, hur mycket som skärs av nedtill
-HARD={'axe','flamer','launcher'}   # version 5: hel eller ingen täckning per pixel
-PICK={'axe':(44,'w',90),'flamer':(54,'w'),'launcher':(46,'w')}  # upplockningsbildens storlek (höjd eller bredd i px)
+        'flamer':(104,226,34),'launcher':(100,188,30),'nailgun':(96,210,22)}  # höjd i px, mittpunkt x, hur mycket som skärs av nedtill
+HARD={'axe','flamer','launcher','nailgun','staff','bow'}   # version 5 och 6: hel eller ingen täckning per pixel
+MUZZLE_IDLE={'bow'}
+PICK={'nailgun':(48,'w'),'staff':(48,'w',-90),'bow':(46,'w',90,'string'),'axe':(44,'w',90),'flamer':(54,'w'),'launcher':(46,'w')}  # upplockningsbildens storlek (höjd eller bredd i px)
 
 
 def hard(im):
@@ -26,9 +27,14 @@ if srcs==['pick']:
     for w in ONLY:
         im=Image.open(f'side_{w}.png').convert('RGBA'); im=im.crop(im.getbbox())
         n,ax,*rt=PICK[w]
-        if rt: im=im.rotate(rt[0],expand=True)
+        if rt and rt[0]!='string': im=im.rotate(rt[0],expand=True)
         sc=n/(im.height if ax=='h' else im.width)
         im=hard(im.resize((max(1,round(im.width*sc)),max(1,round(im.height*sc))),Image.LANCZOS))
+        if 'string' in rt:  # bågen: sträng mellan spetsarna (sidovyn saknar sträng)
+            from PIL import ImageDraw
+            a=np.array(im)[:,:,3]>0; xs=np.nonzero(a.any(0))[0]; x0,x1=xs[0],xs[-1]
+            yl=np.nonzero(a[:,x0])[0].mean(); yr=np.nonzero(a[:,x1])[0].mean()
+            ImageDraw.Draw(im).line([(x0,round(yl)),(x1,round(yr))],fill=(232,224,200,255))
         im=im.crop(im.getbbox()); im.save(OUT+f'assets/gfx/pick_{w}.png',optimize=True); print('pick',w,im.size)
     sys.exit()
 
@@ -41,7 +47,7 @@ if ONLY:
 for w,st in d.items():
     if ONLY and w not in ONLY: continue
     files=[]; states={}
-    for s in ['idle','fire']:
+    for s in ['idle','fire']+[k for k in ('draw',) if k in st]:   # version 6: bågen har ett extra läge
         states[s]=[]
         for fr in st[s]: states[s].append(len(files)); files.append(fr)
     ims=[Image.open(f['f']).convert('RGBA') for f in files]
@@ -62,6 +68,7 @@ for w,st in d.items():
         atlas.paste(hard(fr) if w in HARD else fr,(i*fw,0))
     atlas.save(OUT+f'assets/gfx/fp_{w}.png',optimize=True)
     mz=[[round(x+(f['muzzle'][0]-bb[0])*sc,1),round(y+(f['muzzle'][1]-bb[1])*sc,1)] for f in files]
-    out[w]={'x':x,'y':y,'w':fw,'h':fh,'states':states,'muzzle':mz,'dur':{'fire':round(st['fire_dur'],3)}}
+    if w in MUZZLE_IDLE: mz=[mz[0] if i in states['fire'] else m for i,m in enumerate(mz)]   # bågen: utan pil räknas mynningen från vilobilden
+    out[w]={'x':x,'y':y,'w':fw,'h':fh,'states':states,'muzzle':mz,'dur':{'fire':round(st['fire_dur'],3),**{k:round(v,3) for k,v in st.get('durs',{}).items()}}}
     print(w,atlas.size,x,y,mz[0])
 open(OUT+'js/weapons.js','w').write('// Genererad av tools/weapon-frames: vapnen utan händer, rakt framåt (Doom/Quake-stil), koordinater i 320x166-vyn.\nwindow.WEAPON_FRAMES = '+json.dumps(out)+';\n')

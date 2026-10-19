@@ -4,6 +4,8 @@
 // Skjutrutorna är som standard sju rekylrutor. En definition kan i stället ange
 //   "fire": [{"kick":..,"dy":..,"dz":..,"roll":..}, ...]   egna rekyl-/skakrutor (eldkastaren, granattillsatsen)
 //   "melee": {"idle":{"hand":[x,y,z],"ang":[x,y,z]}, "fire":[...]}  närstridsvapen som svingas (yxan)
+//   version 6: "melee.extra": {"draw":[...]} fler lägen (bågen), "durs": {"draw":0.5} deras längd, pose.glow/pose.bow per bildruta,
+//   "tex": "./tex/..." en egen textur i tools/weapon-frames
 import {chromium} from 'playwright-core';import http from 'http';import fs from 'fs';import path from 'path';
 const A=new URL('../../../assets/3d-models/',import.meta.url).pathname; // modellerna ligger i repots assets/3d-models
 const srv=http.createServer((req,res)=>{let p=decodeURIComponent(req.url.split('?')[0]);let f=p.startsWith('/A/')?A+p.slice(3):path.join('.',p);if(fs.existsSync(f)&&fs.statSync(f).isFile()){res.setHeader('content-type',f.endsWith('.js')?'text/javascript':f.endsWith('.html')?'text/html':f.endsWith('.png')?'image/png':f.endsWith('.jpg')?'image/jpeg':'application/octet-stream');return res.end(fs.readFileSync(f));}res.statusCode=404;res.end();}).listen(8790);
@@ -14,12 +16,15 @@ const DEFS=JSON.parse(fs.readFileSync(process.env.DEFS||'static-defs.json','utf8
 const mode=process.argv[2],names=(process.argv[3]||Object.keys(DEFS).join(',')).split(','),out=process.argv[4]||'xframes';fs.mkdirSync(out,{recursive:true});
 const metaF=out+'/meta.json',meta=fs.existsSync(metaF)?JSON.parse(fs.readFileSync(metaF)):{};
 const save=(f,r)=>fs.writeFileSync(f,Buffer.from(r.png.split(',')[1],'base64'));
-for(const n of names){const d={...DEFS[n],model:'/A/'+DEFS[n].model,tex:DEFS[n].tex?'/A/'+DEFS[n].tex:null};
+for(const n of names){const T=t=>t?(t.startsWith('./')?t.slice(1):'/A/'+t):null; // './tex/..' = egen textur i tools/weapon-frames
+  const d={...DEFS[n],model:'/A/'+DEFS[n].model,tex:T(DEFS[n].tex)};if(d.bow)d.bow={...d.bow,arrowModel:'/A/'+d.bow.arrowModel,arrowTex:T(d.bow.arrowTex)};
   if(mode==='side'){const r=await pg.evaluate(p=>window.renderFrame(p),{...d,melee:null,view:'side'});save(`side_${n}.png`,r);console.log(n,JSON.stringify(r.size));continue;}
   if(d.melee){
     const fr=(st,pose,i)=>pg.evaluate(p=>window.renderFrame(p),{...d,melee:{...d.melee,...pose}}).then(r=>{const f=`${out}/${n}_${st}_${i}.png`;save(f,r);return {f,muzzle:r.muzzle}});
     meta[n]={idle:[await fr('idle',d.melee.idle,0)],fire:[],fire_dur:d.dur||0.5,native:true};
     for(let i=0;i<d.melee.fire.length;i++)meta[n].fire.push(await fr('fire',d.melee.fire[i],i));
+    for(const [st,poses] of Object.entries(d.melee.extra||{})){meta[n][st]=[];for(let i=0;i<poses.length;i++)meta[n][st].push(await fr(st,poses[i],i));} // version 6: fler lägen (bågens draw)
+    if(d.durs)meta[n].durs=d.durs;
     console.log(n,'klar (närstrid)');continue;
   }
   const r0=await pg.evaluate(p=>window.renderFrame(p),{...d,kick:0});
