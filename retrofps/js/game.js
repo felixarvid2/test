@@ -3474,7 +3474,7 @@ function feelTick(dt) {
   }
   for (const e of ents) if (!e.dead && e.alert && !e.dormant && !e.boss && Math.random() < 0.05) { const d = Math.hypot(e.x - P.x, e.y - P.y); if (d > 4 && d < 10 && !hasLOS(P.x, P.y, e.x, e.y)) { play('steps', 0.12, rnd(0.8, 1.1), { x: e.x, y: e.y }); break; } } // fotsteg du inte ser
   if (cellUnder() === '"' && Math.hypot(P.vx, P.vy) > 0.5 && !settings.lowfx) for (let i = 0; i < 2; i++) particles.push({ x: P.x + rnd(-0.3, 0.3), y: P.y + rnd(-0.3, 0.3), z: rnd(0.2, 0.6), vx: rnd(-0.5, 0.5), vy: rnd(-0.5, 0.5), vz: 0.3, life: 0.6, maxLife: 0.6, img: fx.hit[1], size: 0.05, tint: [220, 220, 220], drift: true }); // nätet fladdrar
-  if (P.hp < maxHp() * 0.15 && P.hp > 0 && (P.hbT || 0) < tmr) { P.hbT = tmr + 1.4; play('heartbeat_fast', 0.5); }
+  if (P.hp < maxHp() * 0.15 && P.hp > 0 && (P.hbT || 0) < tmr) { P.hbT = tmr + 1.4; play('heartbeat_fast', 0.18); }
 }
 // ---------- Utmaningsrummet: tre vågor ----------
 let challenge = null;
