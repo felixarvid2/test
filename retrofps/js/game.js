@@ -1951,7 +1951,7 @@ function finishReload() {
   P.mags[P.weapon] += take; P.ammo[wp.ammo] -= take;
 }
 function switchWeapon(n) {
-  if (n === P.weapon || !P.has[n] || state !== 'play') return;
+  if (!(n >= 0 && n < WEAPONS.length) || n === P.weapon || !P.has[n] || state !== 'play') return;
   P.lastWeapon = P.weapon;
   WS.next = n; WS.state = 'holster'; WS.t = 0; WS.aim = 0; play('weapon', 0.25, 1.6);
 }
@@ -3059,7 +3059,7 @@ function swearPact(id) { // vapenpakt: bara ett vapen resten av rundan, men det 
   run.pact = id;
   const i = WEAPONS.findIndex(w => w.id === id), wp = WEAPONS[i];
   if (!P.has[i]) { P.has[i] = true; P.mags[i] = effMag(i); }
-  P.ammo[wp.ammo] = Math.min(AMMO[wp.ammo].max, P.ammo[wp.ammo] + { p9: 40, r556: 40, shells: 12, bolts: 14, flares: 8 }[wp.ammo]);
+  P.ammo[wp.ammo] = Math.min(AMMO[wp.ammo].max, P.ammo[wp.ammo] + ({ p9: 40, r556: 40, shells: 12, bolts: 14, flares: 8, fuel: 120, lgren: 10 }[wp.ammo] || 0));
   for (let k = 0; k < WEAPONS.length; k++) if (k !== i) P.has[k] = false;
   if (P.weapon !== i) { P.weapon = i; WS.state = 'draw'; WS.t = 0; WS.next = -1; }
   say('DU HAR SVURIT DIG TILL ' + wp.name, 3); play('secret', 0.7, 0.7);
