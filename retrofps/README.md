@@ -616,6 +616,203 @@ Den här versionen lägger till 350 förbättringar. Grafiken för de nya fiende
 349. Kartans storlek
 350. Återställ alla inställningar
 
+## Version 5: 200 nya förbättringar
+
+Version 5 lägger till 200 förbättringar. Nya bilder ritas med `tools/props3/make.py` och `tools/weapon-frames`, ljud och musik byggs med `tools/sounds/make3.sh`, korten med `tools/card-art/make.py`. Bangeneratorn har fått biomen Frostfästet, en isarena, NPC:er, djurburar, drycker och istappar.
+
+**Nya vapen (1–20)**
+1. Yxan (å): närstrid utan ammo, ett svep som träffar flera fiender
+2. Håll inne för ett laddat slag som slungar fiender
+3. Högerklick kastar yxan, som kommer tillbaka
+4. Eldkastaren (ä): kontinuerlig låga som tänder eld, eget bränsle
+5. Eldkastaren bränner nät och tänder krutfat
+6. Eldkastarens låga lyser upp omgivningen
+7. Granatkastaren (ö): studsande granater, egen ammo
+8. Sikta med granatkastaren så smäller granaten vid första träffen
+9. Bärsärkens ed: pakt för yxan med fyra unika uppgraderingar
+10. Mordbrännarens ed: pakt för eldkastaren med fyra uppgraderingar
+11. Sprängmästarens ed: pakt för granatkastaren med fyra uppgraderingar
+12. Nya ammotyper (BRÄNSLE, GRANATER) i HUD och ammolådor
+13. Vapenhjulet: håll Q och peka med musen (tiden saktar ned)
+14. Vapnets skada och eldhastighet visas när du byter
+15. Eliter kan tappa vapen (sällsynt)
+16. Dödgrävaren säljer vapen
+17. Siffertangenterna når alla elva vapen (0 = tionde, § = elfte)
+18. Mobil: dra på byt-knappen för att byta, håll den för vapenhjulet
+19. Träffstopp, skak och slagljud för närstrid
+20. Yxan blockerar eldklot medan du laddar
+
+**Nya fiender (21–40)**
+21. Ghoul (Å): snabb, äter lik för att läka
+22. Kultist (Ä): förbannar dig på håll (du gör mindre skada en stund)
+23. Gargoyl (Ö): sitter som en staty, vaknar och flyger
+24. Isvarg (É): jagar i flock, bettet saktar ned
+25. Irrbloss (Ü): svävande blå låga som sprängs i frost
+26. Ghouler söker sig till lik i närheten
+27. Kultister offrar en annan fiende för att stärka sig
+28. Gargoyler tar halv skada från kulor men full skada från explosioner och närstrid
+29. Isvargar ylar och kallar på flocken
+30. Irrbloss fryser marken där de sprängs
+31. De nya fienderna finns i bestiariet med bild och tips
+32. Ny elitegenskap: speglande (skickar tillbaka en del av skadan)
+33. Ny elitegenskap: kallande (kallar på hjälp vid låg hälsa)
+34. Ny elitegenskap: smygande (osynlig tills den anfaller)
+35. Fiender som stärkts av en kultist lyser lila
+36. Mörkerfiender undviker starkt ljus
+37. Fiender glider på is
+38. Fiender flyr från eldkastaren
+39. Lik som ghouler äter försvinner
+40. Fiendernas anfall blinkar till en kort stund innan de slår
+
+**Frostfästet (41–55)**
+41. Ny biom: Frostfästet, med frusna murar, snöiga gårdar under öppen himmel och isiga salar
+42. Frusna stenmurar, isväggar, snögolv och frostiga golvplattor
+43. Snöfall
+44. Fotspår i snön
+45. Andedräkten syns i kylan
+46. Egen musik med ett intensitetslager och kall vind
+47. Rumstyper: istronsal, frusen sjö, kasern och kristallsal
+48. Frusna sjöar där man glider
+49. Kylan: står du still ute för länge börjar du frysa; eld och rörelse värmer
+50. Eldfat har en synlig värmeaura
+51. Frostfästets väktarrum och bossarena
+52. Is spricker under tunga steg
+53. Fotsteg i snö
+54. Istappar faller när man skjuter dem
+55. Eget namn och titelkort
+
+**Ny boss (56–65)**
+56. Den sjätte bossen, Isdraken, med en egen arena: en ishall med en frusen sjö
+57. Isskärvor i solfjäder
+58. Ett slag som får istaggar att skjuta upp ur marken
+59. Snöstorm i fas 2 och 3
+60. Två specialanfall: en frostvåg som du hoppar över, och irrbloss som den kallar på
+61. Egna väggar och golv i väktarrum och arena
+62. Egen bossmusik och eget vrål
+63. Isdraken är med i bossrushen (sex bossar)
+64. Isdraken kan vakta vanliga våningar som väktare
+65. Bossrekord och bestiarium för den nya bossen
+
+**Följeslagare (66–75)**
+66. Korpen hämtar guld och föremål åt dig
+67. Lyktan lyser upp mörkret, visar fällor och avslöjar smygande eliter
+68. Vargvalpen biter fiender
+69. Välj följeslagare på startskärmen när den är upplåst
+70. Följeslagarna låses upp i själaaltaret (FLOCKEN)
+71. Följeslagaren går upp i nivå (1–5) under rundan
+72. Djurburen (©) på våningarna: befria en ny följeslagare för rundan
+73. Följeslagaren syns på kartan
+74. Egna ljud för korp, lykta och valp
+75. Följeslagaren kan inte dö, men vilar en stund om den skadas för mycket
+
+**Drycker (76–90)**
+76. Två dryckesplatser: H dricker, J byter ordning
+77. Läkedryck (+50 HP)
+78. Raseridryck (+50 % skada i 8 s)
+79. Osynlighetsdryck (fienderna tappar dig i 6 s)
+80. Snabbhetsdryck (+40 % fart i 8 s)
+81. Isdryck (fryser fiender runt dig och ger rustning)
+82. Okända drycker: effekten visas först när du har druckit sorten en gång
+83. Drycker finns i krukor, kistor, bokhyllor och hos alkemisten (¥ på kartan)
+84. Alkemisten (£) säljer drycker och blandar två till en stark dryck
+85. Dryckernas effekter syns som färg i bilden
+86. Ljud för att dricka och för varje effekt
+87. Mobil: dryckesknapp
+88. Handkontroll: dryck på D-pad nedåt
+89. Kort som gör dryckerna starkare eller vanligare
+90. Dryckerna syns som ikoner i bildens nedre vänstra hörn
+
+**NPC:er och val (91–105)**
+91. Prästen (€) lyfter ett förbannat kort mot guld
+92. Prästen kan välsigna dig (+20 max HP och full hälsa) en gång per runda
+93. Vägval: ibland två portaler mot olika biomer
+94. Portalen visar biomen och om vägen är lugn, farlig eller svår (mer guld)
+95. Kartografens karta hos dödgrävaren visar hela nästa våning
+96. Dödgrävaren säljer ibland ett vapen redan på de första våningarna
+97. Köpmannen ger 15 % rabatt om du inte har tagit skada på våningen
+98. NPC:er säger något när du kommer nära
+99. Fångar kan följa med och slåss för dig resten av våningen
+100. Skugghandlaren syns bara i mörker och ger rabatt
+101. Utmaningsaltaret har tre svårighetsgrader (2, 3 eller 5 vågor)
+102. Spåaltaret spår vilken boss som väntar
+103. Brunnar kan vara förgiftade (grönt vatten)
+104. Bokhyllor kan gömma en dryck
+105. Offerskålen kan ge en följeslagare
+
+**Kort (106–145)**
+106–135. 30 nya kort (12 vanliga, 9 ovanliga, 6 sällsynta och 3 legendariska, varav 2 förbannelser) med nya bonusar: dryckesstyrka, fler drycker, följeslagarstyrka, närstridsskada, brandskada, köldskydd, huvudträffar, blödning, allierade, ljusradie, vapentapp och NPC-rabatt
+136. Två nya kortset: ALKEMISTENS LÄRA och FLOCKENS BAND
+137. Kortfusion: två likadana kort smälts samman till ett starkare (+)
+138. Kortleken visar statistik per kort: skada, dödade och hur ofta det valts
+139. Statistiken per kort samlas in under rundan och i profilen
+140. Kortvalet visar "DU HAR n" för kort du redan har
+141. Banderollen för nya kort har en ram i kortets raritetsfärg
+142. En svår utmaning bryter en förbannelse
+143. Legendariska kort skakar och glöder när de visas
+144. Bossens kortval har alltid ett legendariskt alternativ
+145. Kortarkivet visar hur många gånger du har valt varje kort
+
+**Strid och känsla (146–165)**
+146. Färgat ljus: eld, lava, kristaller och portaler färgar rummet
+147. Fiender har glödande ögon i mörker
+148. Skadade fiender lämnar blodspår
+149. Mynningsflammans ljus har vapnets färg
+150. Vattenringar när du går i vatten
+151. Damm när du landar efter ett hopp
+152. Facklor ryker
+153. Facklor gnistrar
+154. Irrbloss löses upp när de dör
+155. Mjukare rekylåterhämtning
+156. Träffmarkören visar dödande träffar och huvudträffar i egna färger
+157. Ett tydligare ljud när en fiende dör
+158. Skadesiffror från snabba träffar slås ihop
+159. Fiender blinkar orange vid bakhåll
+160. Explosioner skakar kameran efter avstånd
+161. Varningsljud när ammunitionen tar slut
+162. Huvudträffar: en träff mitt i fienden med ett enkelskottsvapen ger +50 %
+163. Huvudträffar visas med en stjärna och ett eget ljud
+164. Döda fiender rycker till en sista gång
+165. Bossar och väktare lämnar en krater när de dör
+
+**Meta och lägen (166–185)**
+166. Ny klass: Nekromantikern (döda fiender kan resa sig som allierade)
+167. Ny klass: Jägaren (armborst och en vargvalp)
+168. Utmaningslägen: Ett slag (1 HP), Bara pistol och Inga kort
+169. Utmaningslägena ger egna prestationer och fler själar
+170. 20 nya prestationer
+171. Snabbstart: Enter på slutskärmen startar direkt en ny runda
+172. Dödsrapport: vem som skadade dig mest
+173. Rundans tidslinje på slutskärmen
+174. Färgteman för HUD (klassisk, blå, grön, guld)
+175. Vapenfärger som låses upp med prestationer
+176. Sparad statistik: total skada, längsta kombo, flest dödade på en våning och i en runda
+177. Nya personliga rekord visas på slutskärmen
+178. Startskärmen visar dagens frö och hur länge det gäller
+179. Djupmätare: hur djupt du är jämfört med ditt rekord
+180. Själarna syns i pausen
+181. Dagens belöning: första rundan varje dag ger 15 själar
+182. Nekromantikerns allierade syns som gröna gestalter
+183. Ny uppgradering i själaaltaret: följeslagare
+184. Ny uppgradering: en tredje dryckesplats
+185. Ny uppgradering: börja rundan med en läkedryck
+
+**Tillgänglighet, mobil och övrigt (186–200)**
+186. Stor text i HUD (inställning)
+187. Konturer runt fiender (inställning)
+188. Enhandsläge på mobil: knapparna flyttas till höger och en GÅ-knapp går framåt
+189. Siktets storlek
+190. Fokusläge: miljöljuden dämpas i strid
+191. Pausa när mobilen vrids till stående (inställning)
+192. Kontrollerna visas på laddningsskärmen
+193. Mobil: håll kartknappen för att se hela kartan
+194. Mobil: dubbeltryck på bilden för att hoppa (inställning)
+195. Vibrationsmönster för olika händelser
+196. Inställningarna sparas per enhet (mobil och dator)
+197. Laddningsskärm med förloppsstapel
+198. Ljuden hämtas i bakgrunden medan du är på startskärmen
+199. Felrapporten i profilen kan kopieras
+200. Version och nyheter visas på startskärmen
+
 ## Assets som används
 
 | Vad | Källa |
@@ -649,6 +846,10 @@ Den här versionen lägger till 350 förbättringar. Grafiken för de nya fiende
 | Version 4: sju nya fiender (spindel, fladdermus, helveteshund, bombskelett, sköldbärare, svampman, levande rustning), nya föremål, partiklar, måne, moln och Träskets texturer | `tools/props2/make.py`. Helveteshunden och svampmannen ur Gothicvania (Ansimuz, CC0), bombskelettet och sköldbäraren bygger på *Pixel Crawler* (Anokolisa), resten ritas i skriptet. Ytor från Kenney *retro-textures-fantasy* och *Classic64* (CC0) |
 | Musik per biom, eko och 35 nya ljud | `js/music.js` och `tools/sounds/make2.sh`: Abstraction *Music Loop Bundle* (CC0), Kenney *impact-sounds*, *rpg-audio*, *ui-audio*, *digital-audio* (CC0), 400 Sounds Pack och Horror SFX Free. Skogens, borggårdens och startskärmens musik är syntetiserad i skriptet |
 | 50 nya kortbilder | `tools/card-art/make.py` ur `assets/rune-ai/flux/relics` |
+| Version 5: yxa, eldkastare, granatkastare | yxan ur Kay Lousberg *KayKit Fantasy Weapons Bits* (CC0); eldkastaren och granatkastaren byggda av *Guns&Explosives* och *PSXShotgunPack* med `tools/weapon-frames` |
+| Version 5: ghoul, kultist, gargoyl, isvarg, irrbloss, Isdraken, följeslagare, drycker, alkemist, präst, djurbur, Frostfästets texturer och partiklar | `tools/props3/make.py`. Isvargen och Isdraken ur Gothicvania (Ansimuz, CC0), omfärgade; ghoul, kultist, alkemist och präst bygger på *Pixel Crawler* (Anokolisa); ytor från *Classic64* (CC0); resten ritas i skriptet |
+| Version 5: 40 ljud och musiken för Frostfästet och Isdraken | `tools/sounds/make3.sh`: Kenney-paket (CC0), 400 Sounds Pack, Horror SFX Free; musiken och flera ljud syntetiseras i skriptet |
+| Version 5: 45 nya kortbilder | `tools/card-art/make.py` ur `assets/rune-ai/flux` (relics, bosses, vouchers, tags, rune-symbols) |
 | Typsnitt | Press Start 2P (OFL) |
 
 Se licensfilerna i respektive källpaket.

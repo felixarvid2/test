@@ -27,3 +27,17 @@ python3 pack.py qframes,xframes  # packar alla åtta vapnen
 
 Kamerans placering per vapen står i `render.mjs` och `static-defs.json` (`cam`), storlek och placering på skärmen i `pack.py` (`TARGET`).
 `render.mjs` letar efter Chromium i `/opt/pw-browsers/chromium`; ändra `executablePath` om din ligger någon annanstans.
+
+Version 5: stridsyxan (`axe`, KayKit Fantasy Weapons Bits `axe_A`, CC0), eldkastaren (`flamer`) och granattillsatsen
+(`launcher`). Eldkastaren är hopbyggd i `static-defs.json` med `parts`: röret är Guns&Explosives `Pipe_Bomb` (utsträckt med
+`stretch`), tanken, banden, munstycket och tändlågan är enkla former. Granattillsatsen är PSX-paketets avsågade enpipiga
+hagelgevär med ett grovt rör (`parts`). `nozzle` anger vilken del mynningen räknas från. Yxan använder `melee`: en vilopose
+och åtta svingposer (hand och vinklar) från övre högra hörnet ned mot vänster; pack.py lägger dem i vyn som de renderats
+(`native`) i stället för att skala dem till en målhöjd. De nya vapnen får hel eller ingen täckning per pixel.
+
+```bash
+node render-static.mjs fp axe,flamer,launcher
+node render-static.mjs side axe,flamer,launcher
+python3 pack.py xframes ../../ axe,flamer,launcher   # packar bara dessa, övriga poster i js/weapons.js lämnas orörda
+python3 pack.py pick ../../ axe,flamer,launcher      # pick_<vapen>.png ur sidovyerna
+```

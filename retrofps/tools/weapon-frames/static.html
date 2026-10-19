@@ -2,47 +2,103 @@
 <script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script>
 <script type="module">
 // Rak förstapersonsbild av en statisk vapenmodell (ingen armrigg): pipan längs +X, kameran snett bakom och ovanför.
+// Tillägg (version 5): .glb/.gltf-modeller, `parts` (hopbyggda vapen av flera modeller och enkla former) och
+// närstridsläge `melee` där vapnet placeras fritt framför kameran (yxans sving).
 import * as THREE from 'three';
 import {FBXLoader} from 'three/addons/loaders/FBXLoader.js';
 import {OBJLoader} from 'three/addons/loaders/OBJLoader.js';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 const W=960,H=498;
 const r=new THREE.WebGLRenderer({alpha:true,antialias:true,preserveDrawingBuffer:true});r.setSize(W,H);r.setClearColor(0,0);r.outputColorSpace=THREE.SRGBColorSpace;document.body.appendChild(r.domElement);
 const sc=new THREE.Scene();sc.add(new THREE.HemisphereLight(0xfff0e0,0x403028,2.1));const dl=new THREE.DirectionalLight(0xffe8d0,1.7);dl.position.set(-1,3,2);sc.add(dl);
 const cam=new THREE.PerspectiveCamera(40,W/H,0.01,5000);
 const cache={};
+const texCache={};
+async function loadTex(u){if(texCache[u])return texCache[u];const t=await new THREE.TextureLoader().loadAsync(u);t.colorSpace=THREE.SRGBColorSpace;t.magFilter=THREE.NearestFilter;return texCache[u]=t;}
+async function loadObj(model,tex,hide){
+  let obj;
+  if(/\.(glb|gltf)$/i.test(model)){obj=(await new GLTFLoader().loadAsync(model)).scene;}
+  else obj=model.endsWith('.obj')?await new OBJLoader().loadAsync(model):await new FBXLoader().loadAsync(model);
+  const m=tex?new THREE.MeshLambertMaterial({map:await loadTex(tex),side:THREE.DoubleSide}):null;
+  obj.traverse(o=>{if(o.isMesh){
+    if(m)o.material=Array.isArray(o.material)?o.material.map(()=>m):m;
+    else{const cv=mm=>{const n=new THREE.MeshLambertMaterial({map:mm.map||null,color:mm.color||0xffffff,side:THREE.DoubleSide});if(n.map){n.map.magFilter=THREE.NearestFilter;}return n};o.material=Array.isArray(o.material)?o.material.map(cv):cv(o.material);}
+    o.frustumCulled=false;}});
+  if(hide)obj.traverse(o=>{if(o.isMesh&&new RegExp(hide,'i').test(o.name))o.visible=false});
+  return obj;
+}
+// enkla former för hopbyggda vapen: {prim:'cyl'|'box'|'cone'|'sphere', size:[...], color:'#rrggbb'}
+function prim(d){
+  let g;const s=d.size||[1,1,1];
+  if(d.prim==='cyl')g=new THREE.CylinderGeometry(s[0],s[1]??s[0],s[2]??1,d.seg||10,1,!!d.open);
+  else if(d.prim==='cone')g=new THREE.ConeGeometry(s[0],s[1],d.seg||10);
+  else if(d.prim==='sphere')g=new THREE.SphereGeometry(s[0],d.seg||10,8);
+  else if(d.prim==='torus')g=new THREE.TorusGeometry(s[0],s[1],6,d.seg||12);
+  else g=new THREE.BoxGeometry(...s);
+  const mesh=new THREE.Mesh(g,new THREE.MeshLambertMaterial({color:d.color||'#555',side:THREE.DoubleSide,emissive:d.emissive||'#000'}));
+  mesh.name=d.name||d.prim;mesh.frustumCulled=false;return mesh;
+}
 async function model(p){
-  const key=p.model+'|'+p.tex;if(cache[key])return cache[key];
-  const obj=p.model.endsWith('.obj')?await new OBJLoader().loadAsync(p.model):await new FBXLoader().loadAsync(p.model);
-  const t=await new THREE.TextureLoader().loadAsync(p.tex);t.colorSpace=THREE.SRGBColorSpace;t.magFilter=THREE.NearestFilter;
-  const m=new THREE.MeshLambertMaterial({map:t,side:THREE.DoubleSide});
-  obj.traverse(o=>{if(o.isMesh){o.material=Array.isArray(o.material)?o.material.map(()=>m):m;o.frustumCulled=false;}});
-  if(p.hide)obj.traverse(o=>{if(o.isMesh&&new RegExp(p.hide,'i').test(o.name))o.visible=false});
-  const inner=new THREE.Group();inner.add(obj);const pv=new THREE.Group();pv.add(inner);sc.add(pv);
-  return cache[key]={pv,obj,inner};
+  const key=p.model+'|'+p.tex+'|'+JSON.stringify(p.parts||[]);if(cache[key])return cache[key];
+  const obj=await loadObj(p.model,p.tex,p.hide);
+  const body=new THREE.Group();body.add(obj);
+  const parts=[];
+  for(const d of p.parts||[]){
+    const o=d.prim?prim(d):await loadObj('/A/'+d.model,d.tex?'/A/'+d.tex:null,d.hide);
+    const holder=new THREE.Group();holder.add(o);o.rotation.set(...(d.rot||[0,0,0]).map(x=>x*Math.PI/180));holder.updateMatrixWorld(true);
+    const bx=new THREE.Box3().setFromObject(o);const c=bx.getCenter(new THREE.Vector3());o.position.sub(c);
+    const sz=bx.getSize(new THREE.Vector3());holder.userData={d,max:Math.max(sz.x,sz.y,sz.z)};
+    body.add(holder);parts.push(holder);
+  }
+  const inner=new THREE.Group();inner.add(body);const pv=new THREE.Group();pv.add(inner);sc.add(pv);
+  return cache[key]={pv,obj,inner,body,parts};
 }
 window.renderFrame=async(p)=>{
   for(const k in cache)cache[k].pv.visible=false;
-  const {pv,obj,inner}=await model(p);pv.visible=true;
+  const {pv,obj,inner,body,parts}=await model(p);pv.visible=true;
   // delar som är modellerade i ett annat läge (t.ex. en uppfälld pipa) rättas med meshRot {namn:[x,y,z]}
   for(const [nm,rr] of Object.entries(p.meshRot||{}))obj.traverse(o=>{if(o.name===nm)o.rotation.set(...rr.map(x=>x*Math.PI/180))});
   // orientering: rot (grader) vrider modellen så att pipan pekar längs +X och ovansidan uppåt, tilt lutar den runt Z
   obj.rotation.set(...(p.rot||[0,0,0]).map(x=>x*Math.PI/180));obj.position.set(0,0,0);
-  pv.position.set(0,0,0);pv.rotation.set(0,0,0);inner.rotation.set(0,0,(p.tilt||0)*Math.PI/180);inner.position.set(0,0,0);pv.updateMatrixWorld(true);
-  const box=new THREE.Box3().setFromObject(obj);const c=box.getCenter(new THREE.Vector3());inner.position.sub(c);
-  const len=box.max.x-box.min.x;
-  // rekyl: bakåt längs -X och nosen uppåt
-  const k=p.kick||0;pv.position.set(-k*(p.back||0.08)*len,0,0);pv.rotation.set(0,0,k*(p.pitch||6)*Math.PI/180);
+  pv.position.set(0,0,0);pv.rotation.set(0,0,0);inner.rotation.set(0,0,(p.tilt||0)*Math.PI/180);inner.position.set(0,0,0);
+  if(p.stretch)obj.scale.set(...p.stretch); // sträcker huvudmodellen i dess egna axlar (t.ex. ett längre rör)
+  if(p.tint&&!obj.userData.tinted){obj.traverse(o=>{if(o.isMesh)(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{if(!m.userData.t){m.color.multiply(new THREE.Color(p.tint));m.userData.t=1}})});obj.userData.tinted=1;}
   pv.updateMatrixWorld(true);
-  const b=new THREE.Box3().setFromObject(obj);
+  // hopbyggda delar: storlek och läge i andelar av huvudmodellens längd, räknat från dess mittpunkt
+  if(parts.length){const ob=new THREE.Box3().setFromObject(obj);const oc=ob.getCenter(new THREE.Vector3());const ol=ob.max.x-ob.min.x;
+    for(const h of parts){const d=h.userData.d;h.scale.setScalar((d.scale||0.3)*ol/h.userData.max);h.position.set(...(d.pos||[0,0,0])).multiplyScalar(ol).add(oc);}
+    pv.updateMatrixWorld(true);}
+  const box=new THREE.Box3().setFromObject(body);const c=box.getCenter(new THREE.Vector3());inner.position.sub(c);
+  const len=box.max.x-box.min.x;
+  if(p.melee){ // närstrid: vapnet (handtaget längs +Y, huvudet uppåt) hålls i en hand framför kameran som tittar längs +X, +Z = höger i bilden
+    const m=p.melee;inner.position.set(0,0,0);pv.updateMatrixWorld(true);
+    const b0=new THREE.Box3().setFromObject(body);const L=b0.max.y-b0.min.y;
+    inner.position.set(-(b0.min.x+b0.max.x)/2,-b0.min.y-(m.grip||0.08)*L,-(b0.min.z+b0.max.z)/2); // greppet i pivotpunkten
+    inner.rotation.set(0,0,0);
+    const [hx,hy,hz]=m.hand,[ax,ay,az]=m.ang;
+    pv.position.set(hx*L,hy*L,hz*L);pv.rotation.set(ax*Math.PI/180,ay*Math.PI/180,az*Math.PI/180,'XZY');pv.updateMatrixWorld(true);
+    cam.fov=p.fov||40;cam.position.set(0,0,0);cam.up.set(0,1,0);cam.lookAt(1,0,0);cam.near=L*0.01;cam.far=L*50;cam.updateProjectionMatrix();cam.updateMatrixWorld(true);
+    // "mynningen" för närstrid: eggens mitt (punkterna längst upp i vapnets egen ram)
+    const pts=[],v=new THREE.Vector3();let top=-1e9;
+    body.updateMatrixWorld(true);const inv=new THREE.Matrix4().copy(body.matrixWorld).invert();
+    body.traverse(o=>{if(o.isMesh&&o.visible){const pos=o.geometry.attributes.position;for(let i=0;i<pos.count;i++){o.getVertexPosition(i,v).applyMatrix4(o.matrixWorld);const lv=v.clone().applyMatrix4(inv);pts.push([v.clone(),lv.y]);if(lv.y>top)top=lv.y}}});
+    const hd=pts.filter(q=>q[1]>top-L*0.25);const mc=new THREE.Vector3();hd.forEach(q=>mc.add(q[0]));mc.divideScalar(hd.length||1);
+    const ndc=mc.clone().project(cam);r.render(sc,cam);
+    return {png:r.domElement.toDataURL('image/png'),muzzle:[(ndc.x+1)/2*W,(1-ndc.y)/2*H],len:L};
+  }
+  // rekyl: bakåt längs -X och nosen uppåt
+  const k=p.kick||0;pv.position.set(-k*(p.back||0.08)*len,(p.dy||0)*len,(p.dz||0)*len);pv.rotation.set((p.roll||0)*Math.PI/180,0,k*(p.pitch||6)*Math.PI/180);
+  pv.updateMatrixWorld(true);
+  const b=new THREE.Box3().setFromObject(body);
   const [mnx,mny,mnz]=b.min.toArray(),[mxx,mxy,mxz]=b.max.toArray(),cz=(mnz+mxz)/2;
   // kameran räknas från vilobilden så att rekylen syns som rörelse
   const L=p.len0||len,base=p.base||{mnx,mxx,mxy,cz};
-  if(p.view==='side'){const md=Math.max(...b.getSize(new THREE.Vector3()).toArray());cam.fov=30;cam.position.set(0,0,md*2.6);cam.lookAt(0,0,0);}
-  else{const [bk,up,sd,fw,dr]=p.cam;cam.fov=p.fov||40;cam.position.set(base.mnx-bk*L,base.mxy+up*L,base.cz+sd*L);cam.lookAt(base.mxx+fw*L,base.mxy+up*L-dr*L*fw,base.cz+sd*L);}
+  if(p.view==='side'){const md=Math.max(...b.getSize(new THREE.Vector3()).toArray());cam.fov=30;cam.position.set(0,0,md*2.6);cam.up.set(0,1,0);cam.lookAt(0,0,0);}
+  else{const [bk,up,sd,fw,dr]=p.cam;cam.fov=p.fov||40;cam.position.set(base.mnx-bk*L,base.mxy+up*L,base.cz+sd*L);cam.up.set(0,1,0);cam.lookAt(base.mxx+fw*L,base.mxy+up*L-dr*L*fw,base.cz+sd*L);}
   cam.near=L*0.01;cam.far=L*50;cam.updateProjectionMatrix();cam.updateMatrixWorld(true);
-  // mynningen: punkterna längst fram längs kamerans blickriktning
+  // mynningen: punkterna längst fram längs kamerans blickriktning (eller delen som heter p.nozzle)
   const look=new THREE.Vector3();cam.getWorldDirection(look);const pts=[],v=new THREE.Vector3();
-  obj.traverse(o=>{if(o.isMesh&&o.visible){const pos=o.geometry.attributes.position;for(let i=0;i<pos.count;i++){o.getVertexPosition(i,v).applyMatrix4(o.matrixWorld);pts.push(v.clone())}}});
+  body.traverse(o=>{if(o.isMesh&&o.visible&&(!p.nozzle||new RegExp(p.nozzle).test(o.name))){const pos=o.geometry.attributes.position;for(let i=0;i<pos.count;i++){o.getVertexPosition(i,v).applyMatrix4(o.matrixWorld);pts.push(v.clone())}}});
   let mx=-1e9;for(const q of pts){const d=q.clone().sub(cam.position).dot(look);if(d>mx)mx=d}
   const front=pts.filter(q=>q.clone().sub(cam.position).dot(look)>mx-L*0.03);const mc=new THREE.Vector3();front.forEach(q=>mc.add(q));mc.divideScalar(front.length||1);
   const ndc=mc.clone().project(cam);

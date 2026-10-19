@@ -71,5 +71,410 @@
    0.32
   ],
   "tilt": -10
+ },
+ "axe": {
+  "model": "KayKit_FantasyWeaponsBits_1.0_FREE/KayKit_FantasyWeaponsBits_1.0_FREE/Assets/fbx/axe_A.fbx",
+  "tex": "KayKit_FantasyWeaponsBits_1.0_FREE/KayKit_FantasyWeaponsBits_1.0_FREE/Textures/weapons_bits_texture.png",
+  "dur": 0.55,
+  "melee": {
+   "grip": 0.1,
+   "idle": {
+    "hand": [
+     1.2,
+     -0.8,
+     0.6
+    ],
+    "ang": [
+     -18,
+     70,
+     0
+    ]
+   },
+   "fire": [
+    {
+     "hand": [
+      1.2,
+      -0.68,
+      0.45
+     ],
+     "ang": [
+      12,
+      70,
+      5
+     ]
+    },
+    {
+     "hand": [
+      1.2,
+      -0.62,
+      0.45
+     ],
+     "ang": [
+      -6,
+      70,
+      0
+     ]
+    },
+    {
+     "hand": [
+      1.2,
+      -0.55,
+      0.5
+     ],
+     "ang": [
+      -30,
+      70,
+      -10
+     ]
+    },
+    {
+     "hand": [
+      1.2,
+      -0.6,
+      0.45
+     ],
+     "ang": [
+      -52,
+      70,
+      -15
+     ]
+    },
+    {
+     "hand": [
+      1.2,
+      -0.65,
+      0.25
+     ],
+     "ang": [
+      -66,
+      70,
+      -15
+     ]
+    },
+    {
+     "hand": [
+      1.2,
+      -0.75,
+      0.05
+     ],
+     "ang": [
+      -76,
+      70,
+      -15
+     ]
+    },
+    {
+     "hand": [
+      1.2,
+      -0.95,
+      0.5
+     ],
+     "ang": [
+      -40,
+      70,
+      0
+     ]
+    },
+    {
+     "hand": [
+      1.2,
+      -0.85,
+      0.6
+     ],
+     "ang": [
+      -20,
+      70,
+      0
+     ]
+    }
+   ]
+  }
+ },
+ "flamer": {
+  "model": "Guns&Explosives/Guns&Explosives/Pipe_Bomb/Pipe_Bomb.fbx",
+  "tex": "Guns&Explosives/Guns&Explosives/Pipe_Bomb/Pipe_Bomb_Base_Color.png",
+  "rot": [
+   0,
+   0,
+   90
+  ],
+  "stretch": [
+   0.8,
+   2.4,
+   0.8
+  ],
+  "tint": "#7a7068",
+  "parts": [
+   {
+    "prim": "cyl",
+    "size": [
+     1,
+     1,
+     3.6
+    ],
+    "rot": [
+     0,
+     0,
+     -90
+    ],
+    "scale": 0.3,
+    "pos": [
+     0.1,
+     -0.02,
+     0.1
+    ],
+    "color": "#a3301e",
+    "name": "tank",
+    "seg": 14
+   },
+   {
+    "prim": "sphere",
+    "size": [
+     1
+    ],
+    "scale": 0.166,
+    "pos": [
+     -0.05,
+     -0.02,
+     0.1
+    ],
+    "color": "#a3301e",
+    "seg": 14
+   },
+   {
+    "prim": "sphere",
+    "size": [
+     1
+    ],
+    "scale": 0.166,
+    "pos": [
+     0.25,
+     -0.02,
+     0.1
+    ],
+    "color": "#a3301e",
+    "seg": 14
+   },
+   {
+    "prim": "cyl",
+    "size": [
+     1.08,
+     1.08,
+     0.25
+    ],
+    "rot": [
+     0,
+     0,
+     -90
+    ],
+    "scale": 0.18,
+    "pos": [
+     0.02,
+     -0.02,
+     0.1
+    ],
+    "color": "#3a3230",
+    "seg": 14
+   },
+   {
+    "prim": "cyl",
+    "size": [
+     1.08,
+     1.08,
+     0.25
+    ],
+    "rot": [
+     0,
+     0,
+     -90
+    ],
+    "scale": 0.18,
+    "pos": [
+     0.18,
+     -0.02,
+     0.1
+    ],
+    "color": "#3a3230",
+    "seg": 14
+   },
+   {
+    "prim": "cyl",
+    "size": [
+     0.3,
+     0.3,
+     1
+    ],
+    "scale": 0.05,
+    "pos": [
+     0.1,
+     0.03,
+     0.1
+    ],
+    "color": "#c9a24a"
+   },
+   {
+    "prim": "cyl",
+    "size": [
+     0.65,
+     0.3,
+     1
+    ],
+    "rot": [
+     0,
+     0,
+     -90
+    ],
+    "scale": 0.1,
+    "pos": [
+     0.53,
+     0,
+     0
+    ],
+    "color": "#3a3634",
+    "name": "nozzle"
+   },
+   {
+    "prim": "cyl",
+    "size": [
+     0.62,
+     0.62,
+     0.4
+    ],
+    "rot": [
+     0,
+     0,
+     -90
+    ],
+    "scale": 0.05,
+    "pos": [
+     0.47,
+     0,
+     0
+    ],
+    "color": "#8a6a3a"
+   },
+   {
+    "prim": "sphere",
+    "size": [
+     1
+    ],
+    "scale": 0.02,
+    "pos": [
+     0.52,
+     -0.045,
+     0
+    ],
+    "color": "#9ef",
+    "emissive": "#39f"
+   }
+  ],
+  "nozzle": "nozzle",
+  "cam": [
+   0.3,
+   0.25,
+   -0.12,
+   0.8,
+   0.35
+  ],
+  "dur": 0.3,
+  "fire": [
+   {
+    "kick": 0.25,
+    "dy": 0.004
+   },
+   {
+    "kick": 0.35,
+    "dy": -0.004
+   },
+   {
+    "kick": 0.3,
+    "dz": 0.004
+   },
+   {
+    "kick": 0.2,
+    "dz": -0.004
+   }
+  ]
+ },
+ "launcher": {
+  "model": "PSXShotgunPack[FIXED]/PSXShotgunPack[FIXED]/Files/oneBarrelShotGun/Fbx/SawedOffOneBarrelShotgun.fbx",
+  "tex": "PSXShotgunPack[FIXED]/PSXShotgunPack[FIXED]/Files/oneBarrelShotGun/Textures/OneBarrelShotGunText.jpg",
+  "rot": [
+   0,
+   0,
+   0
+  ],
+  "hide": "shell",
+  "parts": [
+   {
+    "prim": "cyl",
+    "size": [
+     1,
+     1,
+     8.5
+    ],
+    "rot": [
+     0,
+     0,
+     -90
+    ],
+    "scale": 0.5,
+    "pos": [
+     0.24,
+     0.1,
+     0
+    ],
+    "color": "#4b5240",
+    "name": "tube",
+    "seg": 12
+   },
+   {
+    "prim": "cyl",
+    "size": [
+     1.12,
+     1.12,
+     0.6
+    ],
+    "rot": [
+     0,
+     0,
+     -90
+    ],
+    "scale": 0.075,
+    "pos": [
+     0.47,
+     0.1,
+     0
+    ],
+    "color": "#2e302c",
+    "name": "muzzle"
+   },
+   {
+    "prim": "box",
+    "size": [
+     1,
+     3,
+     0.4
+    ],
+    "scale": 0.05,
+    "pos": [
+     0.1,
+     0.19,
+     0
+    ],
+    "color": "#2e302c"
+   }
+  ],
+  "nozzle": "muzzle",
+  "cam": [
+   0.35,
+   0.14,
+   -0.12,
+   0.8,
+   0.3
+  ],
+  "dur": 0.8,
+  "pitch": 10,
+  "back": 0.12
  }
 }
