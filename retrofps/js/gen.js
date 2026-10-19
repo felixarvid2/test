@@ -2007,11 +2007,28 @@
       for (const r of R.shuffle(fight.slice())) for (const [x, y] of r.cells) if (n > 0 && mob.includes(g[y][x]) && lavaAdj(x, y) && R.chance(0.7)) { g[y][x] = 'Þ'; n--; }
       for (const r of R.shuffle(fight.slice())) {
         if (n <= 0) break;
-        const spots = r.cells.filter(([x, y]) => g[y][x] === '.' && lock[y * W + x] < 2 && farFromP(x, y) && lavaAdj(x, y));
+        // (fria rutor nära öppningar duger, men aldrig direkt i en dörrpassage eller framför köpmannen)
+        const spots = r.cells.filter(([x, y]) => g[y][x] === '.' && farFromP(x, y) && lavaAdj(x, y) && !doorAdj(x, y) && !nearCh(x, y, 'M', 1));
         const movers = r.cells.filter(([x, y]) => mob.includes(g[y][x]));
         if (!spots.length || !movers.length) continue;
         const s = R.pick(spots), m = R.pick(movers);
         g[m[1]][m[0]] = '.'; g[s[1]][s[0]] = 'Þ'; n--;
+      }
+      // ingen mask alls (lavan hamnade utanför stridsrummen): en egen liten lavaruta i ett stridsrum med masken bredvid
+      if (!fight.some(r => r.cells.some(([x, y]) => g[y][x] === 'Þ'))) {
+        let done = false;
+        for (const r of R.shuffle(fight.slice())) {
+          const movers = r.cells.filter(([x, y]) => mob.includes(g[y][x]));
+          if (!movers.length) continue;
+          for (const [x, y] of R.shuffle(r.cells.slice())) {
+            if (g[y][x] !== '.' || lock[y * W + x] || nearPX(x, y) || doorAdj(x, y) || !localOK(G, x, y)) continue;
+            const sp = [0, 1, 2, 3].map(d => [x + DX[d], y + DY[d]]).find(([sx, sy]) => rid[sy * W + sx] === r.id && g[sy][sx] === '.' && farFromP(sx, sy) && !doorAdj(sx, sy) && !nearCh(sx, sy, 'M', 1));
+            if (!sp) continue;
+            const m = R.pick(movers);
+            g[y][x] = '_'; g[m[1]][m[0]] = '.'; g[sp[1]][sp[0]] = 'Þ'; done = true; break;
+          }
+          if (done) break;
+        }
       }
     }
     // gift- och frosttunnor (0-3) nära fiendegrupperna: fler µ i vulkanen och träsket, fler ß i frostfästet
