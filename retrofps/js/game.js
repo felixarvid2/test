@@ -152,6 +152,7 @@ function showProfile() {
     { label: 'PER VAPEN', head: true, color: '#ffd24a' }, ...Object.entries(profile.wkills || {}).sort((a, b) => b[1] - a[1]).map(([k, v]) => ({ label: (WEAPONS.find(w => w.id === k) || {}).name || k, text: `${v} DÖDADE` })),
     { label: 'PER BIOM', head: true, color: '#ffd24a' }, ...Object.entries(profile.biomeFloors || {}).map(([k, v]) => ({ label: BIOME_NAME[k] || k, text: `${v} VÅNINGAR KLARADE` })),
     { label: 'BOSSREKORD', head: true, color: '#ffd24a' }, ...Object.entries(profile.bossTimes || {}).map(([k, v]) => ({ label: (BOSSES[k] || {}).name || k, text: 'BÄSTA TID ' + fmtT(v) })),
+    ...(store.get('errors', []).length ? [{ label: 'SENASTE FEL (SKICKA GÄRNA EN SKÄRMBILD)', head: true, color: '#ff7060' }, ...store.get('errors', []).slice(0, 3).map(e => ({ label: e.msg.toUpperCase().slice(0, 60), text: `${new Date(e.t).toLocaleString('sv-SE')} · VÅNING ${e.depth ?? '?'} · ${(e.stack || '').slice(0, 160)}`, dim: true }))] : []),
     { label: 'DAGENS RUNDA – TOPPLISTA', head: true, color: '#ffd24a' }, ...(profile.dailyTop || []).slice(0, 5).map((d, i) => ({ label: `${i + 1}. ${d.score} P`, text: `${d.d} · VÅNING ${d.depth}` })),
     { label: 'TOPP 5', head: true, color: '#ffd24a' },
     ...h.slice().sort((a, b) => b.score - a.score).slice(0, 5).map((r, i) => ({ label: `${i + 1}. ${r.score} P`, text: `VÅNING ${r.depth} · ${r.kills} DÖDADE · FRÖ ${r.seed}${r.win ? ' · SEGER' : ''}` })),
@@ -271,7 +272,7 @@ async function loadAll(setStatus) {
   setStatus('Laddar fiender…');
   for (const [k, d] of Object.entries(ENEMY_DEFS)) {
     if (d.frames) { enemyFrames[k] = enemyFrames[d.frames]; continue; }
-    if (NEW_ENEMIES.includes(k)) { try { await loadEnemySheet(k, d); } catch (e) { enemyFrames[k] = enemyFrames.S; d.size = 1; d.fw = 32; } continue; } // nya fiender är valfria
+    if (NEW_ENEMIES.includes(k)) { try { await loadEnemySheet(k, d); } catch (e) { d.size = 1; d.fw = 32; } continue; } // nya fiender är valfria
     const sets = {};
     for (const [st, file] of [['idle', 'idle'], ['move', d.move], ['attack', 'attack'], ['pain', 'take_damage'], ['death', 'death']]) {
       const img = await load(`${A}gfx/enemies-${d.sheet}_${file}.png`);
@@ -279,6 +280,7 @@ async function loadAll(setStatus) {
     }
     enemyFrames[k] = sets;
   }
+  for (const k of NEW_ENEMIES) if (!enemyFrames[k]) enemyFrames[k] = enemyFrames.S; // saknas bilderna: rita ett skelett
   // bossen: vingad demon (Gothicvania, CC0), förminskad för snabbare sprite-ritning
   enemyFrames.B = {
     idle: strip(await load(A + 'gfx/boss_idle.png'), 6, 0.5),
@@ -1020,7 +1022,7 @@ function render() {
   for (const p of props) { if (p.broken) continue; const dx = p.x - P.x, dy = p.y - P.y; if (dx * dx + dy * dy < 900) list.push({ x: p.x, y: p.y, k: 'q', o: p }); }
   for (const s of list) s.d = (s.x - P.x) ** 2 + (s.y - P.y) ** 2;
   list.sort((p, q) => q.d - p.d);
-  for (const s of list) {
+  for (const s of list) try { // en trasig sprite får inte stoppa bilden
     const o = s.o;
     if (s.k === 'e') {
       if (o.boss) {
@@ -1075,7 +1077,7 @@ function render() {
       if (!o.friendly && !settings.lowfx) drawSprite(fx.fireball[Math.floor(tmr * 16) % 8], o.x, o.y, o.big ? 0.9 : 0.55, o.z - 0.3, false, 1.0, 0, 0, true, PROJ_TINT[o.kind] || [255, 140, 60]); // fiendeskott glöder
       drawSprite(fx.fireball[Math.floor(tmr * 16) % 8], o.x, o.y, o.big ? 0.5 : o.kind === 'gren' || o.kind === 'spark' ? 0.18 : o.kind === 'flare' ? 0.26 : 0.3, o.z - 0.15, false, 2.4, 0, 0, true, PROJ_TINT[o.kind] || null); }
     else drawSprite(o.img, o.x, o.y, o.size, o.z, false, o.add ? (o.fade ? 2 * Math.min(1, o.life * 2, (o.maxLife - o.life) * 2) : 2) : null, 0, 0, o.add, o.tint || null);
-  }
+  } catch (err) { spriteError(err, s); }
   applyGrade();
   if (P.hp < maxHp() * 0.3 && state === 'play' && settings.lowHpGray !== false) desaturate(0.55 * (1 - P.hp / (maxHp() * 0.3))); // låg HP: bilden gråas
   if (Math.abs(P.roll) > 0.002 && state === 'play') { // lutning vid sidosteg
@@ -2554,7 +2556,7 @@ function update(dt) {
   for (const c of chests) if (!c.open && Math.hypot(c.x - P.x, c.y - P.y) < 1.2) hint = isTouch() ? 'HANDEN: ÖPPNA KISTAN' : 'E: ÖPPNA KISTAN';
   for (const m of merchants) if (Math.hypot(m.x - P.x, m.y - P.y) < 1.6) hint = isTouch() ? 'HANDEN: HANDLA' : 'E: HANDLA';
   if (lvl.exit && Math.floor(P.x) === lvl.exit.x && Math.floor(P.y) === lvl.exit.y) { floorDone(); return; }
-  for (const e of ents) { if (e.boss) updateBoss(e, dt); else updateEnemy(e, dt); }
+  for (const e of ents) try { if (e.boss) updateBoss(e, dt); else updateEnemy(e, dt); } catch (err) { spriteError(err, { o: e }); if (e.renderFail > 30 && !e.boss) { e.dead = true; e.gibbed = true; } } // en trasig fiende får inte stoppa spelet
   updateProjectiles(dt); updateFuses(dt); updatePortals(dt); updateHazards(dt); updateProps(dt); updateGroundFires(dt); updateBossFx(dt); updateWorldEvents(dt); updateSpores(dt);
   for (let i = decals.length - 1; i >= 0; i--) if (decals[i].life !== undefined && (decals[i].life -= dt) <= 0) decals.splice(i, 1);
   if (P.comboT > 0) { P.comboT -= dt; if (P.comboT <= 0 && P.combo >= 3) say(`KOMBO x${P.combo}`, 1.5); }
@@ -2574,7 +2576,8 @@ let runToggled = false;
 // ---------- Handkontroll (Gamepad API) ----------
 const gp = { prev: [], look: 0, active: false, crouch: false, run: false };
 function pollGamepad(dt) {
-  const pads = navigator.getGamepads ? navigator.getGamepads() : []; const g = pads && [...pads].find(p => p && p.connected);
+  let pads = []; try { pads = navigator.getGamepads ? navigator.getGamepads() || [] : []; } catch (e) { pads = []; } // kan nekas i inbäddade sidor
+  const g = [...pads].find(p => p && p.connected);
   if (!g) { if (gp.active && gp.fire) { mouseDown = false; gp.fire = false; } gp.active = false; return { f: 0, s: 0 }; }
   const dz = v => Math.abs(v) < 0.15 ? 0 : (v - Math.sign(v) * 0.15) / 0.85, b = i => !!(g.buttons[i] && g.buttons[i].pressed), edge = i => b(i) && !gp.prev[i];
   const lx = dz(g.axes[0] || 0), ly = dz(g.axes[1] || 0), rx = dz(g.axes[2] || 0), ry = dz(g.axes[3] || 0);
@@ -3552,7 +3555,21 @@ const fmtTime = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStar
 
 // ---------- Huvudloop ----------
 let last = 0;
-function loop(t) {
+let loopErrors = 0, lastError = '';
+function loop(t) { // ett fel i en bildruta får aldrig stoppa spelet: nästa bildruta beställs först
+  requestAnimationFrame(loop);
+  try { frameStep(t); } catch (err) {
+    loopErrors++; console.error(err); lastError = String(err && err.message || err).toUpperCase().slice(0, 60);
+    if (loopErrors <= 3) { try { say('FEL: ' + String(err && err.message || err).toUpperCase().slice(0, 48), 4); } catch (e) { /* inget att visa på */ } }
+    if (loopErrors <= 5) reportError(err);
+  }
+}
+function reportError(err) { // sparas så att felet kan hittas efteråt
+  try { const list = store.get('errors', []); list.unshift({ t: Date.now(), msg: String(err && err.message || err), stack: String(err && err.stack || '').split('\n').slice(0, 4).join(' | '), depth: run && run.depth, biome: lvl && lvl.biome });
+    store.set('errors', list.slice(0, 10)); } catch (e) { /* lagring saknas */ }
+}
+function spriteError(err, s) { if (s && s.o) s.o.renderFail = (s.o.renderFail || 0) + 1; if (loopErrors < 5) { loopErrors++; lastError = String(err && err.message || err).toUpperCase().slice(0, 60); reportError(err); console.error(err); } }
+function frameStep(t) {
   const realDt = Math.min(0.05, (t - last) / 1000 || 0); last = t;
   lowFpsGuard(realDt); if (Math.floor(t / 1000) !== Math.floor((t - realDt * 1000) / 1000)) updateWakeLock();
   if (state !== 'play') pollGamepad(realDt);
@@ -3572,13 +3589,13 @@ function loop(t) {
     : ['KLICKA FÖR ATT FORTSÄTTA', `FRÖ ${seedText(run.seed)}  VÅNING ${run.depth}`, `KORT ${run.owned.length}  (C = VISA)`, `SVÅRIGHET ${DIFF[settings.diff].name}`, 'I = INSTÄLLNINGAR  G = GE UPP  M = KARTA', 'SPACE HOPP · CTRL DUCKA · Z RUSA · F GRANAT · V SPARK', 'X INSPEKTERA · B MARKÖR · K FOTO · F9 SKÄRMBILD']).concat(bonusLines(), pauseExtras()), '#202040');
     if (state === 'stats') drawStats();
   }
-  requestAnimationFrame(loop);
 }
 function pauseExtras() { // uppstigning, klass, uppdrag och händelselogg
   const out = [];
   if (run.cls && CLASSES[run.cls]) out.push('KLASS: ' + CLASSES[run.cls].name + (run.asc ? `  · UPPSTIGNING ${run.asc}` : ''));
   if (run.mission) out.push('VARVETS UPPDRAG: ' + run.mission.text + ` (${Math.min(missionProgress(), run.mission.n)}/${run.mission.n})`);
   if (run.log && run.log.length) out.push('SENAST: ' + run.log.slice(-3).join(' · '));
+  if (lastError) out.push('FEL I SPELET: ' + lastError);
   return out;
 }
 function bonusLines() { // de viktigaste bonusarna från korten, sammanfattade
