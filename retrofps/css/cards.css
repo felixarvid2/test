@@ -1,0 +1,477 @@
+/* KRYPTA – kortgränssnitt (draft, butik, kortlek, toast). Allt prefixat med cu-. */
+@font-face { font-family: "CUPress"; src: local("Press Start 2P"), url(../assets/font/PressStart2P.ttf); font-display: swap; }
+
+#cardui {
+  position: fixed; inset: 0; z-index: 1000; pointer-events: none;
+  font-family: "CUPress", "PressStart2P", "Press Start 2P", monospace;
+  color: #e8d9b0; line-height: 1.5;
+  --ink: #e8d9b0; --muted: #c9a87a; --dim: #8a7550; --panel: #1b1410; --panel2: #3a2c1e; --edge: #5a4630;
+  --gold: #ffd24a; --blood: #d8442a; --curse: #b040d8;
+}
+#cardui *, #cardui *::before, #cardui *::after { box-sizing: border-box; }
+#cardui [hidden] { display: none !important; }
+
+.cu-screen {
+  position: absolute; inset: 0; pointer-events: auto; overflow: auto;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 20px 16px; text-align: center;
+  background: radial-gradient(ellipse at center, rgba(42,24,16,.95) 0%, rgba(8,5,3,.98) 75%);
+  animation: cu-fade .25s ease-out both;
+  outline: none;
+}
+.cu-screen > .cu-wrap { margin: auto; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+.cu-title { margin: 0; font-size: clamp(14px, 3.2vw, 24px); color: var(--gold); text-shadow: 3px 3px #000, 0 0 18px rgba(216,68,42,.55); letter-spacing: 3px; font-weight: normal; }
+.cu-sub { margin: 0; font-size: clamp(7px, 1.4vw, 10px); color: var(--muted); line-height: 2; max-width: 640px; }
+
+.cu-btn {
+  font: inherit; font-size: 10px; padding: 11px 16px; cursor: pointer;
+  background: #5a1a10; color: #ffe9a8; border: 3px solid #d8a24a; box-shadow: 3px 3px 0 #000;
+}
+.cu-btn:hover, .cu-btn:focus-visible { background: #7c2616; outline: 2px solid #ffe9a8; outline-offset: 2px; }
+.cu-btn.ghost { background: transparent; border-color: var(--edge); color: var(--muted); }
+.cu-btn.ghost:hover, .cu-btn.ghost:focus-visible { background: #2a1d12; color: var(--ink); }
+
+/* ---------- Kort (draft) ---------- */
+.cu-cards {
+  --cw: min(230px, calc((100vw - 32px - (var(--n, 3) - 1) * 16px) / var(--n, 3)), 36vh);
+  display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; align-items: center;
+}
+.cu-card {
+  --rc: #c9a87a; --bc: var(--rc); --glow: rgba(201,168,122,.35);
+  position: relative; width: 100%; aspect-ratio: 11 / 17; perspective: 900px;
+  font-size: calc(var(--cw) / 22); cursor: pointer; outline: none; color: var(--ink);
+  transition: transform .18s ease, opacity .3s ease; text-align: left;
+}
+.cu-cards.extra { --cw: min(220px, calc((100vw - 32px - (var(--n, 3) - 1) * 16px) / var(--n, 3)), 32vh); align-items: flex-start; }
+.cu-slot { position: relative; width: var(--cw); display: flex; flex-direction: column; gap: 8px; }
+.cu-slot.shake { animation: cu-shake .3s; }
+.cu-card:hover, .cu-card:focus-visible { transform: translateY(-8px); }
+.cu-card:focus-visible .cu-front, .cu-card:hover .cu-front { box-shadow: 0 0 0 2px #000, 0 0 26px 4px var(--glow), 6px 6px 0 #000; }
+.cu-inner { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform .55s cubic-bezier(.3,.7,.3,1); }
+.cu-card.down .cu-inner { transform: rotateY(180deg); }
+.cu-card.down { pointer-events: auto; }
+.cu-face { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.cu-back {
+  position: absolute; inset: 0; transform: rotateY(180deg);
+  background: #0b0806 url(../assets/cards/back.png) center / 100% 100% no-repeat;
+  border: 3px solid #000; box-shadow: 0 0 0 2px var(--edge), 4px 4px 0 #000;
+}
+.cu-front {
+  position: relative; height: 100%; display: flex; flex-direction: column; align-items: center;
+  padding: .9em .9em .8em; gap: .55em; overflow: hidden;
+  background: linear-gradient(180deg, #2a1d12 0%, var(--panel) 45%, #120d09 100%);
+  border: 4px solid var(--bc); box-shadow: 0 0 0 2px #000, 0 0 14px 1px var(--glow), 5px 5px 0 #000;
+}
+.cu-rar { align-self: stretch; display: flex; justify-content: space-between; font-size: .85em; color: var(--rc); letter-spacing: .05em; }
+.cu-rar .cu-key { color: var(--dim); }
+.cu-art {
+  width: 58%; aspect-ratio: 1; flex: none; border: 2px solid var(--bc);
+  background: radial-gradient(circle, #3a2c1e 0%, #120d09 85%);
+  box-shadow: inset 0 0 12px #000;
+}
+.cu-art img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.cu-name { font-size: 1.15em; line-height: 1.4; text-align: center; color: var(--ink); overflow-wrap: anywhere; text-shadow: 2px 2px #000; }
+.cu-sep { align-self: stretch; height: 2px; background: linear-gradient(90deg, transparent, var(--bc), transparent); flex: none; }
+.cu-fx { font-size: .92em; line-height: 1.6; text-align: center; color: var(--muted); overflow-wrap: anywhere; }
+.cu-front > .cu-fx { flex: 1; display: flex; flex-direction: column; justify-content: center; align-self: stretch; }
+.cu-fx div { margin-bottom: .35em; }
+.cu-fx .bad { color: #ff7a5e; }
+.cu-own { margin-top: auto; font-size: .7em; color: var(--dim); }
+.cu-ribbon { align-self: stretch; text-align: center; font-size: .8em; padding: .35em 0; color: #f0c4ff; background: #4a1460; border: 2px solid var(--curse); letter-spacing: .12em; }
+
+/* Förbannade kort */
+.cu-ribbon.pact { color: #ffd8c0; background: #5a1408; border-color: #e05030; }
+.cu-ribbon.wpn { color: #ffe9a8; background: #3a2a10; border-color: #d8a24a; }
+.cu-card.pact, .cu-item.pact, .cu-tile.pact, .cu-toast.pact { --bc: #e05030; --glow: rgba(224,80,48,.55); }
+.cu-card.curse { --bc: var(--curse); --glow: rgba(176,64,216,.6); }
+.cu-card.curse .cu-front { background: linear-gradient(180deg, #2a1030 0%, #170c1a 45%, #0e060f 100%); animation: cu-curse 2.2s ease-in-out infinite; }
+.cu-card.curse .cu-fx { color: #d8b4e8; }
+.cu-card.curse .cu-fx .bad { color: #ff5a40; }
+/* Legendariska: glans */
+.cu-card.legend .cu-front::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(115deg, transparent 35%, rgba(255,236,160,.28) 50%, transparent 65%);
+  background-size: 250% 100%; animation: cu-shine 3.2s linear infinite;
+}
+.cu-card.picked { transform: scale(1.1); z-index: 2; }
+.cu-card.faded { opacity: .12; transform: scale(.92); pointer-events: none; }
+
+.cu-foot { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.cu-hint { font-size: 7px; color: var(--dim); line-height: 2; }
+
+@keyframes cu-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cu-curse { 0%, 100% { box-shadow: 0 0 0 2px #000, 0 0 10px 0 rgba(176,64,216,.5), 5px 5px 0 #000; } 50% { box-shadow: 0 0 0 2px #000, 0 0 26px 5px rgba(216,68,42,.65), 5px 5px 0 #000; } }
+@keyframes cu-shine { from { background-position: 150% 0; } to { background-position: -100% 0; } }
+@keyframes cu-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+@keyframes cu-sold { to { opacity: 0; transform: scale(.85); } }
+@keyframes cu-toast-in { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: none; } }
+
+/* ---------- Butik ---------- */
+.cu-shopbox { width: min(980px, 100%); display: flex; flex-direction: column; gap: 14px; }
+.cu-shophead { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.cu-gold { font-size: 12px; color: var(--gold); display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--panel); border: 3px solid var(--edge); text-shadow: 2px 2px #000; }
+.cu-coin { width: 14px; height: 14px; background: currentColor; border: 2px solid #000; box-shadow: inset -3px -3px 0 rgba(0,0,0,.35); display: inline-block; }
+.cu-gold.flash { animation: cu-flash .5s; }
+@keyframes cu-flash { 50% { background: #5a4630; } }
+.cu-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.cu-item {
+  --rc: #c9a87a; --bc: var(--rc); --glow: rgba(201,168,122,.3);
+  position: relative; display: flex; flex-direction: column; gap: 8px; text-align: left; padding: 10px;
+  background: var(--panel); border: 3px solid var(--bc); box-shadow: 0 0 10px var(--glow), 4px 4px 0 #000;
+  cursor: pointer; outline: none; font-size: 8px; transition: transform .12s, filter .2s, opacity .2s;
+}
+.cu-item:hover, .cu-item:focus-visible { transform: translateY(-3px); background: #241a12; }
+.cu-item:focus-visible { outline: 2px solid #ffe9a8; outline-offset: 2px; }
+.cu-item.curse { --bc: var(--curse); --glow: rgba(176,64,216,.5); background: #170c1a; }
+.cu-item .cu-top { display: flex; gap: 10px; align-items: center; }
+.cu-item .cu-art { width: 56px; border-width: 2px; }
+.cu-item .cu-ico { width: 56px; height: 56px; flex: none; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle, #3a2c1e, #120d09 85%); border: 2px solid var(--bc); }
+.cu-item .cu-ico svg { width: 36px; height: 36px; shape-rendering: crispEdges; }
+.cu-item .cu-iname { font-size: 8px; line-height: 1.5; color: var(--ink); overflow-wrap: anywhere; }
+.cu-item .cu-irar { font-size: 7px; color: var(--rc); margin-top: 3px; }
+.cu-item .cu-fx { text-align: left; font-size: 7px; line-height: 1.7; }
+.cu-item .cu-fx div { margin-bottom: 2px; }
+.cu-item .cu-price { margin-top: auto; display: flex; justify-content: space-between; align-items: center; color: var(--gold); font-size: 10px; border-top: 2px solid var(--edge); padding-top: 8px; }
+.cu-item .cu-num { color: var(--dim); font-size: 8px; }
+.cu-item.poor { filter: grayscale(.9) brightness(.7); opacity: .65; }
+.cu-item.poor .cu-price { color: #8a7550; }
+.cu-item.owned { filter: grayscale(.6); opacity: .8; cursor: default; }
+.cu-item.owned .cu-price { color: #6fc26a; }
+.cu-item.shake { animation: cu-shake .3s; }
+.cu-item.sold { animation: cu-sold .3s forwards; pointer-events: none; }
+.cu-msg { min-height: 2.4em; font-size: 9px; color: var(--muted); line-height: 1.6; text-align: center; }
+.cu-msg.bad { color: #ff7a5e; }
+.cu-msg.ok { color: #6fc26a; }
+.cu-empty { grid-column: 1 / -1; font-size: 9px; color: var(--dim); padding: 24px 0; }
+
+/* ---------- Kortlek ---------- */
+.cu-deckbox { width: min(980px, 100%); display: flex; flex-direction: column; gap: 14px; align-items: center; }
+.cu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; width: 100%; }
+.cu-tile {
+  --rc: #c9a87a; --bc: var(--rc); --glow: rgba(201,168,122,.3);
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 6px;
+  background: var(--panel); border: 3px solid var(--bc); box-shadow: 0 0 8px var(--glow), 3px 3px 0 #000;
+  cursor: pointer; outline: none; font-size: 7px; line-height: 1.5; color: var(--ink); text-align: center;
+}
+.cu-tile.curse { --bc: var(--curse); --glow: rgba(176,64,216,.5); background: #170c1a; }
+.cu-tile:hover, .cu-tile:focus-visible, .cu-tile.sel { background: #2a1d12; box-shadow: 0 0 14px 2px var(--glow), 3px 3px 0 #000; }
+.cu-tile:focus-visible { outline: 2px solid #ffe9a8; outline-offset: 2px; }
+.cu-tile .cu-art { width: 64px; border-width: 2px; }
+.cu-tile .cu-cnt { position: absolute; top: 4px; right: 4px; background: #000; color: var(--gold); font-size: 8px; padding: 3px 4px; border: 2px solid var(--gold); }
+.cu-tile .cu-tn { overflow-wrap: anywhere; }
+.cu-detail { width: 100%; min-height: 96px; padding: 12px; background: var(--panel); border: 3px solid var(--edge); text-align: left; font-size: 9px; line-height: 1.8; }
+.cu-detail .cu-dn { font-size: 11px; margin-bottom: 4px; }
+.cu-detail .cu-fx { text-align: left; font-size: 9px; }
+.cu-detail .cu-dm { color: var(--dim); font-size: 8px; margin-top: 6px; }
+.cu-detail.empty { color: var(--dim); text-align: center; display: flex; align-items: center; justify-content: center; }
+
+/* ---------- Toast ---------- */
+.cu-toasts { position: absolute; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; pointer-events: none; max-width: calc(100vw - 24px); }
+.cu-toast {
+  --rc: #c9a87a; --bc: var(--rc);
+  width: min(300px, calc(100vw - 24px)); display: flex; gap: 10px; align-items: center; padding: 8px 10px;
+  background: rgba(27,20,16,.96); border: 3px solid var(--bc); box-shadow: 4px 4px 0 #000, 0 0 14px rgba(0,0,0,.6);
+  animation: cu-toast-in .25s ease-out both; transition: opacity .3s, transform .3s; font-size: 7px; line-height: 1.6;
+}
+.cu-toast.curse { --bc: var(--curse); background: rgba(23,12,26,.96); }
+.cu-toast.out { opacity: 0; transform: translateX(30px); }
+.cu-toast img { width: 44px; height: 44px; flex: none; border: 2px solid var(--bc); background: #120d09; }
+.cu-toast .cu-tk { color: var(--dim); font-size: 6px; }
+.cu-toast .cu-tnm { color: var(--rc); font-size: 8px; margin: 2px 0; overflow-wrap: anywhere; }
+.cu-toast.curse .cu-tnm { color: #e8a0ff; }
+.cu-toast .cu-tfx { color: var(--muted); overflow-wrap: anywhere; }
+
+/* ---------- Mobil: korten blir rader ---------- */
+@media (max-width: 720px) {
+  .cu-screen { padding: 14px 10px; }
+  .cu-cards, .cu-cards.extra { flex-direction: column; flex-wrap: nowrap; width: 100%; max-width: 460px; gap: 12px; --cw: 100%; align-items: stretch; }
+  .cu-card { width: 100%; aspect-ratio: auto; font-size: 8px; perspective: 700px; min-height: 108px; }
+  .cu-card:hover, .cu-card:focus-visible { transform: none; }
+  .cu-inner { height: auto; min-height: 108px; }
+  .cu-back { background-size: 100% 100%; }
+  .cu-front { height: auto; min-height: 108px; display: grid; grid-template-columns: 64px 1fr; grid-template-areas: "ribbon ribbon" "art rar" "art name" "art fx"; column-gap: 10px; row-gap: 4px; align-items: start; padding: 8px 10px; }
+  .cu-front > .cu-ribbon { grid-area: ribbon; }
+  .cu-front .cu-rar { grid-area: rar; }
+  .cu-front .cu-art { grid-area: art; width: 64px; }
+  .cu-front .cu-name { grid-area: name; text-align: left; font-size: 8px; }
+  .cu-front .cu-sep { display: none; }
+  .cu-front .cu-fx { grid-area: fx; text-align: left; font-size: 7px; line-height: 1.6; }
+  .cu-front .cu-own { display: none; }
+  .cu-items { grid-template-columns: 1fr; }
+  .cu-hint { display: none; }
+  .cu-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #cardui *, #cardui *::before, #cardui *::after { animation: none !important; transition: none !important; }
+}
+
+/* pekskärm: inga sifferknappar */
+@media (pointer: coarse) { #cardui .cu-key, #cardui .cu-num { display: none; } }
+
+/* val: portalen efter bossen */
+#cardui .cu-choices { display: flex; flex-direction: column; gap: .9em; margin: 1.2em 0 .4em; }
+#cardui .cu-opt { text-align: left; padding: 1em 1.2em; }
+#cardui .cu-ol { font-size: 1em; }
+#cardui .cu-ot { font-size: .8em; opacity: .8; margin-top: .6em; line-height: 1.7; }
+
+/* panel och listor: inställningar, bestiarium, prestationer, profil */
+#cardui .cu-screen.cu-panel { background: radial-gradient(ellipse at center, #2a1810 0%, #080503 75%); }
+#cardui .cu-li.head { grid-column: 1 / -1; border: 0; background: none; padding: .6em 0 0; }
+#cardui .cu-panel .cu-deckbox { width: min(720px, 100%); max-width: 720px; }
+#cardui .cu-pbody { align-self: stretch; display: flex; flex-direction: column; gap: .7em; margin: 1em 0; text-align: left; max-height: 62vh; overflow-y: auto; }
+#cardui .cu-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: .55em; }
+#cardui .cu-li { padding: .55em .8em; border: 2px solid #4a3a28; background: rgba(20,14,10,.7); }
+#cardui .cu-li.dim { opacity: .45; }
+#cardui .cu-ll { font-size: .85em; color: #ffe9a8; }
+#cardui .cu-lt { font-size: .7em; color: #c9a87a; margin-top: .45em; line-height: 1.6; }
+#cardui .cu-row { display: flex; align-items: center; justify-content: space-between; gap: 1em; font-size: .75em; color: #e8d9b0; }
+#cardui .cu-row select, #cardui .cu-row input[type=range] { font: inherit; font-size: .9em; background: #1b1410; color: #e8d9b0; border: 2px solid #8a7550; padding: .3em; max-width: 50%; }
+#cardui .cu-row input[type=checkbox] { width: 1.4em; height: 1.4em; accent-color: #d8a24a; }
+
+/* ---------- Tal i effekttexter: fördelar gröna, nackdelar röda ---------- */
+#cardui .cu-fx .cu-n.pos { color: #7ee07a; }
+#cardui .cu-fx .cu-n.neg { color: #ff6a50; }
+#cardui .cu-mods { display: flex; flex-direction: column; gap: 2px; font-size: 8px; line-height: 1.7; }
+#cardui .cu-mods .pos { color: #7ee07a; }
+#cardui .cu-mods .neg { color: #ff6a50; }
+
+/* ---------- Draft: NY, synergi, förvisa, nya kort ---------- */
+.cu-new {
+  position: absolute; top: -9px; right: -9px; z-index: 3; pointer-events: none;
+  font-size: 8px; padding: 4px 6px; color: #1b1410; background: var(--gold); border: 2px solid #000;
+  box-shadow: 2px 2px 0 #000; transform: rotate(8deg); transition: opacity .3s .35s;
+}
+.cu-card.down .cu-new { opacity: 0; transition: none; }
+.cu-extra { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; align-items: center; transition: opacity .3s .3s; }
+.cu-slot.down .cu-extra { opacity: 0; visibility: hidden; transition: none; }
+.cu-slot.done .cu-extra { opacity: .15; }
+.cu-syn {
+  flex: 1 1 100%; font-size: 7px; line-height: 1.6; padding: 5px 6px; text-align: center; overflow-wrap: anywhere;
+  color: #c8f5b8; background: #14260f; border: 2px solid #4f9a43; box-shadow: 2px 2px 0 #000, 0 0 10px rgba(111,194,106,.35);
+}
+.cu-ban {
+  font: inherit; font-size: 7px; padding: 6px 9px; cursor: pointer; flex: none;
+  color: var(--muted); background: #1b1410; border: 2px solid var(--edge); box-shadow: 2px 2px 0 #000;
+}
+.cu-ban:hover:not(:disabled), .cu-ban:focus-visible { color: #ffd8c0; border-color: #e05030; background: #3a1208; outline: none; }
+.cu-ban:disabled { opacity: .35; cursor: default; }
+.cu-gold.small { font-size: 9px; padding: 8px 10px; }
+.cu-reroll.poor { filter: grayscale(.8) brightness(.75); }
+.cu-reroll.shake { animation: cu-shake .3s; }
+.cu-draft .cu-msg { min-height: 1.6em; }
+
+/* ---------- Kortlek: sortering, grupper och set ---------- */
+.cu-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-start; width: 100%; }
+.cu-barl { font-size: 7px; color: var(--dim); }
+.cu-seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.cu-sb {
+  font: inherit; font-size: 7px; padding: 7px 9px; cursor: pointer;
+  color: var(--muted); background: #1b1410; border: 2px solid var(--edge); box-shadow: 2px 2px 0 #000;
+}
+.cu-sb:hover, .cu-sb:focus-visible { color: var(--ink); background: #2a1d12; outline: 2px solid #ffe9a8; outline-offset: 1px; }
+.cu-sb.on { color: #1b1410; background: #d8a24a; border-color: #ffe9a8; }
+.cu-ghead { grid-column: 1 / -1; text-align: left; font-size: 8px; color: var(--gold); padding: 6px 0 0; border-bottom: 2px solid var(--edge); }
+.cu-sets { width: 100%; display: flex; flex-direction: column; gap: 8px; text-align: left; }
+.cu-sh { font-size: 9px; color: var(--gold); }
+.cu-setlist { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr)); gap: 8px; }
+.cu-set { padding: 8px 10px; background: var(--panel); border: 2px solid var(--edge); font-size: 7px; line-height: 1.7; }
+.cu-set.dim { opacity: .5; }
+.cu-set.on { border-color: var(--gold); box-shadow: 0 0 12px rgba(255,210,74,.35); }
+.cu-settop { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.cu-setname { font-size: 8px; color: var(--ink); }
+.cu-set.on .cu-setname { color: var(--gold); }
+.cu-pips { display: flex; align-items: center; gap: 3px; flex: none; }
+.cu-pips i { width: 9px; height: 9px; border: 2px solid var(--dim); background: #000; display: inline-block; }
+.cu-pips i.f { background: #7ee07a; border-color: #c8f5b8; }
+.cu-set.on .cu-pips i.f { background: var(--gold); border-color: #fff0b0; }
+.cu-setn { margin-left: 4px; color: var(--muted); }
+.cu-set.on .cu-setn { color: var(--gold); }
+.cu-setfx { color: #7ee07a; margin-top: 4px; }
+.cu-set.dim .cu-setfx { color: var(--muted); }
+.cu-setcards { margin-top: 4px; color: var(--dim); display: flex; flex-wrap: wrap; gap: 2px 8px; }
+.cu-setcards .own { color: var(--ink); }
+
+/* ---------- Kortarkiv ---------- */
+.cu-scroll { width: 100%; max-height: 52vh; overflow-y: auto; padding: 4px; border: 2px solid var(--edge); background: rgba(8,5,3,.6); scrollbar-color: #5a4630 #120d09; }
+.cu-codex .cu-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+.cu-tile.unseen { --bc: #2a2018; --glow: transparent; background: #0e0a07; color: var(--dim); }
+.cu-sil {
+  width: 100%; height: 100%; background: #6a5236;
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-mode: luminance; mask-mode: luminance; filter: contrast(1.4); opacity: .55;
+}
+.cu-tile.unseen .cu-art { background: radial-gradient(circle, #241a12 0%, #0b0806 85%); }
+.cu-tile .cu-mark { position: absolute; top: 4px; left: 4px; font-size: 6px; padding: 2px 3px; background: #000; color: var(--muted); border: 1px solid var(--edge); }
+.cu-tile .cu-mark.own { color: #7ee07a; border-color: #4f9a43; }
+
+/* ---------- Legendariska glänser, förbannade pulserar rött ---------- */
+.cu-tile.legend, .cu-item.legend { overflow: hidden; }
+.cu-tile.legend::after, .cu-item.legend::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(115deg, transparent 35%, rgba(255,236,160,.22) 50%, transparent 65%);
+  background-size: 250% 100%; animation: cu-shine 3.6s linear infinite;
+}
+.cu-card.curse .cu-front { animation: cu-curse 2.2s ease-in-out infinite, cu-curse-edge 2.2s ease-in-out infinite; }
+.cu-tile.curse, .cu-item.curse { animation: cu-curse-edge 2.2s ease-in-out infinite; }
+@keyframes cu-curse-edge { 0%, 100% { border-color: var(--curse); } 50% { border-color: #e0402a; } }
+
+/* ---------- Mobil (smal skärm) för de nya delarna ---------- */
+@media (max-width: 720px) {
+  .cu-slot { width: 100%; gap: 5px; }
+  .cu-extra { flex-wrap: nowrap; justify-content: flex-end; }
+  .cu-extra .cu-syn { flex: 1 1 auto; text-align: left; }
+  .cu-new { top: -5px; right: -5px; }
+  .cu-bar { justify-content: center; }
+  .cu-scroll { max-height: 46vh; }
+  .cu-codex .cu-grid { grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); }
+  .cu-tile { padding: 8px 3px; }
+  .cu-tile .cu-tn { font-size: 6px; }
+  .cu-setlist { grid-template-columns: 1fr; }
+}
+#cardui .cu-li.img { display: grid; grid-template-columns: 40px 1fr; column-gap: .7em; align-items: center; }
+#cardui .cu-li.img .cu-ll, #cardui .cu-li.img .cu-lt { grid-column: 2; }
+#cardui .cu-limg { grid-row: 1 / span 2; width: 40px; height: 40px; image-rendering: pixelated; object-fit: contain; }
+#cardui .cu-li.btn { cursor: pointer; }
+#cardui .cu-li.btn:hover, #cardui .cu-li.btn:focus-visible { border-color: #d8a24a; outline: none; }
+#cardui .cu-sec { margin-top: 1em; padding-top: .6em; border-top: 2px solid #4a3a28; font-size: .8em; color: #ffd24a; letter-spacing: 1px; }
+#cardui .cu-pbody > .cu-btn { margin-top: .5em; align-self: flex-start; }
+#cardui .cu-row .cu-btn { font-size: .85em; padding: .4em .7em; }
+
+/* ---------- Version 5: sammansmälta kort, "DU HAR", statistik och legendarisk vändning ---------- */
+.cu-ribbon.fused { color: #fff0c8; background: #5a2c08; border-color: #ff9a30; }
+.cu-card.fused .cu-front { background: linear-gradient(180deg, #3a1e0c 0%, var(--panel) 45%, #120d09 100%); }
+.cu-tile.fused, .cu-item.fused { background: linear-gradient(180deg, #2e1a0c 0%, var(--panel) 60%); }
+.cu-tile.fused .cu-tn, .cu-toast.fused .cu-tnm { color: #ffc070; }
+.cu-have {
+  position: absolute; bottom: -9px; left: -9px; z-index: 3; pointer-events: none;
+  font-size: 7px; padding: 4px 6px; color: #e8d9b0; background: #2a1d12; border: 2px solid var(--muted);
+  box-shadow: 2px 2px 0 #000; transform: rotate(-6deg); transition: opacity .3s .35s;
+}
+.cu-have.fz { color: #1b1410; background: #ff9a30; border-color: #000; }
+.cu-card.down .cu-have { opacity: 0; transition: none; }
+
+/* legendariskt kort: baksidan laddar upp i guld, sedan en ljusexplosion när det vänds */
+.cu-card.charging .cu-back { animation: cu-charge .2s linear infinite alternate, cu-charge-glow .65s ease-in both; }
+@keyframes cu-charge { from { transform: rotateY(180deg) translate(-2px, 1px); } to { transform: rotateY(180deg) translate(2px, -1px); } }
+@keyframes cu-charge-glow {
+  from { box-shadow: 0 0 0 2px var(--edge), 4px 4px 0 #000; filter: brightness(1); }
+  to { box-shadow: 0 0 0 2px #ffd24a, 0 0 34px 10px rgba(255,210,74,.75), 4px 4px 0 #000; filter: brightness(1.5) sepia(.4); }
+}
+.cu-slot.legrev .cu-card { animation: cu-leg-pop .7s cubic-bezier(.2,1.6,.4,1) backwards; }
+.cu-slot.legrev .cu-front { animation: cu-leg-burst 1.4s ease-out backwards; }
+.cu-slot.legrev .cu-front::before {
+  content: ""; position: absolute; inset: -60%; z-index: 0; pointer-events: none;
+  background: repeating-conic-gradient(from 0deg, rgba(255,226,130,.38) 0deg 8deg, transparent 8deg 24deg);
+  animation: cu-leg-rays 1.6s ease-out both;
+}
+.cu-slot.legrev .cu-front > * { position: relative; z-index: 1; }
+.cu-slot.legrev .cu-rar span:first-child { animation: cu-leg-text 1.4s ease-out both; }
+@keyframes cu-leg-pop { 0% { transform: scale(.94); } 45% { transform: scale(1.07); } 100% { transform: scale(1); } }
+@keyframes cu-leg-burst {
+  0% { box-shadow: 0 0 0 2px #000, 0 0 0 0 rgba(255,236,160,.95), 5px 5px 0 #000; filter: brightness(2.4) saturate(.6); }
+  30% { box-shadow: 0 0 0 2px #000, 0 0 70px 26px rgba(255,210,74,.7), 5px 5px 0 #000; filter: brightness(1.4); }
+  100% { box-shadow: 0 0 0 2px #000, 0 0 14px 1px var(--glow), 5px 5px 0 #000; filter: none; }
+}
+@keyframes cu-leg-rays { 0% { opacity: 0; transform: rotate(0deg) scale(.4); } 25% { opacity: 1; } 100% { opacity: 0; transform: rotate(70deg) scale(1.1); } }
+@keyframes cu-leg-text { 0%, 60% { text-shadow: 0 0 8px #fff3b0, 0 0 16px #ffd24a; color: #fff6c8; } 100% { text-shadow: none; } }
+
+/* kortlek: statistik och sammansmältning */
+.cu-stats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.cu-st { display: flex; flex-direction: column; gap: 3px; min-width: 84px; padding: 6px 8px; background: #120d09; border: 2px solid var(--edge); }
+.cu-stv { font-size: 10px; color: var(--gold); }
+.cu-stl { font-size: 6px; color: var(--dim); letter-spacing: 1px; }
+.cu-stx { font-size: 7px; color: var(--dim); }
+.cu-fzbox { margin-top: 10px; padding: 8px 10px; border: 2px dashed #ff9a30; background: rgba(90,44,8,.25); display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.cu-fzbox .cu-dm { margin-top: 0; color: #ffc070; }
+.cu-btn.cu-fuse { background: #6a3008; border-color: #ff9a30; color: #fff0c8; font-size: 9px; padding: 9px 12px; }
+.cu-btn.cu-fuse:hover, .cu-btn.cu-fuse:focus-visible { background: #8a420c; }
+.cu-btn.shake { animation: cu-shake .3s; }
+.cu-tile .cu-mark.fz { color: #1b1410; background: #ff9a30; border-color: #000; }
+.cu-tile.fusing { animation: cu-fusing .9s ease-out; }
+@keyframes cu-fusing {
+  0% { box-shadow: 0 0 0 0 rgba(255,154,48,.9), 3px 3px 0 #000; filter: brightness(2); transform: scale(.9); }
+  40% { box-shadow: 0 0 30px 10px rgba(255,154,48,.6), 3px 3px 0 #000; transform: scale(1.06); }
+  100% { box-shadow: 0 0 8px var(--glow), 3px 3px 0 #000; filter: none; transform: none; }
+}
+.cu-deck .cu-msg { min-height: 1.6em; }
+
+/* kortarkiv: hur ofta kortet har valts */
+.cu-picks { margin-top: 6px; font-size: 8px; color: #7ee07a; }
+.cu-picks.none { color: var(--dim); }
+.cu-tile .cu-pk { position: absolute; top: 4px; right: 4px; font-size: 6px; padding: 2px 3px; background: #000; color: var(--gold); border: 1px solid var(--edge); }
+
+@media (max-width: 720px) {
+  .cu-have { top: -5px; bottom: auto; left: -5px; }
+  .cu-st { min-width: 0; flex: 1 1 30%; }
+}
+
+/* ---------- Aktiva förmågor, före → efter, kortleksfilter, förädling och saknade kort ---------- */
+#cardui { --act: #50c8ff; }
+.cu-ribbon.act { color: #d8f4ff; background: #0c3048; border-color: var(--act); }
+.cu-card.act, .cu-tile.act, .cu-item.act, .cu-toast.act { --glow: rgba(80,200,255,.5); }
+.cu-card.act .cu-front { background: linear-gradient(180deg, #10283a 0%, var(--panel) 50%, #120d09 100%); }
+.cu-tile.act { background: linear-gradient(180deg, #0f2232 0%, var(--panel) 60%); }
+.cu-act { font-size: 6px; padding: 3px 5px; color: #d8f4ff; background: #0c3048; border: 1px solid var(--act); letter-spacing: 1px; }
+.cu-actl { color: var(--act) !important; }
+.cu-tile .cu-mark.use { color: #0b1a24; background: var(--act); border-color: #000; }
+.cu-tile .cu-mark.miss { color: #ffb080; border-color: #8a4a20; }
+.cu-unl { font-size: 6px; color: #b8a0ff; }
+.cu-unlock { margin-top: 6px; font-size: 8px; color: #b8a0ff; }
+
+/* före → efter */
+.cu-cmp { display: flex; flex-direction: column; gap: 3px; padding: 6px 7px; font-size: 7px; line-height: 1.5; text-align: left;
+  background: #120d09; border: 2px solid var(--edge); box-shadow: 2px 2px 0 #000; transition: opacity .3s .3s; }
+.cu-cmph { font-size: 6px; color: var(--dim); letter-spacing: 1px; }
+.cu-cl { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; color: var(--muted); }
+.cu-cll { color: var(--muted); overflow-wrap: anywhere; min-width: 0; }
+.cu-clv { flex: none; white-space: nowrap; color: var(--ink); }
+.cu-cl.pos .cu-clv { color: #7ee07a; }
+.cu-cl.neg .cu-clv { color: #ff6a50; }
+.cu-cl.act { flex-wrap: wrap; gap: 2px 8px; }
+.cu-cl.act .cu-cll { flex: none; }
+.cu-cl.act .cu-clv { color: var(--act); white-space: normal; text-align: right; margin-left: auto; }
+.cu-slot.down .cu-cmp { opacity: 0; visibility: hidden; transition: none; }
+.cu-slot.done .cu-cmp { opacity: .15; }
+.cu-detail .cu-cmp { margin-top: 6px; font-size: 8px; align-self: stretch; }
+.cu-now { margin-top: 8px; display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; background: #120d09; border: 2px solid var(--edge); font-size: 8px; }
+.cu-now .cu-clv { color: var(--gold); }
+.cu-upv { display: flex; flex-direction: column; gap: 4px; align-self: stretch; }
+.cu-upv .cu-dm { margin-top: 0; }
+.cu-fzbox .cu-upv .cu-cmp { margin-top: 0; }
+
+/* kortlek: sortering och filter, dina värden */
+.cu-barg { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.cu-bar { gap: 8px 16px; }
+.cu-vals { width: 100%; text-align: left; background: var(--panel); border: 2px solid var(--edge); padding: 8px 10px; font-size: 8px; }
+.cu-vals summary { cursor: pointer; color: var(--gold); }
+.cu-vals summary:focus-visible { outline: 2px solid #ffe9a8; outline-offset: 2px; }
+.cu-valg { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); gap: 3px 12px; margin-top: 8px; font-size: 7px; line-height: 1.6; }
+.cu-valg .pos { color: #7ee07a; }
+.cu-valg .neg { color: #ff6a50; }
+
+/* förädling vid lägerelden */
+.cu-refine .cu-deckbox { width: min(720px, 100%); }
+.cu-rlist { width: 100%; display: flex; flex-direction: column; gap: 10px; max-height: 60vh; overflow-y: auto; padding: 4px; }
+.cu-rrow {
+  --rc: #c9a87a; --bc: var(--rc); --glow: rgba(201,168,122,.3);
+  display: grid; grid-template-columns: 72px 1fr; gap: 12px; align-items: start; padding: 10px; text-align: left; cursor: pointer; outline: none;
+  background: var(--panel); border: 3px solid var(--bc); box-shadow: 0 0 8px var(--glow), 3px 3px 0 #000; font-size: 8px; line-height: 1.6;
+}
+.cu-rrow:hover, .cu-rrow:focus-visible { background: #2a1d12; box-shadow: 0 0 16px 3px var(--glow), 3px 3px 0 #000; }
+.cu-rrow:focus-visible { outline: 2px solid #ffe9a8; outline-offset: 2px; }
+.cu-rrow .cu-art { width: 72px; border-width: 2px; }
+.cu-rbody { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.cu-rname { font-size: 9px; color: var(--ink); overflow-wrap: anywhere; }
+.cu-rname .cu-key { color: var(--dim); }
+.cu-rup { color: #ffc070; }
+.cu-rrow .cu-dm { font-size: 7px; color: var(--rc); }
+
+@media (max-width: 720px) {
+  .cu-cmp { font-size: 6px; }
+  .cu-slot .cu-cmp { padding: 5px 6px; }
+  .cu-bar { flex-direction: column; align-items: center; }
+  .cu-barg { justify-content: center; }
+  .cu-rrow { grid-template-columns: 52px 1fr; gap: 8px; padding: 8px; }
+  .cu-rrow .cu-art { width: 52px; }
+  .cu-rlist { max-height: 64vh; }
+}

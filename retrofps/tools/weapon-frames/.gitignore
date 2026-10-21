@@ -1,0 +1,7 @@
+node_modules/
+guns/
+frames/
+package*.json
+xframes/
+qframes/
+side_*.png
