@@ -1,0 +1,20 @@
+Switch,Port,Lage,Vlan_Id,Vlan_Namn,Tillatna_Vlan,Native_Vlan,Beskrivning,Status
+SW-Nordvik-1,Gi0/1,trunk,Trunk,Trunk,"10,20,30,99",999,Port mot R-Nordvik-1,Up
+SW-Nordvik-1,Gi0/2,trunk,Trunk,Trunk,"10,20,30,99",999,Port mot SW-Nordvik-2,Up
+SW-Nordvik-1,Fa0/1,access,10,KONTOR,10,999,Port mot AccessPoint,Up
+SW-Nordvik-1,Fa0/2,access,10,KONTOR,10,999,Port mot NTP-server,Up
+SW-Nordvik-2,Gi0/1,trunk,trunk,trunk,"10,20,30,99",999,Port mot SW-Nordvik-1,Up
+SW-Nordvik-2,Fa0/1,Access,10,KONTOR,10,999,Port mot Dator-1,Up
+SW-Nordvik-2,Fa0/2,Access,10,KONTOR,10,999,Port mot Dator-2,Up
+SW-Nordvik-2,Fa0/3,Access,10,KONTOR,10,999,Port mot Dator-3,Up
+SW-Nordvik-2,Fa0/4,Access,10,KONTOR,10,999,Port mot Dator-4,Up
+SW-Nordvik-2,Fa0/5,Access,20,EKONOMI,20,999,Port mot Dator-5,Up
+SW-Nordvik-2,Fa0/6,Access,20,EKONOMI,20,999,Port mot Dator-6,Up
+SW-Nordvik-2,Fa0/7,Access,20,EKONOMI,20,999,Port mot Dator-7,Up
+SW-Nordvik-2,Fa0/8,Access,20,EKONOMI,20,999,Port mot Dator-8,Up
+SW-Nordvik-2,Fa0/9,Access,30,GAST,30,999,Port mot Dator-9,Up
+SW-Nordvik-2,Fa0/10,Access,30,GAST,30,999,Port mot Dator-10,Up
+SW-Nordvik-2,Fa0/11,Access,30,GAST,30,999,Port mot Dator-11,Up
+SW-Nordvik-2,Fa0/12,Access,30,GAST,30,999,Port mot Dator-12,Up
+SW-Nordvik-2,Fa0/13,Access,99,DRIFT,99,999,Port mot Dator-13,Up
+SW-Nordvik-2,Fa0/14,Access,99,DRIFT,99,999,Port mot Dator-14,Up
