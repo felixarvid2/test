@@ -8,8 +8,11 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * The single shared game state. The game thread calls {@link #update}; every window (top surface, bottom
- * panel, overlay) only reads these fields and posts commands through {@link #input}.
+ * The single shared game state. The game thread calls {@link #advance}/{@link #update}; every window (top surface,
+ * bottom panel, overlay) only reads these fields and posts commands through {@link #input} (a thread-safe queue).
+ *
+ * Threading: the game thread holds {@link #lock} while it steps the simulation and while it draws the world; the
+ * panel (UI thread) holds it while it draws, so it never sees a half-updated Sim.
  */
 public final class Engine {
     public static final int PH_MENU = 0, PH_SHOP = 1, PH_PLAYING = 2, PH_LEVELUP = 3, PH_PAUSED = 4, PH_CHEST = 5,
@@ -21,6 +24,12 @@ public final class Engine {
     public static Engine get() {
         return INSTANCE;
     }
+
+    /** Held while the Sim is mutated or read as a whole (update, world draw, panel draw). Reentrant. */
+    public final Object lock = new Object();
+    /** Largest simulation step; a longer frame is split into equal substeps no bigger than this. */
+    public static final float MAX_STEP = 1f / 60f;
+    public static final float MAX_FRAME = 0.1f;
 
     public final Input input = new Input();
     public GameData data;
@@ -74,8 +83,29 @@ public final class Engine {
 
     // ------------------------------------------------------------------ update (game thread)
 
+    /**
+     * Advances by one display frame of real time: the time is clamped to {@link #MAX_FRAME} and split into the fewest
+     * equal substeps of at most {@link #MAX_STEP}, so 60 Hz gives one step per frame, 120 Hz gives steps of 8.3 ms
+     * and a stall never turns into a burst.
+     */
+    public void advance(float frameDt) {
+        if (frameDt <= 0f) return;
+        if (frameDt > MAX_FRAME) frameDt = MAX_FRAME;
+        int n = Math.max(1, (int) Math.ceil(frameDt / (MAX_STEP * 1.05f)));
+        float h = frameDt / n;
+        synchronized (lock) {
+            for (int i = 0; i < n; i++) update(h);
+        }
+    }
+
     public void update(float dt) {
         if (data == null) return;
+        synchronized (lock) {
+            step(dt);
+        }
+    }
+
+    private void step(float dt) {
         int[] c;
         while ((c = input.poll()) != null) handle(c);
         if (toastTimer > 0) toastTimer -= dt;

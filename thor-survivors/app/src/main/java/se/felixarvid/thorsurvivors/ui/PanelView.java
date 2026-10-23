@@ -5,19 +5,10 @@ import android.graphics.Canvas;
 import android.view.MotionEvent;
 import android.view.View;
 
-/** View host for {@link PanelRenderer}, invalidated at ~30 fps while attached. */
+/** View host for {@link PanelRenderer}; redraws on every vsync (60 Hz or more) while attached. */
 public final class PanelView extends View {
-    private static final long FRAME_MS = 33;
     private final PanelRenderer renderer;
     private boolean running;
-    private final Runnable tick = new Runnable() {
-        @Override
-        public void run() {
-            if (!running) return;
-            invalidate();
-            postDelayed(this, FRAME_MS);
-        }
-    };
 
     public PanelView(Context context, boolean compact) {
         super(context);
@@ -30,19 +21,19 @@ public final class PanelView extends View {
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
         running = true;
-        post(tick);
+        postInvalidateOnAnimation();
     }
 
     @Override
     protected void onDetachedFromWindow() {
         running = false;
-        removeCallbacks(tick);
         super.onDetachedFromWindow();
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
         renderer.draw(canvas, getWidth(), getHeight());
+        if (running) postInvalidateOnAnimation(); // next vsync
     }
 
     @Override

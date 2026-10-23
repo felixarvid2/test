@@ -36,6 +36,8 @@ public final class PanelRenderer {
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint stroke = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint tp = new Paint(Paint.ANTI_ALIAS_FLAG);
+    /** Pixel art: whole-pixel blits, no filtering. */
+    private final Paint bmp = new Paint();
     private final RectF r = new RectF();
     private final Path path = new Path();
     private final float[] ptsA = new float[Sim.MAX_ENEMIES * 2];
@@ -55,6 +57,9 @@ public final class PanelRenderer {
 
     public PanelRenderer(boolean compact) {
         this.compact = compact;
+        bmp.setFilterBitmap(false);
+        bmp.setAntiAlias(false);
+        bmp.setDither(false);
         stroke.setStyle(Paint.Style.STROKE);
         tp.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
     }
@@ -121,6 +126,13 @@ public final class PanelRenderer {
     // ------------------------------------------------------------------ drawing
 
     public void draw(Canvas c, int w, int h) {
+        // the game thread steps and draws the Sim under this lock; reading it here must not interleave
+        synchronized (eng.lock) {
+            drawLocked(c, w, h);
+        }
+    }
+
+    private void drawLocked(Canvas c, int w, int h) {
         width = w;
         height = h;
         hitN = 0;
@@ -281,8 +293,7 @@ public final class PanelRenderer {
             stroke.setColor(evo ? GOLD : 0xFF4A5678);
             stroke.setStrokeWidth(evo ? 5f : 2f);
             c.drawRoundRect(r, s * 0.18f, s * 0.18f, stroke);
-            float sz = 16f * Math.max(1, (int) (s * 0.8f / 16f));
-            atlas.draw(c, ik, 0, x + s / 2, y + s / 2, sz, sz, false, 0, 255);
+            atlas.drawCentered(c, bmp, ik, x + s / 2, y + s / 2, Math.max(1, (int) (s * 0.8f / 16f)));
             return;
         }
         int hue = Math.abs(k.hashCode()) % 360;
@@ -372,9 +383,42 @@ public final class PanelRenderer {
 
     private final StringBuilder sb = new StringBuilder(24);
 
+    private int timeSec = -1;
+    private String timeText = "";
+
+    private String timeCache(int sec) {
+        if (sec != timeSec) {
+            timeSec = sec;
+            timeText = WorldRenderer.fmtTime(sec);
+        }
+        return timeText;
+    }
+
     private String timeStr(int sec) {
         return WorldRenderer.fmtTime(sec);
     }
+
+    // Text is redrawn 60 times a second but changes rarely: keep the built strings until their numbers change.
+    private final String[] csStr = new String[64];
+    private final int[] csA = new int[64], csB = new int[64];
+
+    private String cs(int slot, String pre, int a, String mid, int b, String post) {
+        String c = csStr[slot];
+        if (c == null || csA[slot] != a || csB[slot] != b) {
+            c = pre + a + mid + (mid.isEmpty() ? "" : b) + post;
+            csStr[slot] = c;
+            csA[slot] = a;
+            csB[slot] = b;
+        }
+        return c;
+    }
+
+    private String cs(int slot, String pre, int a, String post) {
+        return cs(slot, pre, a, "", 0, post);
+    }
+
+    private static final String[] STAT_LABELS = {"TIME", "LEVEL", "KILLS", "GOLD"};
+    private static final int[] STAT_COLS = {TEXT, GOLD, 0xFFFF7070, 0xFFFFD23C};
 
     private void hudPanel(Canvas c, int w, int h) {
         Sim s = eng.sim;
@@ -382,19 +426,19 @@ public final class PanelRenderer {
         float u = h / 1080f, m = 30f * u;
         // stat row
         float cw = (w - 2 * m) / 4f;
-        String[] lab = {"TIME", "LEVEL", "KILLS", "GOLD"};
-        String[] val = {timeStr((int) s.time), Integer.toString(s.level), Integer.toString(s.kills), Integer.toString(s.gold)};
-        int[] cols = {TEXT, GOLD, 0xFFFF7070, 0xFFFFD23C};
+        int sec = (int) s.time;
         for (int i = 0; i < 4; i++) {
             float x = m + cw * i + cw / 2;
-            text(c, lab[i], x, 40 * u, 24 * u, DIM, Paint.Align.CENTER);
-            text(c, val[i], x, 100 * u, 58 * u, cols[i], Paint.Align.CENTER);
+            String val = i == 0 ? timeCache(sec) : i == 1 ? cs(1, "", s.level, "") : i == 2 ? cs(2, "", s.kills, "")
+                    : cs(3, "", s.gold, "");
+            text(c, STAT_LABELS[i], x, 40 * u, 24 * u, DIM, Paint.Align.CENTER);
+            text(c, val, x, 100 * u, 58 * u, STAT_COLS[i], Paint.Align.CENTER);
         }
         // hp / xp
         bar(c, m, 125 * u, w - m, 170 * u, s.hp / s.maxHp, 0xFFD83A3A, 0xFF3A1414);
-        text(c, (int) Math.ceil(s.hp) + " / " + (int) s.maxHp, w / 2f, 160 * u, 30 * u, TEXT, Paint.Align.CENTER);
+        text(c, cs(4, "", (int) Math.ceil(s.hp), " / ", (int) s.maxHp, ""), w / 2f, 160 * u, 30 * u, TEXT, Paint.Align.CENTER);
         bar(c, m, 182 * u, w - m, 212 * u, s.xp / s.xpNeed, 0xFF3AA0F0, 0xFF12263A);
-        text(c, "XP " + (int) s.xp + " / " + s.xpNeed, w / 2f, 206 * u, 22 * u, TEXT, Paint.Align.CENTER);
+        text(c, cs(5, "XP ", (int) s.xp, " / ", s.xpNeed, ""), w / 2f, 206 * u, 22 * u, TEXT, Paint.Align.CENTER);
         // slots
         float slot = Math.min(150 * u, (w - 2 * m - 5 * 12 * u) / 6f);
         text(c, "WEAPONS", m, 248 * u, 24 * u, DIM, Paint.Align.LEFT);
@@ -435,7 +479,7 @@ public final class PanelRenderer {
                 Inventory.Slot sl = weapons ? inv.weapons[i] : inv.passives[i];
                 icon(c, sl.def, sx, y, slot, sl.def.evolution);
                 boolean max = sl.level >= sl.def.maxLevel();
-                text(c, sl.def.evolution ? "EVO" : max ? "MAX" : "Lv " + sl.level, sx + slot / 2, y + slot + 30 * u, 26 * u,
+                text(c, sl.def.evolution ? "EVO" : max ? "MAX" : cs((weapons ? 8 : 20) + i, "Lv ", sl.level, ""), sx + slot / 2, y + slot + 30 * u, 26 * u,
                         max || sl.def.evolution ? GOLD : TEXT, Paint.Align.CENTER);
             } else {
                 r.set(sx, y, sx + slot, y + slot);

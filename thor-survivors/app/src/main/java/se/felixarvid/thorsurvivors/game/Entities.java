@@ -12,6 +12,16 @@ public final class Entities {
         public float x, y, kvx, kvy;
         public float hp, maxHp, speed, power, radius, xp;
         public float flash, anim;
+        /** The last hit came from a weapon that must not blank the sprite (lightning): shown as a soft brighten. */
+        public boolean softFlash;
+        /** Pool slot of this enemy's latest damage number (checked against DamageText.owner), -1 for none. */
+        public int textSlot = -1;
+        /** Set by the crowd separation: another enemy is in the way and nearer the player, so this one advances slowly. */
+        public boolean blocked;
+        /** Seconds left in which this enemy does not advance (set by knockback hits). */
+        public float stagger;
+        /** Knockback multiplier, 1 by default; Garlic raises it (lowers the enemy's knockback resistance). */
+        public float kbMul = 1f;
         /** Absolute sim time before which the weapon in this slot cannot hit this enemy again. */
         public final float[] hitUntil = new float[Inventory.MAX_WEAPONS];
     }
@@ -25,6 +35,15 @@ public final class Entities {
         public float x, y, vx, vy, angle, spin, life, maxLife, radius, dmg, knock, critChance, critMul;
         public float orbitAngle, orbitSpeed, orbitRadius, hitDelay, speedAlong, accel, blast;
         public int hitsLeft, targetId;
+        /** Downward acceleration in u/s^2 (axes 1150, scythes 0). */
+        public float gravity;
+        /**
+         * P_PUDDLE: seconds after the throw during which the flask is still in the air (puddle inactive);
+         * age = maxLife - life, so the flask is airborne while age < flight. x,y is the landing spot.
+         */
+        public float flight;
+        /** P_PUDDLE: radius growth in u/s once landed (La Borra) and drift speed toward the player in u/s. */
+        public float grow, drift;
         public final int[] hit = new int[24];
         public int hitN;
 
@@ -56,9 +75,9 @@ public final class Entities {
     }
 
     public static final class DamageText {
-        public float x, y, life;
+        public float x, y, life, maxLife;
         public final char[] digits = new char[8];
-        public int len;
+        public int len, total, owner;
         public boolean crit, heal;
     }
 

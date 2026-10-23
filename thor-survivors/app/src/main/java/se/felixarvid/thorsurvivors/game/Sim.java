@@ -18,8 +18,11 @@ import java.util.Random;
 public final class Sim {
     public static final int MAX_ENEMIES = 320, MAX_PROJ = 600, MAX_PICK = 1200, MAX_PART = 600, MAX_TEXT = 80,
             MAX_FX = 96;
-    public static final float VIEW_H = 720f; // world units visible vertically
+    /** World units visible vertically (the 16:9 view is VIEW_H * 16/9 wide); spawning and recycling derive from it. */
+    public static final float VIEW_H = 560f;
+    private static final float HALF_W = VIEW_H * 16f / 9f / 2f, HALF_H = VIEW_H / 2f;
     static final float ENEMY_SPEED_K = 0.6f, PLAYER_SPEED_K = 130f;
+    static final float RECYCLE_DIST = HALF_W * 1.56f;
     static final int CELL = 96, GRID = 64, GRID_MASK = GRID - 1;
 
     public static final int B_WHIP = 0, B_MISSILE = 1, B_KNIFE = 2, B_AXE = 3, B_CROSS = 4, B_BOOK = 5, B_FIRE = 6,
@@ -29,10 +32,12 @@ public final class Sim {
     public static final class WeaponState {
         public WeaponDef def;
         public int level, behavior, amount, pierce;
-        public boolean evo, dependsOnDuration;
+        public boolean evo, dependsOnDuration, endless, hasHitDelay;
         public String spriteKey = "";
         public float dmg, interval, area, speed, duration, repeat, hitDelay, knock, critChance, critMul;
-        public float cd, shotCd, pulse;
+        public float cd, shotCd, pulse, phase, leech;
+        /** Garlic / Soul Eater aura radius in world units (50 u x area); the renderer draws the aura with it. */
+        public float auraRadius;
         public int pending, shotIndex, side;
     }
 
@@ -74,6 +79,11 @@ public final class Sim {
     private final int[] gridNext = new int[MAX_ENEMIES];
     private final int[] qbuf = new int[MAX_ENEMIES];
     private final float[] mv = new float[2];
+    private final int[] pickBuf = new int[MAX_ENEMIES];
+    // delayed lightning strikes (Thunder Loop's second strike)
+    private final float[] strikeX = new float[64], strikeY = new float[64], strikeT = new float[64];
+    private final int[] strikeSlot = new int[64];
+    private int strikeN;
 
     private int lastRow = -1;
     private float spawnTimer;
@@ -137,14 +147,17 @@ public final class Sim {
         w.evo = s.def.evolution;
         Map<String, Double> m = s.def.statsAt(s.level);
         w.dmg = g(m, "power", 1) * 10f * (float) stats.might;
-        w.interval = (float) Math.max(100, g(m, "interval", 1000)) / 1000f * (float) stats.cooldownMul;
+        w.interval = (float) Math.max(50, g(m, "interval", 1000)) / 1000f * (float) stats.cooldownMul;
         w.area = g(m, "area", 1) * (float) stats.areaMul;
         w.speed = g(m, "speed", 1) * (float) stats.speedMul;
         w.duration = g(m, "duration", 1000) / 1000f * (float) stats.durationMul;
         w.repeat = Math.max(0.03f, g(m, "repeatInterval", 100) / 1000f);
-        w.hitDelay = Math.min(0.9f, Math.max(0.2f, g(m, "hitBoxDelay", 500) / 1000f));
+        w.hasHitDelay = m.containsKey("hitBoxDelay");
+        w.hitDelay = Math.max(0.05f, g(m, "hitBoxDelay", 500) / 1000f);
+        w.auraRadius = 50f * w.area;
+        w.endless = s.def.key.equals("VESPERS");
         w.knock = g(m, "knockback", 0.3f);
-        w.critChance = g(m, "critChance", 0);
+        w.critChance = g(m, "critChance", 0) * (1f + (float) stats.luck);
         w.critMul = g(m, "critMul", 2);
         w.amount = Math.max(1, Math.round(g(m, "amount", 1)) + stats.amountBonus);
         w.pierce = Math.max(1, Math.round(g(m, "penetrating", 1)));
@@ -172,7 +185,7 @@ public final class Sim {
         updateWaves(dt);
         updateEnemies(dt);
         buildGrid();
-        separate();
+        separate(dt);
         updateWeapons(dt);
         updateProjectiles(dt);
         contactDamage();
@@ -194,8 +207,13 @@ public final class Sim {
         px += mx * sp * dt;
         py += my * sp * dt;
         if (len > 0.05f) {
-            faceX = mx / len;
-            faceY = my / len;
+            // 8-way facing: snap the movement angle to the nearest 45 degrees; kept while standing still
+            float snap = (float) (Math.PI / 4);
+            float a = Math.round((float) Math.atan2(my, mx) / snap) * snap;
+            faceX = (float) Math.cos(a);
+            faceY = (float) Math.sin(a);
+            if (Math.abs(faceX) < 1e-4f) faceX = 0;
+            if (Math.abs(faceY) < 1e-4f) faceY = 0;
             if (Math.abs(mx) > 0.1f) facingRight = mx > 0;
             walk += dt * 10f * len;
         }
@@ -216,18 +234,31 @@ public final class Sim {
     private void spawnInitial() {
         WaveRow row = stage.rows.get(0);
         for (int i = 0; i < stage.startingSpawns && row.enemies.length > 0; i++) {
-            spawnAtRing(type(row.enemies[rng.nextInt(row.enemies.length)]), false, 520f + rng.nextFloat() * 380f);
+            spawnAtRing(type(row.enemies[rng.nextInt(row.enemies.length)]), false, VIEW_H * 0.72f + rng.nextFloat() * VIEW_H * 0.53f);
         }
     }
 
+    /** Tests: stops wave spawning so a scenario only contains the enemies it adds. */
+    boolean noSpawns;
+
+    /** Tests: adds one enemy of the given type at an exact position (stationary until its speed is set). */
+    Enemy addEnemy(String typeKey, float x, float y, boolean boss) {
+        Enemy e = enemies[enemyN++];
+        initEnemy(e, type(typeKey), boss);
+        e.x = x;
+        e.y = y;
+        return e;
+    }
+
     private void updateWaves(float dt) {
+        if (noSpawns) return;
         int idx = se.felixarvid.thorsurvivors.data.WaveSelector.indexAt(stage.rows, time);
         WaveRow row = stage.rows.get(idx);
         if (idx != lastRow) {
             lastRow = idx;
             for (String b : row.bosses) {
                 if (b.equals("BOSS_XLDEATH")) continue; // the reaper: the run is won at the time limit instead
-                spawnAtRing(type(b), true, 700f);
+                spawnAtRing(type(b), true, HALF_W + 100f);
             }
         }
         spawnTimer += dt * 1000f;
@@ -254,7 +285,7 @@ public final class Sim {
     }
 
     private void place(Enemy e) {
-        float halfW = VIEW_H * 16f / 9f / 2f + 60f;
+        float halfW = HALF_W + 60f;
         if (stage.horizontalSpawns) {
             float side = rng.nextBoolean() ? 1 : -1;
             e.x = px + side * (halfW + rng.nextFloat() * 80f);
@@ -273,7 +304,11 @@ public final class Sim {
         e.dead = false;
         e.id = nextId++;
         e.kvx = e.kvy = 0;
+        e.stagger = 0;
+        e.kbMul = 1f;
         e.flash = 0;
+        e.softFlash = false;
+        e.textSlot = -1;
         e.anim = rng.nextFloat() * 6f;
         java.util.Arrays.fill(e.hitUntil, 0f);
         double hp = t.def.maxHp * 10.0 * (t.def.hpTimesLevel ? t.def.level : 1) * stage.enemyHealth
@@ -294,15 +329,17 @@ public final class Sim {
             if (e.flash > 0) e.flash -= dt;
             float dx = px - e.x, dy = py - e.y;
             float d2 = dx * dx + dy * dy;
-            if (d2 > 1250f * 1250f) { // too far behind: recycle to the front ring
-                place(e);
+            if (d2 > RECYCLE_DIST * RECYCLE_DIST) { // far behind the player: recycle to the opposite edge
+                recycle(e, dx, dy, (float) Math.sqrt(d2));
                 continue;
             }
-            if (!frozen) {
+            if (e.stagger > 0) e.stagger -= dt;
+            else if (!frozen) {
                 float d = (float) Math.sqrt(d2);
                 if (d > 1f) {
-                    e.x += dx / d * e.speed * dt;
-                    e.y += dy / d * e.speed * dt;
+                    float sp = e.blocked ? e.speed * BLOCKED_SPEED : e.speed;
+                    e.x += dx / d * sp * dt;
+                    e.y += dy / d * sp * dt;
                 }
             }
             e.x += e.kvx * dt;
@@ -310,6 +347,17 @@ public final class Sim {
             e.kvx *= decay;
             e.kvy *= decay;
         }
+    }
+
+    /** Moves an enemy that fell far behind to the opposite screen edge, ahead of the player (VS recycling). */
+    private void recycle(Enemy e, float dx, float dy, float d) {
+        float ux = dx / d, uy = dy / d; // from the player toward the side the enemy was NOT on
+        float ex = HALF_W + 60f, ey = HALF_H + 60f;
+        float t = 1f / (float) Math.sqrt(ux * ux / (ex * ex) + uy * uy / (ey * ey));
+        e.x = px + ux * t + (rng.nextFloat() - 0.5f) * 40f;
+        e.y = py + uy * t + (rng.nextFloat() - 0.5f) * 40f;
+        e.kvx = e.kvy = 0;
+        e.stagger = 0;
     }
 
     private void buildGrid() {
@@ -344,23 +392,57 @@ public final class Sim {
         return n;
     }
 
-    private void separate() {
-        for (int i = 0; i < enemyN; i++) {
-            Enemy a = enemies[i];
-            int n = query(a.x, a.y, a.radius * 2f);
-            for (int k = 0; k < n; k++) {
-                int j = qbuf[k];
-                if (j <= i) continue;
-                Enemy b = enemies[j];
-                float dx = b.x - a.x, dy = b.y - a.y;
-                float min = (a.radius + b.radius) * 0.7f;
-                float d2 = dx * dx + dy * dy;
-                if (d2 < min * min && d2 > 0.01f) {
-                    float d = (float) Math.sqrt(d2);
-                    float push = (min - d) * 0.25f;
-                    float ux = dx / d * push, uy = dy / d * push;
-                    a.x -= ux; a.y -= uy;
-                    b.x += ux; b.y += uy;
+    /** Target spacing between two enemies as a fraction of the sum of their radii. */
+    static final float SEP_SPACING = 0.8f;
+    /** Overlap relaxation rate in 1/s: a pair closes {@code 1 - e^(-rate*dt)} of its overlap per step (~0.92 at 60 Hz, split over the passes). */
+    static final float SEP_RATE = 150f;
+    /** Relaxation passes per step: one is too soft against a crowd that keeps walking in. */
+    static final int SEP_PASSES = 2;
+    /** Speed factor of an enemy that is pressed against another one in front of it. */
+    static final float BLOCKED_SPEED = 0.15f;
+
+    /**
+     * Pushes overlapping enemies apart until they are {@link #SEP_SPACING} x (r1 + r2) from each other. The correction
+     * is scaled by dt, so the crowd looks the same at 60 and 120 Hz, and shared by inverse mass (radius squared) so a
+     * boss shoulders the small ones aside instead of being shoved by them. Only the spatial grid is queried.
+     */
+    private void separate(float dt) {
+        float maxR = 0f;
+        for (int i = 0; i < enemyN; i++) maxR = Math.max(maxR, enemies[i].radius);
+        float f = 1f - (float) Math.exp(-SEP_RATE * dt / SEP_PASSES); // the passes together close 1 - e^(-rate*dt)
+        for (int i = 0; i < enemyN; i++) enemies[i].blocked = false;
+        for (int pass = 0; pass < SEP_PASSES; pass++) {
+            for (int i = 0; i < enemyN; i++) {
+                Enemy a = enemies[i];
+                int n = query(a.x, a.y, SEP_SPACING * (a.radius + maxR) + 4f);
+                for (int k = 0; k < n; k++) {
+                    int j = qbuf[k];
+                    if (j <= i) continue;
+                    Enemy b = enemies[j];
+                    float dx = b.x - a.x, dy = b.y - a.y;
+                    float min = (a.radius + b.radius) * SEP_SPACING;
+                    float d2 = dx * dx + dy * dy;
+                    if (d2 >= min * min) continue;
+                    if (pass == 0) { // the one farther from the player is stuck behind the other and stops pushing in
+                        float ax = a.x - px, ay = a.y - py, bx = b.x - px, by = b.y - py;
+                        if (ax * ax + ay * ay > bx * bx + by * by) a.blocked = true;
+                        else b.blocked = true;
+                    }
+                    float ma = a.radius * a.radius, mb = b.radius * b.radius;
+                    float wb = ma / (ma + mb), wa = 1f - wb; // the lighter one moves more
+                    float ux, uy;
+                    if (d2 > 0.01f) {
+                        float d = (float) Math.sqrt(d2);
+                        float push = (min - d) * f;
+                        ux = dx / d * push;
+                        uy = dy / d * push;
+                    } else { // exactly stacked: split along a direction derived from the ids
+                        float ang = (a.id * 2.399963f) % 6.2831853f;
+                        ux = (float) Math.cos(ang) * min * f;
+                        uy = (float) Math.sin(ang) * min * f;
+                    }
+                    a.x -= ux * wa; a.y -= uy * wa;
+                    b.x += ux * wb; b.y += uy * wb;
                 }
             }
         }
@@ -399,17 +481,25 @@ public final class Sim {
 
     // ------------------------------------------------------------------ damage & kills
 
+    /** Set while a lightning strike deals its damage: those hits show a soft brighten instead of the white silhouette. */
+    private boolean softHit;
+
     public void hurt(Enemy e, float dmg, float chance, float critMul, float kx, float ky, float knock) {
         if (e.dead) return;
         boolean crit = chance > 0 && rng.nextFloat() < chance;
         if (crit) dmg *= critMul;
         e.hp -= dmg;
         e.flash = 0.1f;
-        addText(e.x, e.y - e.radius, (int) dmg, crit, false);
-        float k = knock * (float) e.type.def.knockback * 260f;
+        e.softFlash = softHit;
+        addEnemyText(e, (int) dmg, crit);
+        float k = knock * (float) e.type.def.knockback * e.kbMul;
         if (k > 0) {
-            e.kvx += kx * k;
-            e.kvy += ky * k;
+            if (e.boss) k *= 0.05f; // bosses barely move and never stagger
+            else e.stagger = Math.max(e.stagger, Math.min(0.2f, 0.1f + 0.05f * k));
+            // total push = impulse / 9 (the knockback velocity decays at e^-9t); capped so heavy hits stay sane
+            float v = Math.min(900f, k * 400f);
+            e.kvx += kx * v;
+            e.kvy += ky * v;
         }
         spark(e.x, e.y, e.type.color, 2);
         if (e.hp <= 0) killNow(e);
@@ -529,7 +619,7 @@ public final class Sim {
                 break;
             case Entities.K_ROSARY:
                 screenFlash = 0.5f;
-                float hw = VIEW_H * 16f / 9f / 2f, hh = VIEW_H / 2f;
+                float hw = HALF_W, hh = HALF_H;
                 for (int i = 0; i < enemyN; i++) {
                     Enemy e = enemies[i];
                     if (Math.abs(e.x - px) < hw && Math.abs(e.y - py) < hh) {
@@ -622,10 +712,29 @@ public final class Sim {
 
     // ------------------------------------------------------------------ weapons
 
+    private static final float LEECH_PER_SECOND = 4f;
+    /** Seconds a Santa Water flask is in the air before it becomes a puddle. */
+    public static final float FLASK_FLIGHT = 0.3f;
+    /** A lightning bolt stays on screen this long. */
+    public static final float BOLT_LIFE = 0.12f;
+
     private void updateWeapons(float dt) {
+        // delayed second strikes (Thunder Loop)
+        for (int i = strikeN - 1; i >= 0; i--) {
+            strikeT[i] -= dt;
+            if (strikeT[i] <= 0) {
+                int slot = strikeSlot[i];
+                float x = strikeX[i], y = strikeY[i];
+                strikeN--;
+                strikeX[i] = strikeX[strikeN]; strikeY[i] = strikeY[strikeN];
+                strikeT[i] = strikeT[strikeN]; strikeSlot[i] = strikeSlot[strikeN];
+                if (slot < inv.weaponCount) strike(weapons[slot], x, y);
+            }
+        }
         for (int i = 0; i < inv.weaponCount; i++) {
             WeaponState w = weapons[i];
             if (w.pulse > 0) w.pulse -= dt;
+            w.leech = Math.min(LEECH_PER_SECOND, w.leech + LEECH_PER_SECOND * dt);
             switch (w.behavior) {
                 case B_GARLIC: garlic(w, i, dt); break;
                 case B_BOOK: book(w, i, dt); break;
@@ -634,33 +743,41 @@ public final class Sim {
         }
     }
 
+    /**
+     * Vampire Survivors volley rule: when the cooldown expires {@code amount} shots are fired, one every
+     * repeatInterval, and the cooldown keeps running from the start of the volley. Lightning strikes all at once.
+     */
     private void volley(WeaponState w, int slot, float dt) {
+        w.cd -= dt; // the cooldown runs from the start of the volley, also while it is still firing
         if (w.pending == 0) {
-            w.cd -= dt;
             if (w.cd <= 0) {
                 if (w.behavior == B_BOLT) {
-                    // bolts need targets; wait until something is on screen
-                    if (enemyN == 0) { w.cd = 0.2f; return; }
+                    if (collectOnScreen() == 0) { w.cd = 0.2f; return; } // bolts need a target on screen
+                    lightning(w, slot);
+                    w.cd += w.interval;
+                    if (w.cd < 0) w.cd = w.interval;
+                    return;
                 }
                 w.pending = w.amount;
                 w.shotIndex = 0;
-                w.shotCd = 0;
+                w.shotCd = dt; // the first shot goes out this very frame
+                w.phase = rng.nextFloat();
                 w.cd += w.interval;
                 if (w.cd < 0) w.cd = w.interval;
             }
         }
         if (w.pending > 0) {
             w.shotCd -= dt;
-            if (w.shotCd <= 0) {
+            while (w.pending > 0 && w.shotCd <= 0) {
                 fire(w, slot);
                 w.pending--;
                 w.shotIndex++;
-                w.shotCd = w.repeat;
+                w.shotCd += w.repeat;
             }
         }
     }
 
-    private Enemy nearest(float maxDist, int skip) {
+    private Enemy nearest(float maxDist) {
         Enemy best = null;
         float bd = maxDist * maxDist;
         for (int i = 0; i < enemyN; i++) {
@@ -672,14 +789,30 @@ public final class Sim {
         return best;
     }
 
-    private Enemy randomNear(float maxDist) {
-        if (enemyN == 0) return null;
-        for (int t = 0; t < 8; t++) {
-            Enemy e = enemies[rng.nextInt(enemyN)];
-            float dx = e.x - px, dy = e.y - py;
-            if (!e.dead && dx * dx + dy * dy < maxDist * maxDist) return e;
+    /** Fills pickBuf with indices of live enemies inside the 16:9 view; returns the count. */
+    private int collectOnScreen() {
+        int n = 0;
+        for (int i = 0; i < enemyN; i++) {
+            Enemy e = enemies[i];
+            if (!e.dead && Math.abs(e.x - px) < HALF_W && Math.abs(e.y - py) < HALF_H) pickBuf[n++] = i;
         }
-        return null;
+        return n;
+    }
+
+    private Enemy randomOnScreen() {
+        int n = collectOnScreen();
+        return n == 0 ? null : enemies[pickBuf[rng.nextInt(n)]];
+    }
+
+    private Enemy randomNear(float maxDist) {
+        int n = 0;
+        float r2 = maxDist * maxDist;
+        for (int i = 0; i < enemyN; i++) {
+            Enemy e = enemies[i];
+            float dx = e.x - px, dy = e.y - py;
+            if (!e.dead && dx * dx + dy * dy < r2) pickBuf[n++] = i;
+        }
+        return n == 0 ? null : enemies[pickBuf[rng.nextInt(n)]];
     }
 
     private Projectile newProj(int kind, int slot, WeaponState w) {
@@ -700,6 +833,9 @@ public final class Sim {
         p.returning = false;
         p.targetId = 0;
         p.blast = 0;
+        p.gravity = 0;
+        p.flight = 0;
+        p.grow = p.drift = 0;
         return p;
     }
 
@@ -707,60 +843,72 @@ public final class Sim {
         switch (w.behavior) {
             case B_WHIP: whip(w); break;
             case B_MISSILE: {
-                Enemy t = nearest(900f, 0);
-                if (w.evo && t != null && rng.nextInt(3) == 0) t = randomNear(700f) != null ? randomNear(700f) : t;
+                // nearest enemy at fire time, then a straight line: no homing
+                Enemy t = nearest(1000f);
                 Projectile p = newProj(Entities.P_MISSILE, slot, w);
                 if (p == null) return;
-                float ax = faceX, ay = faceY;
-                if (t != null) { ax = t.x - px; ay = t.y - py; p.targetId = t.id; }
-                float a = (float) Math.atan2(ay, ax) + (w.shotIndex > 0 ? (rng.nextFloat() - 0.5f) * 0.25f : 0f);
-                float sp = 380f * w.speed;
+                float a = t != null ? (float) Math.atan2(t.y - py, t.x - px) : rng.nextFloat() * 6.2831853f;
+                float sp = 400f * w.speed;
                 p.vx = (float) Math.cos(a) * sp; p.vy = (float) Math.sin(a) * sp;
+                p.angle = a;
+                p.targetId = t == null ? 0 : t.id;
                 p.radius = 9f * Math.max(0.8f, w.area) * (w.evo ? 1.3f : 1f);
-                p.life = 2.6f;
+                p.life = 2f;
                 break;
             }
             case B_KNIFE: {
                 Projectile p = newProj(Entities.P_KNIFE, slot, w);
                 if (p == null) return;
-                float a = (float) Math.atan2(faceY, faceX);
-                if (w.evo) a += (rng.nextFloat() - 0.5f) * 0.3f;
-                float off = ((w.shotIndex % 3) - 1) * 9f;
+                float a = (float) Math.atan2(faceY, faceX) + (rng.nextFloat() - 0.5f) * 0.08f;
+                float off = ((w.shotIndex % 3) - 1) * 9f; // successive knives sit side by side
                 p.x = px - (float) Math.sin(a) * off; p.y = py + (float) Math.cos(a) * off;
-                float sp = 560f * w.speed;
+                float sp = 600f * w.speed;
                 p.vx = (float) Math.cos(a) * sp; p.vy = (float) Math.sin(a) * sp;
                 p.angle = a;
                 p.radius = 8f * Math.max(0.8f, w.area);
-                p.life = 1.2f;
+                p.life = 1.5f;
                 break;
             }
             case B_AXE: {
                 Projectile p = newProj(Entities.P_AXE, slot, w);
                 if (p == null) return;
-                float spread = w.evo ? 280f : 110f;
-                p.vx = (rng.nextFloat() * 2f - 1f) * spread * (facingRight ? 1f : 1f) + (facingRight ? 30f : -30f);
-                p.vy = -(520f + rng.nextFloat() * 90f) * Math.max(0.8f, w.speed);
-                p.spin = (p.vx >= 0 ? 1 : -1) * 9f;
                 p.radius = 17f * w.area;
-                p.life = Math.max(1.4f, w.duration);
-                p.hitsLeft = w.pierce >= 100 ? 100000 : w.pierce * 5;
+                p.hitsLeft = w.pierce;
+                if (w.evo) {
+                    // Death Spiral: evenly spaced radial spokes (random phase per volley), spinning, infinite pierce
+                    float a = w.phase * 6.2831853f + w.shotIndex * 6.2831853f / Math.max(1, w.amount);
+                    float sp = 300f * w.speed;
+                    p.vx = (float) Math.cos(a) * sp; p.vy = (float) Math.sin(a) * sp;
+                    p.spin = 11f;
+                    p.life = 3.2f;
+                    p.hitsLeft = 100000;
+                } else {
+                    // thrown up with a random horizontal speed; successive axes alternate sides so they fan out
+                    boolean right = ((w.shotIndex & 1) == 0) == (w.phase < 0.5f);
+                    float vx = 30f + rng.nextFloat() * 140f;
+                    p.vx = right ? vx : -vx;
+                    p.vy = -(560f + rng.nextFloat() * 70f) * Math.max(0.8f, w.speed);
+                    p.gravity = 1150f;
+                    p.spin = (right ? 1 : -1) * 9f;
+                    p.life = 4f;
+                }
                 break;
             }
             case B_CROSS: {
                 Projectile p = newProj(Entities.P_CROSS, slot, w);
                 if (p == null) return;
-                Enemy t = nearest(900f, 0);
+                Enemy t = nearest(1000f);
                 float ax = faceX, ay = faceY;
                 if (t != null) { ax = t.x - px; ay = t.y - py; }
                 float a = (float) Math.atan2(ay, ax);
                 p.angle = a;
-                p.vx = (float) Math.cos(a);
+                p.vx = (float) Math.cos(a); // unit launch direction; the cross stays on this line
                 p.vy = (float) Math.sin(a);
-                float v0 = 430f * w.speed;
-                p.speedAlong = v0;
-                p.accel = v0 / 0.85f;
+                float v0 = 520f * w.speed;
+                p.speedAlong = v0; // signed speed along the line: decelerates through 0 and goes negative
+                p.accel = v0 / 1.1f;
                 p.radius = 15f * w.area;
-                p.life = 5f;
+                p.life = p.maxLife = 3f;
                 p.hitsLeft = 100000;
                 p.spin = 10f;
                 break;
@@ -768,76 +916,113 @@ public final class Sim {
             case B_FIRE: {
                 Projectile p = newProj(Entities.P_FIRE, slot, w);
                 if (p == null) return;
-                Enemy t = randomNear(650f);
+                Enemy t = randomOnScreen();
                 float a = t != null ? (float) Math.atan2(t.y - py, t.x - px) : rng.nextFloat() * 6.2831853f;
-                float sp = 330f * w.speed;
+                if (w.shotIndex > 0) a += (rng.nextFloat() - 0.5f) * 0.2f;
+                float sp = (w.evo ? 240f : 280f) * w.speed;
                 p.vx = (float) Math.cos(a) * sp; p.vy = (float) Math.sin(a) * sp;
-                p.radius = 10f;
-                p.life = 2.2f;
-                p.hitsLeft = 1;
-                p.blast = (w.evo ? 80f : 52f) * w.area;
+                p.radius = (w.evo ? 24f : 12f) * Math.max(0.8f, w.area);
+                p.life = 2.6f;
+                if (w.evo) p.hitsLeft = 100000;
                 break;
             }
             case B_WATER: {
                 Projectile p = newProj(Entities.P_PUDDLE, slot, w);
                 if (p == null) return;
-                Enemy t = randomNear(450f);
-                if (t != null) { p.x = t.x + (rng.nextFloat() - 0.5f) * 30f; p.y = t.y + (rng.nextFloat() - 0.5f) * 30f; }
+                // a flask lands within ~250 u of the player, biased toward enemies
+                Enemy t = rng.nextFloat() < 0.7f ? randomNear(250f) : null;
+                if (t != null) { p.x = t.x + (rng.nextFloat() - 0.5f) * 20f; p.y = t.y + (rng.nextFloat() - 0.5f) * 20f; }
                 else {
-                    float a = rng.nextFloat() * 6.2831853f, d = 70f + rng.nextFloat() * 130f;
+                    float a = rng.nextFloat() * 6.2831853f, d = 250f * (float) Math.sqrt(rng.nextFloat());
                     p.x = px + (float) Math.cos(a) * d; p.y = py + (float) Math.sin(a) * d;
                 }
-                p.radius = 52f * w.area;
-                p.life = p.maxLife = Math.max(0.6f, w.duration);
+                p.radius = 40f * w.area;
+                p.flight = FLASK_FLIGHT;
+                float active = Math.max(0.6f, w.duration);
+                p.life = p.maxLife = FLASK_FLIGHT + active;
                 p.hitDelay = w.hitDelay;
                 p.hitsLeft = 1 << 30;
+                if (w.evo) { // La Borra: grows over its lifetime and drifts toward the player
+                    p.grow = p.radius * 0.8f / active;
+                    p.drift = 22f;
+                }
                 break;
             }
             default:
-                bolt(w);
+                break;
         }
     }
 
     private void whip(WeaponState w) {
-        w.side = -w.side;
-        if (w.shotIndex == 0 && w.amount == 1) w.side = facingRight ? 1 : -1;
-        float W = 190f * w.area * (w.evo ? 1.2f : 1f), H = 46f * w.area;
-        float cx = px + w.side * (W / 2f + 12f), cy = py - 6f;
-        addFx(Entities.FX_WHIP, cx, cy, W, H, 0.22f, w.side, w.evo);
+        int idx = w.shotIndex;
+        boolean right = (idx & 1) == 0 ? facingRight : !facingRight; // 2nd strike goes to the opposite side
+        int side = right ? 1 : -1;
+        w.side = side;
+        float W = 160f * w.area, H = 30f * w.area;
+        float cx = px + side * W / 2f, cy = py - 6f - 8f * idx;
+        addFx(Entities.FX_WHIP, cx, cy, W, H, 0.15f, side, w.evo);
         int n = query(cx, cy, Math.max(W, H) / 2f + 40f);
         int hits = 0;
         for (int k = 0; k < n; k++) {
             Enemy e = enemies[qbuf[k]];
             if (e.dead) continue;
             if (Math.abs(e.x - cx) < W / 2f + e.radius && Math.abs(e.y - cy) < H / 2f + e.radius) {
-                hurt(e, w.dmg, w.critChance, w.critMul, w.side, 0, w.knock);
+                hurt(e, w.dmg, w.critChance, w.critMul, side, 0, w.knock);
                 hits++;
             }
         }
-        if (w.evo && hits > 0) heal(Math.min(3f, hits * 0.4f));
+        if (w.evo && hits > 0) leech(w, Math.min(3f, hits * w.dmg * 0.08f));
     }
 
-    private void bolt(WeaponState w) {
-        Enemy t = randomNear(620f);
-        if (t == null) return;
-        float r = Math.min(150f, 42f * w.area);
-        float tx = t.x, ty = t.y;
-        addFx(Entities.FX_BOLT, tx, ty, r, 0, 0.3f, 0, w.evo);
+    /** Heals from a weapon against a per-second budget so lifesteal stays small. */
+    private void leech(WeaponState w, float amount) {
+        amount = Math.min(amount, w.leech);
+        if (amount <= 0) return;
+        w.leech -= amount;
+        heal(amount);
+    }
+
+    /** Strikes {@code amount} distinct random on-screen enemies; Thunder Loop queues a second strike 0.2 s later. */
+    private void lightning(WeaponState w, int slot) {
+        int n = collectOnScreen();
+        int k = Math.min(w.amount, n);
+        for (int i = 0; i < k; i++) {
+            int j = i + rng.nextInt(n - i);
+            int tmp = pickBuf[i]; pickBuf[i] = pickBuf[j]; pickBuf[j] = tmp;
+        }
+        for (int i = 0; i < k; i++) {
+            Enemy e = enemies[pickBuf[i]];
+            float x = e.x, y = e.y;
+            strike(w, x, y);
+            if (w.evo && strikeN < strikeT.length) {
+                strikeX[strikeN] = x; strikeY[strikeN] = y; strikeT[strikeN] = 0.2f; strikeSlot[strikeN] = slot;
+                strikeN++;
+            }
+        }
+    }
+
+    private void strike(WeaponState w, float tx, float ty) {
+        float r = 25f * w.area;
+        addFx(Entities.FX_BOLT, tx, ty, r, 0, BOLT_LIFE, 0, w.evo);
         int n = query(tx, ty, r + 30f);
         for (int k = 0; k < n; k++) {
             Enemy e = enemies[qbuf[k]];
             if (e.dead) continue;
             float dx = e.x - tx, dy = e.y - ty, rr = r + e.radius;
-            if (dx * dx + dy * dy < rr * rr) hurt(e, w.dmg, w.critChance, w.critMul, 0, 0, 0);
+            if (dx * dx + dy * dy < rr * rr) {
+                softHit = true;
+                hurt(e, w.dmg, w.critChance, w.critMul, 0, 0, 0);
+                softHit = false;
+            }
         }
     }
 
     private void garlic(WeaponState w, int slot, float dt) {
         w.cd -= dt;
         if (w.cd > 0) return;
-        w.cd += Math.max(0.15f, w.interval);
+        w.cd += Math.max(0.15f, w.hasHitDelay ? w.hitDelay : w.interval);
         w.pulse = 0.25f;
-        float r = 72f * w.area;
+        float r = w.auraRadius;
         int n = query(px, py, r + 30f);
         int hits = 0;
         for (int k = 0; k < n; k++) {
@@ -847,26 +1032,37 @@ public final class Sim {
             float d2 = dx * dx + dy * dy;
             if (d2 < rr * rr) {
                 float d = (float) Math.sqrt(d2) + 0.01f;
-                hurt(e, w.dmg, 0, 1, dx / d, dy / d, Math.max(0.25f, w.knock));
+                hurt(e, w.dmg, 0, 1, dx / d, dy / d, Math.max(0.15f, w.knock));
+                e.kbMul = Math.min(3f, e.kbMul + 0.1f); // every tick lowers its knockback resistance
                 hits++;
             }
         }
-        if (w.evo && hits > 0) heal(Math.min(2f, hits * 0.25f));
+        if (w.evo && hits > 0) leech(w, Math.min(1.5f, hits * 0.25f));
     }
 
     private void book(WeaponState w, int slot, float dt) {
+        if (w.endless) { // Unholy Vespers never disappears
+            int alive = 0;
+            for (int i = 0; i < projN; i++) if (projs[i].kind == Entities.P_BOOK && projs[i].slot == slot) alive++;
+            if (alive != w.amount) spawnBooks(w, slot);
+            return;
+        }
         w.cd -= dt;
         if (w.cd > 0) return;
-        for (int i = projN - 1; i >= 0; i--) if (projs[i].kind == Entities.P_BOOK && projs[i].slot == slot) removeProj(i);
+        spawnBooks(w, slot);
         w.cd = w.interval + (w.dependsOnDuration ? w.duration : 0f);
+    }
+
+    private void spawnBooks(WeaponState w, int slot) {
+        for (int i = projN - 1; i >= 0; i--) if (projs[i].kind == Entities.P_BOOK && projs[i].slot == slot) removeProj(i);
         for (int i = 0; i < w.amount; i++) {
             Projectile p = newProj(Entities.P_BOOK, slot, w);
             if (p == null) return;
             p.orbitAngle = i * 6.2831853f / w.amount;
             p.orbitSpeed = 3.1f * w.speed;
-            p.orbitRadius = 88f * w.area;
+            p.orbitRadius = 75f * w.area;
             p.radius = 16f * (w.evo ? 1.2f : 1f);
-            p.life = p.maxLife = w.duration;
+            p.life = p.maxLife = w.endless ? 1e9f : w.duration;
             p.hitDelay = w.hitDelay;
             p.hitsLeft = 1 << 30;
             p.x = px + (float) Math.cos(p.orbitAngle) * p.orbitRadius;
@@ -888,69 +1084,52 @@ public final class Sim {
             if (p.life <= 0) { removeProj(i); continue; }
             boolean remove = false;
             switch (p.kind) {
-                case Entities.P_MISSILE: {
-                    Enemy t = null;
-                    if (p.targetId != 0) for (int k = 0; k < enemyN; k++) if (enemies[k].id == p.targetId) { t = enemies[k]; break; }
-                    if (t == null || t.dead) {
-                        t = nearestTo(p.x, p.y, 500f);
-                        p.targetId = t == null ? 0 : t.id;
-                    }
-                    float sp = (float) Math.sqrt(p.vx * p.vx + p.vy * p.vy);
-                    if (t != null && sp > 1f) {
-                        float want = (float) Math.atan2(t.y - p.y, t.x - p.x);
-                        float cur = (float) Math.atan2(p.vy, p.vx);
-                        float diff = want - cur;
-                        while (diff > Math.PI) diff -= 6.2831853f;
-                        while (diff < -Math.PI) diff += 6.2831853f;
-                        float turn = Math.max(-5f * dt, Math.min(5f * dt, diff));
-                        cur += turn;
-                        p.vx = (float) Math.cos(cur) * sp;
-                        p.vy = (float) Math.sin(cur) * sp;
-                    }
-                    p.angle = (float) Math.atan2(p.vy, p.vx);
-                    p.x += p.vx * dt; p.y += p.vy * dt;
-                    break;
-                }
+                case Entities.P_MISSILE:
                 case Entities.P_KNIFE:
                 case Entities.P_FIRE:
                     p.x += p.vx * dt; p.y += p.vy * dt;
                     p.angle = (float) Math.atan2(p.vy, p.vx);
                     break;
                 case Entities.P_AXE:
-                    p.vy += 1150f * dt;
+                    p.vy += p.gravity * dt;
                     p.x += p.vx * dt; p.y += p.vy * dt;
                     p.angle += p.spin * dt;
                     break;
-                case Entities.P_CROSS: {
+                case Entities.P_CROSS:
+                    // decelerate along the launch line, reverse and keep accelerating back past the player
                     p.angle += p.spin * dt;
-                    if (!p.returning) {
-                        p.speedAlong -= p.accel * dt;
-                        p.x += p.vx * p.speedAlong * dt;
-                        p.y += p.vy * p.speedAlong * dt;
-                        if (p.speedAlong <= 0) { p.returning = true; p.hitN = 0; p.speedAlong = 80f; }
-                    } else {
-                        float dx = px - p.x, dy = py - p.y, d = (float) Math.sqrt(dx * dx + dy * dy);
-                        p.speedAlong += p.accel * 1.2f * dt;
-                        if (d < 22f) { remove = true; break; }
-                        p.x += dx / d * p.speedAlong * dt;
-                        p.y += dy / d * p.speedAlong * dt;
-                    }
+                    p.speedAlong -= p.accel * dt;
+                    if (!p.returning && p.speedAlong < 0) { p.returning = true; p.hitN = 0; } // each enemy once per leg
+                    p.x += p.vx * p.speedAlong * dt;
+                    p.y += p.vy * p.speedAlong * dt;
                     break;
-                }
                 case Entities.P_BOOK:
                     p.orbitAngle += p.orbitSpeed * dt;
                     p.x = px + (float) Math.cos(p.orbitAngle) * p.orbitRadius;
                     p.y = py + (float) Math.sin(p.orbitAngle) * p.orbitRadius;
                     p.angle = p.orbitAngle;
                     break;
+                case Entities.P_PUDDLE:
+                    if (p.maxLife - p.life < p.flight) continue; // flask still in the air
+                    if (p.grow > 0) p.radius += p.grow * dt;
+                    if (p.drift > 0) {
+                        float dx = px - p.x, dy = py - p.y, d = (float) Math.sqrt(dx * dx + dy * dy);
+                        if (d > 8f) { p.x += dx / d * p.drift * dt; p.y += dy / d * p.drift * dt; }
+                    }
+                    break;
                 default:
                     break;
+            }
+            // off-screen culling (books and puddles stay; the cross dies by lifetime)
+            if (p.kind != Entities.P_BOOK && p.kind != Entities.P_PUDDLE && p.kind != Entities.P_CROSS) {
+                float dx = p.x - px, dy = p.y - py;
+                if (dx * dx + dy * dy > 1100f * 1100f) remove = true;
+                else if (p.kind == Entities.P_AXE && p.gravity > 0 && p.vy > 0 && dy > HALF_H + 60f) remove = true;
             }
             if (remove) { removeProj(i); continue; }
             // collisions
             int n = query(p.x, p.y, p.radius + 34f);
-            boolean explode = false;
-            for (int k = 0; k < n && !explode; k++) {
+            for (int k = 0; k < n; k++) {
                 Enemy e = enemies[qbuf[k]];
                 if (e.dead) continue;
                 float dx = e.x - p.x, dy = e.y - p.y, rr = p.radius + e.radius;
@@ -963,52 +1142,25 @@ public final class Sim {
                     if (p.alreadyHit(e.id)) continue;
                     p.remember(e.id);
                 }
-                if (p.kind == Entities.P_FIRE) { explode = true; break; }
                 hurt(e, p.dmg, p.critChance, p.critMul, dx / d, dy / d, p.knock);
                 if (--p.hitsLeft <= 0) { remove = true; break; }
             }
-            if (explode) {
-                blast(p);
-                remove = true;
-            }
             if (remove) removeProj(i);
-        }
-    }
-
-    private Enemy nearestTo(float x, float y, float maxDist) {
-        Enemy best = null;
-        float bd = maxDist * maxDist;
-        for (int i = 0; i < enemyN; i++) {
-            Enemy e = enemies[i];
-            if (e.dead) continue;
-            float dx = e.x - x, dy = e.y - y, d = dx * dx + dy * dy;
-            if (d < bd) { bd = d; best = e; }
-        }
-        return best;
-    }
-
-    private void blast(Projectile p) {
-        addFx(Entities.FX_RING, p.x, p.y, p.blast, 0, 0.3f, 0, p.evo);
-        int n = query(p.x, p.y, p.blast + 30f);
-        for (int k = 0; k < n; k++) {
-            Enemy e = enemies[qbuf[k]];
-            if (e.dead) continue;
-            float dx = e.x - p.x, dy = e.y - p.y, rr = p.blast + e.radius;
-            if (dx * dx + dy * dy < rr * rr) hurt(e, p.dmg, p.critChance, p.critMul, 0, 0, 0);
         }
     }
 
     // ------------------------------------------------------------------ effects
 
     private void updateVisuals(float dt) {
+        float drag = (float) Math.exp(-3.71f * dt); // 0.94 per step at 60 Hz
         for (int i = 0; i < MAX_PART; i++) {
             Particle q = parts[i];
             if (q.life <= 0) continue;
             q.life -= dt;
             q.x += q.vx * dt;
             q.y += q.vy * dt;
-            q.vx *= 0.94f;
-            q.vy *= 0.94f;
+            q.vx *= drag;
+            q.vy *= drag;
         }
         for (int i = 0; i < MAX_TEXT; i++) if (texts[i].life > 0) { texts[i].life -= dt; texts[i].y -= 40f * dt; }
         for (int i = 0; i < MAX_FX; i++) if (fx[i].life > 0) fx[i].life -= dt;
@@ -1033,24 +1185,51 @@ public final class Sim {
         f.kind = kind; f.x = x; f.y = y; f.w = w; f.h = h; f.life = f.maxLife = life; f.side = side; f.evo = evo;
     }
 
-    private void addText(float x, float y, int value, boolean crit, boolean heal) {
+    /** Seconds a damage number lives, and the window after its creation in which more hits on the enemy add into it. */
+    public static final float TEXT_LIFE = 0.5f, TEXT_MERGE = 0.3f;
+
+    /** Damage number for one enemy: hits within {@link #TEXT_MERGE} of the first one add into a single rising number. */
+    private void addEnemyText(Enemy e, int value, boolean crit) {
+        int slot = e.textSlot;
+        if (slot >= 0) {
+            DamageText t = texts[slot];
+            if (t.owner == e.id && t.life > t.maxLife - TEXT_MERGE) {
+                t.total = Math.min(9999999, t.total + Math.max(0, value));
+                t.crit |= crit;
+                setDigits(t, t.total);
+                return;
+            }
+        }
+        e.textSlot = textHead;
+        DamageText t = addText(e.x, e.y - e.radius, value, crit, false);
+        t.owner = e.id;
+    }
+
+    private DamageText addText(float x, float y, int value, boolean crit, boolean heal) {
         DamageText t = texts[textHead];
         textHead = (textHead + 1) % MAX_TEXT;
-        t.x = x + (rng.nextFloat() - 0.5f) * 16f;
+        t.x = x + (rng.nextFloat() - 0.5f) * 12f;
         t.y = y;
-        t.life = 0.7f;
+        t.life = t.maxLife = TEXT_LIFE;
         t.crit = crit;
         t.heal = heal;
-        if (value < 0) value = 0;
-        if (value > 9999999) value = 9999999;
-        int len = 0;
+        t.owner = 0;
+        t.total = Math.max(0, Math.min(9999999, value));
+        setDigits(t, t.total);
+        return t;
+    }
+
+    private static void setDigits(DamageText t, int value) {
         char[] tmp = t.digits;
-        if (value == 0) tmp[len++] = '0';
-        else {
-            int v = value, digits = 0;
-            for (int c = v; c > 0; c /= 10) digits++;
+        int len;
+        if (value == 0) {
+            tmp[0] = '0';
+            len = 1;
+        } else {
+            int digits = 0;
+            for (int c = value; c > 0; c /= 10) digits++;
             len = digits;
-            for (int j = digits - 1; j >= 0; j--) { tmp[j] = (char) ('0' + v % 10); v /= 10; }
+            for (int j = digits - 1; j >= 0; j--) { tmp[j] = (char) ('0' + value % 10); value /= 10; }
         }
         t.len = len;
     }

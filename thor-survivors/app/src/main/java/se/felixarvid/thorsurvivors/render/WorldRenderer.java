@@ -1,33 +1,96 @@
 package se.felixarvid.thorsurvivors.render;
 
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
-import android.graphics.Path;
+import android.graphics.RadialGradient;
 import android.graphics.RectF;
+import android.graphics.Shader;
 
 import se.felixarvid.thorsurvivors.game.Engine;
-import se.felixarvid.thorsurvivors.game.Entities.*;
+import se.felixarvid.thorsurvivors.game.Entities;
+import se.felixarvid.thorsurvivors.game.Entities.DamageText;
+import se.felixarvid.thorsurvivors.game.Entities.Effect;
+import se.felixarvid.thorsurvivors.game.Entities.Enemy;
+import se.felixarvid.thorsurvivors.game.Entities.Particle;
+import se.felixarvid.thorsurvivors.game.Entities.Pickup;
+import se.felixarvid.thorsurvivors.game.Entities.Projectile;
 import se.felixarvid.thorsurvivors.game.EnemyType;
 import se.felixarvid.thorsurvivors.game.Sim;
+import se.felixarvid.thorsurvivors.render.SpriteAtlas.Sprite;
 
 /**
- * Draws the game world on the top screen. Every sprite goes through {@link SpriteAtlas} first and falls back to
- * procedural Canvas shapes. Holds only pre-allocated paints/paths: no allocation per frame.
+ * Draws the game world on the top screen.
+ *
+ * Sprites are drawn in screen space: the camera is a whole number of screen pixels, every sprite position is
+ * {@code round(world * scale) - camera}, and every bitmap is a pre-scaled integer multiple of the art (see
+ * {@link SpriteAtlas}), so nothing is resampled and nothing shimmers when the camera moves. Only vector extras
+ * (auras, whip arcs, lightning) go through a canvas transform.
+ *
+ * Draw order is a strict total order that does not depend on the pool order of the simulation: ground pickups,
+ * then enemies and the player by (feet y, id), then projectiles by (y, x, kind, slot). Sorting uses preallocated
+ * arrays and an insertion sort; nothing is allocated per frame.
  */
 public final class WorldRenderer {
-    private static final String[] PICK_KEYS = {"pickup.GEM", "pickup.COIN", "pickup.COINBAG", "pickup.ROAST",
-            "pickup.VACUUM", "pickup.OROLOGION", "pickup.ROSARY", "pickup.CLOVER", "pickup.CHEST"};
-    private static final float TILE = 128f;
+    private static final int MAX_TEXTS_DRAWN = 25;
+    /** Hit flashes turn into a soft brighten once this many enemies flash at the same time (no white blob). */
+    private static final int MANY_FLASHING = 4;
+    /** No scenery within this many world units of the player's spawn point (0,0). */
+    private static final float SPAWN_CLEAR = 150f;
+    private static final float FLASH_ON = 0.08f, FLASH_GAP = 0.15f, HIT_TINT = 0.12f, VIGNETTE = 0.35f;
+    private static final int STATE = 4096;
+    /** Radius a weapon's projectile has at area 1.0 (see Sim.fire*), used to grow its sprite in whole steps. */
+    private static final float[] BASE_R = {0, 9f, 8f, 17f, 15f, 16f, 10f, 0};
 
     private final SpriteAtlas atlas = SpriteAtlas.get();
+    private final Paint bmp = new Paint();
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint stroke = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint text = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint dotPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Path path = new Path();
+    private final Paint big = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint vig = new Paint();
     private final RectF rect = new RectF();
-    private final float[] dots = new float[2 * 4 * 160];
-    private final float[] lines = new float[4 * 2 * 64];
+    private final android.graphics.Path path = new android.graphics.Path();
+    private RadialGradient vigShader;
+    private int vigW, vigH;
+    private final Bitmap[] shadows = new Bitmap[321];
+
+    // sort scratch (pool-sized, reused)
+    private final long[] sKey = new long[Sim.MAX_PICK];
+    private final int[] sIdx = new int[Sim.MAX_PICK];
+    private final Sprite[] entSpr = new Sprite[Sim.MAX_ENEMIES + 1];
+    private final int[] entK = new int[Sim.MAX_ENEMIES + 1];
+    private final int[] entSx = new int[Sim.MAX_ENEMIES + 1];
+    private final int[] entSy = new int[Sim.MAX_ENEMIES + 1];
+    private final int[] bossIdx = new int[24];
+    private final float[] lifeTmp = new float[Sim.MAX_TEXT];
+
+    // per-enemy render state, keyed by enemy id (pool slots are reshuffled by swap-remove, ids are not)
+    private final int[] stId = new int[STATE];
+    private final float[] stFlash = new float[STATE];
+    private final byte[] stFace = new byte[STATE];
+
+    // player feedback
+    private Sim lastSim;
+    private float lastHp, lastPx, lastPy;
+    private double redUntil, hitAt = -10;
+    private boolean moving;
+
+    // per-frame transform
+    private float sc, ks;
+    private int ox, oy, scrW, scrH;
+    private double now;
+    private int flashing;
+
+    // exposed so tests can verify draw order
+    public int orderN;
+    public final int[] orderId = new int[Sim.MAX_ENEMIES + 1];
+    public final int[] orderFeet = new int[Sim.MAX_ENEMIES + 1];
+    public final int[] orderSx = new int[Sim.MAX_ENEMIES + 1];
+    public final int[] orderSy = new int[Sim.MAX_ENEMIES + 1];
+    public final float[] orderWy = new float[Sim.MAX_ENEMIES + 1];
+    public int textsDrawn;
+
     private final DemoEnemy[] demo = new DemoEnemy[6];
 
     private static final class DemoEnemy {
@@ -36,11 +99,15 @@ public final class WorldRenderer {
     }
 
     public WorldRenderer() {
+        bmp.setAntiAlias(false);
+        bmp.setFilterBitmap(false);
+        bmp.setDither(false);
         stroke.setStyle(Paint.Style.STROKE);
+        stroke.setStrokeCap(Paint.Cap.ROUND);
         text.setTextAlign(Paint.Align.CENTER);
         text.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        dotPaint.setStrokeCap(Paint.Cap.ROUND);
-        dotPaint.setStrokeWidth(4f);
+        big.setTextAlign(Paint.Align.CENTER);
+        big.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
     }
 
     private void ensureDemo(Engine e) {
@@ -53,40 +120,76 @@ public final class WorldRenderer {
         }
     }
 
+    private int sx(float wx) {
+        return Math.round(wx * sc) + ox;
+    }
+
+    private int sy(float wy) {
+        return Math.round(wy * sc) + oy;
+    }
+
     public void draw(Canvas c, int w, int h, Engine e, boolean dualScreen) {
         c.drawColor(0xFF000000);
+        orderN = 0;
+        textsDrawn = 0;
         if (!e.isReady()) return;
         ensureDemo(e);
         Sim s = e.sim;
         int ph = e.phase;
         boolean menu = s == null || ph == Engine.PH_MENU || ph == Engine.PH_SHOP;
-        float sc = h / Sim.VIEW_H;
-        atlas.setWorldScale(sc);
-        float viewW = w / sc, viewH = Sim.VIEW_H;
-        String stage = e.stageKeys.get(e.stageIdx);
+        sc = h / Sim.VIEW_H;
+        ks = h / 1080f;
+        scrW = w;
+        scrH = h;
         float camX, camY;
         if (menu) {
+            now = e.menuTime;
             camX = e.menuTime * 40f;
             camY = (float) Math.sin(e.menuTime * 0.3f) * 60f;
         } else {
+            now = s.time;
             camX = s.px;
             camY = s.py;
-            if (s.hitShake > 0) {
-                camX += (float) Math.sin(s.time * 90) * 4f;
-                camY += (float) Math.cos(s.time * 77) * 4f;
-            }
+            trackPlayer(s);
         }
-        camX = Math.round(camX * sc) / sc; // whole screen pixels keep nearest-neighbour sprites stable
-        camY = Math.round(camY * sc) / sc;
-        c.save();
-        c.translate(w / 2f, h / 2f);
-        c.scale(sc, sc);
-        c.translate(-camX, -camY);
-        drawGround(c, stage, camX, camY, viewW, viewH);
-        if (menu) drawDemo(c, e, camX, camY);
-        else drawWorld(c, s, camX, camY, viewW, viewH);
-        c.restore();
+        int camPx = Math.round(camX * sc), camPy = Math.round(camY * sc);
+        ox = w / 2 - camPx;
+        oy = h / 2 - camPy;
+        atlasWarm();
+        drawGround(c, e.stageKeys.get(e.stageIdx), camPx, camPy, w, h);
+        if (menu) drawDemo(c, e);
+        else drawWorld(c, s);
         drawOverlay(c, w, h, e, s, menu, dualScreen);
+    }
+
+    private boolean warmed;
+    private float warmedFor = -1;
+
+    private void atlasWarm() {
+        if (warmed && warmedFor == ks) return;
+        atlas.warm(ks);
+        warmed = true;
+        warmedFor = ks;
+    }
+
+    /** Remembers hits on the player: a short red tint plus a vignette, no blinking and no shake. */
+    private void trackPlayer(Sim s) {
+        if (s != lastSim) {
+            lastSim = s;
+            lastHp = s.hp;
+            lastPx = s.px;
+            lastPy = s.py;
+            redUntil = 0;
+            hitAt = -10;
+        }
+        if (s.hp < lastHp - 0.01f) {
+            redUntil = now + HIT_TINT;
+            hitAt = now;
+        }
+        lastHp = s.hp;
+        moving = s.px != lastPx || s.py != lastPy;
+        lastPx = s.px;
+        lastPy = s.py;
     }
 
     // ------------------------------------------------------------------ ground
@@ -97,473 +200,479 @@ public final class WorldRenderer {
         return h ^ (h >>> 16);
     }
 
-    private void drawGround(Canvas c, String stage, float camX, float camY, float vw, float vh) {
-        boolean lib = stage.equals("LIBRARY");
-        if (atlas.drawTiles(c, "tile." + stage, camX, camY, vw, vh, 64f / atlas.worldScale())) return;
-        int base = lib ? 0xFF2B2233 : 0xFF1E3A22;
-        int alt = lib ? 0xFF332A3D : 0xFF24442A;
-        fill.setColor(base);
-        c.drawRect(camX - vw / 2 - 2, camY - vh / 2 - 2, camX + vw / 2 + 2, camY + vh / 2 + 2, fill);
-        int x0 = (int) Math.floor((camX - vw / 2) / TILE), x1 = (int) Math.floor((camX + vw / 2) / TILE);
-        int y0 = (int) Math.floor((camY - vh / 2) / TILE), y1 = (int) Math.floor((camY + vh / 2) / TILE);
-        fill.setColor(alt);
-        int nd = 0, nl = 0;
+    /** False inside {@link #SPAWN_CLEAR} of the player's spawn point (world 0,0): trees and mushrooms never go there. */
+    static boolean sceneryAllowed(float wx, float wy) {
+        return wx * wx + wy * wy >= SPAWN_CLEAR * SPAWN_CLEAR;
+    }
+
+    private final Bitmap[] tileBm = new Bitmap[8], decorBm = new Bitmap[16];
+
+    private void drawGround(Canvas c, String stage, int camPx, int camPy, int w, int h) {
+        Sprite t = atlas.find("tile." + stage);
+        if (t == null || t.base.length > tileBm.length || t.decor.length > decorBm.length) {
+            fill.setColor(stage.equals("LIBRARY") ? 0xFF2B2233 : 0xFF1E3A22);
+            c.drawRect(0, 0, w, h, fill);
+            return;
+        }
+        int k = Math.max(1, Math.round(5 * ks)), size = 16 * k;
+        for (int i = 0; i < t.base.length; i++) tileBm[i] = atlas.bitmap(t, i, k, SpriteAtlas.T_NORMAL, false);
+        for (int i = 0; i < t.decor.length; i++) decorBm[i] = atlas.decor(t, i, k);
+        int x0 = Math.floorDiv(camPx - w / 2, size), x1 = Math.floorDiv(camPx + w / 2, size);
+        int y0 = Math.floorDiv(camPy - h / 2, size), y1 = Math.floorDiv(camPy + h / 2, size);
         for (int ty = y0; ty <= y1; ty++) {
             for (int tx = x0; tx <= x1; tx++) {
-                if (((tx + ty) & 1) == 0) c.drawRect(tx * TILE, ty * TILE, (tx + 1) * TILE, (ty + 1) * TILE, fill);
-                int hh = hash(tx, ty);
-                for (int k = 0; k < 3 && nd + 2 <= dots.length; k++) {
-                    dots[nd++] = tx * TILE + ((hh >>> (k * 9)) & 127);
-                    dots[nd++] = ty * TILE + ((hh >>> (k * 9 + 4)) & 127);
+                float r = ((hash(tx, ty) >>> 4) & 1023) / 1024f;
+                int f = 0;
+                float acc = 0;
+                for (int i = 0; i < t.variantChance.length; i++) {
+                    acc += t.variantChance[i];
+                    if (r < acc && i + 1 < t.base.length) { f = i + 1; break; }
                 }
-                if (lib && nl + 8 <= lines.length) {
-                    lines[nl++] = tx * TILE; lines[nl++] = ty * TILE; lines[nl++] = (tx + 1) * TILE; lines[nl++] = ty * TILE;
-                    lines[nl++] = tx * TILE; lines[nl++] = ty * TILE; lines[nl++] = tx * TILE; lines[nl++] = (ty + 1) * TILE;
-                }
+                c.drawBitmap(tileBm[f], tx * size + ox, ty * size + oy, bmp);
             }
         }
-        dotPaint.setColor(lib ? 0xFF4A3D58 : 0xFF3C6B40);
-        c.drawPoints(dots, 0, nd, dotPaint);
-        if (nl > 0) {
-            stroke.setColor(0x33000000);
-            stroke.setStrokeWidth(2f);
-            c.drawLines(lines, 0, nl, stroke);
+        if (t.decor.length == 0) return;
+        // scenery in a second pass (so a tile never paints over a neighbour's decoration), jittered inside its cell
+        for (int ty = y0 - 1; ty <= y1 + 1; ty++) {
+            for (int tx = x0 - 1; tx <= x1 + 1; tx++) {
+                int hh = hash(tx + 4001, ty - 977);
+                if (((hh >>> 14) & 1023) / 1024f >= t.decorChance) continue;
+                float wx = (tx * size + size / 2f) / sc, wy = (ty * size + size / 2f) / sc;
+                if (!sceneryAllowed(wx, wy)) continue; // never under the player's start
+                int jx = (((hh >>> 3) & 15) - 7) * k, jy = (((hh >>> 7) & 15) - 7) * k;
+                c.drawBitmap(decorBm[(hh >>> 24) % t.decor.length], tx * size + ox + jx, ty * size + oy + jy, bmp);
+            }
         }
     }
 
     // ------------------------------------------------------------------ menu preview
 
-    private void drawDemo(Canvas c, Engine e, float camX, float camY) {
+    private void drawDemo(Canvas c, Engine e) {
         float t = e.menuTime;
+        float camX = (ox - scrW / 2) / -sc, camY = (oy - scrH / 2) / -sc;
         for (int i = 0; i < demo.length; i++) {
             DemoEnemy d = demo[i];
             if (d == null || d.type == null) continue;
             float x = camX + (i - 2.5f) * 150f;
             float y = camY + 150f + (float) Math.sin(t * 2 + i) * 14f;
-            drawEnemy(c, d.type, d.boss, d.type.radius * (d.boss ? 1.5f : 1f), x, y, t + i, 0, i % 2 == 0);
+            Sprite sp = enemySprite(d.type, d.boss);
+            if (sp == null) continue;
+            int k = SpriteAtlas.scaleFor(sp, ks);
+            int px = sx(x), py = sy(y);
+            drawShadow(c, px, py + 7 * k, 11 * k / 2);
+            drawSprite(c, sp, k, SpriteAtlas.T_NORMAL, i % 2 != 0, px, py - hop(t + i, 3f, k), (int) (255 * d.type.alpha));
         }
-        // idle hero
-        drawPlayer(c, camX, camY + 20f, true, t, 1f, 1f);
+        Sprite ps = atlas.find("player");
+        if (ps != null) {
+            int k = SpriteAtlas.scaleFor(ps, ks);
+            int px = sx(camX), py = sy(camY + 20f);
+            drawShadow(c, px, py + 7 * k, 11 * k / 2);
+            drawSprite(c, ps, k, SpriteAtlas.T_NORMAL, false, px, py, 255);
+        }
+    }
+
+    // ------------------------------------------------------------------ helpers
+
+    private Sprite enemySprite(EnemyType t, boolean boss) {
+        Sprite sp = boss ? atlas.find(t.bossSpriteKey) : null;
+        return sp != null ? sp : atlas.find(t.spriteKey);
+    }
+
+    private static int hop(double anim, float hz, int k) {
+        return Math.round((float) Math.abs(Math.sin(anim * Math.PI * hz)) * k * 0.75f);
+    }
+
+    private void drawSprite(Canvas c, Sprite sp, int k, int type, boolean flip, int cx, int cy, int alpha) {
+        Bitmap b = atlas.bitmap(sp, SpriteAtlas.frameAt(sp, (float) now), k, type, flip);
+        bmp.setAlpha(alpha);
+        c.drawBitmap(b, cx - b.getWidth() / 2, cy - b.getHeight() / 2, bmp);
+    }
+
+    /** Soft dark ellipse under a ground sprite; one pre-rendered bitmap per width. */
+    private void drawShadow(Canvas c, int cx, int cy, int halfW) {
+        int w = Math.max(8, Math.min(320, halfW * 2));
+        Bitmap b = shadows[w];
+        if (b == null) {
+            int hgt = Math.max(4, w * 3 / 8);
+            b = Bitmap.createBitmap(w, hgt, Bitmap.Config.ARGB_8888);
+            Canvas sc2 = new Canvas(b);
+            fill.setColor(0x70000000);
+            rect.set(0, 0, w, hgt);
+            sc2.drawOval(rect, fill);
+            shadows[w] = b;
+        }
+        bmp.setAlpha(255);
+        c.drawBitmap(b, cx - b.getWidth() / 2, cy - b.getHeight() / 2, bmp);
+    }
+
+    private static void sort(long[] key, int[] idx, int n) {
+        for (int i = 1; i < n; i++) {
+            long k = key[i];
+            int v = idx[i];
+            int j = i - 1;
+            while (j >= 0 && key[j] > k) {
+                key[j + 1] = key[j];
+                idx[j + 1] = idx[j];
+                j--;
+            }
+            key[j + 1] = k;
+            idx[j + 1] = v;
+        }
+    }
+
+    /** Pixel coordinate (biased so it is never negative) -> sortable bits. */
+    private static long bias(int v) {
+        return (long) (v + 32768) & 0xFFFFL;
     }
 
     // ------------------------------------------------------------------ world
 
-    private void drawWorld(Canvas c, Sim s, float camX, float camY, float vw, float vh) {
-        float x0 = camX - vw / 2 - 60, x1 = camX + vw / 2 + 60, y0 = camY - vh / 2 - 60, y1 = camY + vh / 2 + 60;
-        float t = (float) s.time;
-        // garlic-style auras sit under everything
+    private void drawWorld(Canvas c, Sim s) {
+        final int w = scrW, h = scrH, m = 160;
+        float t = (float) now;
+        boolean frozen = s.freezeTimer > 0;
+
+        // 1. garlic-style auras and puddles lie on the ground
+        beginVec(c);
         for (int i = 0; i < s.inv.weaponCount; i++) {
-            Sim.WeaponState w = s.weapons[i];
-            if (w.behavior == Sim.B_GARLIC) drawAura(c, s, w, t);
+            Sim.WeaponState ws = s.weapons[i];
+            if (ws.behavior == Sim.B_GARLIC) drawAura(c, ws, s);
         }
+        for (int i = 0; i < s.projN; i++) {
+            Projectile p = s.projs[i];
+            if (p.kind == Entities.P_PUDDLE && p.maxLife - p.life >= p.flight) drawPuddle(c, p, t);
+        }
+        endVec(c);
+
+        // 2. pickups, y-sorted (flat on the ground, under the creatures)
+        int np = 0;
         for (int i = 0; i < s.pickN; i++) {
             Pickup p = s.picks[i];
-            if (p.x < x0 || p.x > x1 || p.y < y0 || p.y > y1) continue;
-            drawPickup(c, p);
+            int px = sx(p.x), py = sy(p.y);
+            if (px < -m || px > w + m || py < -m || py > h + m) continue;
+            sKey[np] = (bias(py) << 40) | (bias(px) << 24) | (p.kind << 16) | (Float.floatToIntBits(p.value) & 0xFFFF);
+            sIdx[np++] = i;
         }
-        // puddles first (ground level)
-        for (int i = 0; i < s.projN; i++) {
-            Projectile p = s.projs[i];
-            if (p.kind == Entities_P_PUDDLE) drawProjectile(c, s, p, t);
-        }
-        boolean frozen = s.freezeTimer > 0;
+        sort(sKey, sIdx, np);
+        for (int j = 0; j < np; j++) drawPickup(c, s.picks[sIdx[j]]);
+
+        // 3. enemies + player (visible only), strictly ordered by (feet y, id)
+        int n = 0, nb = 0;
+        flashing = 0;
         for (int i = 0; i < s.enemyN; i++) {
             Enemy en = s.enemies[i];
-            if (en.x < x0 || en.x > x1 || en.y < y0 || en.y > y1) continue;
-            drawEnemy(c, en.type, en.boss, en.radius, en.x, en.y, en.anim, en.flash, s.px >= en.x);
-            if (frozen) {
-                fill.setColor(0x6690D8FF);
-                c.drawCircle(en.x, en.y, en.radius, fill);
-            }
-            if (en.boss) {
-                float bw = en.radius * 2f;
-                fill.setColor(0xFF220000);
-                c.drawRect(en.x - bw / 2, en.y - en.radius - 12, en.x + bw / 2, en.y - en.radius - 7, fill);
-                fill.setColor(0xFFE02020);
-                c.drawRect(en.x - bw / 2, en.y - en.radius - 12, en.x - bw / 2 + bw * Math.max(0, en.hp / en.maxHp), en.y - en.radius - 7, fill);
-            }
+            int px = sx(en.x), py = sy(en.y);
+            if (px < -m || px > w + m || py < -m || py > h + m) continue;
+            if (en.flash > 0) flashing++;
+            Sprite sp = enemySprite(en.type, en.boss);
+            int k = sp == null ? 1 : SpriteAtlas.scaleFor(sp, ks);
+            entSpr[i] = sp;
+            entK[i] = k;
+            entSx[i] = px;
+            entSy[i] = py;
+            sKey[n] = (bias(py + 8 * k) << 32) | (en.id & 0xFFFFFFFFL);
+            sIdx[n++] = i;
+            if (en.boss && nb < bossIdx.length) bossIdx[nb++] = i;
         }
+        Sprite ps = atlas.find("player");
+        int pk = ps == null ? 1 : SpriteAtlas.scaleFor(ps, ks);
+        int ppx = sx(s.px), ppy = sy(s.py);
+        int pi = s.enemyN; // the player rides as one extra entry after the enemies (id 0)
+        sKey[n] = bias(ppy + 8 * pk) << 32;
+        sIdx[n++] = pi;
+        sort(sKey, sIdx, n);
+
+        // shadows first so a sprite in front always covers a shadow behind it
+        for (int j = 0; j < n; j++) {
+            int i = sIdx[j];
+            if (i == pi) drawShadow(c, ppx, ppy + 7 * pk, 11 * pk / 2);
+            else drawShadow(c, entSx[i], entSy[i] + 7 * entK[i], 11 * entK[i] / 2);
+        }
+
+        // 4. creatures in order
+        orderN = 0;
+        for (int j = 0; j < n; j++) {
+            int i = sIdx[j];
+            if (i == pi) {
+                drawPlayer(c, s, ps, pk, ppx, ppy);
+                recordOrder(0, (int) (sKey[j] >>> 32) - 32768, ppx, ppy, s.py);
+                continue;
+            }
+            Enemy en = s.enemies[i];
+            drawEnemy(c, s, en, entSpr[i], entK[i], entSx[i], entSy[i], frozen);
+            recordOrder(en.id, (int) (sKey[j] >>> 32) - 32768, entSx[i], entSy[i], en.y);
+        }
+        for (int b = 0; b < nb; b++) drawBossBar(c, s.enemies[bossIdx[b]], entSx[bossIdx[b]], entSy[bossIdx[b]], entK[bossIdx[b]]);
+
+        // 5. projectiles, y-sorted (they fly above the crowd)
+        int nq = 0;
         for (int i = 0; i < s.projN; i++) {
             Projectile p = s.projs[i];
-            if (p.kind != Entities_P_PUDDLE) drawProjectile(c, s, p, t);
+            if (p.kind == Entities.P_PUDDLE && (p.maxLife - p.life) >= p.flight) continue;
+            int px = sx(p.x), py = sy(p.y);
+            if (px < -m * 2 || px > w + m * 2 || py < -m * 2 || py > h + m * 2) continue;
+            sKey[nq] = (bias(py) << 40) | (bias(px) << 24) | ((p.kind & 15) << 8) | (p.slot & 255);
+            sIdx[nq++] = i;
         }
+        sort(sKey, sIdx, nq);
+        for (int j = 0; j < nq; j++) drawProjectile(c, s, s.projs[sIdx[j]], t);
+
+        // 6. effects, sparks, hp bar, numbers
+        beginVec(c);
         for (int i = 0; i < Sim.MAX_FX; i++) {
             Effect f = s.fx[i];
-            if (f.life > 0) drawFx(c, s, f);
+            if (f.life > 0) drawFx(c, f);
         }
-        boolean blink = s.invuln > 0 && ((int) (t * 20) & 1) == 0;
-        drawPlayer(c, s.px, s.py, s.facingRight, s.walk, blink ? 0.4f : 1f, 1f);
-        // slim HP bar under the player
-        fill.setColor(0xFF330000);
-        c.drawRect(s.px - 16, s.py + 17, s.px + 16, s.py + 21, fill);
-        fill.setColor(0xFFE03030);
-        c.drawRect(s.px - 16, s.py + 17, s.px - 16 + 32 * Math.max(0, s.hp / s.maxHp), s.py + 21, fill);
-        for (int i = 0; i < Sim.MAX_PART; i++) {
-            Particle q = s.parts[i];
-            if (q.life <= 0) continue;
-            fill.setColor((q.color & 0x00FFFFFF) | ((int) (255 * Math.min(1f, q.life / q.maxLife * 1.5f)) << 24));
-            c.drawRect(q.x - q.size / 2, q.y - q.size / 2, q.x + q.size / 2, q.y + q.size / 2, fill);
-        }
-        for (int i = 0; i < Sim.MAX_TEXT; i++) {
-            DamageText d = s.texts[i];
-            if (d.life <= 0) continue;
-            text.setTextSize(d.crit ? 24f : 17f);
-            int a = (int) (255 * Math.min(1f, d.life * 2.5f));
-            text.setColor((d.heal ? 0x40FF60 : d.crit ? 0xFFD030 : 0xFFFFFF) | (a << 24));
-            c.drawText(d.digits, 0, d.len, d.x, d.y, text);
-        }
+        endVec(c);
+        drawParticles(c, s);
+        drawPlayerBar(c, s, ppx, ppy, pk);
+        drawTexts(c, s);
     }
 
-    private static final int Entities_P_PUDDLE = se.felixarvid.thorsurvivors.game.Entities.P_PUDDLE;
+    private void recordOrder(int id, int feet, int sxp, int syp, float wy) {
+        int n = orderN++;
+        orderId[n] = id;
+        orderFeet[n] = feet;
+        orderSx[n] = sxp;
+        orderSy[n] = syp;
+        orderWy[n] = wy;
+    }
 
-    private void drawAura(Canvas c, Sim s, Sim.WeaponState w, float t) {
-        float r = 72f * w.area;
-        float pulse = w.pulse > 0 ? w.pulse / 0.25f : 0f;
-        int base = w.evo ? 0xA040C0 : 0xE070C0;
-        if (!atlas.draw(c, w.spriteKey, t, s.px, s.py, r * 2, r * 2, false, 0, 120)) {
-            fill.setColor(((int) (40 + 60 * pulse) << 24) | base);
-            c.drawCircle(s.px, s.py, r, fill);
-            stroke.setColor(((int) (90 + 100 * pulse) << 24) | base);
-            stroke.setStrokeWidth(3f);
-            c.drawCircle(s.px, s.py, r, stroke);
+    private void beginVec(Canvas c) {
+        c.save();
+        c.translate(ox, oy);
+        c.scale(sc, sc);
+    }
+
+    private void endVec(Canvas c) {
+        c.restore();
+    }
+
+    // ------------------------------------------------------------------ creatures
+
+    /** Enemy hit flash (white silhouette) and facing, with per-enemy hysteresis; returns true while flashing. */
+    private boolean stateFor(Enemy en, float playerX) {
+        int hs = en.id & (STATE - 1);
+        if (stId[hs] != en.id) {
+            stId[hs] = en.id;
+            stFlash[hs] = -10f;
+            stFace[hs] = 0;
         }
-    }
-
-    private void drawPickup(Canvas c, Pickup p) {
-        float bob = (float) Math.sin(p.bob) * 2f;
-        float size = p.kind == se.felixarvid.thorsurvivors.game.Entities.K_CHEST ? 34f : 20f;
-        if (atlas.draw(c, PICK_KEYS[p.kind], p.bob, p.x, p.y + bob, size, size, false, 0, 255)) return;
-        float x = p.x, y = p.y + bob;
-        switch (p.kind) {
-            case 0: { // gem diamond
-                int col = p.value < 3f ? 0xFF4FA8FF : p.value < 10f ? 0xFF4FE08A : 0xFFFF5A5A;
-                fill.setColor(col);
-                path.reset();
-                path.moveTo(x, y - 7); path.lineTo(x + 5, y); path.lineTo(x, y + 7); path.lineTo(x - 5, y); path.close();
-                c.drawPath(path, fill);
-                fill.setColor(0x80FFFFFF);
-                c.drawCircle(x - 1.5f, y - 2f, 1.6f, fill);
-                break;
-            }
-            case 1:
-            case 2: {
-                fill.setColor(p.kind == 1 ? 0xFFFFD23C : 0xFFFFB020);
-                c.drawCircle(x, y, p.kind == 1 ? 6f : 9f, fill);
-                stroke.setColor(0xFFB07800);
-                stroke.setStrokeWidth(2f);
-                c.drawCircle(x, y, p.kind == 1 ? 6f : 9f, stroke);
-                break;
-            }
-            case 3: // roast
-                fill.setColor(0xFFC8742C);
-                rect.set(x - 9, y - 6, x + 6, y + 6);
-                c.drawOval(rect, fill);
-                fill.setColor(0xFFF2E6CF);
-                c.drawRect(x + 4, y - 2, x + 12, y + 2, fill);
-                break;
-            case 4: // vacuum (magnet)
-                stroke.setColor(0xFFC040E0);
-                stroke.setStrokeWidth(5f);
-                rect.set(x - 8, y - 8, x + 8, y + 8);
-                c.drawArc(rect, 180, 180, false, stroke);
-                fill.setColor(0xFFFFFFFF);
-                c.drawRect(x - 10, y, x - 6, y + 6, fill);
-                c.drawRect(x + 6, y, x + 10, y + 6, fill);
-                break;
-            case 5: // orologion (clock)
-                fill.setColor(0xFF60C0FF);
-                c.drawCircle(x, y, 9f, fill);
-                stroke.setColor(0xFF0A3050);
-                stroke.setStrokeWidth(2f);
-                c.drawLine(x, y, x, y - 6, stroke);
-                c.drawLine(x, y, x + 4, y, stroke);
-                break;
-            case 6: // rosary
-                stroke.setColor(0xFFFFFFFF);
-                stroke.setStrokeWidth(3f);
-                c.drawLine(x, y - 10, x, y + 10, stroke);
-                c.drawLine(x - 7, y - 3, x + 7, y - 3, stroke);
-                fill.setColor(0xFFFF4060);
-                c.drawCircle(x, y - 3, 2.5f, fill);
-                break;
-            case 7: // clover
-                fill.setColor(0xFF40D060);
-                c.drawCircle(x - 4, y - 3, 4, fill);
-                c.drawCircle(x + 4, y - 3, 4, fill);
-                c.drawCircle(x - 4, y + 4, 4, fill);
-                c.drawCircle(x + 4, y + 4, 4, fill);
-                break;
-            default: { // chest
-                fill.setColor(0xFF8A5528);
-                c.drawRect(x - 16, y - 10, x + 16, y + 12, fill);
-                fill.setColor(0xFFFFC832);
-                c.drawRect(x - 16, y - 10, x + 16, y - 4, fill);
-                c.drawRect(x - 3, y - 6, x + 3, y + 4, fill);
-                stroke.setColor(0xFF3A2008);
-                stroke.setStrokeWidth(2f);
-                c.drawRect(x - 16, y - 10, x + 16, y + 12, stroke);
-                float glow = 0.5f + 0.5f * (float) Math.sin(p.bob * 2);
-                stroke.setColor(((int) (120 * glow) << 24) | 0xFFE060);
-                stroke.setStrokeWidth(3f);
-                c.drawCircle(x, y, 24f, stroke);
-            }
+        float dx = playerX - en.x;
+        if (dx > 4f) stFace[hs] = 1;
+        else if (dx < -4f) stFace[hs] = 2;
+        else if (stFace[hs] == 0) stFace[hs] = (byte) (dx >= 0 ? 1 : 2);
+        float since = (float) (now - stFlash[hs]);
+        if (since < FLASH_ON && since >= 0) return true;
+        if (en.flash > 0 && since >= FLASH_GAP) {
+            stFlash[hs] = (float) now;
+            return true;
         }
+        return false;
     }
 
-    private void drawPlayer(Canvas c, float x, float y, boolean right, float walk, float alpha, float scale) {
-        float bobSq = 1f + 0.06f * (float) Math.sin(walk * 3.8f); // ~6 Hz while moving (walk only advances when moving)
-        if (atlas.draw(c, "player", 0, x, y - 4, 40, 40, !right, 0, (int) (255 * alpha), bobSq)) return;
-        int a = (int) (255 * alpha) << 24;
-        float bob = (float) Math.abs(Math.sin(walk)) * 2f;
-        float d = right ? 1 : -1;
-        // cape
-        fill.setColor(a | 0x8A1F2E);
-        path.reset();
-        path.moveTo(x - d * 4, y - 6 - bob); path.lineTo(x - d * 16, y + 12 - bob); path.lineTo(x + d * 2, y + 12 - bob); path.close();
-        c.drawPath(path, fill);
-        // body
-        fill.setColor(a | 0x3A6FD0);
-        rect.set(x - 8, y - 6 - bob, x + 8, y + 12 - bob);
-        c.drawRoundRect(rect, 5, 5, fill);
-        // head
-        fill.setColor(a | 0xF0C8A0);
-        c.drawCircle(x, y - 11 - bob, 7, fill);
-        fill.setColor(a | 0x4A2E18);
-        rect.set(x - 7.5f, y - 19 - bob, x + 7.5f, y - 12 - bob);
-        c.drawRoundRect(rect, 4, 4, fill);
-        fill.setColor(a | 0x101010);
-        c.drawCircle(x + d * 3, y - 11 - bob, 1.3f, fill);
-    }
-
-    private void drawEnemy(Canvas c, EnemyType t, boolean boss, float r, float x, float y, float anim, float flash, boolean faceRight) {
-        int alpha = (int) (255 * t.alpha);
-        float hz = t.shape == EnemyType.SH_BAT ? 11f : t.shape == EnemyType.SH_GHOST ? 4f : 6f;
-        float sq = 1f + 0.06f * (float) Math.sin(anim * 6.2832f * hz);
-        if (atlas.draw(c, boss ? t.bossSpriteKey : t.spriteKey, 0, x, y, r * 2.4f, r * 2.4f, !faceRight, 0, alpha, sq)
-                || (boss && atlas.draw(c, t.spriteKey, 0, x, y, r * 2.4f, r * 2.4f, !faceRight, 0, alpha, sq))) {
-            if (flash > 0) {
-                fill.setColor(0x80FFFFFF);
-                c.drawCircle(x, y, r, fill);
-            }
+    private void drawEnemy(Canvas c, Sim s, Enemy en, Sprite sp, int k, int px, int py, boolean frozen) {
+        boolean flash = stateFor(en, s.px);
+        if (sp == null) {
+            fill.setColor(en.type.color);
+            c.drawCircle(px, py, en.radius * sc, fill);
             return;
         }
-        int col = flash > 0 ? 0xFFFFFFFF : t.color;
-        int a = alpha << 24;
-        fill.setColor((col & 0x00FFFFFF) | a);
-        float wob = (float) Math.sin(anim * 8f) * r * 0.08f;
-        switch (t.shape) {
-            case EnemyType.SH_BAT: {
-                float flap = (float) Math.sin(anim * 16f) * r * 0.9f;
-                path.reset();
-                path.moveTo(x, y - r * 0.2f);
-                path.lineTo(x - r * 1.9f, y - r * 0.4f + flap);
-                path.lineTo(x - r * 1.0f, y + r * 0.6f);
-                path.close();
-                path.moveTo(x, y - r * 0.2f);
-                path.lineTo(x + r * 1.9f, y - r * 0.4f + flap);
-                path.lineTo(x + r * 1.0f, y + r * 0.6f);
-                path.close();
-                c.drawPath(path, fill);
-                rect.set(x - r * 0.65f, y - r * 0.7f, x + r * 0.65f, y + r * 0.7f);
-                c.drawOval(rect, fill);
-                eyes(c, x, y - r * 0.15f, r * 0.3f, flash);
-                break;
-            }
-            case EnemyType.SH_SKELETON: {
-                rect.set(x - r * 0.55f, y, x + r * 0.55f, y + r * 1.0f);
-                c.drawRoundRect(rect, 3, 3, fill);
-                c.drawCircle(x, y - r * 0.35f, r * 0.7f, fill);
-                fill.setColor(flash > 0 ? 0xFFFFFFFF : 0xFF202020);
-                c.drawCircle(x - r * 0.27f, y - r * 0.4f, r * 0.2f, fill);
-                c.drawCircle(x + r * 0.27f, y - r * 0.4f, r * 0.2f, fill);
-                c.drawRect(x - r * 0.3f, y - r * 0.05f, x + r * 0.3f, y + r * 0.1f, fill);
-                break;
-            }
-            case EnemyType.SH_GHOST: {
-                path.reset();
-                path.moveTo(x - r, y + r);
-                path.lineTo(x - r, y - r * 0.2f);
-                rect.set(x - r, y - r * 1.1f, x + r, y + r * 0.7f);
-                path.arcTo(rect, 180, 180);
-                path.lineTo(x + r, y + r);
-                float w3 = r * 2f / 4f;
-                for (int i = 3; i >= 0; i--) path.lineTo(x - r + w3 * i + w3 / 2, y + r * (i % 2 == 0 ? 1.0f : 0.65f) + wob);
-                path.close();
-                c.drawPath(path, fill);
-                eyes(c, x, y - r * 0.2f, r * 0.33f, flash);
-                break;
-            }
-            case EnemyType.SH_FLOWER: {
-                for (int i = 0; i < 6; i++) {
-                    float ang = i * 1.0472f + anim;
-                    c.drawCircle(x + (float) Math.cos(ang) * r * 0.65f, y + (float) Math.sin(ang) * r * 0.65f, r * 0.45f, fill);
-                }
-                fill.setColor(flash > 0 ? 0xFFFFFFFF : 0xFFFFE070);
-                c.drawCircle(x, y, r * 0.5f, fill);
-                eyes(c, x, y, r * 0.17f, flash);
-                break;
-            }
-            case EnemyType.SH_WOLF: {
-                rect.set(x - r, y - r * 0.6f, x + r, y + r);
-                c.drawOval(rect, fill);
-                path.reset();
-                path.moveTo(x - r * 0.8f, y - r * 0.4f); path.lineTo(x - r * 0.5f, y - r * 1.3f); path.lineTo(x - r * 0.1f, y - r * 0.5f);
-                path.moveTo(x + r * 0.8f, y - r * 0.4f); path.lineTo(x + r * 0.5f, y - r * 1.3f); path.lineTo(x + r * 0.1f, y - r * 0.5f);
-                c.drawPath(path, fill);
-                eyes(c, x, y - r * 0.1f, r * 0.28f, flash);
-                break;
-            }
-            case EnemyType.SH_MUMMY: {
-                rect.set(x - r * 0.9f, y - r, x + r * 0.9f, y + r);
-                c.drawRoundRect(rect, r * 0.5f, r * 0.5f, fill);
-                stroke.setColor(flash > 0 ? 0xFFFFFFFF : 0xFF9C8A5C);
-                stroke.setStrokeWidth(2f);
-                for (int i = -1; i <= 1; i++) c.drawLine(x - r * 0.8f, y + i * r * 0.5f, x + r * 0.8f, y + i * r * 0.5f + 3, stroke);
-                eyes(c, x, y - r * 0.5f, r * 0.25f, flash);
-                break;
-            }
-            case EnemyType.SH_WITCH: {
-                path.reset();
-                path.moveTo(x, y - r * 1.3f); path.lineTo(x + r * 0.7f, y - r * 0.4f); path.lineTo(x - r * 0.7f, y - r * 0.4f); path.close();
-                c.drawPath(path, fill);
-                path.reset();
-                path.moveTo(x, y - r * 0.5f); path.lineTo(x + r * 1.0f, y + r); path.lineTo(x - r * 1.0f, y + r); path.close();
-                c.drawPath(path, fill);
-                eyes(c, x, y - r * 0.1f, r * 0.28f, flash);
-                break;
-            }
-            default: {
-                rect.set(x - r, y - r * 0.85f + wob, x + r, y + r);
-                c.drawRoundRect(rect, r * 0.7f, r * 0.7f, fill);
-                eyes(c, x, y - r * 0.15f, r * 0.33f, flash);
-            }
-        }
-        if (boss) {
-            stroke.setColor(0xFFFFD040);
-            stroke.setStrokeWidth(3f);
-            c.drawCircle(x, y, r * 1.1f, stroke);
-        }
+        boolean faceRight = stFace[en.id & (STATE - 1)] == 1;
+        boolean soft = en.softFlash || flashing >= MANY_FLASHING; // lightning / crowds: brighten, never a white silhouette
+        int type = flash ? (soft ? SpriteAtlas.T_BRIGHT : SpriteAtlas.T_WHITE)
+                : frozen ? SpriteAtlas.T_ICE : SpriteAtlas.T_NORMAL;
+        float hz = en.type.shape == EnemyType.SH_BAT ? 5.5f : en.type.shape == EnemyType.SH_GHOST ? 1.5f : 3f;
+        int bob = frozen ? 0 : hop(en.anim, hz, k) * (en.type.shape == EnemyType.SH_BAT ? 2 : 1);
+        drawSprite(c, sp, k, type, !faceRight, px, py - bob, (int) (255 * en.type.alpha * sp.alpha));
     }
 
-    private void eyes(Canvas c, float x, float y, float dx, float flash) {
-        fill.setColor(flash > 0 ? 0xFF888888 : 0xFFFF2020);
-        c.drawCircle(x - dx, y, dx * 0.45f, fill);
-        c.drawCircle(x + dx, y, dx * 0.45f, fill);
+    /** A bar with a dark border: black frame, dark background, coloured fill. */
+    private void bar(Canvas c, int cx, int top, int bw, int bh, float frac, int back, int front) {
+        fill.setColor(0xCC000000);
+        c.drawRect(cx - bw / 2 - 2, top - 2, cx + bw / 2 + 2, top + bh + 2, fill);
+        fill.setColor(back);
+        c.drawRect(cx - bw / 2, top, cx + bw / 2, top + bh, fill);
+        fill.setColor(front);
+        c.drawRect(cx - bw / 2, top, cx - bw / 2 + Math.round(bw * Math.max(0f, Math.min(1f, frac))), top + bh, fill);
+    }
+
+    private void drawBossBar(Canvas c, Enemy en, int px, int py, int k) {
+        bar(c, px, py - 8 * k - 22, Math.max(64, 14 * k), 10, en.hp / en.maxHp, 0xFF2A0808, 0xFFE02828);
+    }
+
+    private void drawPlayer(Canvas c, Sim s, Sprite ps, int k, int px, int py) {
+        if (ps == null) {
+            fill.setColor(0xFF3A6FD0);
+            c.drawCircle(px, py, 24, fill);
+            return;
+        }
+        int type = now < redUntil ? SpriteAtlas.T_RED : SpriteAtlas.T_NORMAL;
+        int bob = moving ? Math.round((float) Math.abs(Math.sin(s.walk)) * k * 0.75f) : 0;
+        drawSprite(c, ps, k, type, !s.facingRight, px, py - bob, 255);
+    }
+
+    private void drawPlayerBar(Canvas c, Sim s, int px, int py, int k) {
+        bar(c, px, py + 8 * k + 8, 14 * k, 8, s.hp / s.maxHp, 0xFF3A0A0A, 0xFFE03030);
+    }
+
+    // ------------------------------------------------------------------ pickups & projectiles
+
+    private static final String[] PICK_KEYS = {"pickup.GEM", "pickup.COIN", "pickup.COINBAG", "pickup.ROAST",
+            "pickup.VACUUM", "pickup.OROLOGION", "pickup.ROSARY", "pickup.CLOVER", "pickup.CHEST"};
+    private static final String[] GEM_KEYS = {"pickup.GEM.0", "pickup.GEM.1", "pickup.GEM.2"};
+
+    private void drawPickup(Canvas c, Pickup p) {
+        String key = p.kind == Entities.K_GEM ? GEM_KEYS[p.value < 3f ? 0 : p.value < 10f ? 1 : 2] : PICK_KEYS[p.kind];
+        Sprite sp = atlas.find(key);
+        if (sp == null) return;
+        int k = SpriteAtlas.scaleFor(sp, ks);
+        int bob = Math.round((float) Math.sin(p.bob) * ks * 2f);
+        int px = sx(p.x), py = sy(p.y) + bob;
+        if (p.kind == Entities.K_CHEST) {
+            float glow = 0.5f + 0.5f * (float) Math.sin(p.bob * 2);
+            stroke.setColor(((int) (110 * glow) << 24) | 0xFFE060);
+            stroke.setStrokeWidth(3f);
+            c.drawCircle(px, py, 30 * ks, stroke);
+        }
+        drawSprite(c, sp, k, SpriteAtlas.T_NORMAL, false, px, py, 255);
+    }
+
+    private int projK(Sprite sp, Projectile p) {
+        int k = SpriteAtlas.scaleFor(sp, ks);
+        float base = p.kind >= 0 && p.kind < BASE_R.length ? BASE_R[p.kind] : 0f;
+        if (base > 0f) {
+            float ratio = p.radius / (base * (p.evo && (p.kind == Entities.P_MISSILE) ? 1.3f : 1f));
+            k += ratio >= 2.1f ? 2 : ratio >= 1.45f ? 1 : 0;
+        }
+        return k;
     }
 
     private void drawProjectile(Canvas c, Sim s, Projectile p, float t) {
-        float deg = p.angle * 57.29578f;
-        String key = s.weapons[p.slot].spriteKey;
-        float sz = p.radius * 2.4f;
-        if (p.kind == se.felixarvid.thorsurvivors.game.Entities.P_PUDDLE) {
-            // holy water: a flask drops in, the puddle itself stays procedural
-            float age = p.maxLife - p.life;
-            if (age < 0.25f && atlas.draw(c, key, 0, p.x, p.y - (0.25f - age) * 480f, sz, sz, false, age * 900f, 255)) return;
-        } else if (atlas.draw(c, key, 0, p.x, p.y, sz, sz, false, deg, 255)) return;
-        boolean evo = p.evo;
-        switch (p.kind) {
-            case se.felixarvid.thorsurvivors.game.Entities.P_MISSILE:
-                fill.setColor(evo ? 0x60FFE060 : 0x6050D8FF);
-                c.drawCircle(p.x - p.vx * 0.02f, p.y - p.vy * 0.02f, p.radius * 1.2f, fill);
-                fill.setColor(evo ? 0xFFFFF0A0 : 0xFFA8F0FF);
-                c.drawCircle(p.x, p.y, p.radius * 0.7f, fill);
-                break;
-            case se.felixarvid.thorsurvivors.game.Entities.P_KNIFE:
-                c.save();
-                c.translate(p.x, p.y);
-                c.rotate(deg);
-                path.reset();
-                path.moveTo(p.radius * 1.6f, 0); path.lineTo(-p.radius, -p.radius * 0.5f); path.lineTo(-p.radius * 0.5f, 0); path.lineTo(-p.radius, p.radius * 0.5f); path.close();
-                fill.setColor(evo ? 0xFFFFF2B0 : 0xFFD8E0EA);
-                c.drawPath(path, fill);
-                c.restore();
-                break;
-            case se.felixarvid.thorsurvivors.game.Entities.P_AXE:
-                c.save();
-                c.translate(p.x, p.y);
-                c.rotate(deg);
-                fill.setColor(0xFF7A4A22);
-                c.drawRect(-2, -p.radius, 2, p.radius, fill);
-                fill.setColor(evo ? 0xFFB070E0 : 0xFFBFC8D2);
-                path.reset();
-                path.moveTo(2, -p.radius); path.lineTo(p.radius, -p.radius * 0.6f); path.lineTo(p.radius * 0.8f, p.radius * 0.1f); path.lineTo(2, -p.radius * 0.1f); path.close();
-                c.drawPath(path, fill);
-                c.restore();
-                break;
-            case se.felixarvid.thorsurvivors.game.Entities.P_CROSS:
-                c.save();
-                c.translate(p.x, p.y);
-                c.rotate(deg);
-                fill.setColor(evo ? 0xFFFFFFFF : 0xFFFFD84A);
-                float r = p.radius;
-                c.drawRect(-r, -r * 0.25f, r, r * 0.25f, fill);
-                c.drawRect(-r * 0.25f, -r, r * 0.25f, r, fill);
-                if (evo) { // sword blade
-                    fill.setColor(0xFFE8F4FF);
-                    c.drawRect(-r * 0.15f, -r * 2f, r * 0.15f, r, fill);
-                }
-                c.restore();
-                break;
-            case se.felixarvid.thorsurvivors.game.Entities.P_BOOK:
-                c.save();
-                c.translate(p.x, p.y);
-                c.rotate(deg + 90);
-                fill.setColor(evo ? 0xFF5A2A8A : 0xFF3A5FD0);
-                c.drawRect(-p.radius * 0.7f, -p.radius, p.radius * 0.7f, p.radius, fill);
-                fill.setColor(0xFFF2E6B0);
-                c.drawRect(-p.radius * 0.5f, -p.radius * 0.8f, p.radius * 0.6f, p.radius * 0.8f, fill);
-                fill.setColor(evo ? 0xFFFF70A0 : 0xFFFFD84A);
-                c.drawRect(-p.radius * 0.1f, -p.radius * 0.5f, p.radius * 0.1f, p.radius * 0.5f, fill);
-                c.restore();
-                break;
-            case se.felixarvid.thorsurvivors.game.Entities.P_FIRE:
-                fill.setColor(evo ? 0x80601010 : 0x80FF8020);
-                c.drawCircle(p.x - p.vx * 0.03f, p.y - p.vy * 0.03f, p.radius * 1.4f, fill);
-                fill.setColor(evo ? 0xFF8A1010 : 0xFFFFA030);
-                c.drawCircle(p.x, p.y, p.radius, fill);
-                fill.setColor(evo ? 0xFFFF6030 : 0xFFFFE070);
-                c.drawCircle(p.x, p.y, p.radius * 0.5f, fill);
-                break;
-            default: { // puddle
-                float k = Math.min(1f, p.life * 3f);
-                float rip = (float) Math.sin(t * 5 + p.x) * 0.04f;
-                fill.setColor(((int) (110 * k) << 24) | (evo ? 0x2040C0 : 0x40A0FF));
-                c.drawCircle(p.x, p.y, p.radius * (1 + rip), fill);
-                stroke.setColor(((int) (200 * k) << 24) | (evo ? 0x6080FF : 0xA0E0FF));
-                stroke.setStrokeWidth(2f);
-                c.drawCircle(p.x, p.y, p.radius * (0.65f + rip), stroke);
+        Sprite sp = atlas.find(s.weapons[p.slot].spriteKey);
+        int px = sx(p.x), py = sy(p.y);
+        if (p.kind == Entities.P_PUDDLE) { // the flask falling in, before it becomes a puddle
+            float age = p.maxLife - p.life, left = Math.max(0f, p.flight - age) / Math.max(0.01f, p.flight);
+            if (sp != null) {
+                int k = SpriteAtlas.scaleFor(sp, ks);
+                // the flask arcs in from above and spins as it falls
+                int drop = Math.round(left * left * 300f * sc), side = Math.round(left * 40f * sc);
+                rotated(c, sp, k, py - drop, px - side, age * 900f);
             }
+            return;
         }
+        if (sp == null) {
+            beginVec(c);
+            drawProjectileVec(c, p, t);
+            endVec(c);
+            return;
+        }
+        int k = projK(sp, p);
+        float deg = p.kind == Entities.P_BOOK ? 0f : p.angle * 57.29578f + sp.rot;
+        rotated(c, sp, k, py, px, deg);
     }
 
-    private void drawFx(Canvas c, Sim s, Effect f) {
+    private void rotated(Canvas c, Sprite sp, int k, int py, int px, float deg) {
+        Bitmap b = atlas.bitmap(sp, SpriteAtlas.frameAt(sp, (float) now), k, SpriteAtlas.T_NORMAL, false);
+        bmp.setAlpha((int) (255 * sp.alpha));
+        if (deg == 0f) {
+            c.drawBitmap(b, px - b.getWidth() / 2, py - b.getHeight() / 2, bmp);
+            return;
+        }
+        c.save();
+        c.rotate(deg, px, py);
+        c.drawBitmap(b, px - b.getWidth() / 2, py - b.getHeight() / 2, bmp);
+        c.restore();
+    }
+
+    // ------------------------------------------------------------------ vector extras (world units)
+
+    private void drawAura(Canvas c, Sim.WeaponState w, Sim s) {
+        float r = w.auraRadius; // steady soft disc, no pulsing; bright enough to read on the dark ground
+        int base = w.evo ? 0xB050E0 : 0xFF80D0;
+        fill.setColor((52 << 24) | base);
+        c.drawCircle(s.px, s.py, r, fill);
+        fill.setColor((34 << 24) | base);
+        c.drawCircle(s.px, s.py, r * 0.62f, fill);
+        stroke.setColor((200 << 24) | base);
+        stroke.setStrokeWidth(2.5f);
+        c.drawCircle(s.px, s.py, r, stroke);
+        stroke.setColor((90 << 24) | base);
+        stroke.setStrokeWidth(1.5f);
+        c.drawCircle(s.px, s.py, r * 0.8f, stroke);
+    }
+
+    /** Santa Water: a translucent pool with a bright rim, a darker core and a slow ripple ring. */
+    private void drawPuddle(Canvas c, Projectile p, float t) {
+        float k = Math.min(1f, p.life * 3f);
+        float rip = (t * 0.9f + p.x * 0.013f) % 1f;
+        int body = p.evo ? 0x3050E0 : 0x2EA0FF, rim = p.evo ? 0x90A8FF : 0xB8EAFF;
+        fill.setColor(((int) (92 * k) << 24) | body);
+        c.drawCircle(p.x, p.y, p.radius, fill);
+        fill.setColor(((int) (70 * k) << 24) | (p.evo ? 0x1020A0 : 0x1070D0));
+        c.drawCircle(p.x, p.y, p.radius * 0.6f, fill);
+        stroke.setColor(((int) (230 * k) << 24) | rim);
+        stroke.setStrokeWidth(2.5f);
+        c.drawCircle(p.x, p.y, p.radius, stroke);
+        stroke.setColor(((int) (130 * k * (1f - rip)) << 24) | rim);
+        stroke.setStrokeWidth(1.5f);
+        c.drawCircle(p.x, p.y, p.radius * (0.25f + 0.7f * rip), stroke);
+    }
+
+    /** Fallback for a weapon with no mapped sprite. */
+    private void drawProjectileVec(Canvas c, Projectile p, float t) {
+        fill.setColor(p.evo ? 0xFFFFF0A0 : 0xFFA8F0FF);
+        c.drawCircle(p.x, p.y, Math.max(4f, p.radius * 0.7f), fill);
+    }
+
+    private void drawFx(Canvas c, Effect f) {
         float k = f.life / f.maxLife;
         switch (f.kind) {
-            case se.felixarvid.thorsurvivors.game.Entities.FX_WHIP:
-                if (atlas.draw(c, "fx.whip", 1f - k, f.x, f.y, f.w, f.h * 2, f.side < 0, 0, (int) (255 * k))) break;
-                rect.set(f.x - f.w / 2, f.y - f.h * 0.9f, f.x + f.w / 2, f.y + f.h * 0.9f);
-                stroke.setColor(((int) (230 * k) << 24) | (f.evo ? 0xFF3050 : 0xFFFFFF));
-                stroke.setStrokeWidth(8f * k + 2f);
-                c.drawArc(rect, f.side > 0 ? -50 : 130, 100, false, stroke);
-                break;
-            case se.felixarvid.thorsurvivors.game.Entities.FX_BOLT: {
-                fill.setColor(((int) (70 * k) << 24) | 0xFFF080);
-                c.drawCircle(f.x, f.y, f.w, fill);
-                stroke.setColor(((int) (255 * k) << 24) | (f.evo ? 0xFFE040 : 0xB8E8FF));
-                stroke.setStrokeWidth(4f);
-                float top = f.y - Sim.VIEW_H;
-                float cx = f.x, cy = top;
-                int seed = (int) (f.x * 13 + f.y * 7);
-                for (int i = 1; i <= 8; i++) {
-                    float nx = f.x + (((seed >> i) & 15) - 7.5f) * 4f * (1 - i / 8f);
-                    float ny = top + (f.y - top) * i / 8f;
-                    c.drawLine(cx, cy, nx, ny, stroke);
-                    cx = nx;
-                    cy = ny;
-                }
+            case Entities.FX_WHIP: { // crisp tapered crescent that sweeps out and fades
+                float near = f.x - f.side * f.w / 2f;
+                float reach = Math.min(1f, (1f - k) * 4f + 0.35f);
+                float far = near + f.side * f.w * reach;
+                float mid = (near + far) / 2f, y = f.y;
+                float bow = f.h * 1.4f;
+                path.reset();
+                path.moveTo(near, y);
+                path.quadTo(mid, y - bow, far, y + f.h * 0.15f);
+                path.quadTo(mid, y - bow * 0.35f, near, y);
+                path.close();
+                int col = f.evo ? 0xFF4060 : 0xFFFFFF;
+                fill.setColor(((int) (235 * k) << 24) | col);
+                c.drawPath(path, fill);
+                stroke.setColor(((int) (120 * k) << 24) | col);
+                stroke.setStrokeWidth(2f);
+                c.drawPath(path, stroke);
                 break;
             }
-            case se.felixarvid.thorsurvivors.game.Entities.FX_RING:
+            case Entities.FX_BOLT: { // one jagged bolt from the top of the screen to the target, plus a small impact flash
+                float fade = Math.min(1f, k * 2.5f);
+                float top = -oy / sc - 24f; // top edge of the screen in world units
+                int seed = (int) (f.x * 13 + f.y * 7);
+                int segs = Math.max(5, (int) ((f.y - top) / 40f));
+                path.reset();
+                path.moveTo(f.x + (((seed * 0x9E3779B1) >>> 27) - 15.5f) * 0.5f, top);
+                for (int i = 1; i <= segs; i++) {
+                    int hh = (seed + i * 7919) * 0x9E3779B1;
+                    float jit = i == segs ? 0f : (((hh >>> 16) & 31) - 15.5f) * 0.8f;
+                    path.lineTo(f.x + jit, top + (f.y - top) * i / segs);
+                }
+                int col = f.evo ? 0xFFE040 : 0x9AD8FF;
+                stroke.setColor(((int) (120 * fade) << 24) | col);
+                stroke.setStrokeWidth(5f);
+                c.drawPath(path, stroke);
+                stroke.setColor(((int) (255 * fade) << 24) | 0xFFFFFF);
+                stroke.setStrokeWidth(2f);
+                c.drawPath(path, stroke);
+                fill.setColor(((int) (110 * fade) << 24) | col);
+                c.drawCircle(f.x, f.y, 15f, fill);
+                fill.setColor(((int) (255 * fade) << 24) | 0xFFFFFF);
+                c.drawCircle(f.x, f.y, 6f + 3f * (1f - k), fill);
+                break;
+            }
+            case Entities.FX_RING:
                 fill.setColor(((int) (110 * k) << 24) | (f.evo ? 0x802010 : 0xFF8020));
                 c.drawCircle(f.x, f.y, f.w * (1.1f - 0.4f * k), fill);
                 break;
@@ -571,56 +680,133 @@ public final class WorldRenderer {
         }
     }
 
+    // ------------------------------------------------------------------ sparks and numbers (screen space)
+
+    private void drawParticles(Canvas c, Sim s) {
+        for (int i = 0; i < Sim.MAX_PART; i += 2) { // every other slot: slots never move, so no flicker, half the spam
+            Particle q = s.parts[i];
+            if (q.life <= 0) continue;
+            int a = (int) (200 * Math.min(1f, q.life / q.maxLife * 1.5f));
+            fill.setColor((q.color & 0x00FFFFFF) | (a << 24));
+            int size = Math.max(2, Math.round(q.size * sc * 0.7f));
+            int px = sx(q.x), py = sy(q.y);
+            c.drawRect(px, py, px + size, py + size, fill);
+        }
+    }
+
+    private void drawTexts(Canvas c, Sim s) {
+        // keep the newest few: a stable threshold on remaining life (crits always stay)
+        int live = 0;
+        for (int i = 0; i < Sim.MAX_TEXT; i++) {
+            DamageText d = s.texts[i];
+            if (d.life > 0 && !d.crit && !d.heal) lifeTmp[live++] = d.life;
+        }
+        float thresh = 0f;
+        int ties = MAX_TEXTS_DRAWN; // how many numbers with exactly the threshold life may still be drawn
+        if (live > MAX_TEXTS_DRAWN) {
+            for (int i = 1; i < live; i++) { // insertion sort ascending
+                float v = lifeTmp[i];
+                int j = i - 1;
+                while (j >= 0 && lifeTmp[j] > v) { lifeTmp[j + 1] = lifeTmp[j]; j--; }
+                lifeTmp[j + 1] = v;
+            }
+            thresh = lifeTmp[live - MAX_TEXTS_DRAWN];
+            for (int i = live - 1; i >= 0 && lifeTmp[i] > thresh; i--) ties--; // hits of one frame share a life
+        }
+        text.setTextAlign(Paint.Align.CENTER);
+        text.setShadowLayer(2f, 0f, 2f, 0xCC000000);
+        for (int i = 0; i < Sim.MAX_TEXT; i++) {
+            DamageText d = s.texts[i];
+            if (d.life <= 0) continue;
+            if (!d.crit && !d.heal && (d.life < thresh || (d.life == thresh && ties-- <= 0))) continue;
+            text.setTextSize((d.crit ? 24f : 18f) * ks);
+            int a = (int) (255 * Math.min(1f, d.life * 4f));
+            text.setColor((d.heal ? 0x40FF60 : d.crit ? 0xFFD030 : 0xFFFFFF) | (a << 24));
+            c.drawText(d.digits, 0, d.len, sx(d.x), sy(d.y), text);
+            textsDrawn++;
+        }
+        text.clearShadowLayer();
+    }
+
     // ------------------------------------------------------------------ overlays (screen space)
+
+    private String bestLine = "";
+    private int bestT = -1, bestK = -1, bestG = -1;
 
     private void drawOverlay(Canvas c, int w, int h, Engine e, Sim s, boolean menu, boolean dual) {
         int ph = e.phase;
-        text.setTextAlign(Paint.Align.CENTER);
-        if (s != null && s.screenFlash > 0 && !menu) {
-            fill.setColor(((int) (180 * Math.min(1f, s.screenFlash * 2)) << 24) | 0xFFFFFF);
-            c.drawRect(0, 0, w, h, fill);
+        if (s != null && !menu) {
+            float v = 1f - (float) ((now - hitAt) / (HIT_TINT * 3));
+            if (v > 0) {
+                ensureVignette(w, h);
+                vig.setAlpha((int) (255 * VIGNETTE * Math.min(1f, v)));
+                c.drawRect(0, 0, w, h, vig);
+            }
+            if (s.screenFlash > 0) {
+                fill.setColor(((int) (70 * Math.min(1f, s.screenFlash * 2)) << 24) | 0xFFFFFF);
+                c.drawRect(0, 0, w, h, fill);
+            }
         }
         if (menu) {
             fill.setColor(0x66000000);
             c.drawRect(0, 0, w, h, fill);
-            text.setColor(0xFFFFD84A);
-            text.setTextSize(h * 0.13f);
-            c.drawText("THOR SURVIVORS", w / 2f, h * 0.30f, text);
-            text.setColor(0xFFE8E8F0);
-            text.setTextSize(h * 0.045f);
-            String st = e.stageKeys.isEmpty() ? "" : e.stage().name;
-            c.drawText(st, w / 2f, h * 0.38f, text);
+            big.setShadowLayer(h * 0.006f, 0, h * 0.006f, 0xCC000000);
+            big.setColor(0xFFFFD84A);
+            big.setTextSize(h * 0.13f);
+            c.drawText("THOR SURVIVORS", w / 2f, h * 0.30f, big);
+            big.setColor(0xFFE8E8F0);
+            big.setTextSize(h * 0.045f);
+            c.drawText(e.stageKeys.isEmpty() ? "" : e.stage().name, w / 2f, h * 0.38f, big);
             if (e.meta != null) {
-                text.setTextSize(h * 0.04f);
-                text.setColor(0xFFB0B8D0);
-                c.drawText("Best " + fmtTime(e.meta.bestTimeSec) + "   Kills " + e.meta.bestKills + "   Gold " + e.meta.gold, w / 2f, h * 0.45f, text);
+                if (bestT != e.meta.bestTimeSec || bestK != e.meta.bestKills || bestG != e.meta.gold) {
+                    bestT = e.meta.bestTimeSec;
+                    bestK = e.meta.bestKills;
+                    bestG = e.meta.gold;
+                    bestLine = "Best " + fmtTime(bestT) + "   Kills " + bestK + "   Gold " + bestG;
+                }
+                big.setTextSize(h * 0.04f);
+                big.setColor(0xFFB0B8D0);
+                c.drawText(bestLine, w / 2f, h * 0.45f, big);
             }
             if (dual) {
-                text.setTextSize(h * 0.035f);
-                text.setColor(0xFF8890B0);
-                c.drawText("Use the bottom screen (or gamepad: stick/d-pad + A)", w / 2f, h * 0.93f, text);
+                big.setTextSize(h * 0.035f);
+                big.setColor(0xFF8890B0);
+                c.drawText("Use the bottom screen (or gamepad: stick/d-pad + A)", w / 2f, h * 0.93f, big);
             }
+            big.clearShadowLayer();
             return;
         }
         if (ph == Engine.PH_LEVELUP || ph == Engine.PH_PAUSED || ph == Engine.PH_CHEST || ph == Engine.PH_RESULT) {
-            fill.setColor(0x99000000);
+            fill.setColor(0x77000000);
             c.drawRect(0, 0, w, h, fill);
-            text.setTextSize(h * 0.1f);
+            big.setShadowLayer(h * 0.006f, 0, h * 0.006f, 0xCC000000);
+            big.setTextSize(h * 0.1f);
             String t1;
-            int col = 0xFFFFFFFF;
+            int col;
             if (ph == Engine.PH_LEVELUP) { t1 = "LEVEL UP!"; col = 0xFFFFD84A; }
-            else if (ph == Engine.PH_PAUSED) t1 = "PAUSED";
+            else if (ph == Engine.PH_PAUSED) { t1 = "PAUSED"; col = 0xFFFFFFFF; }
             else if (ph == Engine.PH_CHEST) { t1 = "TREASURE!"; col = 0xFFFFD84A; }
             else if (e.resultWin) { t1 = "VICTORY"; col = 0xFF70E080; }
             else { t1 = "YOU DIED"; col = 0xFFE04040; }
-            text.setColor(col);
-            c.drawText(t1, w / 2f, h * 0.5f, text);
+            big.setColor(col);
+            c.drawText(t1, w / 2f, h * 0.5f, big);
             if (dual && ph != Engine.PH_RESULT) {
-                text.setTextSize(h * 0.04f);
-                text.setColor(0xFFC0C8E0);
-                c.drawText("Choose on the bottom screen", w / 2f, h * 0.58f, text);
+                big.setTextSize(h * 0.04f);
+                big.setColor(0xFFC0C8E0);
+                c.drawText("Choose on the bottom screen", w / 2f, h * 0.58f, big);
             }
+            big.clearShadowLayer();
         }
+    }
+
+    private void ensureVignette(int w, int h) {
+        if (vigShader != null && vigW == w && vigH == h) return;
+        vigW = w;
+        vigH = h;
+        float rad = (float) Math.sqrt((double) w * w + (double) h * h) / 2f;
+        vigShader = new RadialGradient(w / 2f, h / 2f, rad, new int[]{0x00B01010, 0x00B01010, 0xFFC01818},
+                new float[]{0f, 0.5f, 1f}, Shader.TileMode.CLAMP);
+        vig.setShader(vigShader);
     }
 
     public static String fmtTime(int sec) {

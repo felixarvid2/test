@@ -10,7 +10,7 @@
      16
     ]
    ],
-   "k": 4
+   "k": 5
   },
   "enemy.ZOMBIE": {
    "sheet": "sprites/tiny-creatures.png",
@@ -22,7 +22,7 @@
      16
     ]
    ],
-   "k": 3
+   "k": 4
   },
   "enemy.SKELETON": {
    "sheet": "sprites/tiny-creatures.png",
@@ -34,7 +34,7 @@
      16
     ]
    ],
-   "k": 3
+   "k": 4
   },
   "enemy.SKULL2_SCALING": {
    "sheet": "sprites/tiny-creatures.png",
@@ -46,7 +46,7 @@
      16
     ]
    ],
-   "k": 3
+   "k": 4
   },
   "enemy.DULL1": {
    "sheet": "sprites/tiny-creatures.png",
@@ -58,7 +58,7 @@
      16
     ]
    ],
-   "k": 3
+   "k": 4
   },
   "enemy.DULL2": {
    "sheet": "sprites/tiny-creatures.png",
@@ -70,7 +70,7 @@
      16
     ]
    ],
-   "k": 3
+   "k": 4
   },
   "enemy.BAT1": {
    "sheet": "sprites/tiny-dungeon.png",
@@ -82,7 +82,7 @@
      16
     ]
    ],
-   "k": 3
+   "k": 4
   },
   "enemy.BAT2": {
    "sheet": "sprites/tiny-dungeon.png",
@@ -94,7 +94,7 @@
      16
     ]
    ],
-   "k": 3,
+   "k": 4,
    "tint": "#C090FF"
   },
   "enemy.BAT3": {
@@ -107,7 +107,7 @@
      16
     ]
    ],
-   "k": 3,
+   "k": 4,
    "tint": "#FF8080"
   },
   "enemy.BAT4": {
@@ -120,7 +120,7 @@
      16
     ]
    ],
-   "k": 3,
+   "k": 4,
    "tint": "#80A8FF"
   },
   "enemy.BAT5": {
@@ -133,7 +133,7 @@
      16
     ]
    ],
-   "k": 3,
+   "k": 4,
    "tint": "#FFE070"
   },
   "enemy.XLBAT": {
@@ -146,7 +146,7 @@
      16
     ]
    ],
-   "k": 4,
+   "k": 5,
    "tint": "#8878A8"
   },
   "enemy.GHOST": {
@@ -159,7 +159,7 @@
      16
     ]
    ],
-   "k": 3,
+   "k": 4,
    "alpha": 0.75
   },
   "enemy.ECTO1": {
@@ -172,7 +172,7 @@
      16
     ]
    ],
-   "k": 3,
+   "k": 4,
    "alpha": 0.75
   },
   "enemy.ECTO2": {
@@ -185,7 +185,7 @@
      16
     ]
    ],
-   "k": 3,
+   "k": 4,
    "alpha": 0.75
   },
   "enemy.MUDMAN1": {
@@ -198,7 +198,7 @@
      16
     ]
    ],
-   "k": 3
+   "k": 4
   },
   "enemy.MUD": {
    "sheet": "sprites/tiny-creatures.png",
@@ -210,7 +210,7 @@
      16
     ]
    ],
-   "k": 3
+   "k": 4
   },
   "enemy.MUDMAN2": {
    "sheet": "sprites/tiny-creatures.png",
@@ -222,7 +222,7 @@
      16
     ]
    ],
-   "k": 3
+   "k": 4
   },
   "enemy.FLOWER": {
    "sheet": "sprites/tiny-creatures.png",
@@ -234,7 +234,7 @@
      16
     ]
    ],
-   "k": 3
+   "k": 4
   },
   "enemy.XLFLOWER": {
    "sheet": "sprites/tiny-creatures.png",
@@ -246,7 +246,7 @@
      16
     ]
    ],
-   "k": 4
+   "k": 5
   },
   "enemy.WEREWOLF": {
    "sheet": "sprites/tiny-creatures.png",
@@ -258,7 +258,7 @@
      16
     ]
    ],
-   "k": 3
+   "k": 4
   },
   "enemy.MUMMY": {
    "sheet": "sprites/tiny-creatures.png",
@@ -270,7 +270,7 @@
      16
     ]
    ],
-   "k": 3
+   "k": 4
   },
   "enemy.XLMUMMY": {
    "sheet": "sprites/tiny-creatures.png",
@@ -282,7 +282,7 @@
      16
     ]
    ],
-   "k": 4
+   "k": 5
   },
   "enemy.XLMANTIS": {
    "sheet": "sprites/tiny-creatures.png",
@@ -294,7 +294,7 @@
      16
     ]
    ],
-   "k": 4
+   "k": 5
   },
   "enemy.MEDUSA2": {
    "sheet": "sprites/tiny-creatures.png",
@@ -306,7 +306,7 @@
      16
     ]
    ],
-   "k": 3
+   "k": 4
   },
   "enemy.MEDUSA2_AGGRO": {
    "sheet": "sprites/tiny-creatures.png",
@@ -318,7 +318,7 @@
      16
     ]
    ],
-   "k": 3
+   "k": 4
   },
   "enemy.XLMEDUSA": {
    "sheet": "sprites/tiny-creatures.png",
@@ -330,7 +330,7 @@
      16
     ]
    ],
-   "k": 4
+   "k": 5
   },
   "enemy.WITCH1": {
    "sheet": "sprites/tiny-creatures.png",
@@ -342,7 +342,7 @@
      16
     ]
    ],
-   "k": 3
+   "k": 4
   },
   "enemy.WITCH2": {
    "sheet": "sprites/tiny-creatures.png",
@@ -354,7 +354,7 @@
      16
     ]
    ],
-   "k": 3
+   "k": 4
   },
   "enemy.BUER": {
    "sheet": "sprites/tiny-creatures.png",
@@ -366,7 +366,7 @@
      16
     ]
    ],
-   "k": 3
+   "k": 4
   },
   "boss.BOSS_BUER": {
    "sheet": "sprites/tiny-creatures.png",
@@ -378,7 +378,7 @@
      16
     ]
    ],
-   "k": 8
+   "k": 10
   },
   "enemy.BOSS_BUER": {
    "sheet": "sprites/tiny-creatures.png",
@@ -390,7 +390,7 @@
      16
     ]
    ],
-   "k": 5
+   "k": 6
   },
   "boss.BOSS_COUNT1": {
    "sheet": "sprites/tiny-creatures.png",
@@ -402,7 +402,7 @@
      16
     ]
    ],
-   "k": 8
+   "k": 10
   },
   "enemy.BOSS_COUNT1": {
    "sheet": "sprites/tiny-creatures.png",
@@ -414,7 +414,7 @@
      16
     ]
    ],
-   "k": 5
+   "k": 6
   },
   "boss.BOSS_COUNT2": {
    "sheet": "sprites/tiny-creatures.png",
@@ -426,7 +426,7 @@
      16
     ]
    ],
-   "k": 8
+   "k": 10
   },
   "enemy.BOSS_COUNT2": {
    "sheet": "sprites/tiny-creatures.png",
@@ -438,7 +438,7 @@
      16
     ]
    ],
-   "k": 5
+   "k": 6
   },
   "boss.BOSS_ECTO": {
    "sheet": "sprites/tiny-dungeon.png",
@@ -450,7 +450,7 @@
      16
     ]
    ],
-   "k": 8,
+   "k": 10,
    "alpha": 0.8
   },
   "enemy.BOSS_ECTO": {
@@ -463,7 +463,7 @@
      16
     ]
    ],
-   "k": 5,
+   "k": 6,
    "alpha": 0.8
   },
   "boss.BOSS_MEDUSA1": {
@@ -476,7 +476,7 @@
      16
     ]
    ],
-   "k": 8
+   "k": 10
   },
   "enemy.BOSS_MEDUSA1": {
    "sheet": "sprites/tiny-creatures.png",
@@ -488,7 +488,7 @@
      16
     ]
    ],
-   "k": 5
+   "k": 6
   },
   "boss.BOSS_XLMEDUSA": {
    "sheet": "sprites/tiny-creatures.png",
@@ -500,7 +500,7 @@
      16
     ]
    ],
-   "k": 8
+   "k": 10
   },
   "enemy.BOSS_XLMEDUSA": {
    "sheet": "sprites/tiny-creatures.png",
@@ -512,7 +512,7 @@
      16
     ]
    ],
-   "k": 5
+   "k": 6
   },
   "boss.BOSS_MUD": {
    "sheet": "sprites/tiny-creatures.png",
@@ -524,7 +524,7 @@
      16
     ]
    ],
-   "k": 8
+   "k": 10
   },
   "enemy.BOSS_MUD": {
    "sheet": "sprites/tiny-creatures.png",
@@ -536,7 +536,7 @@
      16
     ]
    ],
-   "k": 5
+   "k": 6
   },
   "boss.BOSS_WEREWOLF": {
    "sheet": "sprites/tiny-creatures.png",
@@ -548,7 +548,7 @@
      16
     ]
    ],
-   "k": 8
+   "k": 10
   },
   "enemy.BOSS_WEREWOLF": {
    "sheet": "sprites/tiny-creatures.png",
@@ -560,7 +560,7 @@
      16
     ]
    ],
-   "k": 5
+   "k": 6
   },
   "boss.BOSS_WITCH2": {
    "sheet": "sprites/tiny-creatures.png",
@@ -572,7 +572,7 @@
      16
     ]
    ],
-   "k": 8
+   "k": 10
   },
   "enemy.BOSS_WITCH2": {
    "sheet": "sprites/tiny-creatures.png",
@@ -584,7 +584,7 @@
      16
     ]
    ],
-   "k": 5
+   "k": 6
   },
   "boss.BOSS_XLFLOWER": {
    "sheet": "sprites/tiny-creatures.png",
@@ -596,7 +596,7 @@
      16
     ]
    ],
-   "k": 8
+   "k": 10
   },
   "enemy.BOSS_XLFLOWER": {
    "sheet": "sprites/tiny-creatures.png",
@@ -608,7 +608,7 @@
      16
     ]
    ],
-   "k": 5
+   "k": 6
   },
   "boss.BOSS_XLMANTIS": {
    "sheet": "sprites/tiny-creatures.png",
@@ -620,7 +620,7 @@
      16
     ]
    ],
-   "k": 8
+   "k": 10
   },
   "enemy.BOSS_XLMANTIS": {
    "sheet": "sprites/tiny-creatures.png",
@@ -632,7 +632,7 @@
      16
     ]
    ],
-   "k": 5
+   "k": 6
   },
   "boss.BOSS_XLMUMMY": {
    "sheet": "sprites/tiny-creatures.png",
@@ -644,7 +644,7 @@
      16
     ]
    ],
-   "k": 8
+   "k": 10
   },
   "enemy.BOSS_XLMUMMY": {
    "sheet": "sprites/tiny-creatures.png",
@@ -656,7 +656,7 @@
      16
     ]
    ],
-   "k": 5
+   "k": 6
   },
   "boss.BOSS_XLDEATH": {
    "sheet": "sprites/tiny-creatures.png",
@@ -668,7 +668,7 @@
      16
     ]
    ],
-   "k": 8
+   "k": 10
   },
   "enemy.BOSS_XLDEATH": {
    "sheet": "sprites/tiny-creatures.png",
@@ -680,7 +680,7 @@
      16
     ]
    ],
-   "k": 5
+   "k": 6
   },
   "boss.BAT4": {
    "sheet": "sprites/tiny-dungeon.png",
@@ -692,7 +692,7 @@
      16
     ]
    ],
-   "k": 8,
+   "k": 10,
    "tint": "#80A8FF"
   },
   "boss.BAT5": {
@@ -705,7 +705,7 @@
      16
     ]
    ],
-   "k": 8,
+   "k": 10,
    "tint": "#FFE070"
   },
   "boss.XLBAT": {
@@ -718,7 +718,7 @@
      16
     ]
    ],
-   "k": 8,
+   "k": 10,
    "tint": "#8878A8"
   },
   "boss.XLMANTIS": {
@@ -731,7 +731,7 @@
      16
     ]
    ],
-   "k": 8
+   "k": 10
   },
   "boss.XLMUMMY": {
    "sheet": "sprites/tiny-creatures.png",
@@ -743,7 +743,7 @@
      16
     ]
    ],
-   "k": 8
+   "k": 10
   },
   "boss.XLFLOWER": {
    "sheet": "sprites/tiny-creatures.png",
@@ -755,7 +755,7 @@
      16
     ]
    ],
-   "k": 8
+   "k": 10
   },
   "pickup.CHEST": {
    "sheet": "sprites/tiny-dungeon.png",
@@ -767,7 +767,7 @@
      16
     ]
    ],
-   "k": 3
+   "k": 4
   },
   "pickup.COIN": {
    "sheet": "sprites/tiny-town.png",
@@ -779,7 +779,7 @@
      16
     ]
    ],
-   "k": 2
+   "k": 3
   },
   "pickup.COINBAG": {
    "sheet": "sprites/tiny-dungeon.png",
@@ -791,7 +791,7 @@
      16
     ]
    ],
-   "k": 2
+   "k": 3
   },
   "proj.KNIFE": {
    "sheet": "sprites/tiny-dungeon.png",
@@ -803,7 +803,7 @@
      16
     ]
    ],
-   "k": 2,
+   "k": 3,
    "rot": 90
   },
   "proj.THOUSAND": {
@@ -816,7 +816,7 @@
      16
     ]
    ],
-   "k": 3,
+   "k": 4,
    "rot": 90
   },
   "proj.AXE": {
@@ -829,7 +829,7 @@
      16
     ]
    ],
-   "k": 3
+   "k": 4
   },
   "proj.SCYTHE": {
    "sheet": "sprites/tiny-town.png",
@@ -841,7 +841,7 @@
      16
     ]
    ],
-   "k": 4
+   "k": 5
   },
   "proj.FIREBALL": {
    "sheet": "sprites/tiny-creatures.png",
@@ -853,7 +853,7 @@
      16
     ]
    ],
-   "k": 2
+   "k": 3
   },
   "proj.HELLFIRE": {
    "sheet": "sprites/tiny-creatures.png",
@@ -865,7 +865,7 @@
      16
     ]
    ],
-   "k": 3,
+   "k": 4,
    "tint": "#FF6040"
   },
   "proj.MAGIC_MISSILE": {
@@ -878,7 +878,7 @@
      16
     ]
    ],
-   "k": 2
+   "k": 3
   },
   "proj.HOLY_MISSILE": {
    "sheet": "sprites/tiny-creatures.png",
@@ -890,7 +890,7 @@
      16
     ]
    ],
-   "k": 3,
+   "k": 4,
    "tint": "#FFF0A0"
   },
   "proj.HOLYWATER": {
@@ -903,7 +903,7 @@
      16
     ]
    ],
-   "k": 2
+   "k": 3
   },
   "proj.BORA": {
    "sheet": "sprites/tiny-dungeon.png",
@@ -915,33 +915,8 @@
      16
     ]
    ],
-   "k": 3,
-   "tint": "#8090FF"
-  },
-  "proj.CROSS": {
-   "sheet": "sprites/tiny-dungeon.png",
-   "frames": [
-    [
-     136,
-     136,
-     16,
-     16
-    ]
-   ],
-   "k": 3
-  },
-  "proj.HEAVENSWORD": {
-   "sheet": "sprites/tiny-dungeon.png",
-   "frames": [
-    [
-     136,
-     136,
-     16,
-     16
-    ]
-   ],
    "k": 4,
-   "tint": "#FFF4B0"
+   "tint": "#8090FF"
   },
   "icon.WHIP": {
    "sheet": "sprites/tiny-dungeon.png",
@@ -1002,7 +977,7 @@
    "sheet": "sprites/tiny-dungeon.png",
    "frames": [
     [
-     85,
+     102,
      85,
      16,
      16
@@ -1222,8 +1197,8 @@
     ]
    ],
    "variantChance": [
-    0.25,
-    0.08
+    0.15,
+    0.03
    ],
    "decor": [
     [
@@ -1257,7 +1232,15 @@
      16
     ]
    ],
-   "decorChance": 0.04
+   "decorChance": 0.025,
+   "grade": [
+    0.75,
+    0.78
+   ],
+   "decorGrade": [
+    0.88,
+    0.92
+   ]
   },
   "tile.LIBRARY": {
    "sheet": "sprites/tiny-dungeon.png",
@@ -1282,8 +1265,8 @@
     ]
    ],
    "variantChance": [
-    0.08,
-    0.04
+    0.1,
+    0.03
    ],
    "decor": [
     [
@@ -1311,7 +1294,15 @@
      16
     ]
    ],
-   "decorChance": 0.04
+   "decorChance": 0.025,
+   "grade": [
+    0.55,
+    0.62
+   ],
+   "decorGrade": [
+    0.8,
+    0.85
+   ]
   }
  }
 }
