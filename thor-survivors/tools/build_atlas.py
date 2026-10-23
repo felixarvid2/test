@@ -90,12 +90,20 @@ ICONS = dict(WHIP=("D", 107), MAGIC_MISSILE=("C", 89), KNIFE=("D", 103), AXE=("D
 for k, (sh, i) in ICONS.items():
     M["icon." + k] = S(sh, i, **({"tint": "#FFB0B0"} if k == "MAXHEALTH" else {}))
 
-# ground tiles: frames[0] is the base; variantChance[i] is the chance of frames[i+1]
+# Ground tiles (the layout lives in game/WorldGen.java, which indexes these lists by position):
+#   frames  base floor: forest 0 grass, 1 tufts, 2 flowers (library: plain floor, rubble, rubble)
+#   ground  more opaque tiles graded like the floor: forest = dirt autotile 12 13 14 / 24 25 26 / 36 37 38
+#           (TL T TR / L C R / BL B BR), then the inner corners 39 (grass top-left) 40 (TR) 41 (BR) 42 (BL), then 43 pebbles
+#   decor   transparent objects drawn over the floor: forest 15 autumn tree, 16 green tree, 5 bush, 29 mushrooms,
+#           17 sprout; library 63 + 75 bookshelf, 72 table, 82 barrel, 73 stool
+# Tiny Town 3/4 and 27/28 (tree tops / cut-off trees) and the 6..8 / 18..20 / 30..32 "forest" pieces do not join into
+# a clean block, so clumps are built from whole trees instead.
 TILES = {
     "tile.FOREST": dict(sheet="T", frames=[0, 1, 2], variantChance=[0.15, 0.03],
-                        decor=[4, 5, 16, 28, 29], decorChance=0.025, grade=[0.75, 0.78], decorGrade=[0.88, 0.92]),
+                        ground=[12, 13, 14, 24, 25, 26, 36, 37, 38, 39, 40, 41, 42, 43],
+                        decor=[15, 16, 5, 29, 17], decorChance=0.025, grade=[0.75, 0.78], decorGrade=[0.88, 0.92]),
     "tile.LIBRARY": dict(sheet="D", frames=[0, 12, 24], variantChance=[0.1, 0.03],
-                         decor=[63, 75, 72, 82], decorChance=0.025, grade=[0.55, 0.62], decorGrade=[0.8, 0.85]),
+                         decor=[63, 75, 72, 82, 73], decorChance=0.025, grade=[0.55, 0.62], decorGrade=[0.8, 0.85]),
 }
 
 def rect(sheet, idx):
@@ -127,6 +135,7 @@ def build():
         sh = t["sheet"]
         tiles[key] = {"sheet": "sprites/" + SHEETS[sh][1], "frames": [rect(sh, i) for i in t["frames"]],
                       "variantChance": t["variantChance"], "decor": [rect(sh, i) for i in t["decor"]],
+                      "ground": [rect(sh, i) for i in t.get("ground", [])],
                       "decorChance": t["decorChance"]}
         for g in ("grade", "decorGrade"):  # [brightness, saturation] baked into the bitmaps at load
             if g in t:

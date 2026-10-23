@@ -51,10 +51,13 @@ public final class SpriteAtlas {
         /** Ground tiles: chance of base[i+1] and scattered decorations. */
         public float[] variantChance = new float[0];
         public Bitmap[] decor = new Bitmap[0];
+        /** Ground tiles: extra opaque pieces graded like the floor (autotile edges, pebbles); see WorldGen for the indices. */
+        public Bitmap[] ground = new Bitmap[0];
         public float decorChance;
         /** [(type * 2 + flip) * (MAX_K + 1) + k] -> scaled frames, built on demand. */
         private final Bitmap[][] cache = new Bitmap[TYPES * 2 * (MAX_K + 1)][];
         private final Bitmap[][] decorCache = new Bitmap[MAX_K + 1][];
+        private final Bitmap[][] groundCache = new Bitmap[MAX_K + 1][];
 
         public int width() {
             return base[0].getWidth();
@@ -134,8 +137,14 @@ public final class SpriteAtlas {
                 s.decor = new Bitmap[dc.length()];
                 for (int i = 0; i < dc.length(); i++) s.decor[i] = slice(sheet, dc.getJSONArray(i), 0);
             }
+            JSONArray gr = o.optJSONArray("ground");
+            if (gr != null) {
+                s.ground = new Bitmap[gr.length()];
+                for (int i = 0; i < gr.length(); i++) s.ground[i] = slice(sheet, gr.getJSONArray(i), 0);
+            }
             s.decorChance = (float) o.optDouble("decorChance", 0);
             grade(s.base, o.optJSONArray("grade"));
+            grade(s.ground, o.optJSONArray("grade"));
             grade(s.decor, o.optJSONArray("decorGrade"));
             if (s.base.length > 0) sprites.put(key, s);
         }
@@ -238,6 +247,15 @@ public final class SpriteAtlas {
         Bitmap[] row = s.decorCache[k];
         if (row == null) row = s.decorCache[k] = new Bitmap[s.decor.length];
         if (row[i] == null) row[i] = scale(s.decor[i], k);
+        return row[i];
+    }
+
+    /** Extra ground piece (autotile edge, pebbles) at integer factor k. */
+    public synchronized Bitmap ground(Sprite s, int i, int k) {
+        k = Math.max(1, Math.min(MAX_K, k));
+        Bitmap[] row = s.groundCache[k];
+        if (row == null) row = s.groundCache[k] = new Bitmap[s.ground.length];
+        if (row[i] == null) row[i] = scale(s.ground[i], k);
         return row[i];
     }
 

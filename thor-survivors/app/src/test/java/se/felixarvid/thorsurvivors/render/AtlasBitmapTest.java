@@ -12,6 +12,8 @@ import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 import org.robolectric.annotation.GraphicsMode;
 
+import se.felixarvid.thorsurvivors.game.WorldGen;
+
 import java.io.FileInputStream;
 
 /** Frames are sliced exactly and scaled by whole factors: no neighbour bleed, flips and silhouettes line up. */
@@ -97,8 +99,8 @@ public class AtlasBitmapTest {
 
     @Test
     public void noSceneryUnderThePlayerSpawn() {
-        assertTrue(!WorldRenderer.sceneryAllowed(0, 0));
-        assertTrue(!WorldRenderer.sceneryAllowed(100, 50));
-        assertTrue(WorldRenderer.sceneryAllowed(200, 0));
+        assertTrue(!WorldGen.clumpAllowed(0, 0));
+        assertTrue(!WorldGen.clumpAllowed(200, 50));
+        assertTrue(WorldGen.clumpAllowed(400, 0));
     }
 }

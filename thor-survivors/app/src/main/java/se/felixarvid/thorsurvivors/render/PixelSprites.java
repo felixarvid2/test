@@ -121,6 +121,93 @@ final class PixelSprites {
             "......ooo......",
     };
 
+
+    /** Mad Forest brazier: a stone bowl on a stem with a flickering fire (three frames; the flame rows differ). */
+    private static final String[] BRAZIER_BASE = {
+            "..oSSeeeeeSSo.",
+            "..oSsssssssdo.",
+            "...oSsssssdo..",
+            "....odsssdo...",
+            "......osdo....",
+            "......osdo....",
+            ".....osSdo....",
+            "...ooSsssdoo..",
+            "..oSSsssssddo.",
+    };
+    private static final String[][] BRAZIER_FLAME = {
+            {
+                ".......oo.....",
+                "......orro....",
+                "......oyro....",
+                ".....oryyro...",
+                ".....oyYyyo...",
+                "....oryYYyro..",
+                "....oyYwwYyo..",
+                "...ooryYYyroo.",
+            },
+            {
+                ".......o......",
+                "......oro.....",
+                "......oyro....",
+                ".....oryyo....",
+                ".....oyYyro...",
+                "....oryYYyo...",
+                "....oyYwwYyo..",
+                "...ooryYYyroo.",
+            },
+            {
+                "........oo....",
+                ".......orro...",
+                "......oryyo...",
+                "......oyyro...",
+                ".....oryYyo...",
+                ".....oyYYyro..",
+                "....oryYwYyo..",
+                "...ooryYYyroo.",
+            },
+    };
+    /** Library candelabra: three candles on a brass stand (the flames flicker over three frames). */
+    private static final String[] CANDLE_BASE = {
+            ".obbooobooobbo.",
+            "..oBBBBBBBBBo..",
+            "...odbBBBbdo...",
+            ".....obBbo.....",
+            ".....obBbo.....",
+            "....obBBBbo....",
+            "...obBBBBBbo...",
+            "..oobBBBBBboo..",
+            "..oDDDDDDDDDo..",
+    };
+    private static final String[][] CANDLE_FLAME = {
+            {
+                ".......o.......",
+                "......ogo......",
+                "..o...ofo...o..",
+                ".ogo..oco..ogo.",
+                ".ofo..oco..ofo.",
+                ".oco..oco..oco.",
+                ".oco..oco..oco.",
+            },
+            {
+                "......o........",
+                "......ogo......",
+                "..o...ofo...o..",
+                ".ogo..oco..ogo.",
+                ".ofo..oco..ofo.",
+                ".oco..oco..oco.",
+                ".oco..oco..oco.",
+            },
+            {
+                "........o......",
+                "......ogo......",
+                "...o..ofo....o.",
+                ".ogo..oco..ogo.",
+                ".ofo..oco..ofo.",
+                ".oco..oco..oco.",
+                ".oco..oco..oco.",
+            },
+    };
+
     static void register(SpriteAtlas atlas) {
         int[] gems = {0xFF4FA8FF, 0xFF4FE08A, 0xFFFF5A5A};
         for (int i = 0; i < gems.length; i++) {
@@ -140,6 +227,11 @@ final class PixelSprites {
         add(atlas, "pickup.OROLOGION", CLOCK, 4, "o", 0xFF0A3050, "f", 0xFF60C0FF, "h", 0xFF0A3050);
         add(atlas, "pickup.ROSARY", ROSARY, 4, "o", 0xFF3A2030, "w", 0xFFFFFFFF, "r", 0xFFFF4060);
         add(atlas, "pickup.CLOVER", CLOVER, 4, "o", 0xFF0F3A1A, "g", 0xFF40D060, "d", 0xFF1F7A34);
+        addAnim(atlas, "dest.BRAZIER", BRAZIER_FLAME, BRAZIER_BASE, 4, 7f, "o", 0xFF1C1410, "S", 0xFFB0A494,
+                "s", 0xFF7A7064, "d", 0xFF4A423A, "e", 0xFFFF6A20, "r", 0xFFE03A10, "y", 0xFFFF8A1C, "Y", 0xFFFFD040,
+                "w", 0xFFFFF4B0);
+        addAnim(atlas, "dest.CANDELABRA", CANDLE_FLAME, CANDLE_BASE, 4, 6f, "o", 0xFF1C1410, "B", 0xFFF0C450,
+                "b", 0xFFB88028, "d", 0xFF704810, "D", 0xFF704810, "c", 0xFFF2E6CF, "f", 0xFFFFD040, "g", 0xFFFF8A1C);
     }
 
     private static int mix(int a, int b, float t) {
@@ -151,8 +243,37 @@ final class PixelSprites {
 
     private static void add(SpriteAtlas atlas, String key, String[] rows, int k, Object... pal) {
         if (atlas.has(key)) return;
+        SpriteAtlas.Sprite s = new SpriteAtlas.Sprite();
+        s.base = new Bitmap[]{bitmap(rows, palette(pal))};
+        s.k = k;
+        atlas.put(key, s);
+    }
+
+    /** An animated sprite: one frame per entry of {@code top}, each stacked over the shared {@code bottom} rows. */
+    private static void addAnim(SpriteAtlas atlas, String key, String[][] top, String[] bottom, int k, float fps,
+                                Object... pal) {
+        if (atlas.has(key)) return;
+        int[] colors = palette(pal);
+        SpriteAtlas.Sprite s = new SpriteAtlas.Sprite();
+        s.base = new Bitmap[top.length];
+        for (int f = 0; f < top.length; f++) {
+            String[] rows = new String[top[f].length + bottom.length];
+            System.arraycopy(top[f], 0, rows, 0, top[f].length);
+            System.arraycopy(bottom, 0, rows, top[f].length, bottom.length);
+            s.base[f] = bitmap(rows, colors);
+        }
+        s.k = k;
+        s.fps = fps;
+        atlas.put(key, s);
+    }
+
+    private static int[] palette(Object[] pal) {
         int[] colors = new int[128];
         for (int i = 0; i < pal.length; i += 2) colors[((String) pal[i]).charAt(0)] = (Integer) pal[i + 1];
+        return colors;
+    }
+
+    private static Bitmap bitmap(String[] rows, int[] colors) {
         int w = rows[0].length(), h = rows.length;
         int[] px = new int[w * h];
         for (int y = 0; y < h; y++) {
@@ -160,9 +281,6 @@ final class PixelSprites {
         }
         Bitmap b = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
         b.setPixels(px, 0, w, 0, 0, w, h);
-        SpriteAtlas.Sprite s = new SpriteAtlas.Sprite();
-        s.base = new Bitmap[]{b};
-        s.k = k;
-        atlas.put(key, s);
+        return b;
     }
 }

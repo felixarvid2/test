@@ -36,7 +36,7 @@ public class AtlasJsonTest {
                         ((b[20] & 255) << 24) | ((b[21] & 255) << 16) | ((b[22] & 255) << 8) | (b[23] & 255)};
                 sheets.put(e.getString("sheet"), size);
             }
-            for (String arr : new String[]{"frames", "decor"}) {
+            for (String arr : new String[]{"frames", "decor", "ground"}) {
                 JSONArray fr = e.optJSONArray(arr);
                 if (fr == null) continue;
                 for (int i = 0; i < fr.length(); i++) {
