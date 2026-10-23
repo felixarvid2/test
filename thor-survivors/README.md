@@ -28,7 +28,8 @@ I emulatorn: WASD eller piltangenterna.
 
 ## Innehåll
 
-- **Stages:** Mad Forest och Library.
+- **Stages:** Mad Forest och Library. Banan är oändlig och bestäms av `game/WorldGen.java` (ren funktion av rutan, så den ser likadan ut varje gång): Mad Forest har täta skogsdungar (gröna och höstfärgade) av hela träd, jordstigar och gläntor med riktiga kanter, blomängar, buskar, svampar och spridda träd som sorteras i djupled med figurerna. Library har långa hyllrader över och under ett fritt mittstråk, med luckor, bord, tunnor och pallar. Inget krockar.
+- **Förstörbara:** brasor i Mad Forest, kandelabrar i Library (cirka en per 500 x 500 enheter, aldrig nära start). Vapen slår sönder dem och de ger oftast guld, ibland kyckling och sällan Vacuum, Orologion, Rosary eller Clover.
 - **Vapen:** 10 vapen med evolutioner:
   - Whip → Bloody Tear
   - Magic Wand → Holy Wand
@@ -61,7 +62,8 @@ Datan kommer från ett kommersiellt spel. Appen är endast för personligt bruk 
 
 - CC0-sprites från Kenney (Tiny Dungeon, Tiny Town) och Clint Bellanger (Tiny Creatures, OpenGameArt).
 - Originalen, övriga nedladdade CC0-paket och deras licenser ligger i `art-src/`.
-- Mappningen görs i `tools/build_atlas.py`, som skapar `app/src/main/assets/sprites/atlas.json`. Krediter finns i `CREDITS.txt`.
+- Mappningen görs i `tools/build_atlas.py`, som skapar `app/src/main/assets/sprites/atlas.json`. Krediter finns i `CREDITS.txt`. Marken (golv, jordens autotile, träd, hyllor) listas där per stage och indexeras av `WorldGen`; brasan och kandelabern är handritade i `PixelSprites`.
+- Marken ritas i förberäknade bitmappar om 8 x 8 rutor (`render/GroundCache`, cirka 24 i en LRU, de utanför bild bakas på en bakgrundstråd). Mörk kantvinjett är en enda liten bitmapp.
 - Piskan, böckerna, vitlöken, blixtarna och ädelstenarna ritas procedurellt.
 
 ## Bygge
@@ -72,7 +74,7 @@ Kräver Android SDK (plattform 35, build-tools 35.0.0). Skapa `local.properties`
 ./gradlew assembleDebug testDebugUnitTest
 ```
 
-Det finns 68 JVM-enhetstester (inklusive Robolectric-skärmdumpar till `app/build/screenshots/`, eller `$SHOT_DIR`): statistikberäkning, level-up-erbjudanden, evolutioner, vågor, butik, headless-simuleringar och att atlasen är giltig. Vyn visar 560 världsenheter på höjden (`Sim.VIEW_H`).
+Det finns 89 JVM-enhetstester (inklusive Robolectric-skärmdumpar till `app/build/screenshots/`, eller `$SHOT_DIR`): statistikberäkning, level-up-erbjudanden, evolutioner, vågor, butik, headless-simuleringar och att atlasen är giltig. Vyn visar 560 världsenheter på höjden (`Sim.VIEW_H`).
 
 Kopiera sedan `app/build/outputs/apk/debug/app-debug.apk` till `dist/`.
 
@@ -81,8 +83,8 @@ Kopiera sedan `app/build/outputs/apk/debug/app-debug.apk` till `dist/`.
 | Paket | Innehåll |
 |---|---|
 | `data/` | JSON-inläsning |
-| `game/` | Motor, Sim, vapen, vågor. Inga `android.*`-importer. |
-| `render/` | `WorldRenderer`, `SpriteAtlas` |
+| `game/` | Motor, Sim, vapen, vågor, `WorldGen` (banans layout). Inga `android.*`-importer. |
+| `render/` | `WorldRenderer`, `SpriteAtlas`, `GroundCache` (markbitmappar), `PixelSprites` |
 | `ui/` | `PanelRenderer` för nedre skärmen |
 | `screen/` | `MainActivity`, `GameView` (spelloopen), `DualScreenManager`, `PanelPresentation`, `SecondaryActivity`, `InputRouter` |
 

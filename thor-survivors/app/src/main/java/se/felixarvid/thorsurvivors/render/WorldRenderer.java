@@ -17,6 +17,7 @@ import se.felixarvid.thorsurvivors.game.Entities.Pickup;
 import se.felixarvid.thorsurvivors.game.Entities.Projectile;
 import se.felixarvid.thorsurvivors.game.EnemyType;
 import se.felixarvid.thorsurvivors.game.Sim;
+import se.felixarvid.thorsurvivors.game.WorldGen;
 import se.felixarvid.thorsurvivors.render.SpriteAtlas.Sprite;
 
 /**
@@ -30,13 +31,16 @@ import se.felixarvid.thorsurvivors.render.SpriteAtlas.Sprite;
  * Draw order is a strict total order that does not depend on the pool order of the simulation: ground pickups,
  * then enemies and the player by (feet y, id), then projectiles by (y, x, kind, slot). Sorting uses preallocated
  * arrays and an insertion sort; nothing is allocated per frame.
+ *
+ * The ground is a cache of pre-rendered chunks ({@link GroundCache}); the scattered single trees and bushes and the
+ * destructibles are "props" that are y-sorted into the same pass as the creatures, so a creature behind a tree is
+ * hidden by it and one in front draws over it.
  */
 public final class WorldRenderer {
     private static final int MAX_TEXTS_DRAWN = 25;
     /** Hit flashes turn into a soft brighten once this many enemies flash at the same time (no white blob). */
     private static final int MANY_FLASHING = 4;
-    /** No scenery within this many world units of the player's spawn point (0,0). */
-    private static final float SPAWN_CLEAR = 150f;
+    private static final int MAX_PROPS = 600, DEST_PROP = -1;
     private static final float FLASH_ON = 0.08f, FLASH_GAP = 0.15f, HIT_TINT = 0.12f, VIGNETTE = 0.35f;
     private static final int STATE = 4096;
     /** Radius a weapon's projectile has at area 1.0 (see Sim.fire*), used to grow its sprite in whole steps. */
@@ -157,8 +161,14 @@ public final class WorldRenderer {
         oy = h / 2 - camPy;
         atlasWarm();
         drawGround(c, e.stageKeys.get(e.stageIdx), camPx, camPy, w, h);
-        if (menu) drawDemo(c, e);
-        else drawWorld(c, s);
+        if (menu) {
+            sortProps();
+            for (int j = 0; j < propN; j++) drawProp(c, null, j);
+            drawDemo(c, e);
+        } else {
+            drawWorld(c, s);
+        }
+        drawMood(c, w, h);
         drawOverlay(c, w, h, e, s, menu, dualScreen);
     }
 
@@ -194,55 +204,121 @@ public final class WorldRenderer {
 
     // ------------------------------------------------------------------ ground
 
-    private static int hash(int x, int y) {
-        int h = x * 374761393 + y * 668265263;
-        h = (h ^ (h >>> 13)) * 1274126177;
-        return h ^ (h >>> 16);
-    }
+    private final GroundCache ground = new GroundCache();
+    private int tileK = 5;
 
-    /** False inside {@link #SPAWN_CLEAR} of the player's spawn point (world 0,0): trees and mushrooms never go there. */
-    static boolean sceneryAllowed(float wx, float wy) {
-        return wx * wx + wy * wy >= SPAWN_CLEAR * SPAWN_CLEAR;
-    }
-
-    private final Bitmap[] tileBm = new Bitmap[8], decorBm = new Bitmap[16];
+    // y-sorted props: scattered trees/bushes (kind = decor index) and destructibles (kind = DEST_PROP, a = sim index)
+    private final long[] prKey = new long[MAX_PROPS];
+    private final int[] prIdx = new int[MAX_PROPS], prKind = new int[MAX_PROPS], prA = new int[MAX_PROPS],
+            prSx = new int[MAX_PROPS], prSy = new int[MAX_PROPS], prK = new int[MAX_PROPS];
+    private int propN;
+    private Sprite groundTile;
 
     private void drawGround(Canvas c, String stage, int camPx, int camPy, int w, int h) {
+        propN = 0;
         Sprite t = atlas.find("tile." + stage);
-        if (t == null || t.base.length > tileBm.length || t.decor.length > decorBm.length) {
+        groundTile = t;
+        if (t == null || t.base.length < 3) {
             fill.setColor(stage.equals("LIBRARY") ? 0xFF2B2233 : 0xFF1E3A22);
             c.drawRect(0, 0, w, h, fill);
+            groundTile = null;
             return;
         }
-        int k = Math.max(1, Math.round(5 * ks)), size = 16 * k;
-        for (int i = 0; i < t.base.length; i++) tileBm[i] = atlas.bitmap(t, i, k, SpriteAtlas.T_NORMAL, false);
-        for (int i = 0; i < t.decor.length; i++) decorBm[i] = atlas.decor(t, i, k);
-        int x0 = Math.floorDiv(camPx - w / 2, size), x1 = Math.floorDiv(camPx + w / 2, size);
-        int y0 = Math.floorDiv(camPy - h / 2, size), y1 = Math.floorDiv(camPy + h / 2, size);
-        for (int ty = y0; ty <= y1; ty++) {
-            for (int tx = x0; tx <= x1; tx++) {
-                float r = ((hash(tx, ty) >>> 4) & 1023) / 1024f;
-                int f = 0;
-                float acc = 0;
-                for (int i = 0; i < t.variantChance.length; i++) {
-                    acc += t.variantChance[i];
-                    if (r < acc && i + 1 < t.base.length) { f = i + 1; break; }
+        int k = Math.max(1, Math.round(5 * ks));
+        tileK = k;
+        ground.setup(WorldGen.of(stage), t, k);
+        bmp.setAlpha(255);
+        ground.draw(c, bmp, ox, oy, camPx, camPy, w, h);
+        // scattered trees and bushes of every baked chunk near the view, kept as props to be y-sorted
+        final int m = 160;
+        for (int ci = 0; ci < ground.wantedN; ci++) {
+            GroundCache.Chunk ch = ground.wanted[ci];
+            for (int i = 0; i < ch.propN && propN < MAX_PROPS; i++) {
+                if (ch.pk[i] >= t.decor.length) continue;
+                int left = Math.round(ch.px[i] * 16f - 8f) * k + ox, top = Math.round(ch.py[i] * 16f - 8f) * k + oy;
+                int cx = left + 8 * k, cy = top + 8 * k;
+                if (cx < -m || cx > w + m || cy < -m || cy > h + m) continue;
+                addProp(ch.pk[i], 0, cx, cy, k);
+            }
+        }
+    }
+
+    private void addProp(int kind, int a, int cx, int cy, int k) {
+        int n = propN++;
+        prKind[n] = kind;
+        prA[n] = a;
+        prSx[n] = cx;
+        prSy[n] = cy;
+        prK[n] = k;
+        prKey[n] = (bias(cy + 8 * k) << 32) | n;
+        prIdx[n] = n;
+    }
+
+    private void drawProp(Canvas c, Sim s, int j) {
+        int i = prIdx[j];
+        int cx = prSx[i], cy = prSy[i], k = prK[i];
+        if (prKind[i] == DEST_PROP) {
+            Sprite sp = s == null ? null : atlas.find("dest." + s.destType());
+            if (sp == null) return;
+            drawShadow(c, cx, cy + 7 * k, 7 * k);
+            drawSprite(c, sp, k, SpriteAtlas.T_NORMAL, false, cx, cy, 255);
+            return;
+        }
+        Sprite t = groundTile;
+        if (t == null) return;
+        Bitmap b = atlas.decor(t, prKind[i], k);
+        bmp.setAlpha(255);
+        c.drawBitmap(b, cx - 8 * k, cy - 8 * k, bmp);
+    }
+
+    /** Warm glow on the floor around every destructible in view (one pre-rendered soft disc, flickering with the flame). */
+    private void drawGlows(Canvas c, Sim s) {
+        if (s.destN == 0) return;
+        if (glow == null) {
+            glow = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888);
+            Canvas gc = new Canvas(glow);
+            Paint gp = new Paint(Paint.ANTI_ALIAS_FLAG);
+            gp.setShader(new RadialGradient(32, 32, 32, new int[]{0x55FFB050, 0x2AFF9040, 0x0CFF8030, 0x00FF8030},
+                    new float[]{0f, 0.4f, 0.75f, 1f}, Shader.TileMode.CLAMP));
+            gc.drawCircle(32, 32, 32, gp);
+        }
+        float flick = 0.8f + 0.2f * (float) Math.sin(now * 9.0) * (float) Math.sin(now * 5.3 + 1.0);
+        glowPaint.setAlpha((int) (255 * flick));
+        int r = Math.round((s.destType().equals("BRAZIER") ? 120f : 90f) * ks);
+        for (int i = 0; i < s.destN; i++) {
+            int px = sx(s.destX[i]), py = sy(s.destY[i]);
+            if (px < -r || px > scrW + r || py < -r || py > scrH + r) continue;
+            rect.set(px - r, py - r * 0.8f, px + r, py + r * 0.8f);
+            c.drawBitmap(glow, null, rect, glowPaint);
+        }
+    }
+
+    private Bitmap glow, moodBm;
+    private final Paint glowPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
+    private int moodW, moodH;
+
+    /** Soft dark edge vignette: one small pre-rendered bitmap stretched over the screen with filtering. */
+    private void drawMood(Canvas c, int w, int h) {
+        if (moodBm == null || moodW != w || moodH != h) {
+            moodW = w;
+            moodH = h;
+            int bw = 192, bh = Math.max(16, Math.round(192f * h / w));
+            int[] px = new int[bw * bh];
+            for (int y = 0; y < bh; y++) {
+                for (int x = 0; x < bw; x++) {
+                    float nx = (x + 0.5f) / bw * 2f - 1f, ny = (y + 0.5f) / bh * 2f - 1f;
+                    float d = (float) Math.sqrt(nx * nx + ny * ny) / 1.4142f;
+                    float u = Math.max(0f, Math.min(1f, (d - 0.45f) / 0.55f));
+                    px[y * bw + x] = ((int) (u * u * (3f - 2f * u) * 150f) << 24) | 0x05060A;
                 }
-                c.drawBitmap(tileBm[f], tx * size + ox, ty * size + oy, bmp);
             }
-        }
-        if (t.decor.length == 0) return;
-        // scenery in a second pass (so a tile never paints over a neighbour's decoration), jittered inside its cell
-        for (int ty = y0 - 1; ty <= y1 + 1; ty++) {
-            for (int tx = x0 - 1; tx <= x1 + 1; tx++) {
-                int hh = hash(tx + 4001, ty - 977);
-                if (((hh >>> 14) & 1023) / 1024f >= t.decorChance) continue;
-                float wx = (tx * size + size / 2f) / sc, wy = (ty * size + size / 2f) / sc;
-                if (!sceneryAllowed(wx, wy)) continue; // never under the player's start
-                int jx = (((hh >>> 3) & 15) - 7) * k, jy = (((hh >>> 7) & 15) - 7) * k;
-                c.drawBitmap(decorBm[(hh >>> 24) % t.decor.length], tx * size + ox + jx, ty * size + oy + jy, bmp);
+            if (moodBm == null || moodBm.getWidth() != bw || moodBm.getHeight() != bh) {
+                moodBm = Bitmap.createBitmap(bw, bh, Bitmap.Config.ARGB_8888);
             }
+            moodBm.setPixels(px, 0, bw, 0, 0, bw, bh);
         }
+        rect.set(0, 0, w, h);
+        c.drawBitmap(moodBm, null, rect, glowPaint);
     }
 
     // ------------------------------------------------------------------ menu preview
@@ -332,6 +408,8 @@ public final class WorldRenderer {
         float t = (float) now;
         boolean frozen = s.freezeTimer > 0;
 
+        drawGlows(c, s);
+
         // 1. garlic-style auras and puddles lie on the ground
         beginVec(c);
         for (int i = 0; i < s.inv.weaponCount; i++) {
@@ -382,6 +460,19 @@ public final class WorldRenderer {
         sIdx[n++] = pi;
         sort(sKey, sIdx, n);
 
+        // destructibles join the scattered trees as y-sorted props
+        Sprite ds = s.destN > 0 ? atlas.find("dest." + s.destType()) : null;
+        if (ds != null) {
+            int dk = SpriteAtlas.scaleFor(ds, ks);
+            for (int i = 0; i < s.destN && propN < MAX_PROPS; i++) {
+                int px = sx(s.destX[i]), py = sy(s.destY[i]);
+                if (px < -m || px > w + m || py < -m || py > h + m) continue;
+                addProp(DEST_PROP, i, px, py, dk);
+            }
+        }
+        sortProps();
+        int pj = 0;
+
         // shadows first so a sprite in front always covers a shadow behind it
         for (int j = 0; j < n; j++) {
             int i = sIdx[j];
@@ -393,6 +484,8 @@ public final class WorldRenderer {
         orderN = 0;
         for (int j = 0; j < n; j++) {
             int i = sIdx[j];
+            int feet = (int) (sKey[j] >>> 32) - 32768;
+            while (pj < propN && propFeet(pj) <= feet) drawProp(c, s, pj++); // a prop at the same depth is behind
             if (i == pi) {
                 drawPlayer(c, s, ps, pk, ppx, ppy);
                 recordOrder(0, (int) (sKey[j] >>> 32) - 32768, ppx, ppy, s.py);
@@ -402,6 +495,7 @@ public final class WorldRenderer {
             drawEnemy(c, s, en, entSpr[i], entK[i], entSx[i], entSy[i], frozen);
             recordOrder(en.id, (int) (sKey[j] >>> 32) - 32768, entSx[i], entSy[i], en.y);
         }
+        while (pj < propN) drawProp(c, s, pj++);
         for (int b = 0; b < nb; b++) drawBossBar(c, s.enemies[bossIdx[b]], entSx[bossIdx[b]], entSy[bossIdx[b]], entK[bossIdx[b]]);
 
         // 5. projectiles, y-sorted (they fly above the crowd)
@@ -427,6 +521,14 @@ public final class WorldRenderer {
         drawParticles(c, s);
         drawPlayerBar(c, s, ppx, ppy, pk);
         drawTexts(c, s);
+    }
+
+    private void sortProps() {
+        sort(prKey, prIdx, propN);
+    }
+
+    private int propFeet(int j) {
+        return (int) (prKey[j] >>> 32) - 32768;
     }
 
     private void recordOrder(int id, int feet, int sxp, int syp, float wy) {

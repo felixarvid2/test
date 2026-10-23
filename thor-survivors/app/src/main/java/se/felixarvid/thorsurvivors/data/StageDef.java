@@ -13,11 +13,13 @@ public final class StageDef {
     public final double xpBonus;
     public final int startingSpawns;
     public final boolean horizontalSpawns;
+    /** What breaks and drops pickups on this stage (game_data.json destructibleType): "BRAZIER", "CANDELABRA" or "". */
+    public final String destructible;
     public final List<WaveRow> rows;
 
     public StageDef(String key, String name, double timeLimit, double playerSpeed, double enemySpeed,
                     double enemyHealth, double goldMultiplier, double xpBonus, int startingSpawns,
-                    boolean horizontalSpawns, List<WaveRow> rows) {
+                    boolean horizontalSpawns, String destructible, List<WaveRow> rows) {
         this.key = key;
         this.name = name;
         this.timeLimit = timeLimit;
@@ -28,6 +30,7 @@ public final class StageDef {
         this.xpBonus = xpBonus;
         this.startingSpawns = startingSpawns;
         this.horizontalSpawns = horizontalSpawns;
+        this.destructible = destructible;
         this.rows = rows;
     }
 

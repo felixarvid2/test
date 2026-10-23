@@ -105,7 +105,7 @@ public final class GameData {
                     mods.optDouble("PlayerPxSpeed", 1), mods.optDouble("EnemySpeed", 1),
                     mods.optDouble("EnemyHealthMultiplier", 1), mods.optDouble("GoldMultiplier", 1),
                     mods.optDouble("XPBonus", 1), r0.optInt("startingSpawns", 10),
-                    "HORIZONTAL".equals(r0.optString("spawnType")), rows));
+                    "HORIZONTAL".equals(r0.optString("spawnType")), r0.optString("destructibleType", ""), rows));
         }
     }
 

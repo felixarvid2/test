@@ -85,6 +85,25 @@ public final class Sim {
     private final int[] strikeSlot = new int[64];
     private int strikeN;
 
+    // destructibles: one braziers/candelabra per ~500 x 500 u cell, placed from the cell alone (see destPlace)
+    public static final int MAX_DEST = 32;
+    /** What a broken destructible drops, with percent weights (sums to 100). */
+    static final double[] DEST_WEIGHT = {50, 14, 22, 4, 4, 3, 3};
+    static final int[] DEST_DROP = {Entities.K_COIN, Entities.K_COINBAG, Entities.K_ROAST, Entities.K_VACUUM,
+            Entities.K_OROLOGION, Entities.K_ROSARY, Entities.K_CLOVER};
+    static final float DEST_CELL = 500f, DEST_R = 16f, DEST_CLEAR = 300f;
+    /** The braziers of the cells around the player that are still standing (swap-remove compacted). */
+    public final float[] destX = new float[MAX_DEST], destY = new float[MAX_DEST];
+    private final long[] destKey = new long[MAX_DEST];
+    public int destN;
+    public int destsBroken;
+    private final long[] broken = new long[512];
+    private int brokenN, brokenHead;
+    private int destCx = Integer.MIN_VALUE, destCy;
+    private float placeX, placeY;
+    /** The stage layout (also what the renderer draws); destructibles keep off its trees, shelves and tables. */
+    public final WorldGen map;
+
     private int lastRow = -1;
     private float spawnTimer;
     private float regenAcc;
@@ -93,6 +112,7 @@ public final class Sim {
         this.data = data;
         this.stage = stage;
         this.meta = meta;
+        this.map = WorldGen.of(stage.key);
         for (int i = 0; i < MAX_ENEMIES; i++) enemies[i] = new Enemy();
         for (int i = 0; i < MAX_PROJ; i++) projs[i] = new Projectile();
         for (int i = 0; i < MAX_PICK; i++) picks[i] = new Pickup();
@@ -104,6 +124,7 @@ public final class Sim {
         recomputeAll();
         hp = maxHp;
         spawnInitial();
+        refreshDestructibles();
     }
 
     public float cameraHalfW(float aspect) {
@@ -182,6 +203,7 @@ public final class Sim {
         tNow = (float) time;
         input.move(mv);
         movePlayer(dt);
+        refreshDestructibles();
         updateWaves(dt);
         updateEnemies(dt);
         buildGrid();
@@ -219,6 +241,110 @@ public final class Sim {
         }
     }
 
+
+    // ------------------------------------------------------------------ destructibles
+
+    /** Type of the stage's destructible ("BRAZIER", "CANDELABRA") or "" for none; the renderer picks the sprite from it. */
+    public String destType() {
+        return stage.destructible;
+    }
+
+    /**
+     * The destructible of 500 u cell (cx, cy) goes to placeX/placeY; false when the cell has none. A pure function of
+     * the cell (and the stage layout): the same cell always gives the same spot, never within 300 u of the start and
+     * never on a tree, shelf or table.
+     */
+    boolean destPlace(int cx, int cy) {
+        if (stage.destructible.isEmpty() || WorldGen.unit(WorldGen.hash(cx, cy, 699)) >= 0.9f) return false;
+        for (int attempt = 0; attempt < 4; attempt++) {
+            float x = cx * DEST_CELL + 40f + WorldGen.unit(WorldGen.hash(cx, cy, 700 + attempt * 2)) * (DEST_CELL - 80f);
+            float y = cy * DEST_CELL + 40f + WorldGen.unit(WorldGen.hash(cx, cy, 701 + attempt * 2)) * (DEST_CELL - 80f);
+            if (x * x + y * y < DEST_CLEAR * DEST_CLEAR || map.blocked(x, y)) continue;
+            placeX = x;
+            placeY = y;
+            return true;
+        }
+        return false;
+    }
+
+    float destPlaceX() {
+        return placeX;
+    }
+
+    float destPlaceY() {
+        return placeY;
+    }
+
+    private static long cellKey(int cx, int cy) {
+        return ((long) cx << 32) ^ (cy & 0xFFFFFFFFL);
+    }
+
+    private boolean isBroken(long key) {
+        for (int i = 0; i < brokenN; i++) if (broken[i] == key) return true;
+        return false;
+    }
+
+    /** Re-lists the standing destructibles of the 5 x 5 cells around the player when the player enters a new cell. */
+    private void refreshDestructibles() {
+        int cx = (int) Math.floor(px / DEST_CELL), cy = (int) Math.floor(py / DEST_CELL);
+        if (cx == destCx && cy == destCy) return;
+        destCx = cx;
+        destCy = cy;
+        destN = 0;
+        for (int j = cy - 2; j <= cy + 2; j++) {
+            for (int i = cx - 2; i <= cx + 2; i++) {
+                if (destN >= MAX_DEST || !destPlace(i, j)) continue;
+                long key = cellKey(i, j);
+                if (isBroken(key)) continue;
+                destX[destN] = placeX;
+                destY[destN] = placeY;
+                destKey[destN++] = key;
+            }
+        }
+    }
+
+    /** Breaks every destructible whose body touches the circle (x, y, r). */
+    private void hitDest(float x, float y, float r) {
+        for (int i = destN - 1; i >= 0; i--) {
+            float dx = destX[i] - x, dy = destY[i] - y, rr = r + DEST_R;
+            if (dx * dx + dy * dy < rr * rr) breakDest(i);
+        }
+    }
+
+    /** Same for a box centred on (cx, cy), w x h (the whip). */
+    private void hitDestBox(float cx, float cy, float w, float h) {
+        for (int i = destN - 1; i >= 0; i--) {
+            if (Math.abs(destX[i] - cx) < w / 2f + DEST_R && Math.abs(destY[i] - cy) < h / 2f + DEST_R) breakDest(i);
+        }
+    }
+
+    private void breakDest(int i) {
+        broken[brokenHead] = destKey[i];
+        brokenHead = (brokenHead + 1) % broken.length;
+        brokenN = Math.min(broken.length, brokenN + 1);
+        float x = destX[i], y = destY[i];
+        destN--;
+        destX[i] = destX[destN];
+        destY[i] = destY[destN];
+        destKey[i] = destKey[destN];
+        destsBroken++;
+        spark(x, y - 10f, 0xFFFFA030, 9);
+        spark(x, y, 0xFF8A8070, 7);
+        // mostly gold, sometimes a roast, rarely one of the power pickups
+        dropFromDest(x, y);
+    }
+
+    /** One pickup at (x, y): mostly gold, sometimes a roast, rarely Vacuum / Orologion / Rosary / Clover. */
+    void dropFromDest(float x, float y) {
+        double r = rng.nextDouble() * 100.0;
+        int k = 0;
+        for (; k < DEST_WEIGHT.length - 1; k++) {
+            r -= DEST_WEIGHT[k];
+            if (r < 0) break;
+        }
+        addPickup(DEST_DROP[k], x, y, DEST_DROP[k] == Entities.K_COIN ? 1 : DEST_DROP[k] == Entities.K_COINBAG ? 10 : 0);
+    }
+
     // ------------------------------------------------------------------ waves & enemies
 
     private EnemyType type(String key) {
@@ -240,6 +366,11 @@ public final class Sim {
 
     /** Tests: stops wave spawning so a scenario only contains the enemies it adds. */
     boolean noSpawns;
+
+    /** Tests (other packages): same as setting {@link #noSpawns}. */
+    public void noSpawnsForTest() {
+        noSpawns = true;
+    }
 
     /** Tests: adds one enemy of the given type at an exact position (stationary until its speed is set). */
     Enemy addEnemy(String typeKey, float x, float y, boolean boss) {
@@ -961,6 +1092,7 @@ public final class Sim {
         float W = 160f * w.area, H = 30f * w.area;
         float cx = px + side * W / 2f, cy = py - 6f - 8f * idx;
         addFx(Entities.FX_WHIP, cx, cy, W, H, 0.15f, side, w.evo);
+        if (destN > 0) hitDestBox(cx, cy, W, H);
         int n = query(cx, cy, Math.max(W, H) / 2f + 40f);
         int hits = 0;
         for (int k = 0; k < n; k++) {
@@ -1004,6 +1136,7 @@ public final class Sim {
     private void strike(WeaponState w, float tx, float ty) {
         float r = 25f * w.area;
         addFx(Entities.FX_BOLT, tx, ty, r, 0, BOLT_LIFE, 0, w.evo);
+        if (destN > 0) hitDest(tx, ty, r);
         int n = query(tx, ty, r + 30f);
         for (int k = 0; k < n; k++) {
             Enemy e = enemies[qbuf[k]];
@@ -1023,6 +1156,7 @@ public final class Sim {
         w.cd += Math.max(0.15f, w.hasHitDelay ? w.hitDelay : w.interval);
         w.pulse = 0.25f;
         float r = w.auraRadius;
+        if (destN > 0) hitDest(px, py, r);
         int n = query(px, py, r + 30f);
         int hits = 0;
         for (int k = 0; k < n; k++) {
@@ -1128,6 +1262,7 @@ public final class Sim {
             }
             if (remove) { removeProj(i); continue; }
             // collisions
+            if (destN > 0) hitDest(p.x, p.y, p.radius);
             int n = query(p.x, p.y, p.radius + 34f);
             for (int k = 0; k < n; k++) {
                 Enemy e = enemies[qbuf[k]];
