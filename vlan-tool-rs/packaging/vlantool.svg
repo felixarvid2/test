@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2a3350"/>
+      <stop offset="1" stop-color="#121624"/>
+    </linearGradient>
+    <linearGradient id="gem" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#c3a6ff"/>
+      <stop offset="1" stop-color="#6e9bff"/>
+    </linearGradient>
+  </defs>
+  <rect x="12" y="12" width="232" height="232" rx="52" fill="url(#bg)"/>
+  <rect x="12.5" y="12.5" width="231" height="231" rx="51.5" fill="none" stroke="#ffffff" stroke-opacity=".08" stroke-width="1"/>
+  <!-- länkar -->
+  <g stroke="#6e9bff" stroke-width="7" stroke-linecap="round" fill="none" opacity=".9">
+    <path d="M128 92 L128 120"/>
+    <path d="M128 120 C128 140 76 138 76 160"/>
+    <path d="M128 120 C128 140 180 138 180 160"/>
+  </g>
+  <!-- router -->
+  <path d="M128 40 L160 70 L128 100 L96 70 Z" fill="url(#gem)"/>
+  <!-- switchar -->
+  <rect x="48" y="158" width="56" height="40" rx="10" fill="#1d2335" stroke="#b896ff" stroke-width="5"/>
+  <rect x="152" y="158" width="56" height="40" rx="10" fill="#1d2335" stroke="#b896ff" stroke-width="5"/>
+  <g fill="#60cd87">
+    <circle cx="64" cy="178" r="5"/><circle cx="76" cy="178" r="5"/><circle cx="88" cy="178" r="5"/>
+  </g>
+  <g fill="#f0be50">
+    <circle cx="168" cy="178" r="5"/><circle cx="180" cy="178" r="5"/>
+  </g>
+  <circle cx="192" cy="178" r="5" fill="#f0788c"/>
+</svg>

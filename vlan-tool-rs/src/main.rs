@@ -4,20 +4,8 @@
 //! granskning mellan enheter, rättningsskript, topologi, drift-kontroll,
 //! subnätskalkylator, rapporter i flera format och ett interaktivt TUI.
 
-mod audit;
-mod diff;
-mod finding;
-mod generator;
-mod inventory;
-mod net;
-mod parser;
-mod report;
-mod rules;
-mod settings;
-mod topology;
-mod tui;
-
 use anyhow::{bail, Context, Result};
+use vlantool::{audit, diff, finding, generator, inventory, net, report, rules, settings, topology, tui};
 use clap::{Parser, Subcommand};
 use finding::Severity;
 use report::{Format, Options, Paint};
@@ -426,40 +414,27 @@ fn subnet(network: &str, split: Option<u8>, plan: Option<&str>, p: Paint) -> Res
     }
 
     if let Some(plan) = plan {
-        // VLSM: största nätet först så att inget hamnar snett.
-        let mut wants: Vec<(String, u64)> = Vec::new();
-        for part in plan.split(',') {
-            let (name, hosts) = part.split_once(':').context("planen skrivs NAMN:värdar,NAMN:värdar")?;
-            wants.push((name.trim().to_string(), hosts.trim().parse().context("antal värdar måste vara ett tal")?));
-        }
-        wants.sort_by_key(|w| std::cmp::Reverse(w.1));
+        let wants = net::parse_plan(plan).map_err(anyhow::Error::msg)?;
         println!("\n  {}", p.bold("VLSM-plan"));
         println!("  {}", p.dim(&format!("{:<12} {:>6} {:<18} {:<16} {:<31} {}", "Namn", "Behov", "Nät", "Mask", "Värdar", "Ledigt")));
-        let mut next = u32::from(net.network);
-        let end = u32::from(net.broadcast());
-        for (name, hosts) in wants {
-            let prefix = net::prefix_for_hosts(hosts).context("för många värdar")?;
-            let size = 1u32 << (32 - prefix);
-            next = next.div_ceil(size) * size;
-            if prefix < net.prefix || next.checked_add(size - 1).is_none_or(|last| last > end) {
-                println!("  {:<12} {:>6} {}", name, hosts, p.rgb("får inte plats", (240, 80, 90)));
+        let mut used = 0;
+        for row in net::vlsm(net, &wants) {
+            let Some(s) = row.subnet else {
+                println!("  {:<12} {:>6} {}", row.name, row.hosts, p.rgb("får inte plats", (240, 80, 90)));
                 continue;
-            }
-            let s = net::Subnet::new(next.into(), prefix);
-            let spare = s.usable_hosts() - hosts;
+            };
+            used += s.size();
             println!(
                 "  {} {:>6} {} {:<16} {:<31} {}",
-                p.bold(&format!("{name:<12}")),
-                hosts,
+                p.bold(&format!("{:<12}", row.name)),
+                row.hosts,
                 p.accent(&format!("{:<18}", s.to_string())),
                 s.mask().to_string(),
                 format!("{} – {}", s.first_host(), s.last_host()),
-                p.dim(&spare.to_string())
+                p.dim(&(s.usable_hosts() - row.hosts).to_string())
             );
-            next += size;
         }
-        let used = u64::from(next - u32::from(net.network));
-        println!("\n  {} {}/{} adresser använda\n", p.dim("Totalt"), used.min(net.size()), net.size());
+        println!("\n  {} {used}/{} adresser använda\n", p.dim("Totalt"), net.size());
     } else {
         println!();
     }
