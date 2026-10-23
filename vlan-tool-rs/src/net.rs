@@ -136,6 +136,48 @@ pub fn prefix_for_hosts(hosts: u64) -> Option<u8> {
     (0..=30u8).rev().find(|&p| (1u64 << (32 - u32::from(p))) - 2 >= hosts)
 }
 
+/// En rad i en VLSM-plan. `subnet` är None om nätet inte fick plats.
+#[derive(Debug, Clone)]
+pub struct VlsmRow {
+    pub name: String,
+    pub hosts: u64,
+    pub subnet: Option<Subnet>,
+}
+
+/// Tolkar "KONTOR:50,GAST:20" till (namn, värdar).
+pub fn parse_plan(text: &str) -> Result<Vec<(String, u64)>, String> {
+    text.split(',')
+        .filter(|p| !p.trim().is_empty())
+        .map(|part| {
+            let (name, hosts) = part.split_once(':').ok_or("planen skrivs NAMN:värdar,NAMN:värdar")?;
+            let hosts = hosts.trim().parse().map_err(|_| format!("'{}' är inget antal värdar", hosts.trim()))?;
+            Ok((name.trim().to_string(), hosts))
+        })
+        .collect()
+}
+
+/// VLSM: delar ut nät till behoven, största först så att inget hamnar snett.
+pub fn vlsm(net: Subnet, wants: &[(String, u64)]) -> Vec<VlsmRow> {
+    let mut wants = wants.to_vec();
+    wants.sort_by_key(|w| std::cmp::Reverse(w.1));
+    let mut next = u64::from(u32::from(net.network));
+    let end = u64::from(u32::from(net.broadcast()));
+    wants
+        .into_iter()
+        .map(|(name, hosts)| {
+            let subnet = prefix_for_hosts(hosts).filter(|&p| p >= net.prefix).and_then(|prefix| {
+                let size = 1u64 << (32 - u32::from(prefix));
+                let start = next.div_ceil(size) * size;
+                (start + size - 1 <= end).then(|| {
+                    next = start + size;
+                    Subnet::new(Ipv4Addr::from(start as u32), prefix)
+                })
+            });
+            VlsmRow { name, hosts, subnet }
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -163,5 +205,16 @@ mod tests {
         assert_eq!(prefix_for_hosts(50), Some(26));
         assert_eq!(prefix_for_hosts(62), Some(26));
         assert_eq!(prefix_for_hosts(63), Some(25));
+    }
+
+    #[test]
+    fn vlsm_plan() {
+        let plan = parse_plan("A:20, B:50,C:300").unwrap();
+        let rows = vlsm(Subnet::parse("192.168.1.0/24").unwrap(), &plan);
+        assert_eq!(rows[0].name, "C");
+        assert!(rows[0].subnet.is_none(), "300 värdar får inte plats i en /24");
+        assert_eq!(rows[1].subnet.unwrap().to_string(), "192.168.1.0/26");
+        assert_eq!(rows[2].subnet.unwrap().to_string(), "192.168.1.64/27");
+        assert!(parse_plan("A=3").is_err());
     }
 }

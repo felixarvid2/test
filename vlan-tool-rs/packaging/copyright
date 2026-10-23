@@ -1,0 +1,14 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: vlantool
+Source: https://github.com/felixarvid2/test/tree/main/vlan-tool-rs
+
+Files: *
+Copyright: 2026 Felix, Attila, Patrik och Jonathan
+License: ingen-vald
+ Gruppen har inte valt någon licens än. Fråga upphovspersonerna innan koden
+ sprids vidare.
+
+Files: usr/bin/vlantool-gui
+Comment: Innehåller typsnitten Ubuntu Light (Ubuntu Font Licence), Hack (MIT/Bitstream Vera),
+ Noto Emoji (OFL 1.1) och emoji-icon-font (MIT) via egui.
+License: ingen-vald

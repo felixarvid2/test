@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=vlantool
+GenericName=Nätverksgranskning
+GenericName[en]=Network config auditor
+Comment=Generera och granska Cisco IOS-konfigar från CSV-filer
+Comment[en]=Generate and audit Cisco IOS configs from CSV files
+Exec=vlantool-gui %f
+Icon=vlantool
+Terminal=false
+Categories=Network;Development;Education;
+Keywords=cisco;vlan;switch;router;nätverk;ios;packet tracer;
+StartupWMClass=se.nordvik.vlantool
+StartupNotify=true
