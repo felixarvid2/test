@@ -1,0 +1,96 @@
+package se.felixarvid.thorsurvivors.screen;
+
+import android.app.Activity;
+import android.content.pm.ActivityInfo;
+import android.os.Bundle;
+import android.view.KeyEvent;
+import android.view.MotionEvent;
+import android.widget.FrameLayout;
+
+import java.io.InputStream;
+
+import se.felixarvid.thorsurvivors.data.GameData;
+import se.felixarvid.thorsurvivors.game.Engine;
+import se.felixarvid.thorsurvivors.game.Input;
+import se.felixarvid.thorsurvivors.game.MetaProgress;
+import se.felixarvid.thorsurvivors.render.SpriteAtlas;
+
+/** Top screen: the game world. Owns the second-screen manager. */
+public final class MainActivity extends Activity {
+    private GameView gameView;
+    private DualScreenManager dual;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+        Engine eng = Engine.get();
+        if (!eng.isReady()) {
+            try (InputStream in = getAssets().open("game_data.json")) {
+                GameData data = GameData.load(in);
+                eng.init(data, new MetaProgress(data, new PrefsStore(this)));
+            } catch (Exception e) {
+                throw new RuntimeException("Cannot load game_data.json", e);
+            }
+        }
+        SpriteAtlas.get().load(getAssets());
+        FrameLayout root = new FrameLayout(this);
+        gameView = new GameView(this);
+        root.addView(gameView, new FrameLayout.LayoutParams(-1, -1));
+        setContentView(root);
+        Immersive.apply(getWindow());
+        dual = new DualScreenManager(this, root, gameView);
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        dual.start();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        Immersive.apply(getWindow());
+        dual.refresh();
+    }
+
+    @Override
+    protected void onPause() {
+        // pause an in-progress run; the game thread stops with the surface
+        Engine.get().input.post(Input.CMD_AUTOPAUSE, 0, 0, 0);
+        Engine.get().input.clearMovement();
+        super.onPause();
+    }
+
+    @Override
+    protected void onStop() {
+        dual.stop();
+        super.onStop();
+    }
+
+    @Override
+    protected void onDestroy() {
+        dual.stop();
+        super.onDestroy();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (!hasFocus) Engine.get().input.clearMovement();
+        else Immersive.apply(getWindow());
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        if (InputRouter.onKey(event)) return true;
+        return super.dispatchKeyEvent(event);
+    }
+
+    @Override
+    public boolean dispatchGenericMotionEvent(MotionEvent ev) {
+        if (InputRouter.onMotion(ev)) return true;
+        return super.dispatchGenericMotionEvent(ev);
+    }
+}
