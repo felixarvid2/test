@@ -1,6 +1,6 @@
 # Working in this repository
 
-Several projects live here: `rune/`, `natverksspel/`, `cisco-analyzer/`, `tiny-dungeon/`, and the
+Several projects live here: `rune/`, `natverksspel/`, `cisco-analyzer/`, `tiny-dungeon/`, `vlan-tool-rs/`, and the
 asset library in `assets/`.
 
 Ashfall (the TypeScript/Three.js action RPG) moved to https://github.com/felixarvid2/Ashfall.
