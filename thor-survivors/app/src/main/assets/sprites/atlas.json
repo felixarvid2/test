@@ -918,6 +918,31 @@
    "k": 3,
    "tint": "#8090FF"
   },
+  "proj.HOLYBOOK": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     85,
+     85,
+     16,
+     16
+    ]
+   ],
+   "k": 3
+  },
+  "proj.VESPERS": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     85,
+     85,
+     16,
+     16
+    ]
+   ],
+   "k": 4,
+   "tint": "#C080FF"
+  },
   "proj.CROSS": {
    "sheet": "sprites/tiny-dungeon.png",
    "frames": [

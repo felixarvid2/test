@@ -4,31 +4,26 @@ import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
-import android.graphics.ColorFilter;
-import android.graphics.LightingColorFilter;
 import android.graphics.Paint;
-import android.graphics.Rect;
-import android.graphics.RectF;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.util.HashMap;
+import java.util.Iterator;
 
 /**
- * Single lookup for every sprite drawn in the game: key -> bitmap + frame rects.
- * Renderers call {@link #draw} first and fall back to their procedural drawing when it returns false
- * (no sprite mapped), so art can be dropped in without touching game code.
+ * Single lookup for every sprite drawn in the game: key -> frames sliced out of the sheets.
  *
- * Keys: "player", "enemy.<ENEMY_KEY>", "boss.<ENEMY_KEY>", "pickup.<GEM|COIN|COINBAG|ROAST|VACUUM|OROLOGION|ROSARY|CLOVER|CHEST>",
- * "proj.<WEAPON_KEY>" (WHIP, MAGIC_MISSILE, ... and evolved keys), "fx.<name>", "tile.<STAGE_KEY>".
+ * Every frame is cut into its own 16x16 Bitmap at load (so a neighbouring tile or the 1px sheet spacing can never
+ * bleed in) and is only ever drawn as a pre-scaled copy ({@link Bitmap#createScaledBitmap} with filter off, an exact
+ * integer factor) at whole screen pixels. Variants (white hit-flash silhouette, red/ice tint, mirrored) are built
+ * lazily per (frame, factor, tint, flip) and cached, so a draw call is a plain 1:1 {@code drawBitmap}.
  *
- * Mapping lives in assets/sprites/atlas.json (optional):
- * { "sprites": { "enemy.BAT1": { "sheet": "sprites/bats.png", "fps": 8,
- *                                "frames": [[x,y,w,h], ...], "scale": 1.0 } },
- *   "tiles":   { "tile.FOREST": { "sheet": "sprites/grass.png", "frames": [[x,y,w,h]] } } }
- * All scaling is nearest-neighbour (filterBitmap = false).
+ * Keys: "player", "enemy.<ENEMY_KEY>", "boss.<ENEMY_KEY>", "pickup.<...>", "proj.<WEAPON_KEY>", "fx.<name>",
+ * "icon.<KEY>", "tile.<STAGE_KEY>". Mapping lives in assets/sprites/atlas.json (written by tools/build_atlas.py).
  */
 public final class SpriteAtlas {
     private static final SpriteAtlas INSTANCE = new SpriteAtlas();
@@ -37,91 +32,98 @@ public final class SpriteAtlas {
         return INSTANCE;
     }
 
+    /** Pixel treatments for {@link #bitmap}. */
+    public static final int T_NORMAL = 0, T_WHITE = 1, T_RED = 2, T_ICE = 3;
+    private static final int TYPES = 4, MAX_K = 16;
+
+    /** Supplies asset bytes by path ("sprites/atlas.json"); lets tests read the files straight from disk. */
+    public interface Opener {
+        InputStream open(String path) throws Exception;
+    }
+
     public static final class Sprite {
-        public Bitmap bitmap;
-        public Rect[] frames;
+        /** Unscaled frames (tint already multiplied in). */
+        public Bitmap[] base;
         public float fps = 8f;
-        public float scale = 1f;
-        /** Integer screen-pixel scale per sprite pixel for world sprites (0 = size comes from the caller). */
+        /** Integer screen-pixel scale per sprite pixel at 1080p for world sprites (0 = size comes from the caller). */
         public int k;
         public float rot, alpha = 1f;
-        public ColorFilter tint;
-        /** Ground tiles: chance of frames[i+1] and scattered decorations. */
+        /** Ground tiles: chance of base[i+1] and scattered decorations. */
         public float[] variantChance = new float[0];
-        public Rect[] decor = new Rect[0];
+        public Bitmap[] decor = new Bitmap[0];
         public float decorChance;
+        /** [(type * 2 + flip) * (MAX_K + 1) + k] -> scaled frames, built on demand. */
+        private final Bitmap[][] cache = new Bitmap[TYPES * 2 * (MAX_K + 1)][];
+        private final Bitmap[][] decorCache = new Bitmap[MAX_K + 1][];
+
+        public int width() {
+            return base[0].getWidth();
+        }
+
+        public int height() {
+            return base[0].getHeight();
+        }
     }
 
     private final HashMap<String, Sprite> sprites = new HashMap<>();
     private final HashMap<String, Bitmap> sheets = new HashMap<>();
-    private final Paint paint = new Paint();
-    private final RectF dst = new RectF();
-    /** Screen pixels per world unit; lets world sprites be sized/snapped to whole pixels. */
-    private float worldScale = 1f;
-
-    public void setWorldScale(float s) {
-        worldScale = s;
-    }
-
-    public float worldScale() {
-        return worldScale;
-    }
 
     private SpriteAtlas() {
-        paint.setFilterBitmap(false);
-        paint.setAntiAlias(false);
-        paint.setDither(false);
-    }
-
-    public Paint paint() {
-        return paint;
     }
 
     /** Loads assets/sprites/atlas.json if present; silently leaves everything procedural otherwise. */
-    public synchronized void load(AssetManager am) {
+    public synchronized void load(final AssetManager am) {
+        load(new Opener() {
+            @Override
+            public InputStream open(String path) throws Exception {
+                return am.open(path);
+            }
+        });
+    }
+
+    public synchronized void load(Opener op) {
         sprites.clear();
-        InputStream in = null;
+        sheets.clear();
         try {
-            in = am.open("sprites/atlas.json");
-            java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+            JSONObject root = new JSONObject(new String(readAll(op.open("sprites/atlas.json")), "UTF-8"));
+            readGroup(op, root.optJSONObject("sprites"));
+            readGroup(op, root.optJSONObject("tiles"));
+        } catch (Exception ignored) {
+            // no atlas shipped: procedural fallback everywhere
+        }
+        PixelSprites.register(this);
+        sheets.clear(); // slices are copies; the big sheets are not needed any more
+    }
+
+    private static byte[] readAll(InputStream in) throws Exception {
+        try {
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
             byte[] b = new byte[8192];
             int n;
             while ((n = in.read(b)) > 0) bos.write(b, 0, n);
-            JSONObject root = new JSONObject(bos.toString("UTF-8"));
-            readGroup(am, root.optJSONObject("sprites"));
-            readGroup(am, root.optJSONObject("tiles"));
-        } catch (Exception ignored) {
-            // no atlas shipped: procedural fallback everywhere
+            return bos.toByteArray();
         } finally {
-            try { if (in != null) in.close(); } catch (Exception ignored) { }
+            in.close();
         }
     }
 
-    private void readGroup(AssetManager am, JSONObject group) throws Exception {
+    private void readGroup(Opener op, JSONObject group) throws Exception {
         if (group == null) return;
-        java.util.Iterator<String> it = group.keys();
+        Iterator<String> it = group.keys();
         while (it.hasNext()) {
             String key = it.next();
             JSONObject o = group.getJSONObject(key);
-            Bitmap bm = sheet(am, o.getString("sheet"));
-            if (bm == null) continue;
+            Bitmap sheet = sheet(op, o.getString("sheet"));
+            if (sheet == null) continue;
+            int tint = o.has("tint") ? (android.graphics.Color.parseColor(o.getString("tint")) | 0xFF000000) : 0;
             JSONArray fr = o.getJSONArray("frames");
             Sprite s = new Sprite();
-            s.bitmap = bm;
-            s.frames = new Rect[fr.length()];
-            for (int i = 0; i < fr.length(); i++) {
-                JSONArray r = fr.getJSONArray(i);
-                s.frames[i] = new Rect(r.getInt(0), r.getInt(1), r.getInt(0) + r.getInt(2), r.getInt(1) + r.getInt(3));
-            }
+            s.base = new Bitmap[fr.length()];
+            for (int i = 0; i < fr.length(); i++) s.base[i] = slice(sheet, fr.getJSONArray(i), tint);
             s.fps = (float) o.optDouble("fps", 8);
-            s.scale = (float) o.optDouble("scale", 1);
             s.k = o.optInt("k", 0);
             s.rot = (float) o.optDouble("rot", 0);
             s.alpha = (float) o.optDouble("alpha", 1);
-            if (o.has("tint")) {
-                int c = android.graphics.Color.parseColor(o.getString("tint"));
-                s.tint = new LightingColorFilter(c | 0xFF000000, 0); // multiply
-            }
             JSONArray vc = o.optJSONArray("variantChance");
             if (vc != null) {
                 s.variantChance = new float[vc.length()];
@@ -129,30 +131,30 @@ public final class SpriteAtlas {
             }
             JSONArray dc = o.optJSONArray("decor");
             if (dc != null) {
-                s.decor = new Rect[dc.length()];
-                for (int i = 0; i < dc.length(); i++) {
-                    JSONArray r = dc.getJSONArray(i);
-                    s.decor[i] = new Rect(r.getInt(0), r.getInt(1), r.getInt(0) + r.getInt(2), r.getInt(1) + r.getInt(3));
-                }
+                s.decor = new Bitmap[dc.length()];
+                for (int i = 0; i < dc.length(); i++) s.decor[i] = slice(sheet, dc.getJSONArray(i), 0);
             }
             s.decorChance = (float) o.optDouble("decorChance", 0);
-            if (s.frames.length > 0) sprites.put(key, s);
+            if (s.base.length > 0) sprites.put(key, s);
         }
     }
 
-    private Bitmap sheet(AssetManager am, String path) {
+    private static Bitmap slice(Bitmap sheet, JSONArray r, int tint) throws Exception {
+        Bitmap b = Bitmap.createBitmap(sheet, r.getInt(0), r.getInt(1), r.getInt(2), r.getInt(3))
+                .copy(Bitmap.Config.ARGB_8888, true);
+        if (tint != 0) recolor(b, T_NORMAL, false, tint);
+        return b;
+    }
+
+    private Bitmap sheet(Opener op, String path) {
         Bitmap bm = sheets.get(path);
         if (bm != null) return bm;
-        InputStream in = null;
-        try {
-            in = am.open(path);
+        try (InputStream in = op.open(path)) {
             BitmapFactory.Options opt = new BitmapFactory.Options();
             opt.inScaled = false;
             bm = BitmapFactory.decodeStream(in, null, opt);
             if (bm != null) sheets.put(path, bm);
         } catch (Exception ignored) {
-        } finally {
-            try { if (in != null) in.close(); } catch (Exception ignored) { }
         }
         return bm;
     }
@@ -170,78 +172,118 @@ public final class SpriteAtlas {
         return sprites.containsKey(key);
     }
 
-    public boolean draw(Canvas c, String key, float time, float cx, float cy, float w, float h, boolean flipX,
-                        float rotationDeg, int alpha) {
-        return draw(c, key, time, cx, cy, w, h, flipX, rotationDeg, alpha, 1f);
+    public static int frameAt(Sprite s, float time) {
+        return s.base.length == 1 ? 0 : ((int) (time * s.fps)) % s.base.length;
+    }
+
+    /** Integer scale for a sprite at the current screen height (1080 = factor 1). */
+    public static int scaleFor(Sprite s, float screenFactor) {
+        return Math.max(1, Math.min(MAX_K, Math.round(s.k * screenFactor)));
     }
 
     /**
-     * Draws the sprite centred at (cx, cy). World sprites (Sprite.k > 0) are sized to k screen pixels per sprite
-     * pixel and snapped to whole screen pixels so nearest-neighbour scaling stays crisp; otherwise w x h is used.
-     * `squash` scales vertically about the feet (walk bob). Returns false when the key is unmapped so the caller
-     * can draw the procedural fallback.
+     * The ready-to-blit bitmap for one frame at integer factor k: tinted, mirrored and scaled with nearest sampling
+     * so that drawing it at whole screen pixels reproduces the art exactly.
      */
-    public boolean draw(Canvas c, String key, float time, float cx, float cy, float w, float h, boolean flipX,
-                        float rotationDeg, int alpha, float squash) {
+    public synchronized Bitmap bitmap(Sprite s, int frame, int k, int type, boolean flip) {
+        k = Math.max(1, Math.min(MAX_K, k));
+        int idx = (type * 2 + (flip ? 1 : 0)) * (MAX_K + 1) + k;
+        Bitmap[] row = s.cache[idx];
+        if (row == null) row = s.cache[idx] = new Bitmap[s.base.length];
+        Bitmap b = row[frame];
+        if (b == null) {
+            Bitmap src = s.base[frame];
+            if (type != T_NORMAL || flip) {
+                src = src.copy(Bitmap.Config.ARGB_8888, true);
+                recolor(src, type, flip, 0);
+            }
+            b = scale(src, k);
+            row[frame] = b;
+        }
+        return b;
+    }
+
+    /** Decoration overlay for ground tiles at integer factor k. */
+    public synchronized Bitmap decor(Sprite s, int i, int k) {
+        k = Math.max(1, Math.min(MAX_K, k));
+        Bitmap[] row = s.decorCache[k];
+        if (row == null) row = s.decorCache[k] = new Bitmap[s.decor.length];
+        if (row[i] == null) row[i] = scale(s.decor[i], k);
+        return row[i];
+    }
+
+    private static Bitmap scale(Bitmap src, int k) {
+        if (k == 1) return src;
+        return Bitmap.createScaledBitmap(src, src.getWidth() * k, src.getHeight() * k, false);
+    }
+
+    /** Builds every variant the world renderer uses so no sprite is created in the middle of a frame. */
+    public synchronized void warm(float screenFactor) {
+        for (Sprite s : sprites.values()) {
+            if (s.k <= 0 || s.base.length == 0) continue;
+            int k = scaleFor(s, screenFactor);
+            for (int f = 0; f < s.base.length; f++) {
+                bitmap(s, f, k, T_NORMAL, false);
+                bitmap(s, f, k, T_NORMAL, true);
+                bitmap(s, f, k, T_WHITE, false);
+                bitmap(s, f, k, T_WHITE, true);
+            }
+        }
+        Sprite p = sprites.get("player");
+        if (p != null) {
+            int k = scaleFor(p, screenFactor);
+            bitmap(p, 0, k, T_RED, false);
+            bitmap(p, 0, k, T_RED, true);
+        }
+    }
+
+    /**
+     * Draws a sprite centred on (cx, cy) at an exact integer factor with its top-left snapped to a whole pixel.
+     * For panel icons and anything else that is not part of the sorted world pass.
+     */
+    public boolean drawCentered(Canvas c, Paint paint, String key, float cx, float cy, int k) {
         Sprite s = sprites.get(key);
         if (s == null) return false;
-        Rect src = s.frames[((int) (time * s.fps)) % s.frames.length];
-        if (s.k > 0) {
-            w = h = 16f * s.k / worldScale;
-            cx = Math.round(cx * worldScale) / worldScale;
-            cy = Math.round(cy * worldScale) / worldScale;
-        }
-        float hw = w * s.scale / 2f, hh = h * s.scale / 2f;
-        dst.set(-hw, -hh, hw, hh);
-        paint.setAlpha((int) (alpha * s.alpha));
-        paint.setColorFilter(s.tint);
-        c.save();
-        c.translate(cx, cy);
-        if (rotationDeg + s.rot != 0f) c.rotate(rotationDeg + s.rot);
-        if (squash != 1f) c.translate(0, hh * (1f - squash));
-        c.scale(flipX ? -1f : 1f, squash);
-        c.drawBitmap(s.bitmap, src, dst, paint);
-        c.restore();
-        paint.setColorFilter(null);
-        paint.setAlpha(255);
+        Bitmap b = bitmap(s, 0, k, T_NORMAL, false);
+        c.drawBitmap(b, Math.round(cx - b.getWidth() / 2f), Math.round(cy - b.getHeight() / 2f), paint);
         return true;
     }
 
-    private static int hash(int x, int y) {
-        int h = x * 374761393 + y * 668265263;
-        h = (h ^ (h >>> 13)) * 1274126177;
-        return h ^ (h >>> 16);
-    }
+    private static final int[] PX = new int[64 * 64];
 
-    /**
-     * Draws the tiling ground: per-cell seeded base/variant frames plus sparse decorations. `tile` is the cell
-     * size in world units (callers pass 4 screen-pixels-per-sprite-pixel / worldScale); edges are snapped to
-     * whole screen pixels. Returns false when unmapped.
-     */
-    public boolean drawTiles(Canvas c, String key, float camX, float camY, float viewW, float viewH, float tile) {
-        Sprite s = sprites.get(key);
-        if (s == null) return false;
-        int x0 = (int) Math.floor((camX - viewW / 2) / tile), x1 = (int) Math.floor((camX + viewW / 2) / tile);
-        int y0 = (int) Math.floor((camY - viewH / 2) / tile), y1 = (int) Math.floor((camY + viewH / 2) / tile);
-        float ws = worldScale, tpx = tile * ws;
-        for (int ty = y0; ty <= y1; ty++) {
-            for (int tx = x0; tx <= x1; tx++) {
-                int hh = hash(tx, ty);
-                float r = ((hh >>> 4) & 1023) / 1024f;
-                int f = 0;
-                float acc = 0;
-                for (int i = 0; i < s.variantChance.length; i++) {
-                    acc += s.variantChance[i];
-                    if (r < acc && i + 1 < s.frames.length) { f = i + 1; break; }
-                }
-                dst.set(Math.round(tx * tpx) / ws, Math.round(ty * tpx) / ws,
-                        Math.round((tx + 1) * tpx) / ws, Math.round((ty + 1) * tpx) / ws);
-                c.drawBitmap(s.bitmap, s.frames[f], dst, paint);
-                if (s.decor.length > 0 && ((hh >>> 14) & 1023) / 1024f < s.decorChance) {
-                    c.drawBitmap(s.bitmap, s.decor[(hh >>> 24) % s.decor.length], dst, paint);
+    /** In-place pixel treatment of a mutable ARGB bitmap (w*h <= 4096). */
+    private static synchronized void recolor(Bitmap b, int type, boolean flip, int multiply) {
+        int w = b.getWidth(), h = b.getHeight();
+        int[] px = w * h <= PX.length ? PX : new int[w * h];
+        b.getPixels(px, 0, w, 0, 0, w, h);
+        if (flip) {
+            for (int y = 0; y < h; y++) {
+                for (int x = 0; x < w / 2; x++) {
+                    int a = y * w + x, z = y * w + (w - 1 - x);
+                    int t = px[a];
+                    px[a] = px[z];
+                    px[z] = t;
                 }
             }
         }
-        return true;
+        int mr = (multiply >> 16) & 255, mg = (multiply >> 8) & 255, mb = multiply & 255;
+        for (int i = 0; i < w * h; i++) {
+            int p = px[i], a = p >>> 24;
+            if (a == 0) continue;
+            int r = (p >> 16) & 255, g = (p >> 8) & 255, bl = p & 255;
+            if (multiply != 0) {
+                r = r * mr / 255;
+                g = g * mg / 255;
+                bl = bl * mb / 255;
+            }
+            switch (type) {
+                case T_WHITE: r = g = bl = 255; break;
+                case T_RED: r = Math.min(255, r / 2 + 150); g = g * 2 / 5; bl = bl * 2 / 5; break;
+                case T_ICE: r = r / 2; g = Math.min(255, g * 4 / 5 + 40); bl = Math.min(255, bl + 80); break;
+                default:
+            }
+            px[i] = (a << 24) | (r << 16) | (g << 8) | bl;
+        }
+        b.setPixels(px, 0, w, 0, 0, w, h);
     }
 }

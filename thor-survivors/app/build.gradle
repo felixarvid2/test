@@ -40,6 +40,8 @@ android {
 
     testOptions {
         unitTests.returnDefaultValues = true
+        // Robolectric (screenshot tests) reads merged resources/assets via this
+        unitTests.includeAndroidResources = true
     }
 }
 
@@ -47,4 +49,6 @@ dependencies {
     // Test-only: the Android SDK's org.json is a stub on the JVM.
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.json:json:20240303'
+    // Screenshot tests: Robolectric native graphics rasterises android.graphics.Canvas on the JVM.
+    testImplementation 'org.robolectric:robolectric:4.14.1'
 }

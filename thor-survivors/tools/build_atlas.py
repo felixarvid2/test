@@ -80,6 +80,8 @@ M["proj.MAGIC_MISSILE"] = S("C", 89, k=2)
 M["proj.HOLY_MISSILE"] = S("C", 89, k=3, tint="#FFF0A0")
 M["proj.HOLYWATER"] = S("D", 116, k=2)
 M["proj.BORA"] = S("D", 116, k=3, tint="#8090FF")
+M["proj.HOLYBOOK"] = S("D", 65, k=3)
+M["proj.VESPERS"] = S("D", 65, k=4, tint="#C080FF")
 M["proj.CROSS"] = S("D", 104, k=3)
 M["proj.HEAVENSWORD"] = S("D", 104, k=4, tint="#FFF4B0")
 
