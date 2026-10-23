@@ -2,9 +2,11 @@ package se.felixarvid.thorsurvivors.screen;
 
 import android.content.Context;
 import android.graphics.Canvas;
+import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.view.Choreographer;
+import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
@@ -44,6 +46,14 @@ public final class GameView extends SurfaceView implements SurfaceHolder.Callbac
 
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int w, int h) {
+        // ask for 120 Hz on panels that have it; DEFAULT compatibility lets the system fall back to what it supports
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            try {
+                holder.getSurface().setFrameRate(120f, Surface.FRAME_RATE_COMPATIBILITY_DEFAULT);
+            } catch (Throwable ignored) {
+                // a hint only
+            }
+        }
     }
 
     @Override

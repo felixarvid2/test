@@ -22,9 +22,9 @@ def S(sheet, idx, **o):
     return (sheet, idx, o)
 
 M = {}
-M["player"] = S("D", 96, k=4)
+M["player"] = S("D", 96, k=5)  # ~80 px tall at 1080p with Sim.VIEW_H = 560
 
-def enemy(keys, sheet, idx, k=3, **o):
+def enemy(keys, sheet, idx, k=4, **o):
     for key in keys.split():
         M["enemy." + key] = S(sheet, idx, k=k, **o)
 
@@ -35,22 +35,22 @@ enemy("BAT2", "D", 120, tint="#C090FF")
 enemy("BAT3", "D", 120, tint="#FF8080")
 enemy("BAT4", "D", 120, tint="#80A8FF")
 enemy("BAT5", "D", 120, tint="#FFE070")
-enemy("XLBAT", "D", 120, k=4, tint="#8878A8")
+enemy("XLBAT", "D", 120, k=5, tint="#8878A8")
 enemy("GHOST ECTO1 ECTO2", "D", 121, alpha=0.75)
 enemy("MUDMAN1 MUD", "C", 99)
 enemy("MUDMAN2", "C", 98)
 enemy("FLOWER", "C", 122)
-enemy("XLFLOWER", "C", 122, k=4)
+enemy("XLFLOWER", "C", 122, k=5)
 enemy("WEREWOLF", "C", 24)
 enemy("MUMMY", "C", 95)
-enemy("XLMUMMY", "C", 95, k=4)
-enemy("XLMANTIS", "C", 140, k=4)
+enemy("XLMUMMY", "C", 95, k=5)
+enemy("XLMANTIS", "C", 140, k=5)
 enemy("MEDUSA2 MEDUSA2_AGGRO", "C", 7)
-enemy("XLMEDUSA", "C", 7, k=4)
+enemy("XLMEDUSA", "C", 7, k=5)
 enemy("WITCH1 WITCH2", "C", 65)
 enemy("BUER", "C", 48)
 
-BOSS_K = 8
+BOSS_K = 10
 for key, sh, idx, o in [
     ("BOSS_BUER", "C", 48, {}), ("BOSS_COUNT1", "C", 2, {}), ("BOSS_COUNT2", "C", 2, {}),
     ("BOSS_ECTO", "D", 121, {"alpha": 0.8}), ("BOSS_MEDUSA1", "C", 7, {}), ("BOSS_XLMEDUSA", "C", 7, {}),
@@ -64,29 +64,26 @@ for key, sh, idx, o in [
 ]:
     M["boss." + key] = S(sh, idx, k=BOSS_K, **o)
     if key.startswith("BOSS_"):  # same boss appearing as a normal spawn (Library minutes 28-29)
-        M["enemy." + key] = S(sh, idx, k=5, **o)
+        M["enemy." + key] = S(sh, idx, k=6, **o)
 
-M["pickup.CHEST"] = S("D", 89, k=3)
-M["pickup.COIN"] = S("T", 93, k=2)
-M["pickup.COINBAG"] = S("D", 101, k=2)
+M["pickup.CHEST"] = S("D", 89, k=4)
+M["pickup.COIN"] = S("T", 93, k=3)
+M["pickup.COINBAG"] = S("D", 101, k=3)
 
 for key in "KNIFE THOUSAND".split():
-    M["proj." + key] = S("D", 103, k=2 if key == "KNIFE" else 3, rot=90)
-M["proj.AXE"] = S("D", 118, k=3)
-M["proj.SCYTHE"] = S("T", 129, k=4)
-M["proj.FIREBALL"] = S("C", 45, k=2)
-M["proj.HELLFIRE"] = S("C", 45, k=3, tint="#FF6040")
-M["proj.MAGIC_MISSILE"] = S("C", 89, k=2)
-M["proj.HOLY_MISSILE"] = S("C", 89, k=3, tint="#FFF0A0")
-M["proj.HOLYWATER"] = S("D", 116, k=2)
-M["proj.BORA"] = S("D", 116, k=3, tint="#8090FF")
-M["proj.HOLYBOOK"] = S("D", 65, k=3)
-M["proj.VESPERS"] = S("D", 65, k=4, tint="#C080FF")
-M["proj.CROSS"] = S("D", 104, k=3)
-M["proj.HEAVENSWORD"] = S("D", 104, k=4, tint="#FFF4B0")
+    M["proj." + key] = S("D", 103, k=3 if key == "KNIFE" else 4, rot=90)
+M["proj.AXE"] = S("D", 118, k=4)
+M["proj.SCYTHE"] = S("T", 129, k=5)
+M["proj.FIREBALL"] = S("C", 45, k=3)
+M["proj.HELLFIRE"] = S("C", 45, k=4, tint="#FF6040")
+M["proj.MAGIC_MISSILE"] = S("C", 89, k=3)
+M["proj.HOLY_MISSILE"] = S("C", 89, k=4, tint="#FFF0A0")
+M["proj.HOLYWATER"] = S("D", 116, k=3)
+M["proj.BORA"] = S("D", 116, k=4, tint="#8090FF")
+# proj.HOLYBOOK / VESPERS / CROSS / HEAVENSWORD are drawn as pixel art in PixelSprites.java (no good sheet sprite)
 
 ICONS = dict(WHIP=("D", 107), MAGIC_MISSILE=("C", 89), KNIFE=("D", 103), AXE=("D", 118), CROSS=("D", 104),
-             HOLYBOOK=("D", 65), FIREBALL=("C", 45), GARLIC=("C", 13), HOLYWATER=("D", 116), LIGHTNING=("C", 56),
+             HOLYBOOK=("D", 66), FIREBALL=("C", 45), GARLIC=("C", 13), HOLYWATER=("D", 116), LIGHTNING=("C", 56),
              POWER=("D", 115), MAXHEALTH=("D", 115), ARMOR=("D", 102), REGEN=("D", 114), COOLDOWN=("D", 113),
              AREA=("D", 129), SPEED=("D", 119), DURATION=("D", 131), AMOUNT=("D", 117), MOVESPEED=("T", 119),
              MAGNET=("T", 117), LUCK=("T", 29), GROWTH=("D", 56))
@@ -95,10 +92,10 @@ for k, (sh, i) in ICONS.items():
 
 # ground tiles: frames[0] is the base; variantChance[i] is the chance of frames[i+1]
 TILES = {
-    "tile.FOREST": dict(sheet="T", frames=[0, 1, 2], variantChance=[0.25, 0.08],
-                        decor=[4, 5, 16, 28, 29], decorChance=0.04),
-    "tile.LIBRARY": dict(sheet="D", frames=[0, 12, 24], variantChance=[0.08, 0.04],
-                         decor=[63, 75, 72, 82], decorChance=0.04),
+    "tile.FOREST": dict(sheet="T", frames=[0, 1, 2], variantChance=[0.15, 0.03],
+                        decor=[4, 5, 16, 28, 29], decorChance=0.025, grade=[0.75, 0.78], decorGrade=[0.88, 0.92]),
+    "tile.LIBRARY": dict(sheet="D", frames=[0, 12, 24], variantChance=[0.1, 0.03],
+                         decor=[63, 75, 72, 82], decorChance=0.025, grade=[0.55, 0.62], decorGrade=[0.8, 0.85]),
 }
 
 def rect(sheet, idx):
@@ -131,6 +128,9 @@ def build():
         tiles[key] = {"sheet": "sprites/" + SHEETS[sh][1], "frames": [rect(sh, i) for i in t["frames"]],
                       "variantChance": t["variantChance"], "decor": [rect(sh, i) for i in t["decor"]],
                       "decorChance": t["decorChance"]}
+        for g in ("grade", "decorGrade"):  # [brightness, saturation] baked into the bitmaps at load
+            if g in t:
+                tiles[key][g] = t[g]
     with open(os.path.join(OUT, "atlas.json"), "w") as f:
         json.dump({"sprites": sprites, "tiles": tiles}, f, indent=1)
     return sprites, tiles

@@ -33,8 +33,8 @@ public final class SpriteAtlas {
     }
 
     /** Pixel treatments for {@link #bitmap}. */
-    public static final int T_NORMAL = 0, T_WHITE = 1, T_RED = 2, T_ICE = 3;
-    private static final int TYPES = 4, MAX_K = 16;
+    public static final int T_NORMAL = 0, T_WHITE = 1, T_RED = 2, T_ICE = 3, T_BRIGHT = 4;
+    private static final int TYPES = 5, MAX_K = 16;
 
     /** Supplies asset bytes by path ("sprites/atlas.json"); lets tests read the files straight from disk. */
     public interface Opener {
@@ -135,8 +135,37 @@ public final class SpriteAtlas {
                 for (int i = 0; i < dc.length(); i++) s.decor[i] = slice(sheet, dc.getJSONArray(i), 0);
             }
             s.decorChance = (float) o.optDouble("decorChance", 0);
+            grade(s.base, o.optJSONArray("grade"));
+            grade(s.decor, o.optJSONArray("decorGrade"));
             if (s.base.length > 0) sprites.put(key, s);
         }
+    }
+
+    /** Bakes a [brightness, saturation] grade into mutable bitmaps (ground tiles are darkened and muted once at load). */
+    private static void grade(Bitmap[] frames, JSONArray g) {
+        if (g == null || g.length() < 2) return;
+        float bright = (float) g.optDouble(0, 1), sat = (float) g.optDouble(1, 1);
+        int[] px = new int[16 * 16];
+        for (Bitmap b : frames) {
+            int w = b.getWidth(), h = b.getHeight();
+            if (w * h > px.length) continue;
+            b.getPixels(px, 0, w, 0, 0, w, h);
+            for (int i = 0; i < w * h; i++) {
+                int p = px[i], a = p >>> 24;
+                if (a == 0) continue;
+                float r = (p >> 16) & 255, gr = (p >> 8) & 255, bl = p & 255;
+                float gray = 0.3f * r + 0.59f * gr + 0.11f * bl;
+                r = (gray + (r - gray) * sat) * bright;
+                gr = (gray + (gr - gray) * sat) * bright;
+                bl = (gray + (bl - gray) * sat) * bright;
+                px[i] = (a << 24) | (clamp(r) << 16) | (clamp(gr) << 8) | clamp(bl);
+            }
+            b.setPixels(px, 0, w, 0, 0, w, h);
+        }
+    }
+
+    private static int clamp(float v) {
+        return v < 0f ? 0 : v > 255f ? 255 : Math.round(v);
     }
 
     private static Bitmap slice(Bitmap sheet, JSONArray r, int tint) throws Exception {
@@ -227,6 +256,8 @@ public final class SpriteAtlas {
                 bitmap(s, f, k, T_NORMAL, true);
                 bitmap(s, f, k, T_WHITE, false);
                 bitmap(s, f, k, T_WHITE, true);
+                bitmap(s, f, k, T_BRIGHT, false);
+                bitmap(s, f, k, T_BRIGHT, true);
             }
         }
         Sprite p = sprites.get("player");
@@ -279,6 +310,7 @@ public final class SpriteAtlas {
             switch (type) {
                 case T_WHITE: r = g = bl = 255; break;
                 case T_RED: r = Math.min(255, r / 2 + 150); g = g * 2 / 5; bl = bl * 2 / 5; break;
+                case T_BRIGHT: r += (255 - r) / 4; g += (255 - g) / 4; bl += (255 - bl) / 4; break;
                 case T_ICE: r = r / 2; g = Math.min(255, g * 4 / 5 + 40); bl = Math.min(255, bl + 80); break;
                 default:
             }

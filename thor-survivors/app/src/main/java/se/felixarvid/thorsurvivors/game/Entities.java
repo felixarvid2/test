@@ -12,6 +12,12 @@ public final class Entities {
         public float x, y, kvx, kvy;
         public float hp, maxHp, speed, power, radius, xp;
         public float flash, anim;
+        /** The last hit came from a weapon that must not blank the sprite (lightning): shown as a soft brighten. */
+        public boolean softFlash;
+        /** Pool slot of this enemy's latest damage number (checked against DamageText.owner), -1 for none. */
+        public int textSlot = -1;
+        /** Set by the crowd separation: another enemy is in the way and nearer the player, so this one advances slowly. */
+        public boolean blocked;
         /** Seconds left in which this enemy does not advance (set by knockback hits). */
         public float stagger;
         /** Knockback multiplier, 1 by default; Garlic raises it (lowers the enemy's knockback resistance). */
@@ -69,9 +75,9 @@ public final class Entities {
     }
 
     public static final class DamageText {
-        public float x, y, life;
+        public float x, y, life, maxLife;
         public final char[] digits = new char[8];
-        public int len;
+        public int len, total, owner;
         public boolean crit, heal;
     }
 

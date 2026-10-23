@@ -32,7 +32,11 @@ import se.felixarvid.thorsurvivors.render.SpriteAtlas.Sprite;
  * arrays and an insertion sort; nothing is allocated per frame.
  */
 public final class WorldRenderer {
-    private static final int MAX_TEXTS_DRAWN = 40;
+    private static final int MAX_TEXTS_DRAWN = 25;
+    /** Hit flashes turn into a soft brighten once this many enemies flash at the same time (no white blob). */
+    private static final int MANY_FLASHING = 4;
+    /** No scenery within this many world units of the player's spawn point (0,0). */
+    private static final float SPAWN_CLEAR = 150f;
     private static final float FLASH_ON = 0.08f, FLASH_GAP = 0.15f, HIT_TINT = 0.12f, VIGNETTE = 0.35f;
     private static final int STATE = 4096;
     /** Radius a weapon's projectile has at area 1.0 (see Sim.fire*), used to grow its sprite in whole steps. */
@@ -46,6 +50,7 @@ public final class WorldRenderer {
     private final Paint big = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint vig = new Paint();
     private final RectF rect = new RectF();
+    private final android.graphics.Path path = new android.graphics.Path();
     private RadialGradient vigShader;
     private int vigW, vigH;
     private final Bitmap[] shadows = new Bitmap[321];
@@ -75,6 +80,7 @@ public final class WorldRenderer {
     private float sc, ks;
     private int ox, oy, scrW, scrH;
     private double now;
+    private int flashing;
 
     // exposed so tests can verify draw order
     public int orderN;
@@ -194,6 +200,11 @@ public final class WorldRenderer {
         return h ^ (h >>> 16);
     }
 
+    /** False inside {@link #SPAWN_CLEAR} of the player's spawn point (world 0,0): trees and mushrooms never go there. */
+    static boolean sceneryAllowed(float wx, float wy) {
+        return wx * wx + wy * wy >= SPAWN_CLEAR * SPAWN_CLEAR;
+    }
+
     private final Bitmap[] tileBm = new Bitmap[8], decorBm = new Bitmap[16];
 
     private void drawGround(Canvas c, String stage, int camPx, int camPy, int w, int h) {
@@ -203,26 +214,33 @@ public final class WorldRenderer {
             c.drawRect(0, 0, w, h, fill);
             return;
         }
-        int k = Math.max(1, Math.round(4 * ks)), size = 16 * k;
+        int k = Math.max(1, Math.round(5 * ks)), size = 16 * k;
         for (int i = 0; i < t.base.length; i++) tileBm[i] = atlas.bitmap(t, i, k, SpriteAtlas.T_NORMAL, false);
         for (int i = 0; i < t.decor.length; i++) decorBm[i] = atlas.decor(t, i, k);
         int x0 = Math.floorDiv(camPx - w / 2, size), x1 = Math.floorDiv(camPx + w / 2, size);
         int y0 = Math.floorDiv(camPy - h / 2, size), y1 = Math.floorDiv(camPy + h / 2, size);
         for (int ty = y0; ty <= y1; ty++) {
             for (int tx = x0; tx <= x1; tx++) {
-                int hh = hash(tx, ty);
-                float r = ((hh >>> 4) & 1023) / 1024f;
+                float r = ((hash(tx, ty) >>> 4) & 1023) / 1024f;
                 int f = 0;
                 float acc = 0;
                 for (int i = 0; i < t.variantChance.length; i++) {
                     acc += t.variantChance[i];
                     if (r < acc && i + 1 < t.base.length) { f = i + 1; break; }
                 }
-                int dx = tx * size + ox, dy = ty * size + oy;
-                c.drawBitmap(tileBm[f], dx, dy, bmp);
-                if (t.decor.length > 0 && ((hh >>> 14) & 1023) / 1024f < t.decorChance) {
-                    c.drawBitmap(decorBm[(hh >>> 24) % t.decor.length], dx, dy, bmp);
-                }
+                c.drawBitmap(tileBm[f], tx * size + ox, ty * size + oy, bmp);
+            }
+        }
+        if (t.decor.length == 0) return;
+        // scenery in a second pass (so a tile never paints over a neighbour's decoration), jittered inside its cell
+        for (int ty = y0 - 1; ty <= y1 + 1; ty++) {
+            for (int tx = x0 - 1; tx <= x1 + 1; tx++) {
+                int hh = hash(tx + 4001, ty - 977);
+                if (((hh >>> 14) & 1023) / 1024f >= t.decorChance) continue;
+                float wx = (tx * size + size / 2f) / sc, wy = (ty * size + size / 2f) / sc;
+                if (!sceneryAllowed(wx, wy)) continue; // never under the player's start
+                int jx = (((hh >>> 3) & 15) - 7) * k, jy = (((hh >>> 7) & 15) - 7) * k;
+                c.drawBitmap(decorBm[(hh >>> 24) % t.decor.length], tx * size + ox + jx, ty * size + oy + jy, bmp);
             }
         }
     }
@@ -278,7 +296,7 @@ public final class WorldRenderer {
             int hgt = Math.max(4, w * 3 / 8);
             b = Bitmap.createBitmap(w, hgt, Bitmap.Config.ARGB_8888);
             Canvas sc2 = new Canvas(b);
-            fill.setColor(0x59000000);
+            fill.setColor(0x70000000);
             rect.set(0, 0, w, hgt);
             sc2.drawOval(rect, fill);
             shadows[w] = b;
@@ -322,7 +340,7 @@ public final class WorldRenderer {
         }
         for (int i = 0; i < s.projN; i++) {
             Projectile p = s.projs[i];
-            if (p.kind == Entities.P_PUDDLE) drawPuddle(c, p, t);
+            if (p.kind == Entities.P_PUDDLE && p.maxLife - p.life >= p.flight) drawPuddle(c, p, t);
         }
         endVec(c);
 
@@ -340,10 +358,12 @@ public final class WorldRenderer {
 
         // 3. enemies + player (visible only), strictly ordered by (feet y, id)
         int n = 0, nb = 0;
+        flashing = 0;
         for (int i = 0; i < s.enemyN; i++) {
             Enemy en = s.enemies[i];
             int px = sx(en.x), py = sy(en.y);
             if (px < -m || px > w + m || py < -m || py > h + m) continue;
+            if (en.flash > 0) flashing++;
             Sprite sp = enemySprite(en.type, en.boss);
             int k = sp == null ? 1 : SpriteAtlas.scaleFor(sp, ks);
             entSpr[i] = sp;
@@ -388,7 +408,7 @@ public final class WorldRenderer {
         int nq = 0;
         for (int i = 0; i < s.projN; i++) {
             Projectile p = s.projs[i];
-            if (p.kind == Entities.P_PUDDLE && (p.maxLife - p.life) >= 0.25f) continue;
+            if (p.kind == Entities.P_PUDDLE && (p.maxLife - p.life) >= p.flight) continue;
             int px = sx(p.x), py = sy(p.y);
             if (px < -m * 2 || px > w + m * 2 || py < -m * 2 || py > h + m * 2) continue;
             sKey[nq] = (bias(py) << 40) | (bias(px) << 24) | ((p.kind & 15) << 8) | (p.slot & 255);
@@ -459,18 +479,26 @@ public final class WorldRenderer {
             return;
         }
         boolean faceRight = stFace[en.id & (STATE - 1)] == 1;
-        int type = flash ? SpriteAtlas.T_WHITE : frozen ? SpriteAtlas.T_ICE : SpriteAtlas.T_NORMAL;
+        boolean soft = en.softFlash || flashing >= MANY_FLASHING; // lightning / crowds: brighten, never a white silhouette
+        int type = flash ? (soft ? SpriteAtlas.T_BRIGHT : SpriteAtlas.T_WHITE)
+                : frozen ? SpriteAtlas.T_ICE : SpriteAtlas.T_NORMAL;
         float hz = en.type.shape == EnemyType.SH_BAT ? 5.5f : en.type.shape == EnemyType.SH_GHOST ? 1.5f : 3f;
         int bob = frozen ? 0 : hop(en.anim, hz, k) * (en.type.shape == EnemyType.SH_BAT ? 2 : 1);
         drawSprite(c, sp, k, type, !faceRight, px, py - bob, (int) (255 * en.type.alpha * sp.alpha));
     }
 
+    /** A bar with a dark border: black frame, dark background, coloured fill. */
+    private void bar(Canvas c, int cx, int top, int bw, int bh, float frac, int back, int front) {
+        fill.setColor(0xCC000000);
+        c.drawRect(cx - bw / 2 - 2, top - 2, cx + bw / 2 + 2, top + bh + 2, fill);
+        fill.setColor(back);
+        c.drawRect(cx - bw / 2, top, cx + bw / 2, top + bh, fill);
+        fill.setColor(front);
+        c.drawRect(cx - bw / 2, top, cx - bw / 2 + Math.round(bw * Math.max(0f, Math.min(1f, frac))), top + bh, fill);
+    }
+
     private void drawBossBar(Canvas c, Enemy en, int px, int py, int k) {
-        int bw = 16 * k, top = py - 8 * k - 14, bh = 6;
-        fill.setColor(0xFF220000);
-        c.drawRect(px - bw / 2, top, px + bw / 2, top + bh, fill);
-        fill.setColor(0xFFE02020);
-        c.drawRect(px - bw / 2, top, px - bw / 2 + bw * Math.max(0f, en.hp / en.maxHp), top + bh, fill);
+        bar(c, px, py - 8 * k - 22, Math.max(64, 14 * k), 10, en.hp / en.maxHp, 0xFF2A0808, 0xFFE02828);
     }
 
     private void drawPlayer(Canvas c, Sim s, Sprite ps, int k, int px, int py) {
@@ -485,11 +513,7 @@ public final class WorldRenderer {
     }
 
     private void drawPlayerBar(Canvas c, Sim s, int px, int py, int k) {
-        int bw = 64, top = py + 8 * k + 6, bh = 6;
-        fill.setColor(0xFF330000);
-        c.drawRect(px - bw / 2, top, px + bw / 2, top + bh, fill);
-        fill.setColor(0xFFE03030);
-        c.drawRect(px - bw / 2, top, px - bw / 2 + bw * Math.max(0f, s.hp / s.maxHp), top + bh, fill);
+        bar(c, px, py + 8 * k + 8, 14 * k, 8, s.hp / s.maxHp, 0xFF3A0A0A, 0xFFE03030);
     }
 
     // ------------------------------------------------------------------ pickups & projectiles
@@ -528,11 +552,12 @@ public final class WorldRenderer {
         Sprite sp = atlas.find(s.weapons[p.slot].spriteKey);
         int px = sx(p.x), py = sy(p.y);
         if (p.kind == Entities.P_PUDDLE) { // the flask falling in, before it becomes a puddle
-            float age = p.maxLife - p.life;
+            float age = p.maxLife - p.life, left = Math.max(0f, p.flight - age) / Math.max(0.01f, p.flight);
             if (sp != null) {
-                int k = projK(sp, p);
-                int drop = Math.round((0.25f - age) * 480f * sc);
-                rotated(c, sp, k, py - drop, px, age * 900f);
+                int k = SpriteAtlas.scaleFor(sp, ks);
+                // the flask arcs in from above and spins as it falls
+                int drop = Math.round(left * left * 300f * sc), side = Math.round(left * 40f * sc);
+                rotated(c, sp, k, py - drop, px - side, age * 900f);
             }
             return;
         }
@@ -563,24 +588,35 @@ public final class WorldRenderer {
     // ------------------------------------------------------------------ vector extras (world units)
 
     private void drawAura(Canvas c, Sim.WeaponState w, Sim s) {
-        float r = 72f * w.area;
-        float pulse = w.pulse > 0 ? w.pulse / 0.25f : 0f;
-        int base = w.evo ? 0xA040C0 : 0xE070C0;
-        fill.setColor(((int) (34 + 56 * pulse) << 24) | base);
+        float r = w.auraRadius; // steady soft disc, no pulsing; bright enough to read on the dark ground
+        int base = w.evo ? 0xB050E0 : 0xFF80D0;
+        fill.setColor((52 << 24) | base);
         c.drawCircle(s.px, s.py, r, fill);
-        stroke.setColor(((int) (80 + 100 * pulse) << 24) | base);
-        stroke.setStrokeWidth(3f);
+        fill.setColor((34 << 24) | base);
+        c.drawCircle(s.px, s.py, r * 0.62f, fill);
+        stroke.setColor((200 << 24) | base);
+        stroke.setStrokeWidth(2.5f);
         c.drawCircle(s.px, s.py, r, stroke);
+        stroke.setColor((90 << 24) | base);
+        stroke.setStrokeWidth(1.5f);
+        c.drawCircle(s.px, s.py, r * 0.8f, stroke);
     }
 
+    /** Santa Water: a translucent pool with a bright rim, a darker core and a slow ripple ring. */
     private void drawPuddle(Canvas c, Projectile p, float t) {
         float k = Math.min(1f, p.life * 3f);
-        float rip = (float) Math.sin(t * 5 + p.x) * 0.04f;
-        fill.setColor(((int) (110 * k) << 24) | (p.evo ? 0x2040C0 : 0x40A0FF));
-        c.drawCircle(p.x, p.y, p.radius * (1 + rip), fill);
-        stroke.setColor(((int) (200 * k) << 24) | (p.evo ? 0x6080FF : 0xA0E0FF));
-        stroke.setStrokeWidth(2f);
-        c.drawCircle(p.x, p.y, p.radius * (0.65f + rip), stroke);
+        float rip = (t * 0.9f + p.x * 0.013f) % 1f;
+        int body = p.evo ? 0x3050E0 : 0x2EA0FF, rim = p.evo ? 0x90A8FF : 0xB8EAFF;
+        fill.setColor(((int) (92 * k) << 24) | body);
+        c.drawCircle(p.x, p.y, p.radius, fill);
+        fill.setColor(((int) (70 * k) << 24) | (p.evo ? 0x1020A0 : 0x1070D0));
+        c.drawCircle(p.x, p.y, p.radius * 0.6f, fill);
+        stroke.setColor(((int) (230 * k) << 24) | rim);
+        stroke.setStrokeWidth(2.5f);
+        c.drawCircle(p.x, p.y, p.radius, stroke);
+        stroke.setColor(((int) (130 * k * (1f - rip)) << 24) | rim);
+        stroke.setStrokeWidth(1.5f);
+        c.drawCircle(p.x, p.y, p.radius * (0.25f + 0.7f * rip), stroke);
     }
 
     /** Fallback for a weapon with no mapped sprite. */
@@ -592,27 +628,48 @@ public final class WorldRenderer {
     private void drawFx(Canvas c, Effect f) {
         float k = f.life / f.maxLife;
         switch (f.kind) {
-            case Entities.FX_WHIP:
-                rect.set(f.x - f.w / 2, f.y - f.h * 0.9f, f.x + f.w / 2, f.y + f.h * 0.9f);
-                stroke.setColor(((int) (230 * k) << 24) | (f.evo ? 0xFF3050 : 0xFFFFFF));
-                stroke.setStrokeWidth(8f * k + 2f);
-                c.drawArc(rect, f.side > 0 ? -50 : 130, 100, false, stroke);
+            case Entities.FX_WHIP: { // crisp tapered crescent that sweeps out and fades
+                float near = f.x - f.side * f.w / 2f;
+                float reach = Math.min(1f, (1f - k) * 4f + 0.35f);
+                float far = near + f.side * f.w * reach;
+                float mid = (near + far) / 2f, y = f.y;
+                float bow = f.h * 1.4f;
+                path.reset();
+                path.moveTo(near, y);
+                path.quadTo(mid, y - bow, far, y + f.h * 0.15f);
+                path.quadTo(mid, y - bow * 0.35f, near, y);
+                path.close();
+                int col = f.evo ? 0xFF4060 : 0xFFFFFF;
+                fill.setColor(((int) (235 * k) << 24) | col);
+                c.drawPath(path, fill);
+                stroke.setColor(((int) (120 * k) << 24) | col);
+                stroke.setStrokeWidth(2f);
+                c.drawPath(path, stroke);
                 break;
-            case Entities.FX_BOLT: {
-                fill.setColor(((int) (70 * k) << 24) | 0xFFF080);
-                c.drawCircle(f.x, f.y, f.w, fill);
-                stroke.setColor(((int) (255 * k) << 24) | (f.evo ? 0xFFE040 : 0xB8E8FF));
-                stroke.setStrokeWidth(4f);
-                float top = f.y - Sim.VIEW_H;
-                float cx = f.x, cy = top;
+            }
+            case Entities.FX_BOLT: { // one jagged bolt from the top of the screen to the target, plus a small impact flash
+                float fade = Math.min(1f, k * 2.5f);
+                float top = -oy / sc - 24f; // top edge of the screen in world units
                 int seed = (int) (f.x * 13 + f.y * 7);
-                for (int i = 1; i <= 8; i++) {
-                    float nx = f.x + (((seed >> i) & 15) - 7.5f) * 4f * (1 - i / 8f);
-                    float ny = top + (f.y - top) * i / 8f;
-                    c.drawLine(cx, cy, nx, ny, stroke);
-                    cx = nx;
-                    cy = ny;
+                int segs = Math.max(5, (int) ((f.y - top) / 40f));
+                path.reset();
+                path.moveTo(f.x + (((seed * 0x9E3779B1) >>> 27) - 15.5f) * 0.5f, top);
+                for (int i = 1; i <= segs; i++) {
+                    int hh = (seed + i * 7919) * 0x9E3779B1;
+                    float jit = i == segs ? 0f : (((hh >>> 16) & 31) - 15.5f) * 0.8f;
+                    path.lineTo(f.x + jit, top + (f.y - top) * i / segs);
                 }
+                int col = f.evo ? 0xFFE040 : 0x9AD8FF;
+                stroke.setColor(((int) (120 * fade) << 24) | col);
+                stroke.setStrokeWidth(5f);
+                c.drawPath(path, stroke);
+                stroke.setColor(((int) (255 * fade) << 24) | 0xFFFFFF);
+                stroke.setStrokeWidth(2f);
+                c.drawPath(path, stroke);
+                fill.setColor(((int) (110 * fade) << 24) | col);
+                c.drawCircle(f.x, f.y, 15f, fill);
+                fill.setColor(((int) (255 * fade) << 24) | 0xFFFFFF);
+                c.drawCircle(f.x, f.y, 6f + 3f * (1f - k), fill);
                 break;
             }
             case Entities.FX_RING:
@@ -645,6 +702,7 @@ public final class WorldRenderer {
             if (d.life > 0 && !d.crit && !d.heal) lifeTmp[live++] = d.life;
         }
         float thresh = 0f;
+        int ties = MAX_TEXTS_DRAWN; // how many numbers with exactly the threshold life may still be drawn
         if (live > MAX_TEXTS_DRAWN) {
             for (int i = 1; i < live; i++) { // insertion sort ascending
                 float v = lifeTmp[i];
@@ -653,15 +711,16 @@ public final class WorldRenderer {
                 lifeTmp[j + 1] = v;
             }
             thresh = lifeTmp[live - MAX_TEXTS_DRAWN];
+            for (int i = live - 1; i >= 0 && lifeTmp[i] > thresh; i--) ties--; // hits of one frame share a life
         }
         text.setTextAlign(Paint.Align.CENTER);
         text.setShadowLayer(2f, 0f, 2f, 0xCC000000);
         for (int i = 0; i < Sim.MAX_TEXT; i++) {
             DamageText d = s.texts[i];
             if (d.life <= 0) continue;
-            if (!d.crit && !d.heal && d.life < thresh) continue;
-            text.setTextSize((d.crit ? 28f : 21f) * ks);
-            int a = (int) (255 * Math.min(1f, d.life * 3f));
+            if (!d.crit && !d.heal && (d.life < thresh || (d.life == thresh && ties-- <= 0))) continue;
+            text.setTextSize((d.crit ? 24f : 18f) * ks);
+            int a = (int) (255 * Math.min(1f, d.life * 4f));
             text.setColor((d.heal ? 0x40FF60 : d.crit ? 0xFFD030 : 0xFFFFFF) | (a << 24));
             c.drawText(d.digits, 0, d.len, sx(d.x), sy(d.y), text);
             textsDrawn++;

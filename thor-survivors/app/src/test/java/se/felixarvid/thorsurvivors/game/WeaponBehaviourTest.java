@@ -277,7 +277,7 @@ public class WeaponBehaviourTest {
         Enemy b = dummy(s, 300, 0); // exactly stacked
         Enemy c = dummy(s, 300.5f, 0);
         step(s, 0.5f);
-        float min = (a.radius + b.radius) * 0.5f;
+        float min = (a.radius + b.radius) * 0.79f; // the target spacing is 0.8 x (r1 + r2)
         assertTrue(Math.hypot(a.x - b.x, a.y - b.y) > min);
         assertTrue(Math.hypot(a.x - c.x, a.y - c.y) > min);
         assertTrue(Math.hypot(b.x - c.x, b.y - c.y) > min);
@@ -429,5 +429,72 @@ public class WeaponBehaviourTest {
         step(s, DT);
         assertTrue("moved to the right edge: " + e.x, e.x > 500f);
         assertTrue(Math.abs(e.y) < 450f);
+    }
+
+    private int liveTexts(Sim s) {
+        int n = 0;
+        for (int i = 0; i < Sim.MAX_TEXT; i++) if (s.texts[i].life > 0) n++;
+        return n;
+    }
+
+    @Test
+    public void damageNumbersAddUpPerEnemyAndLiveHalfASecond() throws Exception {
+        Sim s = sim("WHIP", 1);
+        s.weapons[0].cd = 99f;
+        Enemy a = dummy(s, 300, 0), b = dummy(s, 300, 200);
+        for (int i = 0; i < 5; i++) { // five hits within 0.2 s on one enemy: one number, summed
+            s.hurt(a, 10f, 0, 1, 0, 0, 0);
+            step(s, 0.04f);
+        }
+        assertEquals(1, liveTexts(s));
+        s.hurt(b, 7f, 0, 1, 0, 0, 0);
+        assertEquals("a different enemy gets its own number", 2, liveTexts(s));
+        Entities.DamageText t = null;
+        for (int i = 0; i < Sim.MAX_TEXT; i++) if (s.texts[i].life > 0 && s.texts[i].owner == a.id) t = s.texts[i];
+        assertEquals("50", new String(t.digits, 0, t.len));
+        assertEquals(Sim.TEXT_LIFE, t.maxLife, 1e-6f);
+        step(s, 0.2f); // 0.4 s after the first hit: outside the 0.3 s window
+        s.hurt(a, 10f, 0, 1, 0, 0, 0);
+        assertEquals("a late hit starts a new number", 3, liveTexts(s));
+        step(s, 0.6f);
+        assertEquals("numbers are gone after their short life", 0, liveTexts(s));
+    }
+
+    @Test
+    public void lightningBoltIsShortLivedAndItsHitsDoNotTurnTheEnemyWhite() throws Exception {
+        Sim s = sim("LIGHTNING", 1);
+        Enemy e = dummy(s, 150, -50);
+        Enemy w = dummy(s, 160, 150); // hit by something else: the normal white flash is untouched
+        s.hurt(w, 1f, 0, 1, 0, 0, 0);
+        assertFalse(w.softFlash);
+        for (int i = 0; i < 120 && !e.softFlash; i++) step(s, DT);
+        assertTrue("struck enemy shows the soft flash", e.softFlash);
+        int bolts = 0;
+        for (int i = 0; i < Sim.MAX_FX; i++) {
+            if (s.fx[i].life > 0 && s.fx[i].kind == Entities.FX_BOLT) {
+                bolts++;
+                assertEquals(0.12f, s.fx[i].maxLife, 1e-6f);
+            }
+        }
+        assertTrue(bolts >= 1);
+        step(s, 0.2f);
+        for (int i = 0; i < Sim.MAX_FX; i++) assertFalse("bolt gone after ~0.12 s", s.fx[i].life > 0 && s.fx[i].kind == Entities.FX_BOLT);
+    }
+
+    @Test
+    public void viewIsZoomedInAndSpawnsStayJustOutsideIt() throws Exception {
+        assertEquals(560f, Sim.VIEW_H, 0f);
+        Sim s = sim("WHIP", 1);
+        s.noSpawns = false;
+        s.weapons[0].cd = 99f;
+        float halfW = Sim.VIEW_H * 16f / 9f / 2f, halfH = Sim.VIEW_H / 2f;
+        s.time = 60; // a wave row with regular spawns
+        for (int i = 0; i < 600; i++) step(s, DT);
+        assertTrue(s.enemyN > 5);
+        for (int i = 0; i < s.enemyN; i++) {
+            Enemy e = s.enemies[i];
+            assertTrue("spawned/recycled within reach of the view: " + e.x + "," + e.y,
+                    Math.abs(e.x - s.px) < halfW * 1.7f && Math.abs(e.y - s.py) < halfH * 2.6f);
+        }
     }
 }

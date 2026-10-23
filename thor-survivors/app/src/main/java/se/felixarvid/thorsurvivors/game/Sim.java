@@ -18,9 +18,11 @@ import java.util.Random;
 public final class Sim {
     public static final int MAX_ENEMIES = 320, MAX_PROJ = 600, MAX_PICK = 1200, MAX_PART = 600, MAX_TEXT = 80,
             MAX_FX = 96;
-    public static final float VIEW_H = 720f; // world units visible vertically
+    /** World units visible vertically (the 16:9 view is VIEW_H * 16/9 wide); spawning and recycling derive from it. */
+    public static final float VIEW_H = 560f;
+    private static final float HALF_W = VIEW_H * 16f / 9f / 2f, HALF_H = VIEW_H / 2f;
     static final float ENEMY_SPEED_K = 0.6f, PLAYER_SPEED_K = 130f;
-    static final float RECYCLE_DIST = 1000f;
+    static final float RECYCLE_DIST = HALF_W * 1.56f;
     static final int CELL = 96, GRID = 64, GRID_MASK = GRID - 1;
 
     public static final int B_WHIP = 0, B_MISSILE = 1, B_KNIFE = 2, B_AXE = 3, B_CROSS = 4, B_BOOK = 5, B_FIRE = 6,
@@ -183,7 +185,7 @@ public final class Sim {
         updateWaves(dt);
         updateEnemies(dt);
         buildGrid();
-        separate();
+        separate(dt);
         updateWeapons(dt);
         updateProjectiles(dt);
         contactDamage();
@@ -232,7 +234,7 @@ public final class Sim {
     private void spawnInitial() {
         WaveRow row = stage.rows.get(0);
         for (int i = 0; i < stage.startingSpawns && row.enemies.length > 0; i++) {
-            spawnAtRing(type(row.enemies[rng.nextInt(row.enemies.length)]), false, 520f + rng.nextFloat() * 380f);
+            spawnAtRing(type(row.enemies[rng.nextInt(row.enemies.length)]), false, VIEW_H * 0.72f + rng.nextFloat() * VIEW_H * 0.53f);
         }
     }
 
@@ -256,7 +258,7 @@ public final class Sim {
             lastRow = idx;
             for (String b : row.bosses) {
                 if (b.equals("BOSS_XLDEATH")) continue; // the reaper: the run is won at the time limit instead
-                spawnAtRing(type(b), true, 700f);
+                spawnAtRing(type(b), true, HALF_W + 100f);
             }
         }
         spawnTimer += dt * 1000f;
@@ -283,7 +285,7 @@ public final class Sim {
     }
 
     private void place(Enemy e) {
-        float halfW = VIEW_H * 16f / 9f / 2f + 60f;
+        float halfW = HALF_W + 60f;
         if (stage.horizontalSpawns) {
             float side = rng.nextBoolean() ? 1 : -1;
             e.x = px + side * (halfW + rng.nextFloat() * 80f);
@@ -305,6 +307,8 @@ public final class Sim {
         e.stagger = 0;
         e.kbMul = 1f;
         e.flash = 0;
+        e.softFlash = false;
+        e.textSlot = -1;
         e.anim = rng.nextFloat() * 6f;
         java.util.Arrays.fill(e.hitUntil, 0f);
         double hp = t.def.maxHp * 10.0 * (t.def.hpTimesLevel ? t.def.level : 1) * stage.enemyHealth
@@ -333,8 +337,9 @@ public final class Sim {
             else if (!frozen) {
                 float d = (float) Math.sqrt(d2);
                 if (d > 1f) {
-                    e.x += dx / d * e.speed * dt;
-                    e.y += dy / d * e.speed * dt;
+                    float sp = e.blocked ? e.speed * BLOCKED_SPEED : e.speed;
+                    e.x += dx / d * sp * dt;
+                    e.y += dy / d * sp * dt;
                 }
             }
             e.x += e.kvx * dt;
@@ -387,31 +392,57 @@ public final class Sim {
         return n;
     }
 
-    private void separate() {
-        for (int i = 0; i < enemyN; i++) {
-            Enemy a = enemies[i];
-            int n = query(a.x, a.y, a.radius * 2f + 24f);
-            for (int k = 0; k < n; k++) {
-                int j = qbuf[k];
-                if (j <= i) continue;
-                Enemy b = enemies[j];
-                float dx = b.x - a.x, dy = b.y - a.y;
-                float min = (a.radius + b.radius) * 0.7f;
-                float d2 = dx * dx + dy * dy;
-                if (d2 < min * min) {
+    /** Target spacing between two enemies as a fraction of the sum of their radii. */
+    static final float SEP_SPACING = 0.8f;
+    /** Overlap relaxation rate in 1/s: a pair closes {@code 1 - e^(-rate*dt)} of its overlap per step (~0.92 at 60 Hz, split over the passes). */
+    static final float SEP_RATE = 150f;
+    /** Relaxation passes per step: one is too soft against a crowd that keeps walking in. */
+    static final int SEP_PASSES = 2;
+    /** Speed factor of an enemy that is pressed against another one in front of it. */
+    static final float BLOCKED_SPEED = 0.15f;
+
+    /**
+     * Pushes overlapping enemies apart until they are {@link #SEP_SPACING} x (r1 + r2) from each other. The correction
+     * is scaled by dt, so the crowd looks the same at 60 and 120 Hz, and shared by inverse mass (radius squared) so a
+     * boss shoulders the small ones aside instead of being shoved by them. Only the spatial grid is queried.
+     */
+    private void separate(float dt) {
+        float maxR = 0f;
+        for (int i = 0; i < enemyN; i++) maxR = Math.max(maxR, enemies[i].radius);
+        float f = 1f - (float) Math.exp(-SEP_RATE * dt / SEP_PASSES); // the passes together close 1 - e^(-rate*dt)
+        for (int i = 0; i < enemyN; i++) enemies[i].blocked = false;
+        for (int pass = 0; pass < SEP_PASSES; pass++) {
+            for (int i = 0; i < enemyN; i++) {
+                Enemy a = enemies[i];
+                int n = query(a.x, a.y, SEP_SPACING * (a.radius + maxR) + 4f);
+                for (int k = 0; k < n; k++) {
+                    int j = qbuf[k];
+                    if (j <= i) continue;
+                    Enemy b = enemies[j];
+                    float dx = b.x - a.x, dy = b.y - a.y;
+                    float min = (a.radius + b.radius) * SEP_SPACING;
+                    float d2 = dx * dx + dy * dy;
+                    if (d2 >= min * min) continue;
+                    if (pass == 0) { // the one farther from the player is stuck behind the other and stops pushing in
+                        float ax = a.x - px, ay = a.y - py, bx = b.x - px, by = b.y - py;
+                        if (ax * ax + ay * ay > bx * bx + by * by) a.blocked = true;
+                        else b.blocked = true;
+                    }
+                    float ma = a.radius * a.radius, mb = b.radius * b.radius;
+                    float wb = ma / (ma + mb), wa = 1f - wb; // the lighter one moves more
                     float ux, uy;
                     if (d2 > 0.01f) {
                         float d = (float) Math.sqrt(d2);
-                        float push = (min - d) * 0.25f;
+                        float push = (min - d) * f;
                         ux = dx / d * push;
                         uy = dy / d * push;
                     } else { // exactly stacked: split along a direction derived from the ids
                         float ang = (a.id * 2.399963f) % 6.2831853f;
-                        ux = (float) Math.cos(ang) * min * 0.25f;
-                        uy = (float) Math.sin(ang) * min * 0.25f;
+                        ux = (float) Math.cos(ang) * min * f;
+                        uy = (float) Math.sin(ang) * min * f;
                     }
-                    a.x -= ux; a.y -= uy;
-                    b.x += ux; b.y += uy;
+                    a.x -= ux * wa; a.y -= uy * wa;
+                    b.x += ux * wb; b.y += uy * wb;
                 }
             }
         }
@@ -450,13 +481,17 @@ public final class Sim {
 
     // ------------------------------------------------------------------ damage & kills
 
+    /** Set while a lightning strike deals its damage: those hits show a soft brighten instead of the white silhouette. */
+    private boolean softHit;
+
     public void hurt(Enemy e, float dmg, float chance, float critMul, float kx, float ky, float knock) {
         if (e.dead) return;
         boolean crit = chance > 0 && rng.nextFloat() < chance;
         if (crit) dmg *= critMul;
         e.hp -= dmg;
         e.flash = 0.1f;
-        addText(e.x, e.y - e.radius, (int) dmg, crit, false);
+        e.softFlash = softHit;
+        addEnemyText(e, (int) dmg, crit);
         float k = knock * (float) e.type.def.knockback * e.kbMul;
         if (k > 0) {
             if (e.boss) k *= 0.05f; // bosses barely move and never stagger
@@ -584,7 +619,7 @@ public final class Sim {
                 break;
             case Entities.K_ROSARY:
                 screenFlash = 0.5f;
-                float hw = VIEW_H * 16f / 9f / 2f, hh = VIEW_H / 2f;
+                float hw = HALF_W, hh = HALF_H;
                 for (int i = 0; i < enemyN; i++) {
                     Enemy e = enemies[i];
                     if (Math.abs(e.x - px) < hw && Math.abs(e.y - py) < hh) {
@@ -677,10 +712,11 @@ public final class Sim {
 
     // ------------------------------------------------------------------ weapons
 
-    private static final float HALF_W = VIEW_H * 16f / 9f / 2f, HALF_H = VIEW_H / 2f;
     private static final float LEECH_PER_SECOND = 4f;
     /** Seconds a Santa Water flask is in the air before it becomes a puddle. */
     public static final float FLASK_FLIGHT = 0.3f;
+    /** A lightning bolt stays on screen this long. */
+    public static final float BOLT_LIFE = 0.12f;
 
     private void updateWeapons(float dt) {
         // delayed second strikes (Thunder Loop)
@@ -967,13 +1003,17 @@ public final class Sim {
 
     private void strike(WeaponState w, float tx, float ty) {
         float r = 25f * w.area;
-        addFx(Entities.FX_BOLT, tx, ty, r, 0, 0.3f, 0, w.evo);
+        addFx(Entities.FX_BOLT, tx, ty, r, 0, BOLT_LIFE, 0, w.evo);
         int n = query(tx, ty, r + 30f);
         for (int k = 0; k < n; k++) {
             Enemy e = enemies[qbuf[k]];
             if (e.dead) continue;
             float dx = e.x - tx, dy = e.y - ty, rr = r + e.radius;
-            if (dx * dx + dy * dy < rr * rr) hurt(e, w.dmg, w.critChance, w.critMul, 0, 0, 0);
+            if (dx * dx + dy * dy < rr * rr) {
+                softHit = true;
+                hurt(e, w.dmg, w.critChance, w.critMul, 0, 0, 0);
+                softHit = false;
+            }
         }
     }
 
@@ -1112,14 +1152,15 @@ public final class Sim {
     // ------------------------------------------------------------------ effects
 
     private void updateVisuals(float dt) {
+        float drag = (float) Math.exp(-3.71f * dt); // 0.94 per step at 60 Hz
         for (int i = 0; i < MAX_PART; i++) {
             Particle q = parts[i];
             if (q.life <= 0) continue;
             q.life -= dt;
             q.x += q.vx * dt;
             q.y += q.vy * dt;
-            q.vx *= 0.94f;
-            q.vy *= 0.94f;
+            q.vx *= drag;
+            q.vy *= drag;
         }
         for (int i = 0; i < MAX_TEXT; i++) if (texts[i].life > 0) { texts[i].life -= dt; texts[i].y -= 40f * dt; }
         for (int i = 0; i < MAX_FX; i++) if (fx[i].life > 0) fx[i].life -= dt;
@@ -1144,24 +1185,51 @@ public final class Sim {
         f.kind = kind; f.x = x; f.y = y; f.w = w; f.h = h; f.life = f.maxLife = life; f.side = side; f.evo = evo;
     }
 
-    private void addText(float x, float y, int value, boolean crit, boolean heal) {
+    /** Seconds a damage number lives, and the window after its creation in which more hits on the enemy add into it. */
+    public static final float TEXT_LIFE = 0.5f, TEXT_MERGE = 0.3f;
+
+    /** Damage number for one enemy: hits within {@link #TEXT_MERGE} of the first one add into a single rising number. */
+    private void addEnemyText(Enemy e, int value, boolean crit) {
+        int slot = e.textSlot;
+        if (slot >= 0) {
+            DamageText t = texts[slot];
+            if (t.owner == e.id && t.life > t.maxLife - TEXT_MERGE) {
+                t.total = Math.min(9999999, t.total + Math.max(0, value));
+                t.crit |= crit;
+                setDigits(t, t.total);
+                return;
+            }
+        }
+        e.textSlot = textHead;
+        DamageText t = addText(e.x, e.y - e.radius, value, crit, false);
+        t.owner = e.id;
+    }
+
+    private DamageText addText(float x, float y, int value, boolean crit, boolean heal) {
         DamageText t = texts[textHead];
         textHead = (textHead + 1) % MAX_TEXT;
-        t.x = x + (rng.nextFloat() - 0.5f) * 16f;
+        t.x = x + (rng.nextFloat() - 0.5f) * 12f;
         t.y = y;
-        t.life = 0.7f;
+        t.life = t.maxLife = TEXT_LIFE;
         t.crit = crit;
         t.heal = heal;
-        if (value < 0) value = 0;
-        if (value > 9999999) value = 9999999;
-        int len = 0;
+        t.owner = 0;
+        t.total = Math.max(0, Math.min(9999999, value));
+        setDigits(t, t.total);
+        return t;
+    }
+
+    private static void setDigits(DamageText t, int value) {
         char[] tmp = t.digits;
-        if (value == 0) tmp[len++] = '0';
-        else {
-            int v = value, digits = 0;
-            for (int c = v; c > 0; c /= 10) digits++;
+        int len;
+        if (value == 0) {
+            tmp[0] = '0';
+            len = 1;
+        } else {
+            int digits = 0;
+            for (int c = value; c > 0; c /= 10) digits++;
             len = digits;
-            for (int j = digits - 1; j >= 0; j--) { tmp[j] = (char) ('0' + v % 10); v /= 10; }
+            for (int j = digits - 1; j >= 0; j--) { tmp[j] = (char) ('0' + value % 10); value /= 10; }
         }
         t.len = len;
     }
