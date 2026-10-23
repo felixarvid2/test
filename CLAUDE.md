@@ -28,3 +28,5 @@ Work is split by model; the subagents live in `.claude/agents/`.
   spans several systems. Check their results (the diff and the verifier's verdict) before committing.
 - Hand `verifier` the project to check; hand `scribe` the facts. `shipper` merges a pull request
   only when told that the user approved that merge.
+- Standing approval from the user: after each change, once the checks pass, merge its pull request
+  into `main` (merge commit) without asking first.
