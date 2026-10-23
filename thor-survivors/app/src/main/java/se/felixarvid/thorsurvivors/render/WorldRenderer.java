@@ -61,6 +61,7 @@ public final class WorldRenderer {
         int ph = e.phase;
         boolean menu = s == null || ph == Engine.PH_MENU || ph == Engine.PH_SHOP;
         float sc = h / Sim.VIEW_H;
+        atlas.setWorldScale(sc);
         float viewW = w / sc, viewH = Sim.VIEW_H;
         String stage = e.stageKeys.get(e.stageIdx);
         float camX, camY;
@@ -75,6 +76,8 @@ public final class WorldRenderer {
                 camY += (float) Math.cos(s.time * 77) * 4f;
             }
         }
+        camX = Math.round(camX * sc) / sc; // whole screen pixels keep nearest-neighbour sprites stable
+        camY = Math.round(camY * sc) / sc;
         c.save();
         c.translate(w / 2f, h / 2f);
         c.scale(sc, sc);
@@ -96,7 +99,7 @@ public final class WorldRenderer {
 
     private void drawGround(Canvas c, String stage, float camX, float camY, float vw, float vh) {
         boolean lib = stage.equals("LIBRARY");
-        if (atlas.drawTiles(c, "tile." + stage, camX, camY, vw, vh, TILE)) return;
+        if (atlas.drawTiles(c, "tile." + stage, camX, camY, vw, vh, 64f / atlas.worldScale())) return;
         int base = lib ? 0xFF2B2233 : 0xFF1E3A22;
         int alt = lib ? 0xFF332A3D : 0xFF24442A;
         fill.setColor(base);
@@ -308,7 +311,8 @@ public final class WorldRenderer {
     }
 
     private void drawPlayer(Canvas c, float x, float y, boolean right, float walk, float alpha, float scale) {
-        if (atlas.draw(c, "player", walk * 0.5f, x, y - 4, 40, 40, !right, 0, (int) (255 * alpha))) return;
+        float bobSq = 1f + 0.06f * (float) Math.sin(walk * 3.8f); // ~6 Hz while moving (walk only advances when moving)
+        if (atlas.draw(c, "player", 0, x, y - 4, 40, 40, !right, 0, (int) (255 * alpha), bobSq)) return;
         int a = (int) (255 * alpha) << 24;
         float bob = (float) Math.abs(Math.sin(walk)) * 2f;
         float d = right ? 1 : -1;
@@ -333,8 +337,10 @@ public final class WorldRenderer {
 
     private void drawEnemy(Canvas c, EnemyType t, boolean boss, float r, float x, float y, float anim, float flash, boolean faceRight) {
         int alpha = (int) (255 * t.alpha);
-        if (atlas.draw(c, boss ? t.bossSpriteKey : t.spriteKey, anim, x, y, r * 2.4f, r * 2.4f, !faceRight, 0, alpha)
-                || (boss && atlas.draw(c, t.spriteKey, anim, x, y, r * 2.4f, r * 2.4f, !faceRight, 0, alpha))) {
+        float hz = t.shape == EnemyType.SH_BAT ? 11f : t.shape == EnemyType.SH_GHOST ? 4f : 6f;
+        float sq = 1f + 0.06f * (float) Math.sin(anim * 6.2832f * hz);
+        if (atlas.draw(c, boss ? t.bossSpriteKey : t.spriteKey, 0, x, y, r * 2.4f, r * 2.4f, !faceRight, 0, alpha, sq)
+                || (boss && atlas.draw(c, t.spriteKey, 0, x, y, r * 2.4f, r * 2.4f, !faceRight, 0, alpha, sq))) {
             if (flash > 0) {
                 fill.setColor(0x80FFFFFF);
                 c.drawCircle(x, y, r, fill);
@@ -449,7 +455,11 @@ public final class WorldRenderer {
         float deg = p.angle * 57.29578f;
         String key = s.weapons[p.slot].spriteKey;
         float sz = p.radius * 2.4f;
-        if (atlas.draw(c, key, t, p.x, p.y, sz, sz, false, deg, 255)) return;
+        if (p.kind == se.felixarvid.thorsurvivors.game.Entities.P_PUDDLE) {
+            // holy water: a flask drops in, the puddle itself stays procedural
+            float age = p.maxLife - p.life;
+            if (age < 0.25f && atlas.draw(c, key, 0, p.x, p.y - (0.25f - age) * 480f, sz, sz, false, age * 900f, 255)) return;
+        } else if (atlas.draw(c, key, 0, p.x, p.y, sz, sz, false, deg, 255)) return;
         boolean evo = p.evo;
         switch (p.kind) {
             case se.felixarvid.thorsurvivors.game.Entities.P_MISSILE:

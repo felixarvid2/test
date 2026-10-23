@@ -281,7 +281,7 @@ public final class Sim {
         e.hp = e.maxHp = (float) Math.max(1, hp);
         e.speed = (float) (t.def.speed * ENEMY_SPEED_K * stage.enemySpeed * (1 + stats.curse * 0.5));
         e.power = (float) t.def.power;
-        e.radius = t.radius * (boss ? 1.5f : 1f);
+        e.radius = t.radius * (boss ? 1.8f : 1f);
         e.xp = (float) t.def.xp;
     }
 

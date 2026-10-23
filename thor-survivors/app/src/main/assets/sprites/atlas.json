@@ -1,0 +1,1317 @@
+{
+ "sprites": {
+  "player": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     0,
+     136,
+     16,
+     16
+    ]
+   ],
+   "k": 4
+  },
+  "enemy.ZOMBIE": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     0,
+     0,
+     16,
+     16
+    ]
+   ],
+   "k": 3
+  },
+  "enemy.SKELETON": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     17,
+     0,
+     16,
+     16
+    ]
+   ],
+   "k": 3
+  },
+  "enemy.SKULL2_SCALING": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     17,
+     0,
+     16,
+     16
+    ]
+   ],
+   "k": 3
+  },
+  "enemy.DULL1": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     17,
+     0,
+     16,
+     16
+    ]
+   ],
+   "k": 3
+  },
+  "enemy.DULL2": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     17,
+     0,
+     16,
+     16
+    ]
+   ],
+   "k": 3
+  },
+  "enemy.BAT1": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     0,
+     170,
+     16,
+     16
+    ]
+   ],
+   "k": 3
+  },
+  "enemy.BAT2": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     0,
+     170,
+     16,
+     16
+    ]
+   ],
+   "k": 3,
+   "tint": "#C090FF"
+  },
+  "enemy.BAT3": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     0,
+     170,
+     16,
+     16
+    ]
+   ],
+   "k": 3,
+   "tint": "#FF8080"
+  },
+  "enemy.BAT4": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     0,
+     170,
+     16,
+     16
+    ]
+   ],
+   "k": 3,
+   "tint": "#80A8FF"
+  },
+  "enemy.BAT5": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     0,
+     170,
+     16,
+     16
+    ]
+   ],
+   "k": 3,
+   "tint": "#FFE070"
+  },
+  "enemy.XLBAT": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     0,
+     170,
+     16,
+     16
+    ]
+   ],
+   "k": 4,
+   "tint": "#8878A8"
+  },
+  "enemy.GHOST": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     17,
+     170,
+     16,
+     16
+    ]
+   ],
+   "k": 3,
+   "alpha": 0.75
+  },
+  "enemy.ECTO1": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     17,
+     170,
+     16,
+     16
+    ]
+   ],
+   "k": 3,
+   "alpha": 0.75
+  },
+  "enemy.ECTO2": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     17,
+     170,
+     16,
+     16
+    ]
+   ],
+   "k": 3,
+   "alpha": 0.75
+  },
+  "enemy.MUDMAN1": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     153,
+     153,
+     16,
+     16
+    ]
+   ],
+   "k": 3
+  },
+  "enemy.MUD": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     153,
+     153,
+     16,
+     16
+    ]
+   ],
+   "k": 3
+  },
+  "enemy.MUDMAN2": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     136,
+     153,
+     16,
+     16
+    ]
+   ],
+   "k": 3
+  },
+  "enemy.FLOWER": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     34,
+     204,
+     16,
+     16
+    ]
+   ],
+   "k": 3
+  },
+  "enemy.XLFLOWER": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     34,
+     204,
+     16,
+     16
+    ]
+   ],
+   "k": 4
+  },
+  "enemy.WEREWOLF": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     68,
+     34,
+     16,
+     16
+    ]
+   ],
+   "k": 3
+  },
+  "enemy.MUMMY": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     85,
+     153,
+     16,
+     16
+    ]
+   ],
+   "k": 3
+  },
+  "enemy.XLMUMMY": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     85,
+     153,
+     16,
+     16
+    ]
+   ],
+   "k": 4
+  },
+  "enemy.XLMANTIS": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     0,
+     238,
+     16,
+     16
+    ]
+   ],
+   "k": 4
+  },
+  "enemy.MEDUSA2": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     119,
+     0,
+     16,
+     16
+    ]
+   ],
+   "k": 3
+  },
+  "enemy.MEDUSA2_AGGRO": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     119,
+     0,
+     16,
+     16
+    ]
+   ],
+   "k": 3
+  },
+  "enemy.XLMEDUSA": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     119,
+     0,
+     16,
+     16
+    ]
+   ],
+   "k": 4
+  },
+  "enemy.WITCH1": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     85,
+     102,
+     16,
+     16
+    ]
+   ],
+   "k": 3
+  },
+  "enemy.WITCH2": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     85,
+     102,
+     16,
+     16
+    ]
+   ],
+   "k": 3
+  },
+  "enemy.BUER": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     136,
+     68,
+     16,
+     16
+    ]
+   ],
+   "k": 3
+  },
+  "boss.BOSS_BUER": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     136,
+     68,
+     16,
+     16
+    ]
+   ],
+   "k": 8
+  },
+  "enemy.BOSS_BUER": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     136,
+     68,
+     16,
+     16
+    ]
+   ],
+   "k": 5
+  },
+  "boss.BOSS_COUNT1": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     34,
+     0,
+     16,
+     16
+    ]
+   ],
+   "k": 8
+  },
+  "enemy.BOSS_COUNT1": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     34,
+     0,
+     16,
+     16
+    ]
+   ],
+   "k": 5
+  },
+  "boss.BOSS_COUNT2": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     34,
+     0,
+     16,
+     16
+    ]
+   ],
+   "k": 8
+  },
+  "enemy.BOSS_COUNT2": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     34,
+     0,
+     16,
+     16
+    ]
+   ],
+   "k": 5
+  },
+  "boss.BOSS_ECTO": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     17,
+     170,
+     16,
+     16
+    ]
+   ],
+   "k": 8,
+   "alpha": 0.8
+  },
+  "enemy.BOSS_ECTO": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     17,
+     170,
+     16,
+     16
+    ]
+   ],
+   "k": 5,
+   "alpha": 0.8
+  },
+  "boss.BOSS_MEDUSA1": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     119,
+     0,
+     16,
+     16
+    ]
+   ],
+   "k": 8
+  },
+  "enemy.BOSS_MEDUSA1": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     119,
+     0,
+     16,
+     16
+    ]
+   ],
+   "k": 5
+  },
+  "boss.BOSS_XLMEDUSA": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     119,
+     0,
+     16,
+     16
+    ]
+   ],
+   "k": 8
+  },
+  "enemy.BOSS_XLMEDUSA": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     119,
+     0,
+     16,
+     16
+    ]
+   ],
+   "k": 5
+  },
+  "boss.BOSS_MUD": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     153,
+     153,
+     16,
+     16
+    ]
+   ],
+   "k": 8
+  },
+  "enemy.BOSS_MUD": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     153,
+     153,
+     16,
+     16
+    ]
+   ],
+   "k": 5
+  },
+  "boss.BOSS_WEREWOLF": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     51,
+     153,
+     16,
+     16
+    ]
+   ],
+   "k": 8
+  },
+  "enemy.BOSS_WEREWOLF": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     51,
+     153,
+     16,
+     16
+    ]
+   ],
+   "k": 5
+  },
+  "boss.BOSS_WITCH2": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     85,
+     102,
+     16,
+     16
+    ]
+   ],
+   "k": 8
+  },
+  "enemy.BOSS_WITCH2": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     85,
+     102,
+     16,
+     16
+    ]
+   ],
+   "k": 5
+  },
+  "boss.BOSS_XLFLOWER": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     34,
+     204,
+     16,
+     16
+    ]
+   ],
+   "k": 8
+  },
+  "enemy.BOSS_XLFLOWER": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     34,
+     204,
+     16,
+     16
+    ]
+   ],
+   "k": 5
+  },
+  "boss.BOSS_XLMANTIS": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     0,
+     238,
+     16,
+     16
+    ]
+   ],
+   "k": 8
+  },
+  "enemy.BOSS_XLMANTIS": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     0,
+     238,
+     16,
+     16
+    ]
+   ],
+   "k": 5
+  },
+  "boss.BOSS_XLMUMMY": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     119,
+     204,
+     16,
+     16
+    ]
+   ],
+   "k": 8
+  },
+  "enemy.BOSS_XLMUMMY": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     119,
+     204,
+     16,
+     16
+    ]
+   ],
+   "k": 5
+  },
+  "boss.BOSS_XLDEATH": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     68,
+     0,
+     16,
+     16
+    ]
+   ],
+   "k": 8
+  },
+  "enemy.BOSS_XLDEATH": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     68,
+     0,
+     16,
+     16
+    ]
+   ],
+   "k": 5
+  },
+  "boss.BAT4": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     0,
+     170,
+     16,
+     16
+    ]
+   ],
+   "k": 8,
+   "tint": "#80A8FF"
+  },
+  "boss.BAT5": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     0,
+     170,
+     16,
+     16
+    ]
+   ],
+   "k": 8,
+   "tint": "#FFE070"
+  },
+  "boss.XLBAT": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     0,
+     170,
+     16,
+     16
+    ]
+   ],
+   "k": 8,
+   "tint": "#8878A8"
+  },
+  "boss.XLMANTIS": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     0,
+     238,
+     16,
+     16
+    ]
+   ],
+   "k": 8
+  },
+  "boss.XLMUMMY": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     85,
+     153,
+     16,
+     16
+    ]
+   ],
+   "k": 8
+  },
+  "boss.XLFLOWER": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     34,
+     204,
+     16,
+     16
+    ]
+   ],
+   "k": 8
+  },
+  "pickup.CHEST": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     85,
+     119,
+     16,
+     16
+    ]
+   ],
+   "k": 3
+  },
+  "pickup.COIN": {
+   "sheet": "sprites/tiny-town.png",
+   "frames": [
+    [
+     153,
+     119,
+     16,
+     16
+    ]
+   ],
+   "k": 2
+  },
+  "pickup.COINBAG": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     85,
+     136,
+     16,
+     16
+    ]
+   ],
+   "k": 2
+  },
+  "proj.KNIFE": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     119,
+     136,
+     16,
+     16
+    ]
+   ],
+   "k": 2,
+   "rot": 90
+  },
+  "proj.THOUSAND": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     119,
+     136,
+     16,
+     16
+    ]
+   ],
+   "k": 3,
+   "rot": 90
+  },
+  "proj.AXE": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     170,
+     153,
+     16,
+     16
+    ]
+   ],
+   "k": 3
+  },
+  "proj.SCYTHE": {
+   "sheet": "sprites/tiny-town.png",
+   "frames": [
+    [
+     153,
+     170,
+     16,
+     16
+    ]
+   ],
+   "k": 4
+  },
+  "proj.FIREBALL": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     85,
+     68,
+     16,
+     16
+    ]
+   ],
+   "k": 2
+  },
+  "proj.HELLFIRE": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     85,
+     68,
+     16,
+     16
+    ]
+   ],
+   "k": 3,
+   "tint": "#FF6040"
+  },
+  "proj.MAGIC_MISSILE": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     153,
+     136,
+     16,
+     16
+    ]
+   ],
+   "k": 2
+  },
+  "proj.HOLY_MISSILE": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     153,
+     136,
+     16,
+     16
+    ]
+   ],
+   "k": 3,
+   "tint": "#FFF0A0"
+  },
+  "proj.HOLYWATER": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     136,
+     153,
+     16,
+     16
+    ]
+   ],
+   "k": 2
+  },
+  "proj.BORA": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     136,
+     153,
+     16,
+     16
+    ]
+   ],
+   "k": 3,
+   "tint": "#8090FF"
+  },
+  "proj.CROSS": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     136,
+     136,
+     16,
+     16
+    ]
+   ],
+   "k": 3
+  },
+  "proj.HEAVENSWORD": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     136,
+     136,
+     16,
+     16
+    ]
+   ],
+   "k": 4,
+   "tint": "#FFF4B0"
+  },
+  "icon.WHIP": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     187,
+     136,
+     16,
+     16
+    ]
+   ]
+  },
+  "icon.MAGIC_MISSILE": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     153,
+     136,
+     16,
+     16
+    ]
+   ]
+  },
+  "icon.KNIFE": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     119,
+     136,
+     16,
+     16
+    ]
+   ]
+  },
+  "icon.AXE": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     170,
+     153,
+     16,
+     16
+    ]
+   ]
+  },
+  "icon.CROSS": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     136,
+     136,
+     16,
+     16
+    ]
+   ]
+  },
+  "icon.HOLYBOOK": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     85,
+     85,
+     16,
+     16
+    ]
+   ]
+  },
+  "icon.FIREBALL": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     85,
+     68,
+     16,
+     16
+    ]
+   ]
+  },
+  "icon.GARLIC": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     51,
+     17,
+     16,
+     16
+    ]
+   ]
+  },
+  "icon.HOLYWATER": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     136,
+     153,
+     16,
+     16
+    ]
+   ]
+  },
+  "icon.LIGHTNING": {
+   "sheet": "sprites/tiny-creatures.png",
+   "frames": [
+    [
+     102,
+     85,
+     16,
+     16
+    ]
+   ]
+  },
+  "icon.POWER": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     119,
+     153,
+     16,
+     16
+    ]
+   ]
+  },
+  "icon.MAXHEALTH": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     119,
+     153,
+     16,
+     16
+    ]
+   ],
+   "tint": "#FFB0B0"
+  },
+  "icon.ARMOR": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     102,
+     136,
+     16,
+     16
+    ]
+   ]
+  },
+  "icon.REGEN": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     102,
+     153,
+     16,
+     16
+    ]
+   ]
+  },
+  "icon.COOLDOWN": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     85,
+     153,
+     16,
+     16
+    ]
+   ]
+  },
+  "icon.AREA": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     153,
+     170,
+     16,
+     16
+    ]
+   ]
+  },
+  "icon.SPEED": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     187,
+     153,
+     16,
+     16
+    ]
+   ]
+  },
+  "icon.DURATION": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     187,
+     170,
+     16,
+     16
+    ]
+   ]
+  },
+  "icon.AMOUNT": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     153,
+     153,
+     16,
+     16
+    ]
+   ]
+  },
+  "icon.MOVESPEED": {
+   "sheet": "sprites/tiny-town.png",
+   "frames": [
+    [
+     187,
+     153,
+     16,
+     16
+    ]
+   ]
+  },
+  "icon.MAGNET": {
+   "sheet": "sprites/tiny-town.png",
+   "frames": [
+    [
+     153,
+     153,
+     16,
+     16
+    ]
+   ]
+  },
+  "icon.LUCK": {
+   "sheet": "sprites/tiny-town.png",
+   "frames": [
+    [
+     85,
+     34,
+     16,
+     16
+    ]
+   ]
+  },
+  "icon.GROWTH": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     136,
+     68,
+     16,
+     16
+    ]
+   ]
+  }
+ },
+ "tiles": {
+  "tile.FOREST": {
+   "sheet": "sprites/tiny-town.png",
+   "frames": [
+    [
+     0,
+     0,
+     16,
+     16
+    ],
+    [
+     17,
+     0,
+     16,
+     16
+    ],
+    [
+     34,
+     0,
+     16,
+     16
+    ]
+   ],
+   "variantChance": [
+    0.25,
+    0.08
+   ],
+   "decor": [
+    [
+     68,
+     0,
+     16,
+     16
+    ],
+    [
+     85,
+     0,
+     16,
+     16
+    ],
+    [
+     68,
+     17,
+     16,
+     16
+    ],
+    [
+     68,
+     34,
+     16,
+     16
+    ],
+    [
+     85,
+     34,
+     16,
+     16
+    ]
+   ],
+   "decorChance": 0.04
+  },
+  "tile.LIBRARY": {
+   "sheet": "sprites/tiny-dungeon.png",
+   "frames": [
+    [
+     0,
+     0,
+     16,
+     16
+    ],
+    [
+     0,
+     17,
+     16,
+     16
+    ],
+    [
+     0,
+     34,
+     16,
+     16
+    ]
+   ],
+   "variantChance": [
+    0.08,
+    0.04
+   ],
+   "decor": [
+    [
+     51,
+     85,
+     16,
+     16
+    ],
+    [
+     51,
+     102,
+     16,
+     16
+    ],
+    [
+     0,
+     102,
+     16,
+     16
+    ],
+    [
+     170,
+     102,
+     16,
+     16
+    ]
+   ],
+   "decorChance": 0.04
+  }
+ }
+}

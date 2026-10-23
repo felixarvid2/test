@@ -4,6 +4,8 @@ import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.graphics.ColorFilter;
+import android.graphics.LightingColorFilter;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.RectF;
@@ -40,12 +42,30 @@ public final class SpriteAtlas {
         public Rect[] frames;
         public float fps = 8f;
         public float scale = 1f;
+        /** Integer screen-pixel scale per sprite pixel for world sprites (0 = size comes from the caller). */
+        public int k;
+        public float rot, alpha = 1f;
+        public ColorFilter tint;
+        /** Ground tiles: chance of frames[i+1] and scattered decorations. */
+        public float[] variantChance = new float[0];
+        public Rect[] decor = new Rect[0];
+        public float decorChance;
     }
 
     private final HashMap<String, Sprite> sprites = new HashMap<>();
     private final HashMap<String, Bitmap> sheets = new HashMap<>();
     private final Paint paint = new Paint();
     private final RectF dst = new RectF();
+    /** Screen pixels per world unit; lets world sprites be sized/snapped to whole pixels. */
+    private float worldScale = 1f;
+
+    public void setWorldScale(float s) {
+        worldScale = s;
+    }
+
+    public float worldScale() {
+        return worldScale;
+    }
 
     private SpriteAtlas() {
         paint.setFilterBitmap(false);
@@ -95,6 +115,27 @@ public final class SpriteAtlas {
             }
             s.fps = (float) o.optDouble("fps", 8);
             s.scale = (float) o.optDouble("scale", 1);
+            s.k = o.optInt("k", 0);
+            s.rot = (float) o.optDouble("rot", 0);
+            s.alpha = (float) o.optDouble("alpha", 1);
+            if (o.has("tint")) {
+                int c = android.graphics.Color.parseColor(o.getString("tint"));
+                s.tint = new LightingColorFilter(c | 0xFF000000, 0); // multiply
+            }
+            JSONArray vc = o.optJSONArray("variantChance");
+            if (vc != null) {
+                s.variantChance = new float[vc.length()];
+                for (int i = 0; i < vc.length(); i++) s.variantChance[i] = (float) vc.getDouble(i);
+            }
+            JSONArray dc = o.optJSONArray("decor");
+            if (dc != null) {
+                s.decor = new Rect[dc.length()];
+                for (int i = 0; i < dc.length(); i++) {
+                    JSONArray r = dc.getJSONArray(i);
+                    s.decor[i] = new Rect(r.getInt(0), r.getInt(1), r.getInt(0) + r.getInt(2), r.getInt(1) + r.getInt(3));
+                }
+            }
+            s.decorChance = (float) o.optDouble("decorChance", 0);
             if (s.frames.length > 0) sprites.put(key, s);
         }
     }
@@ -129,39 +170,76 @@ public final class SpriteAtlas {
         return sprites.containsKey(key);
     }
 
-    /**
-     * Draws the sprite centred at (cx, cy) with the given bounding size (world px). `time` selects the animation
-     * frame. Returns false when the key is unmapped so the caller can draw the procedural fallback.
-     */
     public boolean draw(Canvas c, String key, float time, float cx, float cy, float w, float h, boolean flipX,
                         float rotationDeg, int alpha) {
+        return draw(c, key, time, cx, cy, w, h, flipX, rotationDeg, alpha, 1f);
+    }
+
+    /**
+     * Draws the sprite centred at (cx, cy). World sprites (Sprite.k > 0) are sized to k screen pixels per sprite
+     * pixel and snapped to whole screen pixels so nearest-neighbour scaling stays crisp; otherwise w x h is used.
+     * `squash` scales vertically about the feet (walk bob). Returns false when the key is unmapped so the caller
+     * can draw the procedural fallback.
+     */
+    public boolean draw(Canvas c, String key, float time, float cx, float cy, float w, float h, boolean flipX,
+                        float rotationDeg, int alpha, float squash) {
         Sprite s = sprites.get(key);
         if (s == null) return false;
         Rect src = s.frames[((int) (time * s.fps)) % s.frames.length];
+        if (s.k > 0) {
+            w = h = 16f * s.k / worldScale;
+            cx = Math.round(cx * worldScale) / worldScale;
+            cy = Math.round(cy * worldScale) / worldScale;
+        }
         float hw = w * s.scale / 2f, hh = h * s.scale / 2f;
         dst.set(-hw, -hh, hw, hh);
-        paint.setAlpha(alpha);
+        paint.setAlpha((int) (alpha * s.alpha));
+        paint.setColorFilter(s.tint);
         c.save();
         c.translate(cx, cy);
-        if (rotationDeg != 0f) c.rotate(rotationDeg);
-        if (flipX) c.scale(-1f, 1f);
+        if (rotationDeg + s.rot != 0f) c.rotate(rotationDeg + s.rot);
+        if (squash != 1f) c.translate(0, hh * (1f - squash));
+        c.scale(flipX ? -1f : 1f, squash);
         c.drawBitmap(s.bitmap, src, dst, paint);
         c.restore();
+        paint.setColorFilter(null);
         paint.setAlpha(255);
         return true;
     }
 
-    /** Draws a tiling ground sprite covering the visible area; false when unmapped. */
+    private static int hash(int x, int y) {
+        int h = x * 374761393 + y * 668265263;
+        h = (h ^ (h >>> 13)) * 1274126177;
+        return h ^ (h >>> 16);
+    }
+
+    /**
+     * Draws the tiling ground: per-cell seeded base/variant frames plus sparse decorations. `tile` is the cell
+     * size in world units (callers pass 4 screen-pixels-per-sprite-pixel / worldScale); edges are snapped to
+     * whole screen pixels. Returns false when unmapped.
+     */
     public boolean drawTiles(Canvas c, String key, float camX, float camY, float viewW, float viewH, float tile) {
         Sprite s = sprites.get(key);
         if (s == null) return false;
-        Rect src = s.frames[0];
         int x0 = (int) Math.floor((camX - viewW / 2) / tile), x1 = (int) Math.floor((camX + viewW / 2) / tile);
         int y0 = (int) Math.floor((camY - viewH / 2) / tile), y1 = (int) Math.floor((camY + viewH / 2) / tile);
+        float ws = worldScale, tpx = tile * ws;
         for (int ty = y0; ty <= y1; ty++) {
             for (int tx = x0; tx <= x1; tx++) {
-                dst.set(tx * tile, ty * tile, (tx + 1) * tile + 1, (ty + 1) * tile + 1);
-                c.drawBitmap(s.bitmap, src, dst, paint);
+                int hh = hash(tx, ty);
+                float r = ((hh >>> 4) & 1023) / 1024f;
+                int f = 0;
+                float acc = 0;
+                for (int i = 0; i < s.variantChance.length; i++) {
+                    acc += s.variantChance[i];
+                    if (r < acc && i + 1 < s.frames.length) { f = i + 1; break; }
+                }
+                dst.set(Math.round(tx * tpx) / ws, Math.round(ty * tpx) / ws,
+                        Math.round((tx + 1) * tpx) / ws, Math.round((ty + 1) * tpx) / ws);
+                c.drawBitmap(s.bitmap, s.frames[f], dst, paint);
+                if (s.decor.length > 0 && ((hh >>> 14) & 1023) / 1024f < s.decorChance) {
+                    c.drawBitmap(s.bitmap, s.decor[(hh >>> 24) % s.decor.length], dst, paint);
+                }
             }
         }
         return true;

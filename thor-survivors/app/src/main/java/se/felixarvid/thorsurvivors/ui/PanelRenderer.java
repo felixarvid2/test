@@ -271,8 +271,20 @@ public final class PanelRenderer {
     }
 
     private void icon(Canvas c, WeaponDef d, float x, float y, float s, boolean evo) {
-        if (atlas.draw(c, "icon." + d.key, 0, x + s / 2, y + s / 2, s, s, false, 0, 255)) return;
         String k = baseKey(d.key);
+        String ik = "icon." + k;
+        if (atlas.has(ik)) {
+            // dark tile + whole-multiple nearest-neighbour sprite; evolutions reuse the base icon with a gold border
+            r.set(x, y, x + s, y + s);
+            fill.setColor(d.powerUp ? 0xFF2A2F45 : 0xFF1D2438);
+            c.drawRoundRect(r, s * 0.18f, s * 0.18f, fill);
+            stroke.setColor(evo ? GOLD : 0xFF4A5678);
+            stroke.setStrokeWidth(evo ? 5f : 2f);
+            c.drawRoundRect(r, s * 0.18f, s * 0.18f, stroke);
+            float sz = 16f * Math.max(1, (int) (s * 0.8f / 16f));
+            atlas.draw(c, ik, 0, x + s / 2, y + s / 2, sz, sz, false, 0, 255);
+            return;
+        }
         int hue = Math.abs(k.hashCode()) % 360;
         int col = d.powerUp ? hsv(hue, 0.5f, 0.55f) : 0xFF26304A;
         r.set(x, y, x + s, y + s);
