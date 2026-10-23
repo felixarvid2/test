@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <!-- hammer head -->
+    <path android:fillColor="#C9D3E0" android:pathData="M30,32 L78,32 L78,52 L30,52z" />
+    <path android:fillColor="#8E9BB0" android:pathData="M30,46 L78,46 L78,52 L30,52z" />
+    <!-- handle -->
+    <path android:fillColor="#B07A3C" android:pathData="M51,52 L57,52 L57,84 L51,84z" />
+    <!-- lightning bolt -->
+    <path android:fillColor="#FFD54A" android:pathData="M56,36 L44,64 L53,64 L49,84 L65,54 L55,54 L60,36z" />
+</vector>

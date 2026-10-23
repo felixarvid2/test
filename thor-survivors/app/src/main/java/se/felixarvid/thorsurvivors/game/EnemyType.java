@@ -1,0 +1,108 @@
+package se.felixarvid.thorsurvivors.game;
+
+import se.felixarvid.thorsurvivors.data.EnemyDef;
+
+/** Visual style + base numbers of an enemy, derived once from its key. */
+public final class EnemyType {
+    public static final int SH_BLOB = 0, SH_BAT = 1, SH_SKELETON = 2, SH_GHOST = 3, SH_FLOWER = 4, SH_WOLF = 5,
+            SH_MUMMY = 6, SH_WITCH = 7;
+
+    public final EnemyDef def;
+    public final int shape;
+    public final int color;
+    public final float radius;
+    public final float alpha;
+    /** Cached SpriteAtlas keys (avoids string building per frame). */
+    public final String spriteKey, bossSpriteKey;
+
+    public EnemyType(EnemyDef def) {
+        this.def = def;
+        String k = def.key;
+        int sh = SH_BLOB;
+        int col;
+        float r = 11;
+        if (k.contains("BAT")) {
+            sh = SH_BAT;
+            col = pick(k, new String[]{"BAT1", "BAT2", "BAT3", "BAT4", "BAT5", "XLBAT"},
+                    new int[]{0xFF6A55A8, 0xFF9A4B55, 0xFF4B7AA8, 0xFFB03060, 0xFF7A2FB0, 0xFF3A3A66}, 0xFF5B4B8A);
+            r = 10;
+        } else if (k.contains("SKELETON") || k.contains("SKULL")) {
+            sh = SH_SKELETON;
+            col = 0xFFEFEFE6;
+        } else if (k.contains("GHOST")) {
+            sh = SH_GHOST;
+            col = 0xFFCFE8FF;
+        } else if (k.contains("ECTO")) {
+            sh = SH_GHOST;
+            col = 0xFF9FE0B8;
+        } else if (k.contains("DULL")) {
+            sh = SH_GHOST;
+            col = 0xFF5C5C8A;
+        } else if (k.contains("WEREWOLF")) {
+            sh = SH_WOLF;
+            col = 0xFF7A6250;
+            r = 15;
+        } else if (k.contains("FLOWER")) {
+            sh = SH_FLOWER;
+            col = 0xFFD6579B;
+        } else if (k.contains("MANTIS")) {
+            sh = SH_FLOWER;
+            col = 0xFF58A845;
+        } else if (k.contains("MUMMY")) {
+            sh = SH_MUMMY;
+            col = 0xFFDCCB9C;
+        } else if (k.contains("MEDUSA")) {
+            sh = SH_WITCH;
+            col = 0xFF3FA06A;
+        } else if (k.contains("WITCH")) {
+            sh = SH_WITCH;
+            col = 0xFF8A45B8;
+        } else if (k.contains("COUNT")) {
+            sh = SH_WITCH;
+            col = 0xFF5A2A70;
+        } else if (k.contains("DEATH")) {
+            sh = SH_WITCH;
+            col = 0xFF202028;
+        } else if (k.contains("BUER")) {
+            sh = SH_BLOB;
+            col = 0xFFC04040;
+        } else if (k.contains("ZOMBIE")) {
+            col = 0xFF7FA05E;
+        } else if (k.contains("MUDMAN")) {
+            col = k.endsWith("2") ? 0xFF6F5230 : 0xFF8F6E45;
+            r = 13;
+        } else if (k.contains("MUD")) {
+            col = 0xFF5A4630;
+        } else {
+            col = hsv(Math.abs(k.hashCode()) % 360);
+        }
+        if (k.startsWith("XL")) r = 20;
+        else if (k.startsWith("BOSS_")) r = 17;
+        this.shape = sh;
+        this.color = col;
+        this.radius = (float) (r * Math.max(1.0, def.scale));
+        this.alpha = (float) (def.alpha > 0 ? def.alpha : 1);
+        this.spriteKey = "enemy." + def.key;
+        this.bossSpriteKey = "boss." + def.key;
+    }
+
+    private static int pick(String k, String[] keys, int[] cols, int def) {
+        for (int i = 0; i < keys.length; i++) if (keys[i].equals(k)) return cols[i];
+        return def;
+    }
+
+    private static int hsv(int h) {
+        float s = 0.55f, v = 0.75f;
+        float c = v * s;
+        float x = c * (1 - Math.abs((h / 60f) % 2 - 1));
+        float m = v - c;
+        float r, g, b;
+        if (h < 60) { r = c; g = x; b = 0; }
+        else if (h < 120) { r = x; g = c; b = 0; }
+        else if (h < 180) { r = 0; g = c; b = x; }
+        else if (h < 240) { r = 0; g = x; b = c; }
+        else if (h < 300) { r = x; g = 0; b = c; }
+        else { r = c; g = 0; b = x; }
+        return 0xFF000000 | ((int) ((r + m) * 255) << 16) | ((int) ((g + m) * 255) << 8) | (int) ((b + m) * 255);
+    }
+}
