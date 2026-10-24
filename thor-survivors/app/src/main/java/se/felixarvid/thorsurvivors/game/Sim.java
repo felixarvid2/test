@@ -45,6 +45,10 @@ public final class Sim {
     public final StageDef stage;
     public final Inventory inv = new Inventory();
     public final Random rng = new Random();
+    /** Sound events; Engine swaps in the shared queue, headless runs keep their own. */
+    public SoundEvents sound = new SoundEvents();
+    private float lastGemT = -10f;
+    private int gemChain;
     public PlayerStats stats;
     private final Map<String, Double> meta;
     private double extraLuck;
@@ -198,6 +202,7 @@ public final class Sim {
     // ------------------------------------------------------------------ update
 
     public void update(float dt, Input input) {
+        sound.advance(dt);
         if (ended != 0) return;
         time += dt;
         tNow = (float) time;
@@ -328,6 +333,7 @@ public final class Sim {
         destY[i] = destY[destN];
         destKey[i] = destKey[destN];
         destsBroken++;
+        sound.emit(SoundEvents.BRAZIER_BREAK);
         spark(x, y - 10f, 0xFFFFA030, 9);
         spark(x, y, 0xFF8A8070, 7);
         // mostly gold, sometimes a roast, rarely one of the power pickups
@@ -390,6 +396,7 @@ public final class Sim {
             for (String b : row.bosses) {
                 if (b.equals("BOSS_XLDEATH")) continue; // the reaper: the run is won at the time limit instead
                 spawnAtRing(type(b), true, HALF_W + 100f);
+                sound.emit(SoundEvents.BOSS_SPAWN);
             }
         }
         spawnTimer += dt * 1000f;
@@ -590,6 +597,7 @@ public final class Sim {
         }
         if (best <= 0) return;
         hp -= Math.max(1f, best - (float) stats.armor);
+        sound.emit(SoundEvents.PLAYER_HURT);
         invuln = 0.5f;
         hitShake = 0.15f;
         if (hp <= 0) {
@@ -634,6 +642,7 @@ public final class Sim {
         }
         spark(e.x, e.y, e.type.color, 2);
         if (e.hp <= 0) killNow(e);
+        else sound.emit(SoundEvents.ENEMY_HIT);
     }
 
     private void killNow(Enemy e) {
@@ -647,6 +656,7 @@ public final class Sim {
             Enemy e = enemies[i];
             if (!e.dead) continue;
             kills++;
+            sound.emit(SoundEvents.ENEMY_DEATH);
             spark(e.x, e.y, e.type.color, e.boss ? 24 : 7);
             drops(e);
             Enemy last = enemies[enemyN - 1];
@@ -733,22 +743,30 @@ public final class Sim {
     private void collect(Pickup p) {
         switch (p.kind) {
             case Entities.K_GEM:
+                gemChain = tNow - lastGemT < SoundEvents.GEM_CHAIN ? Math.min(SoundEvents.GEM_MAX_CHAIN, gemChain + 1) : 0;
+                lastGemT = tNow;
+                sound.emit(SoundEvents.GEM, gemChain);
                 gainXp(p.value * (float) stage.xpBonus * (float) stats.growthMul);
                 break;
             case Entities.K_COIN:
             case Entities.K_COINBAG:
+                sound.emit(SoundEvents.COIN);
                 gold += Math.max(1, Math.round(p.value * (float) stage.goldMultiplier * (float) stats.greedMul));
                 break;
             case Entities.K_ROAST:
+                sound.emit(SoundEvents.FOOD_HEAL);
                 heal(30f);
                 break;
             case Entities.K_VACUUM:
+                sound.emit(SoundEvents.COIN);
                 for (int i = 0; i < pickN; i++) if (picks[i].kind == Entities.K_GEM) picks[i].pulled = true;
                 break;
             case Entities.K_OROLOGION:
+                sound.emit(SoundEvents.COIN);
                 freezeTimer = 10f;
                 break;
             case Entities.K_ROSARY:
+                sound.emit(SoundEvents.COIN);
                 screenFlash = 0.5f;
                 float hw = HALF_W, hh = HALF_H;
                 for (int i = 0; i < enemyN; i++) {
@@ -760,6 +778,7 @@ public final class Sim {
                 }
                 break;
             case Entities.K_CLOVER:
+                sound.emit(SoundEvents.COIN);
                 extraLuck += 0.1;
                 recomputeAll();
                 break;
@@ -781,6 +800,7 @@ public final class Sim {
             xp -= xpNeed;
             level++;
             pendingLevelUps++;
+            sound.emit(SoundEvents.LEVEL_UP);
             xpNeed = Progression.xpToNext(level);
         }
     }
@@ -809,11 +829,13 @@ public final class Sim {
     /** Opens one pending chest: evolves a ready weapon, else grants upgrades. Returns text lines. */
     public String[] openChest() {
         pendingChests--;
+        sound.emit(SoundEvents.CHEST_OPEN);
         java.util.ArrayList<String> lines = new java.util.ArrayList<>();
         int slot = inv.firstEvolvable(data.weapons);
         if (slot >= 0) {
             String from = inv.weapons[slot].def.name;
             WeaponDef to = inv.evolve(slot, data.weapons);
+            sound.emit(SoundEvents.EVOLUTION);
             lines.add("EVOLUTION!");
             lines.add(from + " -> " + to.name);
         } else {
@@ -970,7 +992,16 @@ public final class Sim {
         return p;
     }
 
+    private static final int[] FIRE_SOUND = {SoundEvents.WHIP, SoundEvents.MAGIC_MISSILE, SoundEvents.KNIFE,
+            SoundEvents.AXE, SoundEvents.CROSS, SoundEvents.BIBLE, SoundEvents.FIREBALL, SoundEvents.GARLIC,
+            SoundEvents.HOLY_WATER, SoundEvents.LIGHTNING};
+
     private void fire(WeaponState w, int slot) {
+        // whip/garlic/water/lightning/book sound where they act; the projectile weapons at the muzzle
+        if (w.behavior == B_MISSILE || w.behavior == B_KNIFE || w.behavior == B_AXE || w.behavior == B_CROSS
+                || w.behavior == B_FIRE) {
+            sound.emit(FIRE_SOUND[w.behavior]);
+        }
         switch (w.behavior) {
             case B_WHIP: whip(w); break;
             case B_MISSILE: {
@@ -1091,6 +1122,7 @@ public final class Sim {
         w.side = side;
         float W = 160f * w.area, H = 30f * w.area;
         float cx = px + side * W / 2f, cy = py - 6f - 8f * idx;
+        sound.emit(SoundEvents.WHIP);
         addFx(Entities.FX_WHIP, cx, cy, W, H, 0.15f, side, w.evo);
         if (destN > 0) hitDestBox(cx, cy, W, H);
         int n = query(cx, cy, Math.max(W, H) / 2f + 40f);
@@ -1135,6 +1167,7 @@ public final class Sim {
 
     private void strike(WeaponState w, float tx, float ty) {
         float r = 25f * w.area;
+        sound.emit(SoundEvents.LIGHTNING);
         addFx(Entities.FX_BOLT, tx, ty, r, 0, BOLT_LIFE, 0, w.evo);
         if (destN > 0) hitDest(tx, ty, r);
         int n = query(tx, ty, r + 30f);
@@ -1171,6 +1204,7 @@ public final class Sim {
                 hits++;
             }
         }
+        if (hits > 0) sound.emit(SoundEvents.GARLIC);
         if (w.evo && hits > 0) leech(w, Math.min(1.5f, hits * 0.25f));
     }
 
@@ -1189,6 +1223,7 @@ public final class Sim {
 
     private void spawnBooks(WeaponState w, int slot) {
         for (int i = projN - 1; i >= 0; i--) if (projs[i].kind == Entities.P_BOOK && projs[i].slot == slot) removeProj(i);
+        sound.emit(SoundEvents.BIBLE);
         for (int i = 0; i < w.amount; i++) {
             Projectile p = newProj(Entities.P_BOOK, slot, w);
             if (p == null) return;
@@ -1245,6 +1280,7 @@ public final class Sim {
                     break;
                 case Entities.P_PUDDLE:
                     if (p.maxLife - p.life < p.flight) continue; // flask still in the air
+                    if (p.maxLife - p.life - dt < p.flight) sound.emit(SoundEvents.HOLY_WATER); // it just landed
                     if (p.grow > 0) p.radius += p.grow * dt;
                     if (p.drift > 0) {
                         float dx = px - p.x, dy = py - p.y, d = (float) Math.sqrt(dx * dx + dy * dy);

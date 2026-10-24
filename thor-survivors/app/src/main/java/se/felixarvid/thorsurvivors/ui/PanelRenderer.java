@@ -651,6 +651,8 @@ public final class PanelRenderer {
 
     // ---- menus
 
+    private static final String[] VOLUME = {"OFF", "LOW", "MEDIUM", "HIGH"};
+
     private void mainMenu(Canvas c, int w, int h) {
         float u = h / 1080f;
         float top, ah;
@@ -669,18 +671,21 @@ public final class PanelRenderer {
             text(c, "Gold " + eng.meta.gold + "    Best " + timeStr(eng.meta.bestTimeSec) + "    Kills " + eng.meta.bestKills,
                     w / 2f, 215 * u, 34 * u, DIM, Paint.Align.CENTER);
             y = 290 * u;
-            ah = h - y - 40 * u;
+            ah = h - y - 70 * u; // leaves room for the hint line
         }
-        float bh = Math.min(120 * u, (ah - 3 * 16 * u) / 4f), gap = 16 * u;
+        float gap = 16 * u;
+        float bh = Math.min(120 * u, (ah - (Engine.MENU_COUNT - 1) * gap) / Engine.MENU_COUNT);
         String[] labels = {
                 "START RUN",
                 "STAGE   <  " + eng.stage().name + "  >",
                 "WEAPON   <  " + eng.data.weapons.get(eng.starters.get(eng.weaponIdx)).name + "  >",
-                "POWER-UPS"};
-        for (int i = 0; i < 4; i++) {
+                "POWER-UPS",
+                "MUSIC   <  " + VOLUME[eng.meta.musicVol] + "  >",
+                "SOUND EFFECTS   <  " + VOLUME[eng.meta.sfxVol] + "  >"};
+        for (int i = 0; i < Engine.MENU_COUNT; i++) {
             float by = y + i * (bh + gap);
             button(c, x, by, x + cw, by + bh, labels[i], eng.focus == i);
-            if (i == Engine.MENU_STAGE || i == Engine.MENU_WEAPON) {
+            if (i == Engine.MENU_STAGE || i == Engine.MENU_WEAPON || i == Engine.MENU_MUSIC || i == Engine.MENU_SFX) {
                 hit(x, by, x + cw * 0.3f, by + bh, i, -1);
                 hit(x + cw * 0.3f, by, x + cw, by + bh, i, 1);
             } else {

@@ -17,7 +17,8 @@ import java.util.Random;
 public final class Engine {
     public static final int PH_MENU = 0, PH_SHOP = 1, PH_PLAYING = 2, PH_LEVELUP = 3, PH_PAUSED = 4, PH_CHEST = 5,
             PH_RESULT = 6;
-    public static final int MENU_START = 0, MENU_STAGE = 1, MENU_WEAPON = 2, MENU_SHOP = 3, MENU_COUNT = 4;
+    public static final int MENU_START = 0, MENU_STAGE = 1, MENU_WEAPON = 2, MENU_SHOP = 3, MENU_MUSIC = 4,
+            MENU_SFX = 5, MENU_COUNT = 6;
 
     private static final Engine INSTANCE = new Engine();
 
@@ -32,6 +33,8 @@ public final class Engine {
     public static final float MAX_FRAME = 0.1f;
 
     public final Input input = new Input();
+    /** Sound events for {@code audio.AudioEngine}; shared by every run (the Sim is given this instance). */
+    public final SoundEvents sound = new SoundEvents();
     public GameData data;
     public MetaProgress meta;
     public volatile int phase = PH_MENU;
@@ -110,6 +113,7 @@ public final class Engine {
         while ((c = input.poll()) != null) handle(c);
         if (toastTimer > 0) toastTimer -= dt;
         menuTime += dt;
+        if (phase != PH_PLAYING) sound.advance(dt); // while playing, Sim.update advances the clock
         if (phase == PH_PLAYING) {
             Sim s = sim;
             s.update(dt, input);
@@ -132,6 +136,7 @@ public final class Engine {
 
     private void startRun() {
         sim = new Sim(data, stage(), starters.get(weaponIdx), meta.bonuses());
+        sim.sound = sound;
         input.clearMovement();
         phase = PH_PLAYING;
         focus = 0;
@@ -149,6 +154,7 @@ public final class Engine {
         meta.recordRun(resultTime, s.kills);
         phase = PH_RESULT;
         focus = 0;
+        sound.emit(win ? SoundEvents.VICTORY : SoundEvents.GAME_OVER);
     }
 
     private void toast(String t) {
@@ -162,7 +168,10 @@ public final class Engine {
         switch (c[0]) {
             case Input.CMD_NAV: nav(c[1]); break;
             case Input.CMD_CONFIRM: confirm(0); break;
-            case Input.CMD_BACK: back(); break;
+            case Input.CMD_BACK:
+                if (phase != PH_PLAYING && phase != PH_MENU) sound.emit(SoundEvents.UI_BACK);
+                back();
+                break;
             case Input.CMD_START: start(); break;
             case Input.CMD_TAP:
                 if (c[1] == phase) {
@@ -193,11 +202,12 @@ public final class Engine {
     private void nav(int dir) {
         int n = itemCount();
         int f = focus;
+        int before = f;
         switch (phase) {
             case PH_MENU:
                 if (dir == Input.UP) f = (f + n - 1) % n;
                 else if (dir == Input.DOWN) f = (f + 1) % n;
-                else if (f == MENU_STAGE || f == MENU_WEAPON) {
+                else if (f == MENU_STAGE || f == MENU_WEAPON || f == MENU_MUSIC || f == MENU_SFX) {
                     cycle(f, dir == Input.RIGHT ? 1 : -1);
                 }
                 break;
@@ -216,19 +226,28 @@ public final class Engine {
             default:
         }
         focus = f;
+        if (phase != PH_PLAYING && phase != PH_CHEST && phase != PH_RESULT && (f != before || dir == Input.LEFT
+                || dir == Input.RIGHT)) {
+            sound.emit(SoundEvents.UI_MOVE);
+        }
     }
 
     private void cycle(int item, int delta) {
         if (item == MENU_STAGE) stageIdx = (stageIdx + delta + stageKeys.size()) % stageKeys.size();
+        else if (item == MENU_MUSIC) meta.stepMusic(delta);
+        else if (item == MENU_SFX) meta.stepSfx(delta);
         else weaponIdx = (weaponIdx + delta + starters.size()) % starters.size();
     }
 
     private void confirm(int sub) {
         int f = focus;
+        if (phase != PH_PLAYING) sound.emit(SoundEvents.UI_CONFIRM);
         switch (phase) {
             case PH_MENU:
                 if (f == MENU_START) startRun();
-                else if (f == MENU_STAGE || f == MENU_WEAPON) cycle(f, sub == 0 ? 1 : sub);
+                else if (f == MENU_STAGE || f == MENU_WEAPON || f == MENU_MUSIC || f == MENU_SFX) {
+                    cycle(f, sub == 0 ? 1 : sub);
+                }
                 else if (f == MENU_SHOP) {
                     phase = PH_SHOP;
                     focus = 0;
@@ -240,8 +259,13 @@ public final class Engine {
                     focus = MENU_SHOP;
                 } else {
                     String k = shopKeys.get(f);
-                    if (meta.isMaxed(k)) toast("Already maxed");
-                    else if (!meta.buy(k)) toast("Not enough gold");
+                    if (meta.isMaxed(k)) {
+                        toast("Already maxed");
+                        sound.emit(SoundEvents.UI_BACK);
+                    } else if (!meta.buy(k)) {
+                        toast("Not enough gold");
+                        sound.emit(SoundEvents.UI_BACK);
+                    }
                     else toast("Purchased " + data.powerUps.get(k).name);
                 }
                 break;

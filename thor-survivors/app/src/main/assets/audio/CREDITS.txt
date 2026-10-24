@@ -1,0 +1,6 @@
+Audio credits
+
+All sound effects and music in this folder are placeholders generated procedurally by tools/make_placeholder_sfx.py
+(square / triangle / noise synthesis in numpy, encoded with ffmpeg libvorbis). They are original works of this
+project, contain no samples and carry no third-party licence; use them freely. They are replaced one by one by
+generated audio that follows tools/AUDIO_SPEC.md.

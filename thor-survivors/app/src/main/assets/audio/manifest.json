@@ -1,0 +1,167 @@
+{
+  "version": 1,
+  "sfx": {
+    "whip": {
+      "file": "sfx/whip.ogg",
+      "volume": 0.8,
+      "pitchVar": 0.06
+    },
+    "magic_missile": {
+      "file": "sfx/magic_missile.ogg",
+      "volume": 0.7,
+      "pitchVar": 0.06
+    },
+    "knife": {
+      "file": "sfx/knife.ogg",
+      "volume": 0.6,
+      "pitchVar": 0.06
+    },
+    "axe": {
+      "file": "sfx/axe.ogg",
+      "volume": 0.8,
+      "pitchVar": 0.06
+    },
+    "cross": {
+      "file": "sfx/cross.ogg",
+      "volume": 0.7,
+      "pitchVar": 0.06
+    },
+    "bible": {
+      "file": "sfx/bible.ogg",
+      "volume": 0.6,
+      "pitchVar": 0.06
+    },
+    "fireball": {
+      "file": "sfx/fireball.ogg",
+      "volume": 0.8,
+      "pitchVar": 0.06
+    },
+    "garlic": {
+      "file": "sfx/garlic.ogg",
+      "volume": 0.35,
+      "pitchVar": 0.06
+    },
+    "holy_water": {
+      "file": "sfx/holy_water.ogg",
+      "volume": 0.7,
+      "pitchVar": 0.06
+    },
+    "lightning": {
+      "file": "sfx/lightning.ogg",
+      "volume": 0.9,
+      "pitchVar": 0.06
+    },
+    "enemy_hit": {
+      "file": "sfx/enemy_hit.ogg",
+      "volume": 0.45,
+      "pitchVar": 0.06
+    },
+    "enemy_death": {
+      "file": "sfx/enemy_death.ogg",
+      "volume": 0.6,
+      "pitchVar": 0.06
+    },
+    "player_hurt": {
+      "file": "sfx/player_hurt.ogg",
+      "volume": 1.0,
+      "pitchVar": 0.06
+    },
+    "gem": {
+      "file": "sfx/gem.ogg",
+      "volume": 0.55,
+      "pitchVar": 0.06
+    },
+    "coin": {
+      "file": "sfx/coin.ogg",
+      "volume": 0.65,
+      "pitchVar": 0.06
+    },
+    "level_up": {
+      "file": "sfx/level_up.ogg",
+      "volume": 0.9,
+      "pitchVar": 0.06
+    },
+    "chest_open": {
+      "file": "sfx/chest_open.ogg",
+      "volume": 0.9,
+      "pitchVar": 0.06
+    },
+    "evolution": {
+      "file": "sfx/evolution.ogg",
+      "volume": 1.0,
+      "pitchVar": 0.06
+    },
+    "brazier_break": {
+      "file": "sfx/brazier_break.ogg",
+      "volume": 0.8,
+      "pitchVar": 0.06
+    },
+    "food_heal": {
+      "file": "sfx/food_heal.ogg",
+      "volume": 0.7,
+      "pitchVar": 0.06
+    },
+    "boss_spawn": {
+      "file": "sfx/boss_spawn.ogg",
+      "volume": 1.0,
+      "pitchVar": 0.06
+    },
+    "game_over": {
+      "file": "sfx/game_over.ogg",
+      "volume": 0.9,
+      "pitchVar": 0.06
+    },
+    "victory": {
+      "file": "sfx/victory.ogg",
+      "volume": 0.9,
+      "pitchVar": 0.06
+    },
+    "ui_move": {
+      "file": "sfx/ui_move.ogg",
+      "volume": 0.5,
+      "pitchVar": 0.0
+    },
+    "ui_confirm": {
+      "file": "sfx/ui_confirm.ogg",
+      "volume": 0.6,
+      "pitchVar": 0.0
+    },
+    "ui_back": {
+      "file": "sfx/ui_back.ogg",
+      "volume": 0.6,
+      "pitchVar": 0.0
+    }
+  },
+  "music": {
+    "menu": {
+      "file": "music/menu.ogg",
+      "volume": 0.8,
+      "loop": true
+    },
+    "forest": {
+      "file": "music/forest.ogg",
+      "volume": 0.75,
+      "loop": true
+    },
+    "library": {
+      "file": "music/library.ogg",
+      "volume": 0.75,
+      "loop": true
+    },
+    "boss": {
+      "file": "music/boss.ogg",
+      "volume": 0.8,
+      "loop": true
+    },
+    "gameover": {
+      "file": "music/gameover.ogg",
+      "volume": 0.9,
+      "loop": false
+    },
+    "victory": {
+      "file": "music/victory.ogg",
+      "volume": 0.9,
+      "loop": false
+    }
+  }
+}

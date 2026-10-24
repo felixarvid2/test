@@ -10,6 +10,7 @@ import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
+import se.felixarvid.thorsurvivors.audio.AudioEngine;
 import se.felixarvid.thorsurvivors.game.Engine;
 import se.felixarvid.thorsurvivors.render.WorldRenderer;
 
@@ -22,6 +23,7 @@ import se.felixarvid.thorsurvivors.render.WorldRenderer;
 public final class GameView extends SurfaceView implements SurfaceHolder.Callback {
     private final WorldRenderer renderer = new WorldRenderer();
     private volatile boolean dual;
+    private volatile AudioEngine audio;
     private HandlerThread thread;
     private Loop loop;
 
@@ -29,6 +31,10 @@ public final class GameView extends SurfaceView implements SurfaceHolder.Callbac
         super(ctx);
         getHolder().addCallback(this);
         setFocusable(false);
+    }
+
+    public void setAudio(AudioEngine audio) {
+        this.audio = audio;
     }
 
     public void setDual(boolean dual) {
@@ -120,6 +126,8 @@ public final class GameView extends SurfaceView implements SurfaceHolder.Callbac
             } finally {
                 if (c != null) holder.unlockCanvasAndPost(c);
             }
+            AudioEngine a = audio;
+            if (a != null) a.update(); // game thread: drains the sound events
             if (running) choreographer.postFrameCallback(this);
         }
     }
