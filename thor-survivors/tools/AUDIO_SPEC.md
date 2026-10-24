@@ -22,7 +22,7 @@ app/src/main/assets/audio/
 | Bitrate | quality 4 (about 128 kbps) is plenty | quality 3 (about 112 kbps) |
 | Loudness | peak at **-1 dBFS**, punchy, about **-12 LUFS** short-term for the loud ones (hit/explosion class) | **-16 LUFS integrated**, true peak <= -1 dBFS |
 | Silence | no leading silence (the sound must start on sample 0), no long tail of silence | none at the loop point |
-| Size | under 60 KB each (total assets budget: under 3 MB) | loops 15-40 s, under 400 KB each |
+| Size | under 60 KB each (total assets budget: under 3 MB) | loops 15-40 s, under 450 KB each |
 
 Never clip. Tails must reach silence by the last sample (the file may be faded out over its last few ms).
 
@@ -112,8 +112,68 @@ beat free of heavy transients that would clash.
 1. Put the files at the paths above (names exactly as listed, lower case) and adjust `manifest.json` if a file has a
    different extension, base `volume` or `pitchVar`.
 2. Rebuild (`./gradlew assembleDebug`). No code changes are needed.
-3. `tools/make_placeholder_sfx.py` regenerates the procedural placeholders (and a matching manifest) if needed. It
-   overwrites the files, so run it before dropping the real ones in, not after.
+3. `tools/import_audio.py` builds the shipped files from the CC0 sources listed under "Sources" (see below), and
+   `tools/make_placeholder_sfx.py` still regenerates the old procedural placeholders. The placeholder script overwrites
+   every file and the manifest, so do **not** run it now that the real sounds are in.
 
 Check list for each file: right channel count and sample rate (`ffprobe`), no clipping, starts at sample 0, loops are
 seamless, loudness as above (`ffmpeg -i f.ogg -af ebur128 -f null -`).
+
+## Sources (what is shipped)
+
+The shipped audio is real CC0 material, produced by `tools/import_audio.py` (one table row per id: source file, trim,
+gain, filters, layers; re-run it to rebuild everything, `--only whip,menu` for a few). The script writes the files,
+`manifest.json` volumes and `CREDITS.txt` (every source file with pack, author, licence and URL). Local sources are
+in `../assets/audio` (Kenney packs, each with a CC0 `License.txt`; the Abstraction Music Loop Bundle, CC0); downloaded
+ones are in `art-src/audio/<pack>/` with a `SOURCE.md` (URL, author, licence, date): rubberduck's CC0 packs, Heavy
+Dungeon, the two MonsterVania tracks, the "No Hope" game-over theme and a church organ fanfare, all from
+OpenGameArt.org with "License(s): CC0" on the page. The `400 Sounds Pack` (Chequered Ink) is not used: its itch.io
+page grants free use in games but with its own terms (no resale of the unaltered files), not CC0, and the folder has
+no licence file.
+
+Processing: sound effects are trimmed to start on sample 0, layered where one recording is not enough, filtered,
+lightly compressed where they should punch (`comp`), faded out to silence, peak-normalised and encoded Vorbis q4;
+the script decodes each file again and backs the gain off until the decoded peak is <= -1 dBFS. Music is gain-set to
+-16 LUFS integrated with a soft peak limit and checked on the decoded file (true peak <= -1 dBTP). Loops are cut to
+whole bars (sample count = exact bar length) and the seam is cross-faded 80 ms against the audio just before the
+start of the section, then the last 30 ms are eased onto the first sample so the wrap has no step. The Abstraction
+loop (`menu`) is already an exact loop and is used whole (plus the 30 ms easing).
+
+| id | Source (pack: file) | Note |
+|---|---|---|
+| `whip` | RPG SFX: `blade_02` | swoosh, high-passed |
+| `magic_missile` | Kenney Digital Audio: `phaserUp5` | rising zap |
+| `knife` | Kenney RPG Audio: `knifeSlice2` | first 0.14 s, high-passed |
+| `axe` | 100 CC0 SFX #2: `air_02` | low-passed, compressed for weight |
+| `cross` | 50 CC0 Sci-Fi SFX: `teleport_02` | the swell around its peak |
+| `bible` | Kenney RPG Audio: `bookFlip2` + RPG SFX `item_gem_04` | page flip with a soft chime |
+| `fireball` | RPG SFX: `spell_fire_06` | |
+| `garlic` | Water SFX: `bubble_02` | low-passed soft pulse |
+| `holy_water` | Breaking SFX: `glass_hit_01` + Water SFX `splash_02` | |
+| `lightning` | Kenney Digital Audio: `zap2` + 100 CC0 SFX #2 `thunder_01` (the crack) | |
+| `enemy_hit` | Kenney Impact: `impactSoft_medium_000` | 0.08 s, low-passed |
+| `enemy_death` | Water SFX: `slime_12` | |
+| `player_hurt` | RPG SFX: `creature_hurt_01` + Kenney Impact `impactPunch_medium_000` | |
+| `gem` | Kenney Interface: `pluck_002` | re-tuned to C6 (1046.5 Hz), single pitch |
+| `coin` | RPG SFX: `item_coins_01` | |
+| `level_up` | Kenney Music Jingles: `NES03` | rising 4 notes |
+| `chest_open` | Kenney RPG Audio: `creak3` + RPG SFX `item_gem_04` | creak, then sparkle |
+| `evolution` | Kenney Music Jingles: `STEEL02` + RPG SFX `spell_fire_03` (sweep) | |
+| `brazier_break` | Breaking SFX: `wood_breaking_02` + 100 CC0 SFX #2 `metal_hit_01` + Kenney Impact `impactWood_heavy_000` | |
+| `food_heal` | Kenney Music Jingles: `PIZZI08` | |
+| `boss_spawn` | RPG SFX: `creature_roar_02` + Bang SFX `bang_03` + Kenney Impact `impactBell_heavy_000` | |
+| `game_over` | Kenney Music Jingles: `SAX07` (descending) + Kenney Impact `impactBell_heavy_001` | |
+| `victory` | Kenney Music Jingles: `SAX02` (ascending) with a tail echo | 1.15 s, a little under the table |
+| `ui_move` / `ui_confirm` / `ui_back` | Kenney Interface: `tick_004` / `confirmation_001` / `back_002` | |
+
+| track | Source | Loop handling |
+|---|---|---|
+| `menu` | Abstraction, "Dark Portents: MYSTERIOUS TRAVELER" (36.85 s) | the pack's own exact loop, used whole |
+| `forest` | HydroGene, MonsterVania 8-bit #1 Stage 1 (about 93 BPM, double-time drive) | 10 bars (25.8 s) from 10.26 s |
+| `library` | HydroGene, MonsterVania Ghost Land (100 BPM) | 8 bars (19.2 s) from 2.78 s |
+| `boss` | MintoDog, Heavy Dungeon (160 BPM, organ and guitar) | 16 bars (24.0 s) from 12.0 s |
+| `gameover` | Cleyton Kauffman, "No Hope" | first 5.6 s, 1.6 s fade |
+| `victory` | church organ fanfare (ARoachIFoundOnMyPillow) | first 4.6 s, 0.6 s fade |
+
+The picks were made from file names, durations, envelopes, pitch tracks and spectra, not by ear: listen to them and
+swap a row in `tools/import_audio.py` if one does not feel right.

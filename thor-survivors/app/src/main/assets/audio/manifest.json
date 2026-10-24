@@ -13,7 +13,7 @@
     },
     "knife": {
       "file": "sfx/knife.ogg",
-      "volume": 0.6,
+      "volume": 0.8,
       "pitchVar": 0.06
     },
     "axe": {
@@ -28,7 +28,7 @@
     },
     "bible": {
       "file": "sfx/bible.ogg",
-      "volume": 0.6,
+      "volume": 0.9,
       "pitchVar": 0.06
     },
     "fireball": {
@@ -38,12 +38,12 @@
     },
     "garlic": {
       "file": "sfx/garlic.ogg",
-      "volume": 0.35,
+      "volume": 0.45,
       "pitchVar": 0.06
     },
     "holy_water": {
       "file": "sfx/holy_water.ogg",
-      "volume": 0.7,
+      "volume": 0.8,
       "pitchVar": 0.06
     },
     "lightning": {
@@ -53,12 +53,12 @@
     },
     "enemy_hit": {
       "file": "sfx/enemy_hit.ogg",
-      "volume": 0.45,
+      "volume": 0.5,
       "pitchVar": 0.06
     },
     "enemy_death": {
       "file": "sfx/enemy_death.ogg",
-      "volume": 0.6,
+      "volume": 0.85,
       "pitchVar": 0.06
     },
     "player_hurt": {
@@ -68,12 +68,12 @@
     },
     "gem": {
       "file": "sfx/gem.ogg",
-      "volume": 0.55,
+      "volume": 0.7,
       "pitchVar": 0.06
     },
     "coin": {
       "file": "sfx/coin.ogg",
-      "volume": 0.65,
+      "volume": 0.9,
       "pitchVar": 0.06
     },
     "level_up": {
@@ -83,7 +83,7 @@
     },
     "chest_open": {
       "file": "sfx/chest_open.ogg",
-      "volume": 0.9,
+      "volume": 1.0,
       "pitchVar": 0.06
     },
     "evolution": {
