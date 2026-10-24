@@ -66,6 +66,14 @@ Datan kommer från ett kommersiellt spel. Appen är endast för personligt bruk 
 - Marken ritas i förberäknade bitmappar om 8 x 8 rutor (`render/GroundCache`, cirka 24 i en LRU, de utanför bild bakas på en bakgrundstråd). Mörk kantvinjett är en enda liten bitmapp.
 - Piskan, böckerna, vitlöken, blixtarna och ädelstenarna ritas procedurellt.
 
+## Ljud
+
+- **Händelser:** `game/SoundEvents` är en ringbuffert av heltal utan android.* och utan allokering. `Sim` och `Engine` skickar 26 händelser (whip, magic_missile, knife, axe, cross, bible, fireball, garlic, holy_water, lightning, enemy_hit, enemy_death, player_hurt, gem, coin, level_up, chest_open, evolution, brazier_break, food_heal, boss_spawn, game_over, victory, ui_move, ui_confirm, ui_back). Varje id har en gräns (högst N per 100 ms, ibland ett minsta avstånd), så 50 träffar i en bildruta blir några få ljud. Gem-ljudet höjs en skalsteg per gem som tas inom 0,4 s.
+- **Spelaren:** `audio/AudioEngine` tömmer kön på speltråden varje bildruta. Effekter går via `SoundPool` (USAGE_GAME, 16 strömmar, slumpad tonhöjd och volym per ljud, äldsta rösten av samma ljud klipps). Musik går via `MediaPlayer` på en egen tråd med in- och uttoning: `menu`, `forest`, `library`, `boss` (valfri, annars stagets spår) och stingers `gameover`/`victory`. Musiken pausas i `onPause` och släpps i `onDestroy`. Ljudet följer systemets valda utgång, inget särskilt för tvåskärmsläget.
+- **Inställningar:** raderna MUSIC och SOUND EFFECTS i huvudmenyn (OFF, LOW, MEDIUM, HIGH; sparas i `PrefsStore`).
+- **Filer:** `app/src/main/assets/audio/sfx/<id>.ogg`, `audio/music/<spår>.ogg` och `audio/manifest.json` (id till fil, basvolym). En fil som saknas är bara tyst, så riktiga ljud kan läggas dit ett i taget. Exakta id:n, längd, stil och nivåer (cirka -16 LUFS musik, peak -1 dBFS effekter, mono 44,1 kHz för effekter, stereo för musik, sömlösa loopar) står i `tools/AUDIO_SPEC.md`, som också är briefen till ljudgeneratorn.
+- **Platshållare:** `python3 tools/make_placeholder_sfx.py` syntetiserar egna retroljud (kvadrat, triangel och brus, numpy) och kodar dem med ffmpeg (libvorbis) eller oggenc, annars WAV. Cirka 1,2 MB totalt. Krediter i `app/src/main/assets/audio/CREDITS.txt`. Skriptet skriver över filerna, så kör det inte efter att riktiga ljud lagts in.
+
 ## Bygge
 
 Kräver Android SDK (plattform 35, build-tools 35.0.0). Skapa `local.properties` med `sdk.dir`.
@@ -74,7 +82,7 @@ Kräver Android SDK (plattform 35, build-tools 35.0.0). Skapa `local.properties`
 ./gradlew assembleDebug testDebugUnitTest
 ```
 
-Det finns 89 JVM-enhetstester (inklusive Robolectric-skärmdumpar till `app/build/screenshots/`, eller `$SHOT_DIR`): statistikberäkning, level-up-erbjudanden, evolutioner, vågor, butik, headless-simuleringar och att atlasen är giltig. Vyn visar 560 världsenheter på höjden (`Sim.VIEW_H`).
+Det finns 117 JVM-enhetstester (inklusive Robolectric-skärmdumpar till `app/build/screenshots/`, eller `$SHOT_DIR`): statistikberäkning, level-up-erbjudanden, evolutioner, vågor, butik, headless-simuleringar, ljudhändelser (gräns, ringbuffert, manifest) och att atlasen är giltig. Vyn visar 560 världsenheter på höjden (`Sim.VIEW_H`).
 
 Kopiera sedan `app/build/outputs/apk/debug/app-debug.apk` till `dist/`.
 

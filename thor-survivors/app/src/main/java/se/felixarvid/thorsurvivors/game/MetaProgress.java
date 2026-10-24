@@ -19,6 +19,9 @@ public final class MetaProgress {
     public int gold;
     public int bestTimeSec;
     public int bestKills;
+    /** Volume steps 0..{@link #VOL_MAX} (0 = off). */
+    public static final int VOL_MAX = 3;
+    public volatile int musicVol, sfxVol;
     private final Map<String, Integer> ranks = new HashMap<>();
 
     public MetaProgress(GameData data, Store store) {
@@ -27,6 +30,8 @@ public final class MetaProgress {
         gold = store.getInt("gold", 0);
         bestTimeSec = store.getInt("bestTime", 0);
         bestKills = store.getInt("bestKills", 0);
+        musicVol = Math.max(0, Math.min(VOL_MAX, store.getInt("volMusic", 2)));
+        sfxVol = Math.max(0, Math.min(VOL_MAX, store.getInt("volSfx", 3)));
         for (String k : data.powerUps.keySet()) ranks.put(k, store.getInt("pu_" + k, 0));
     }
 
@@ -79,5 +84,16 @@ public final class MetaProgress {
         if (kills > bestKills) bestKills = kills;
         store.putInt("bestTime", bestTimeSec);
         store.putInt("bestKills", bestKills);
+    }
+
+    /** Steps the music volume by delta (wrapping) and stores it. */
+    public void stepMusic(int delta) {
+        musicVol = (musicVol + delta + VOL_MAX + 1) % (VOL_MAX + 1);
+        store.putInt("volMusic", musicVol);
+    }
+
+    public void stepSfx(int delta) {
+        sfxVol = (sfxVol + delta + VOL_MAX + 1) % (VOL_MAX + 1);
+        store.putInt("volSfx", sfxVol);
     }
 }

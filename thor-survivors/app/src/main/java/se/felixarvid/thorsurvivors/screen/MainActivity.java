@@ -2,6 +2,7 @@ package se.felixarvid.thorsurvivors.screen;
 
 import android.app.Activity;
 import android.content.pm.ActivityInfo;
+import android.media.AudioManager;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
@@ -9,6 +10,7 @@ import android.widget.FrameLayout;
 
 import java.io.InputStream;
 
+import se.felixarvid.thorsurvivors.audio.AudioEngine;
 import se.felixarvid.thorsurvivors.data.GameData;
 import se.felixarvid.thorsurvivors.game.Engine;
 import se.felixarvid.thorsurvivors.game.Input;
@@ -19,6 +21,7 @@ import se.felixarvid.thorsurvivors.render.SpriteAtlas;
 public final class MainActivity extends Activity {
     private GameView gameView;
     private DualScreenManager dual;
+    private AudioEngine audio;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,8 +37,11 @@ public final class MainActivity extends Activity {
             }
         }
         SpriteAtlas.get().load(getAssets());
+        setVolumeControlStream(AudioManager.STREAM_MUSIC); // the hardware volume keys control the game's audio
+        audio = new AudioEngine(this, eng);
         FrameLayout root = new FrameLayout(this);
         gameView = new GameView(this);
+        gameView.setAudio(audio);
         root.addView(gameView, new FrameLayout.LayoutParams(-1, -1));
         setContentView(root);
         Immersive.apply(getWindow());
@@ -53,6 +59,7 @@ public final class MainActivity extends Activity {
         super.onResume();
         Immersive.apply(getWindow());
         dual.refresh();
+        audio.resume();
     }
 
     @Override
@@ -60,6 +67,7 @@ public final class MainActivity extends Activity {
         // pause an in-progress run; the game thread stops with the surface
         Engine.get().input.post(Input.CMD_AUTOPAUSE, 0, 0, 0);
         Engine.get().input.clearMovement();
+        audio.pause();
         super.onPause();
     }
 
@@ -72,6 +80,8 @@ public final class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         dual.stop();
+        gameView.setAudio(null);
+        audio.release();
         super.onDestroy();
     }
 
