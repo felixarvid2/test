@@ -101,6 +101,35 @@ public class AudioManifestTest {
     }
 
     @Test
+    public void shippedFilesAreOggWithinThePerFileLimits() throws Exception {
+        for (String id : SoundEvents.NAMES) {
+            Path f = audioDir().resolve("sfx/" + id + ".ogg");
+            assertTrue(f + " is an Ogg file", startsWithOggS(f));
+            assertTrue(id + " is " + Files.size(f) + " bytes", Files.size(f) < 60_000);
+        }
+        for (String t : new String[]{"menu", "forest", "library", "boss", "gameover", "victory"}) {
+            Path f = audioDir().resolve("music/" + t + ".ogg");
+            assertTrue(f + " is an Ogg file", startsWithOggS(f));
+            assertTrue(t + " is " + Files.size(f) + " bytes", Files.size(f) < 450_000);
+        }
+    }
+
+    private static boolean startsWithOggS(Path f) throws Exception {
+        byte[] b = Files.readAllBytes(f);
+        return b.length > 4 && b[0] == 'O' && b[1] == 'g' && b[2] == 'g' && b[3] == 'S';
+    }
+
+    @Test
+    public void creditsNameTheLicenceAndEveryMusicSource() throws Exception {
+        String c = new String(Files.readAllBytes(audioDir().resolve("CREDITS.txt")), StandardCharsets.UTF_8);
+        assertTrue("CC0 sources only", c.contains("CC0"));
+        assertFalse("the placeholders are gone", c.contains("placeholders generated procedurally"));
+        for (String s : new String[]{"MYSTERIOUS TRAVELER", "MonsterVania", "heavy_dungeon", "No Hope", "fanfare1"}) {
+            assertTrue(s, c.contains(s));
+        }
+    }
+
+    @Test
     public void specDocumentNamesEverySoundId() throws Exception {
         String spec = new String(Files.readAllBytes(Paths.get("../tools/AUDIO_SPEC.md")), StandardCharsets.UTF_8);
         for (String id : SoundEvents.NAMES) assertTrue(id, spec.contains("| `" + id + "` |"));

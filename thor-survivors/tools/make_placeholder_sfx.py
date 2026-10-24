@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Synthesises original retro placeholder audio for Thor Survivors (sfxr/chiptune style, no samples, no licences).
+"""NOTE: overwrites the real CC0 audio built by tools/import_audio.py; do not run it any more.
+
+Synthesises original retro placeholder audio for Thor Survivors (sfxr/chiptune style, no samples, no licences).
 
     python3 tools/make_placeholder_sfx.py [--out app/src/main/assets/audio] [--format ogg|wav]
 

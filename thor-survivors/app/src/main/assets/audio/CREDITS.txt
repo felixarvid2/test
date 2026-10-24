@@ -1,6 +1,152 @@
 Audio credits
 
-All sound effects and music in this folder are placeholders generated procedurally by tools/make_placeholder_sfx.py
-(square / triangle / noise synthesis in numpy, encoded with ffmpeg libvorbis). They are original works of this
-project, contain no samples and carry no third-party licence; use them freely. They are replaced one by one by
-generated audio that follows tools/AUDIO_SPEC.md.
+All sound effects and music here are CC0 / public domain recordings (no attribution required, given
+anyway). They were cut, layered, filtered and normalised by tools/import_audio.py; the table in that
+script says which source file feeds which id. Source files are in ../assets/audio (local library) and
+art-src/audio/<pack>/ (downloaded, with SOURCE.md), see each pack's licence note.
+
+Abstraction Music Loop Bundle
+  Author:  Benjamin Burnes (Abstraction, Tallbeard Studios)
+  URL:     https://tallbeard.itch.io/music-loop-bundle
+  Licence: CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/), _LICENSE.txt in the pack
+  Files:
+    Week 19 - Dark Portents MYSTERIOUS TRAVELER.ogg
+
+Kenney Digital Audio
+  Author:  Kenney Vleugels (Kenney.nl)
+  URL:     https://kenney.nl/assets/digital-audio
+  Licence: CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/), License.txt in the pack
+  Files:
+    phaserUp5.ogg
+    zap2.ogg
+
+Victory Fanfare (church organ)
+  Author:  ARoachIFoundOnMyPillow
+  URL:     https://opengameart.org/content/victory-fanfare
+  Licence: CC0 (OpenGameArt page, see SOURCE.md)
+  Files:
+    fanfare1.ogg
+
+Heavy Dungeon
+  Author:  MintoDog
+  URL:     https://opengameart.org/content/heavy-dungeon
+  Licence: CC0 (OpenGameArt page, see SOURCE.md)
+  Files:
+    heavy_dungeon_bpm160.ogg
+
+Kenney Impact Sounds
+  Author:  Kenney Vleugels (Kenney.nl)
+  URL:     https://kenney.nl/assets/impact-sounds
+  Licence: CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/), License.txt in the pack
+  Files:
+    impactBell_heavy_000.ogg
+    impactBell_heavy_001.ogg
+    impactPunch_medium_000.ogg
+    impactSoft_medium_000.ogg
+    impactWood_heavy_000.ogg
+
+Kenney Interface Sounds
+  Author:  Kenney Vleugels (Kenney.nl)
+  URL:     https://kenney.nl/assets/interface-sounds
+  Licence: CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/), License.txt in the pack
+  Files:
+    back_002.ogg
+    confirmation_001.ogg
+    pluck_002.ogg
+    tick_004.ogg
+
+Kenney Music Jingles
+  Author:  Kenney Vleugels (Kenney.nl)
+  URL:     https://kenney.nl/assets/music-jingles
+  Licence: CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/), License.txt in the pack
+  Files:
+    8-Bit jingles/jingles_NES03.ogg
+    Pizzicato jingles/jingles_PIZZI08.ogg
+    Sax jingles/jingles_SAX02.ogg
+    Sax jingles/jingles_SAX07.ogg
+    Steel jingles/jingles_STEEL02.ogg
+
+MonsterVania - Ghost Land
+  Author:  HydroGene
+  URL:     https://opengameart.org/content/monstervania-ghost-land
+  Licence: CC0 (OpenGameArt page, see SOURCE.md)
+  Files:
+    MonsterVania - Ghost Land.mp3
+
+MonsterVania 8-bit #1 - Stage 1
+  Author:  HydroGene
+  URL:     https://opengameart.org/content/8bit-monstervania-track-1
+  Licence: CC0 (OpenGameArt page, see SOURCE.md)
+  Files:
+    MonsterVania 8-bit #1 - Stage 1.ogg
+
+Game Over Theme (No Hope)
+  Author:  Cleyton Kauffman
+  URL:     https://opengameart.org/content/game-over-theme
+  Licence: CC0 (OpenGameArt page, see SOURCE.md)
+  Files:
+    No Hope.ogg
+
+100 CC0 SFX #2
+  Author:  rubberduck
+  URL:     https://opengameart.org/content/100-cc0-sfx-2
+  Licence: CC0 (OpenGameArt page, see SOURCE.md)
+  Files:
+    sfx100v2_air_02.ogg
+    sfx100v2_metal_hit_01.ogg
+    sfx100v2_thunder_01.ogg
+
+25 CC0 bang / firework SFX
+  Author:  rubberduck
+  URL:     https://opengameart.org/content/25-cc0-bang-firework-sfx
+  Licence: CC0 (OpenGameArt page, see SOURCE.md)
+  Files:
+    bang_03.ogg
+
+75 CC0 breaking / falling / hit sfx
+  Author:  rubberduck
+  URL:     https://opengameart.org/content/75-cc0-breaking-falling-hit-sfx
+  Licence: CC0 (OpenGameArt page, see SOURCE.md)
+  Files:
+    bfh1_glass_hit_01.ogg
+    bfh1_wood_breaking_02.ogg
+
+80 CC0 RPG SFX
+  Author:  rubberduck
+  URL:     https://opengameart.org/content/80-cc0-rpg-sfx
+  Licence: CC0 (OpenGameArt page, see SOURCE.md)
+  Files:
+    blade_02.ogg
+    creature_hurt_01.ogg
+    creature_roar_02.ogg
+    item_coins_01.ogg
+    item_gem_04.ogg
+    spell_fire_03.ogg
+    spell_fire_06.ogg
+
+50 CC0 Sci-Fi SFX
+  Author:  rubberduck
+  URL:     https://opengameart.org/content/50-cc0-sci-fi-sfx
+  Licence: CC0 (OpenGameArt page, see SOURCE.md)
+  Files:
+    teleport_02.ogg
+
+40 CC0 water / splash / slime SFX
+  Author:  rubberduck
+  URL:     https://opengameart.org/content/40-cc0-water-splash-slime-sfx
+  Licence: CC0 (OpenGameArt page, see SOURCE.md)
+  Files:
+    bubble_02.ogg
+    slime_12.ogg
+    splash_02.ogg
+
+Kenney RPG Audio
+  Author:  Kenney Vleugels (Kenney.nl)
+  URL:     https://kenney.nl/assets/rpg-audio
+  Licence: CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/), License.txt in the pack
+  Files:
+    bookFlip2.ogg
+    creak3.ogg
+    knifeSlice2.ogg
+
+Not used: '400 Sounds Pack' (Chequered Ink): its own free-use terms, not CC0, so it stays out.
