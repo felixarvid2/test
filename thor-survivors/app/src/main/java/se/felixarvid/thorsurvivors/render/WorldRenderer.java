@@ -176,11 +176,19 @@ public final class WorldRenderer {
             shadeLift[i] = new ColorMatrixColorFilter(new float[]{g, 0, 0, 0, t, 0, g, 0, 0, t, 0, 0, g, 0, t, 0, 0, 0, 1, 0});
         }
         shade[SHADES] = null; // fully lit props and pickups need no filter
-        // a ColorFilter creates its native object the first time it is set on a Paint: do it for all of them now, not mid-frame
+        // a ColorFilter creates its native object when a Paint carrying it is first used for drawing (Paint.getNativeInstance), not on
+        // setColorFilter: draw one pixel with each of them now, so no filter is created mid-frame
         for (int i = 0; i < Elites.COUNT; i++) fMod[i] = new PorterDuffColorFilter(Elites.COLORS[i], PorterDuff.Mode.SRC_ATOP);
         ColorFilter[][] all = {shade, shadeLift, {fWhite, fBright, fRed, fIce, fCyan, fGreen, fViolet, fOrange, fRedAdd, fGold},
                 fMod, fRar};
-        for (ColorFilter[] set : all) for (ColorFilter f : set) if (f != null) glowPaint.setColorFilter(f);
+        Canvas primer = new Canvas(Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888));
+        for (ColorFilter[] set : all) {
+            for (ColorFilter f : set) {
+                if (f == null) continue;
+                glowPaint.setColorFilter(f);
+                primer.drawRect(0f, 0f, 1f, 1f, glowPaint);
+            }
+        }
         glowPaint.setColorFilter(null);
     }
 

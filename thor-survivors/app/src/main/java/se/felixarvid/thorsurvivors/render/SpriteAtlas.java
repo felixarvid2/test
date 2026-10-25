@@ -93,6 +93,8 @@ public final class SpriteAtlas {
     private final HashMap<String, Bitmap> sheets = new HashMap<>();
     private Bitmap ground;
     private volatile boolean loaded;
+    /** Icon lookups by bare key, so drawing an icon every frame concatenates no "icon." + key string (null = no such icon). */
+    private final HashMap<String, Img> iconByKey = new HashMap<>();
     private final Paint iconPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
     private final Rect iconDst = new Rect();
 
@@ -116,6 +118,7 @@ public final class SpriteAtlas {
     public synchronized void load(Opener op) {
         models.clear();
         images.clear();
+        iconByKey.clear();
         sheets.clear();
         ground = null;
         try {
@@ -221,6 +224,7 @@ public final class SpriteAtlas {
         i.ax = ax;
         i.ay = ay;
         images.put(key, i);
+        iconByKey.clear();
     }
 
     public Model model(String name) {
@@ -250,8 +254,13 @@ public final class SpriteAtlas {
 
     /** A panel icon (key without the "icon." prefix) scaled to a size x size square centred on (cx, cy). */
     public boolean drawIcon(Canvas c, Paint paint, String key, float cx, float cy, float size) {
-        Img i = images.get("icon." + key);
-        if (i == null) return false;
+        Img i = iconByKey.get(key);
+        if (i == null) {
+            if (iconByKey.containsKey(key)) return false;
+            i = images.get("icon." + key);
+            iconByKey.put(key, i);
+            if (i == null) return false;
+        }
         int h = Math.round(size / 2f);
         iconDst.set(Math.round(cx) - h, Math.round(cy) - h, Math.round(cx) + h, Math.round(cy) + h);
         c.drawBitmap(i.sheet, i.src, iconDst, paint != null ? paint : iconPaint);
