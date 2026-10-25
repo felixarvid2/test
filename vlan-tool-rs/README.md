@@ -21,6 +21,12 @@ Paketet som byggs här kräver glibc 2.39, alltså **Debian 13 (trixie)** eller 
 fungerar också). På Debian 12 bygger du från källkod i stället: installera Rust med
 [rustup](https://rustup.rs) och kör `sh packaging/build-deb.sh` där, så följer paketet den glibc som finns.
 
+Flaggan `--no-build` hoppar över `cargo build` och paketerar binärerna som redan finns i
+`target/release/`. Bredvid paketet skrivs en `.sha256`-fil som kontrolleras med
+`sha256sum -c vlantool_*.deb.sha256` i samma mapp. Paketet innehåller också man-sidor
+(`man vlantool`, `man vlantool-gui`), AppStream-metadata och en ändringslogg; skalkomplettering för
+bash, zsh och fish tas med när `vlantool completions` finns.
+
 ## Skrivbordsprogrammet
 
 Första gången visas en välkomstsida som kan skapa ett exempelprojekt med gruppens CSV-filer
@@ -79,6 +85,39 @@ vlantool run                     # allt i ett: validera CSV → generera → gra
 `1`–`6` / `←` `→` byter flik · `Tab` byter enhet · `↑` `↓` väljer fynd eller bläddrar ·
 `g` genererar om från CSV · `r` läser om · `e` sparar HTML-rapport · `?` hjälp · `q` avslutar.
 
+## Felsökning
+
+**Fönstret öppnas inte, eller felet nämner OpenGL/EGL/GLX.** Programmet ritar med OpenGL. Saknas
+grafikdrivrutin (virtuell maskin, fjärrskrivbord, container) kan mjukvarurendering användas:
+
+```
+LIBGL_ALWAYS_SOFTWARE=1 vlantool-gui
+```
+
+**Fel fönstersystem (Wayland eller X11).** Programmet använder Wayland om `WAYLAND_DISPLAY` är satt
+och annars X11. Tvinga X11 genom att tömma Wayland-variabeln, eller välj backend med
+`WINIT_UNIX_BACKEND`:
+
+```
+WAYLAND_DISPLAY= vlantool-gui          # X11 (via XWayland under Wayland)
+WINIT_UNIX_BACKEND=x11 vlantool-gui
+WINIT_UNIX_BACKEND=wayland vlantool-gui
+```
+
+**Programmet startar inte och nämner ett saknat bibliotek.** X11, Wayland och OpenGL laddas när
+programmet startar. Paketet drar in dem, men har du kopierat binären för hand (eller installerat
+med `dpkg -i` utan `apt`) kan något saknas:
+
+```
+sudo apt install libxkbcommon-x11-0 libxkbcommon0 libgl1 libegl1 libx11-6 \
+                 libxcursor1 libxi6 libxrandr2 libwayland-client0 libwayland-cursor0 libwayland-egl1
+```
+
+Kör `ldd $(which vlantool-gui) | grep "not found"` för att se vad som saknas. Kommandoradsverktyget
+`vlantool` behöver inga av dessa bibliotek.
+
+**Texten ser fel ut eller emojin saknas.** Installera `fonts-dejavu-core` (rekommenderas av paketet).
+
 ## Jämfört med Python-versionen
 
 | | Python | Rust |
@@ -105,9 +144,9 @@ på portbeskrivningar som `Port mot SW-Nordvik-2`; utan dem hoppas de över.
 ## Utveckling
 
 ```
-cargo test                                   # enhetstester + hela kedjan CSV → konfig → granskning
+cargo test                                   # enhetstester, tests/ (CLI, nätmatte, robusthet) + hela kedjan CSV → konfig → granskning
 cargo test snapshot -- --ignored --nocapture # skriver ut TUI:ts flikar som text
-cargo clippy --all-targets
+cargo clippy --all-targets -- -D warnings    # samma som i CI
 cargo run --bin vlantool-gui -- <projektmapp>
 cargo build --no-default-features            # bara kommandoraden, utan GUI-beroenden
 ```
@@ -132,4 +171,6 @@ in den i `ALL_RULES`.
 | `src/tui.rs` | Terminalgränssnittet (ratatui) |
 | `src/topology.rs`, `src/diff.rs`, `src/net.rs` | Topologiträd, diff, IPv4-matte och VLSM |
 | `src/gui/` | Skrivbordsprogrammet: `app.rs` (tillstånd och åtgärder), `views.rs` (flikarna), `theme.rs`, `folder.rs` |
-| `packaging/` | `build-deb.sh`, skrivbordsfil, ikoner |
+| `tests/` | Integrationstester: `cli.rs` (kör binären), `net_math.rs` (nätmatte), `robust.rs` (slumpade konfigar) |
+| `packaging/` | `build-deb.sh`, skrivbordsfil, AppStream, man-sidor, ikoner |
+| `CHANGELOG.md` | Ändringslogg |
