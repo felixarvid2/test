@@ -21,6 +21,9 @@ steering `Input.stickX/stickY` every 2 s, drain `pendingLevelUps` via `OfferGene
 `game_data.json` x policies {walk randomly, stand still with `s.hp = s.maxHp`, kite one direction} x 2-3 seeds, to
 `stage.timeLimit` (1800 s = 108000 steps). Also a late-game variant: all evolutions added via `s.inv.add(...)` and
 `s.time` set to 25 min. Run the matrix in parallel test methods if it takes too long; report the wall time.
+Heroes: also run the matrix with `new Sim(..., hero)` for BASTION, SPECTRE, XENOMANT (aim bot as in `HeroAcceptanceTest`), with
+random branch picks, and check `projN` (main bullets, patches and bomblets share the 600 pool), `main.linkN <= MAX_LINKS`, no NaN in
+`aimX/aimY`, and the dodge cooldown never negative.
 Run: `cd thor-survivors && SOAK=1 ./gradlew --offline testDebugUnitTest --tests '*ScratchSoakTest*' --rerun`.
 
 Lessons from earlier soaks:

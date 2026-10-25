@@ -37,8 +37,10 @@ public final class SpriteAtlas {
     }
 
     /** Clip slots of a {@link Model}. A character's "run" is stored in the walk slot. */
-    public static final int C_IDLE = 0, C_WALK = 1, C_ATTACK = 2, C_HIT = 3, C_DEATH = 4, C_STATIC = 5, CLIPS = 6;
-    private static final String[] CLIP_NAMES = {"idle", "walk", "attack", "hit", "death", "static"};
+    public static final int C_IDLE = 0, C_WALK = 1, C_ATTACK = 2, C_HIT = 3, C_DEATH = 4, C_STATIC = 5, C_ATTACK2 = 6,
+            C_SLAM = 7, C_SHOOT = 8, C_THROW = 9, C_CAST = 10, C_CAST2 = 11, C_DODGE = 12, CLIPS = 13;
+    private static final String[] CLIP_NAMES = {"idle", "walk", "attack", "hit", "death", "static", "attack2", "slam",
+            "shoot", "throw", "cast", "cast2", "dodge"};
 
     /** Supplies asset bytes by path ("ashfall/manifest.json"); lets tests read the files straight from disk. */
     public interface Opener {

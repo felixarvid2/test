@@ -33,7 +33,9 @@ DIRS = ["S", "SE", "E", "NE", "N", "NW", "W", "SW"]
 # (category, name, clips kept). Clips not listed are dropped to save memory (enemies always walk, so no idle;
 # the hit reaction is the white flash).
 MODELS = [
-    ("characters", "bastion", ["idle", "run", "attack", "hit", "death"]),
+    ("characters", "bastion", ["idle", "run", "attack", "attack2", "slam", "dodge", "hit", "death"]),
+    ("characters", "spectre", ["idle", "run", "shoot", "throw", "dodge", "hit", "death"]),
+    ("characters", "xenomant", ["idle", "run", "cast", "cast2", "slam", "dodge", "hit", "death"]),
     ("enemies", "infected_colonist", ["walk", "attack", "death"]),
     ("enemies", "sergeant", ["walk", "attack", "death"]),
     ("enemies", "welder", ["walk", "attack", "death"]),
@@ -80,7 +82,8 @@ VFX = {
     "rock_debris": 128, "scorch_0": 128, "scorch_1": 128, "warn_ring_0": 192, "embers_0": 128,
     "embers_1": 128, "smoke_0": 128, "smoke_1": 128, "dust_0": 160, "muzzle_flash": 96, "steam_0": 128,
     "ash_flake": 64, "magic_circle_green": 192, "magic_circle_cyan": 192, "magic_circle_red": 192,
-    "bubbles_0": 128, "lumen_beam": 128, "void_rift": 160,
+    "bubbles_0": 128, "lumen_beam": 128, "void_rift": 160, "shockwave_dust": 192, "heat_ring_0": 192,
+    "crack_0": 128,
 }
 
 # icon key -> (source relative to AI, px). Weapons / evolutions use the base id (PanelRenderer.baseKey).
@@ -98,6 +101,17 @@ ICONS = {
     "MAGNET": "meshy/icons/signal_pendant", "LUCK": "meshy/icons/crystal_lumen",
     "GROWTH": "meshy/icons/bio_focus", "GREED": "meshy/icons/keycard", "CURSE": "meshy/icons/crystal_void",
     "REVIVAL": "meshy/icons/skill_phase_shift",
+    # main weapons, branches (ids from ashfall_data.json mainWeapons) and hero portraits (HERO_<hero>)
+    "HAMMER": "meshy/icons/hydraulic_hammer", "PISTOLS": "meshy/icons/twin_pistols",
+    "CASTER": "meshy/icons/skill_spore_burst",
+    "SEISMIC": "meshy/icons/skill_seismic_shock", "JAB": "meshy/icons/skill_piston_jab",
+    "CLEAVE": "meshy/icons/skill_furnace_cleave", "GUARD": "meshy/icons/riot_shield",
+    "BARRAGE": "meshy/icons/skill_pistol_barrage", "SLUG": "meshy/icons/skill_piercing_shot",
+    "QUICK": "meshy/icons/skill_quick_shot", "GRENADE": "meshy/icons/skill_cluster_grenade",
+    "DART": "meshy/icons/skill_spore_dart", "TENDRILS": "meshy/icons/skill_grasping_tendrils",
+    "LINK": "meshy/icons/skill_parasite_link", "WRATH": "meshy/icons/skill_wrath_of_lumen",
+    "HERO_BASTION": "meshy/icons/portrait_bastion", "HERO_SPECTRE": "meshy/icons/portrait_spectre",
+    "HERO_XENOMANT": "meshy/icons/portrait_xenomant",
 }
 # gem crystals (transparent icons, trimmed): key -> (source, px)
 GEMS = {"crystal_lumen": 64, "crystal_void": 64, "crystal_ember": 64}

@@ -13,27 +13,27 @@
     },
     "knife": {
       "file": "sfx/knife.ogg",
-      "volume": 0.8,
+      "volume": 0.75,
       "pitchVar": 0.06
     },
     "axe": {
       "file": "sfx/axe.ogg",
-      "volume": 0.8,
+      "volume": 0.85,
       "pitchVar": 0.06
     },
     "cross": {
       "file": "sfx/cross.ogg",
-      "volume": 0.7,
+      "volume": 0.65,
       "pitchVar": 0.06
     },
     "bible": {
       "file": "sfx/bible.ogg",
-      "volume": 0.9,
+      "volume": 0.6,
       "pitchVar": 0.06
     },
     "fireball": {
       "file": "sfx/fireball.ogg",
-      "volume": 0.8,
+      "volume": 0.9,
       "pitchVar": 0.06
     },
     "garlic": {
@@ -76,6 +76,11 @@
       "volume": 0.9,
       "pitchVar": 0.06
     },
+    "food_heal": {
+      "file": "sfx/food_heal.ogg",
+      "volume": 0.75,
+      "pitchVar": 0.06
+    },
     "level_up": {
       "file": "sfx/level_up.ogg",
       "volume": 0.9,
@@ -93,12 +98,7 @@
     },
     "brazier_break": {
       "file": "sfx/brazier_break.ogg",
-      "volume": 0.8,
-      "pitchVar": 0.06
-    },
-    "food_heal": {
-      "file": "sfx/food_heal.ogg",
-      "volume": 0.7,
+      "volume": 0.85,
       "pitchVar": 0.06
     },
     "boss_spawn": {
@@ -108,7 +108,7 @@
     },
     "game_over": {
       "file": "sfx/game_over.ogg",
-      "volume": 0.9,
+      "volume": 0.95,
       "pitchVar": 0.06
     },
     "victory": {
@@ -130,6 +130,173 @@
       "file": "sfx/ui_back.ogg",
       "volume": 0.6,
       "pitchVar": 0.0
+    },
+    "hammer_swing": {
+      "file": "sfx/hammer_swing.ogg",
+      "volume": 0.8,
+      "pitchVar": 0.06
+    },
+    "hammer_slam": {
+      "file": "sfx/hammer_slam.ogg",
+      "volume": 1.0,
+      "pitchVar": 0.06
+    },
+    "pistol_shot": {
+      "file": "sfx/pistol_shot.ogg",
+      "volume": 0.85,
+      "pitchVar": 0.06
+    },
+    "caster_bolt": {
+      "file": "sfx/caster_bolt.ogg",
+      "volume": 0.75,
+      "pitchVar": 0.06
+    },
+    "spore_burst": {
+      "file": "sfx/spore_burst.ogg",
+      "volume": 0.8,
+      "pitchVar": 0.06
+    },
+    "dodge": {
+      "file": "sfx/dodge.ogg",
+      "volume": 0.6,
+      "pitchVar": 0.06
+    }
+  },
+  "pending": {
+    "burn_tick": {
+      "file": "sfx/burn_tick.ogg",
+      "volume": 0.4,
+      "pitchVar": 0.06
+    },
+    "frost_hit": {
+      "file": "sfx/frost_hit.ogg",
+      "volume": 0.7,
+      "pitchVar": 0.06
+    },
+    "electrify_zap": {
+      "file": "sfx/electrify_zap.ogg",
+      "volume": 0.7,
+      "pitchVar": 0.06
+    },
+    "decay_hiss": {
+      "file": "sfx/decay_hiss.ogg",
+      "volume": 0.5,
+      "pitchVar": 0.06
+    },
+    "stun_hit": {
+      "file": "sfx/stun_hit.ogg",
+      "volume": 0.9,
+      "pitchVar": 0.06
+    },
+    "chain_arc": {
+      "file": "sfx/chain_arc.ogg",
+      "volume": 0.8,
+      "pitchVar": 0.06
+    },
+    "kugelblitz_hum": {
+      "file": "sfx/kugelblitz_hum.ogg",
+      "volume": 0.4,
+      "pitchVar": 0.02
+    },
+    "orbital_warn": {
+      "file": "sfx/orbital_warn.ogg",
+      "volume": 0.8,
+      "pitchVar": 0.06
+    },
+    "orbital_hit": {
+      "file": "sfx/orbital_hit.ogg",
+      "volume": 1.0,
+      "pitchVar": 0.06
+    },
+    "nova_frost": {
+      "file": "sfx/nova_frost.ogg",
+      "volume": 0.85,
+      "pitchVar": 0.06
+    },
+    "barrel_explode": {
+      "file": "sfx/barrel_explode.ogg",
+      "volume": 1.0,
+      "pitchVar": 0.06
+    },
+    "crate_break": {
+      "file": "sfx/crate_break.ogg",
+      "volume": 0.8,
+      "pitchVar": 0.06
+    },
+    "pylon_use": {
+      "file": "sfx/pylon_use.ogg",
+      "volume": 0.8,
+      "pitchVar": 0.06
+    },
+    "elite_spawn": {
+      "file": "sfx/elite_spawn.ogg",
+      "volume": 1.0,
+      "pitchVar": 0.06
+    },
+    "elite_die": {
+      "file": "sfx/elite_die.ogg",
+      "volume": 1.0,
+      "pitchVar": 0.06
+    },
+    "equip_drop": {
+      "file": "sfx/equip_drop.ogg",
+      "volume": 0.8,
+      "pitchVar": 0.06
+    },
+    "equip_pick": {
+      "file": "sfx/equip_pick.ogg",
+      "volume": 0.8,
+      "pitchVar": 0.06
+    },
+    "equip_swap": {
+      "file": "sfx/equip_swap.ogg",
+      "volume": 0.75,
+      "pitchVar": 0.06
+    },
+    "drone_shot": {
+      "file": "sfx/drone_shot.ogg",
+      "volume": 0.5,
+      "pitchVar": 0.06
+    },
+    "sergeant_burst": {
+      "file": "sfx/sergeant_burst.ogg",
+      "volume": 0.85,
+      "pitchVar": 0.06
+    },
+    "welder_charge": {
+      "file": "sfx/welder_charge.ogg",
+      "volume": 0.6,
+      "pitchVar": 0.06
+    },
+    "carrier_burst": {
+      "file": "sfx/carrier_burst.ogg",
+      "volume": 0.85,
+      "pitchVar": 0.06
+    },
+    "vire_blink": {
+      "file": "sfx/vire_blink.ogg",
+      "volume": 0.7,
+      "pitchVar": 0.06
+    },
+    "tentacle_emerge": {
+      "file": "sfx/tentacle_emerge.ogg",
+      "volume": 0.9,
+      "pitchVar": 0.06
+    },
+    "boss_intro": {
+      "file": "sfx/boss_intro.ogg",
+      "volume": 1.0,
+      "pitchVar": 0.06
+    },
+    "boss_slam": {
+      "file": "sfx/boss_slam.ogg",
+      "volume": 1.1,
+      "pitchVar": 0.06
+    },
+    "the_first_roar": {
+      "file": "sfx/the_first_roar.ogg",
+      "volume": 1.1,
+      "pitchVar": 0.06
     }
   },
   "music": {
@@ -140,17 +307,22 @@
     },
     "forest": {
       "file": "music/forest.ogg",
-      "volume": 0.75,
+      "volume": 0.8,
       "loop": true
     },
     "library": {
       "file": "music/library.ogg",
-      "volume": 0.75,
+      "volume": 0.8,
       "loop": true
     },
     "boss": {
       "file": "music/boss.ogg",
       "volume": 0.8,
+      "loop": true
+    },
+    "final": {
+      "file": "music/final.ogg",
+      "volume": 0.85,
       "loop": true
     },
     "gameover": {

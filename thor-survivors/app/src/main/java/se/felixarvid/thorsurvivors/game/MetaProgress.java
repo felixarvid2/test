@@ -25,6 +25,9 @@ public final class MetaProgress {
     /** Lighting quality: 0 OFF, 1 LOW (static vignette), 2 FULL (lightmap). */
     public static final int LIGHT_OFF = 0, LIGHT_LOW = 1, LIGHT_FULL = 2;
     public volatile int lighting = LIGHT_FULL;
+    /** Selected hero: index into {@link GameData#HERO_ORDER} among the heroes the data defines (0 = Bastion, also for old saves). */
+    public volatile int heroIdx;
+    private String[] heroKeys;
     private final Map<String, Integer> ranks = new HashMap<>();
 
     public MetaProgress(GameData data, Store store) {
@@ -36,6 +39,7 @@ public final class MetaProgress {
         musicVol = Math.max(0, Math.min(VOL_MAX, store.getInt("volMusic", 2)));
         sfxVol = Math.max(0, Math.min(VOL_MAX, store.getInt("volSfx", 3)));
         lighting = Math.max(0, Math.min(LIGHT_FULL, store.getInt("lighting", LIGHT_FULL)));
+        heroIdx = Math.max(0, Math.min(Math.max(0, data.heroes.size() - 1), store.getInt("hero", 0)));
         for (String k : data.powerUps.keySet()) ranks.put(k, store.getInt("pu_" + k, 0));
     }
 
@@ -99,6 +103,20 @@ public final class MetaProgress {
     public void stepSfx(int delta) {
         sfxVol = (sfxVol + delta + VOL_MAX + 1) % (VOL_MAX + 1);
         store.putInt("volSfx", sfxVol);
+    }
+
+    /** Key of the selected hero, or null when the data defines none. */
+    public String heroKey() {
+        if (heroKeys == null) heroKeys = data.heroKeys().toArray(new String[0]); // once: this is read every frame
+        return heroKeys.length == 0 ? null : heroKeys[Math.min(heroIdx, heroKeys.length - 1)];
+    }
+
+    /** Steps the selected hero by delta (wrapping) and stores it. */
+    public void stepHero(int delta) {
+        int n = data.heroes.size();
+        if (n == 0) return;
+        heroIdx = (heroIdx + delta % n + n) % n;
+        store.putInt("hero", heroIdx);
     }
 
     /** Steps the lighting quality by delta (wrapping) and stores it. */

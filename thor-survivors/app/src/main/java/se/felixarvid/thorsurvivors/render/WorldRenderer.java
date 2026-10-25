@@ -24,6 +24,7 @@ import se.felixarvid.thorsurvivors.game.Entities.Particle;
 import se.felixarvid.thorsurvivors.game.Entities.Pickup;
 import se.felixarvid.thorsurvivors.game.Entities.Projectile;
 import se.felixarvid.thorsurvivors.game.EnemyType;
+import se.felixarvid.thorsurvivors.game.MainWeapon;
 import se.felixarvid.thorsurvivors.game.MetaProgress;
 import se.felixarvid.thorsurvivors.game.Sim;
 import se.felixarvid.thorsurvivors.game.WorldGen;
@@ -492,7 +493,8 @@ public final class WorldRenderer {
             drawCreature(c, m, d.type, d.boss, px, py, 0, t + i, (float) i, 60f, false, false, false);
             bmp.setColorFilter(null);
         }
-        Model pm = atlas.model("bastion");
+        String hk = e.meta == null ? null : e.meta.heroKey();
+        Model pm = atlas.model(hk == null ? "bastion" : e.data.heroes.get(hk).model);
         if (pm != null) {
             int px = sx(camX), py = sy(camY + 20f);
             drawShadow(c, px, py, Math.round(22 * ks));
@@ -671,7 +673,7 @@ public final class WorldRenderer {
             sIdx[n++] = i;
             if (en.boss && nb < bossIdx.length) bossIdx[nb++] = i;
         }
-        Model pm = atlas.model("bastion");
+        Model pm = atlas.model(s.hero == null ? "bastion" : s.hero.model);
         int ppx = sx(s.px), ppy = sy(s.py);
         int pi = s.enemyN; // the player rides as one extra entry after the enemies (id 0)
         sKey[n] = bias(ppy) << 32;
@@ -695,6 +697,8 @@ public final class WorldRenderer {
             if (i == pi) drawShadow(c, ppx, ppy, Math.round(24 * ks));
             else drawShadow(c, entSx[i], entSy[i], Math.round(s.enemies[i].radius * sc * 0.95f));
         }
+
+        if (s.hero != null && s.ended == 0) drawAim(c, s, ppx, ppy);
 
         // 4. creatures in order
         orderN = 0;
@@ -729,6 +733,10 @@ public final class WorldRenderer {
         }
         sort(sKey, sIdx, nq);
         for (int j = 0; j < nq; j++) drawProjectile(c, s, s.projs[sIdx[j]], t);
+        if (s.main != null) {
+            drawLinks(c, s);
+            drawBeam(c, s, ppx, ppy);
+        }
 
         // 6. effects, sparks, hp bar, numbers
         for (int i = 0; i < Sim.MAX_FX; i++) {
@@ -868,29 +876,59 @@ public final class WorldRenderer {
         bar(c, px, py - headPx - 22, Math.max(120, headPx), 10, en.hp / en.maxHp, 0xFF2A0808, 0xFFE02828);
     }
 
+    /** Clip slot of the main weapon's attack animation (Sim.AC_*); falls back to the plain attack clip. */
+    private static int attackSlot(int ac) {
+        switch (ac) {
+            case Sim.AC_ATTACK2: return SpriteAtlas.C_ATTACK2;
+            case Sim.AC_SLAM: return SpriteAtlas.C_SLAM;
+            case Sim.AC_SHOOT: return SpriteAtlas.C_SHOOT;
+            case Sim.AC_THROW: return SpriteAtlas.C_THROW;
+            case Sim.AC_CAST: return SpriteAtlas.C_CAST;
+            case Sim.AC_CAST2: return SpriteAtlas.C_CAST2;
+            default: return SpriteAtlas.C_ATTACK;
+        }
+    }
+
     private void drawPlayer(Canvas c, Sim s, Model m, int px, int py) {
         if (m == null) {
             fill.setColor(0xFF3A6FD0);
             c.drawCircle(px, py - 30, 24, fill);
             return;
         }
-        int dir = dirOf(s.faceX, s.faceY);
-        if (s.faceX != 0f || s.faceY != 0f) playerDir = dir;
+        boolean dodging = s.dodgeT > 0f;
+        // a hero faces its aim (which is the facing direction without aim input), a dodge faces the dash
+        float dvx = dodging ? s.dodgeDx : s.hero != null ? s.aimX : s.faceX;
+        float dvy = dodging ? s.dodgeDy : s.hero != null ? s.aimY : s.faceY;
+        int dir = dirOf(dvx, dvy);
+        if (dvx != 0f || dvy != 0f) playerDir = dir;
         else dir = playerDir;
         ColorFilter cf = now < redUntil ? fRed : shadeAt(px, py - 30f * ks, FLOOR_PLAYER);
         bmp.setColorFilter(cf);
         bmp.setAlpha(255);
-        float sinceHit = (float) (now - hitAt), sinceAtk = (float) (now - s.lastAttack);
+        float atk = s.hero != null ? s.lastMainAttack : s.lastAttack;
+        float sinceHit = (float) (now - hitAt), sinceAtk = (float) (now - atk);
+        Clip dc = m.clip(SpriteAtlas.C_DODGE);
+        int slot = s.hero != null ? attackSlot(s.mainClip) : SpriteAtlas.C_ATTACK;
+        if (m.clip(slot) == null) slot = SpriteAtlas.C_ATTACK;
+        Clip ac = m.clip(slot);
         if (s.ended == 1) {
             Clip d = m.clip(SpriteAtlas.C_DEATH);
             int fi = Math.min(d.count - 1, (int) (deathT / 1.1f * d.count));
             drawFrameAt(c, m, SpriteAtlas.C_DEATH, dir, fi, px, py, ks, 1f, 1f, 0, bmp);
+        } else if (dodging && dc != null) {
+            // afterimages along the dash, then the dodge clip squeezed into the dash time
+            for (int g = 2; g >= 1; g--) {
+                bmp.setAlpha(g == 2 ? 50 : 100);
+                int gx = px - Math.round(dvx * 24f * g * sc), gy = py - Math.round(dvy * 24f * g * sc);
+                drawFrameAt(c, m, SpriteAtlas.C_DODGE, dir, (int) ((Sim.DODGE_TIME - s.dodgeT) / Sim.DODGE_TIME * dc.count), gx, gy, ks, 1f, 1f, 0, bmp);
+            }
+            bmp.setAlpha(255);
+            drawFrameAt(c, m, SpriteAtlas.C_DODGE, dir, (int) ((Sim.DODGE_TIME - s.dodgeT) / Sim.DODGE_TIME * dc.count), px, py, ks, 1f, 1f, 0, bmp);
         } else if (sinceHit >= 0 && sinceHit < HIT_CLIP && m.clip(SpriteAtlas.C_HIT) != null) {
             Clip hc = m.clip(SpriteAtlas.C_HIT);
             drawFrameAt(c, m, SpriteAtlas.C_HIT, dir, (int) (sinceHit / HIT_CLIP * hc.count), px, py, ks, 1f, 1f, 0, bmp);
-        } else if (sinceAtk >= 0 && sinceAtk < ATTACK_CLIP && m.clip(SpriteAtlas.C_ATTACK) != null) {
-            Clip a = m.clip(SpriteAtlas.C_ATTACK);
-            drawFrameAt(c, m, SpriteAtlas.C_ATTACK, dir, (int) (sinceAtk / ATTACK_CLIP * a.count), px, py, ks, 1f, 1f, 0, bmp);
+        } else if (sinceAtk >= 0 && sinceAtk < ATTACK_CLIP && ac != null) {
+            drawFrameAt(c, m, slot, dir, (int) (sinceAtk / ATTACK_CLIP * ac.count), px, py, ks, 1f, 1f, 0, bmp);
         } else if (moving) {
             Clip r = m.clip(SpriteAtlas.C_WALK);
             int fi = (int) (s.walk * 1.3f / (2f * (float) Math.PI) * r.count);
@@ -899,6 +937,19 @@ public final class WorldRenderer {
             drawFrameAt(c, m, SpriteAtlas.C_IDLE, dir, SpriteAtlas.frameAt(m.clip(SpriteAtlas.C_IDLE), (float) now, 1.5f), px, py, ks, 1f, 1f, 0, bmp);
         }
         bmp.setColorFilter(null);
+    }
+
+    /** Aim indicator at the player's feet: a short tick and a chevron pointing where the main weapon fires. */
+    private void drawAim(Canvas c, Sim s, int px, int py) {
+        float ax = s.aimX, ay = s.aimY, nx = -ay, ny = ax;
+        float r0 = 30f * ks, r1 = 52f * ks, wing = 9f * ks;
+        int alpha = s.aimActive ? 200 : 110;
+        stroke.setColor((alpha << 24) | 0xD8FFF8);
+        stroke.setStrokeWidth(2.5f * ks);
+        float tx = px + ax * r1, ty = py + ay * r1;
+        c.drawLine(px + ax * r0, py + ay * r0, tx, ty, stroke);
+        c.drawLine(tx, ty, tx - ax * wing * 1.4f + nx * wing, ty - ay * wing * 1.4f + ny * wing, stroke);
+        c.drawLine(tx, ty, tx - ax * wing * 1.4f - nx * wing, ty - ay * wing * 1.4f - ny * wing, stroke);
     }
 
     private void drawPlayerBar(Canvas c, Sim s, int px, int py) {
@@ -1003,6 +1054,9 @@ public final class WorldRenderer {
                 glow(c, atlas.img(p.evo ? "vfx.fire_core_0" : "vfx.fire_core_1"), px, py, r * 3.4f, 0f, null, 255);
                 break;
             }
+            case Entities.P_MAIN:
+                drawMainProjectile(c, p, px, py, deg, r);
+                break;
             case Entities.P_PUDDLE: { // the flask in the air, before it lands
                 float age = p.maxLife - p.life, left = Math.max(0f, p.flight - age) / Math.max(0.01f, p.flight);
                 Img fl = atlas.img("pix.flask");
@@ -1019,6 +1073,110 @@ public final class WorldRenderer {
             }
             default:
                 break;
+        }
+    }
+
+    /** Torso height of a shot above the ground plane the Sim works in, in world units. */
+    private static final float SHOT_LIFT = 14f;
+
+    /** The main weapons' projectiles: tracers (pistols), lumen bolts (caster), lobbed grenades, fire waves. */
+    private void drawMainProjectile(Canvas c, Projectile p, int px, int py, float deg, float r) {
+        float cs = (float) Math.cos(p.angle), sn = (float) Math.sin(p.angle);
+        float lift = SHOT_LIFT * sc;
+        float y = py - lift;
+        switch (p.sub) {
+            case Entities.SUB_BULLET: { // a short hot tracer with a bright head
+                float len = 46f * ks;
+                glow(c, atlas.img("vfx.plasma_bolt_0"), px - cs * len * 0.4f, y - sn * len * 0.4f, len, deg, fGold, 255);
+                glow(c, atlas.img("vfx.energy_glow_0"), px, y, 16f * ks, 0f, fGold, 230);
+                break;
+            }
+            case Entities.SUB_SLUG: { // heavy slug: long white-orange streak
+                float len = 110f * ks;
+                glow(c, atlas.img("vfx.energy_glow_1"), px, y, 46f * ks, 0f, fOrange, 170);
+                glow(c, atlas.img("vfx.plasma_bolt_0"), px - cs * len * 0.4f, y - sn * len * 0.4f, len, deg, null, 255);
+                glow(c, atlas.img("vfx.energy_glow_0"), px, y, 24f * ks, 0f, null, 255);
+                break;
+            }
+            case Entities.SUB_BOLT: { // lumen bolt: glow, streak, core
+                glow(c, atlas.img("vfx.energy_glow_1"), px, y, r * 4.6f, 0f, fGreen, 150);
+                glow(c, atlas.img("vfx.plasma_bolt_0"), px - cs * r * 1.6f, y - sn * r * 1.6f, r * 8.5f, deg, fGreen, 255);
+                glow(c, atlas.img("vfx.energy_glow_0"), px, y, r * 2.2f, 0f, null, 255);
+                break;
+            }
+            case Entities.SUB_BURST: { // spore burst: smaller, paler
+                glow(c, atlas.img("vfx.energy_glow_1"), px, y, r * 4.4f, 0f, fCyan, 130);
+                glow(c, atlas.img("vfx.plasma_bolt_0"), px - cs * r * 1.2f, y - sn * r * 1.2f, r * 6.5f, deg, fCyan, 230);
+                break;
+            }
+            case Entities.SUB_DART: {
+                glow(c, atlas.img("vfx.energy_glow_1"), px, y, r * 5f, 0f, fGreen, 170);
+                glow(c, atlas.img("vfx.plasma_bolt_0"), px - cs * r * 1.5f, y - sn * r * 1.5f, r * 7f, deg, fGreen, 255);
+                break;
+            }
+            case Entities.SUB_GRENADE:
+            case Entities.SUB_BOMBLET: { // lobbed in an arc: the sprite flies over its ground point
+                float age = p.maxLife - p.life, f = Math.min(1f, age / Math.max(0.01f, p.maxLife));
+                float h = (float) Math.sin(f * Math.PI) * (p.sub == Entities.SUB_GRENADE ? 46f : 22f) * sc;
+                drawShadow(c, px, py, Math.round(7 * ks));
+                glow(c, atlas.img("vfx.embers_1"), px, py - h - 6f * ks, 22f * ks, 0f, fOrange, 170);
+                Img im = atlas.img("pix.grenade");
+                if (im != null) {
+                    c.save();
+                    c.rotate(age * 720f, px, py - h - 6f * ks);
+                    bmp.setColorFilter(null);
+                    bmp.setAlpha(255);
+                    blit(c, im, px, py - Math.round(h) - Math.round(6f * ks) + Math.round(im.h() * 0.5f * ks * 1.2f),
+                            ks * (p.sub == Entities.SUB_GRENADE ? 1.3f : 0.9f), bmp);
+                    c.restore();
+                }
+                break;
+            }
+            case Entities.SUB_WAVE: { // Furnace Cleave III: a short fire wave
+                glow(c, atlas.img("vfx.flame_2"), px, py - 8f * sc, r * 4.4f, deg - 90f, null, 230);
+                glow(c, atlas.img("vfx.fire_core_1"), px, py - 8f * sc, r * 2.6f, 0f, null, 255);
+                break;
+            }
+            default:
+        }
+    }
+
+    /** Wrath of Lumen: the beam from the hero along the live aim while it lasts. */
+    private void drawBeam(Canvas c, Sim s, int ppx, int ppy) {
+        MainWeapon mw = s.main;
+        Img im = atlas.img("vfx.lumen_beam");
+        if (im == null || mw == null || mw.beamT <= 0f) return;
+        float len = mw.beamDrawLen * sc, wd = Math.max(26f * ks, mw.beamDrawHalfW * 2f * sc * 1.5f);
+        float x0 = ppx + s.aimX * 12f * sc, y0 = ppy - SHOT_LIFT * sc + s.aimY * 12f * sc;
+        float pulse = 0.8f + 0.2f * (float) Math.sin(now * 40.0);
+        add.setColorFilter(fGreen);
+        add.setAlpha((int) (255 * pulse));
+        c.save();
+        c.rotate((float) Math.atan2(s.aimY, s.aimX) * 57.29578f - 90f, x0, y0);
+        dst.set(Math.round(x0 - wd / 2f), Math.round(y0), Math.round(x0 + wd / 2f), Math.round(y0 + len));
+        c.drawBitmap(im.sheet, im.src, dst, add);
+        c.restore();
+        glow(c, atlas.img("vfx.energy_glow_1"), x0, y0, 60f * ks, 0f, fGreen, 200);
+    }
+
+    /** Parasite Link: a lumen tether between the two linked enemies. */
+    private void drawLinks(Canvas c, Sim s) {
+        MainWeapon mw = s.main;
+        if (mw == null) return;
+        for (int i = 0; i < mw.linkN; i++) {
+            Enemy a = mw.linkA[i], b = mw.linkB[i];
+            if (a == null || b == null || a.id != mw.linkIdA[i] || b.id != mw.linkIdB[i] || a.dead || b.dead) continue;
+            float ax = sx(a.x), ay = sy(a.y) - 18f * ks, bx = sx(b.x), by = sy(b.y) - 18f * ks;
+            float wob = (float) Math.sin(now * 18.0 + i) * 3f * ks;
+            stroke.setColor(0x6039FF88);
+            stroke.setStrokeWidth(7f * ks);
+            c.drawLine(ax, ay, bx, by, stroke);
+            stroke.setColor(0xE0D8FFF0);
+            stroke.setStrokeWidth(2.2f * ks);
+            c.drawLine(ax, ay, (ax + bx) / 2f + wob, (ay + by) / 2f - wob, stroke);
+            c.drawLine((ax + bx) / 2f + wob, (ay + by) / 2f - wob, bx, by, stroke);
+            glow(c, atlas.img("vfx.energy_glow_1"), ax, ay, 34f * ks, 0f, fGreen, 200);
+            glow(c, atlas.img("vfx.energy_glow_1"), bx, by, 34f * ks, 0f, fGreen, 200);
         }
     }
 
@@ -1044,6 +1202,12 @@ public final class WorldRenderer {
     private void drawPuddle(Canvas c, Projectile p, float t) {
         float k = Math.min(1f, p.life * 3f), r = p.radius * sc;
         int cx = sx(p.x), cy = sy(p.y);
+        if (p.sub == Entities.SUB_PATCH_FIRE) { // Incendiary grenade: burning ground
+            glow(c, atlas.img("vfx.scorch_0"), cx, cy, r * 2.3f, p.x * 7f % 360f, null, (int) (150 * k));
+            glow(c, atlas.img(((int) (t * 8f + p.x) & 1) == 0 ? "vfx.flame_1" : "vfx.flame_2"), cx, cy - r * 0.35f, r * 1.7f, 0f, null, (int) (230 * k));
+            glow(c, atlas.img("vfx.embers_0"), cx, cy - r * 0.2f, r * 2f, t * 10f, null, (int) (190 * k));
+            return;
+        }
         float rip = (t * 0.9f + p.x * 0.013f) % 1f;
         Img puddle = atlas.img("vfx.toxic_splat_0");
         ColorFilter tint = p.evo ? fViolet : null;
@@ -1102,6 +1266,77 @@ public final class WorldRenderer {
             case Entities.FX_RING:
                 glow(c, atlas.img("vfx.shockwave_dust"), px, py, f.w * sc * 2.2f, 0f, null, (int) (120 * k));
                 break;
+            case Entities.FX_SWING: { // Hydraulic Hammer: a crescent sweeping out over the cone, the cone edge outlined
+                float reach = f.w * sc, arcDeg = f.h * 57.29578f, aDeg = f.a * 57.29578f;
+                float chord = 2f * reach * (float) Math.sin(f.h / 2f) * 0.95f;
+                float u = 1f - k, grow = Math.min(1f, u * 5f + 0.35f);
+                float d = reach - chord * 0.31f * grow;
+                float cx = px + (float) Math.cos(f.a) * d, cy = py - 10f * ks + (float) Math.sin(f.a) * d;
+                glow(c, atlas.img("vfx.slash_0"), cx, cy, chord * (0.8f + 0.2f * grow), aDeg + 180f, f.evo ? fOrange : null, (int) (255 * Math.min(1f, k * 2.4f)));
+                if (f.evo) glow(c, atlas.img("vfx.embers_0"), cx, cy, chord * 0.9f, 0f, fOrange, (int) (200 * k));
+                stroke.setColor(((int) (70 * k) << 24) | 0xFFE0B0);
+                stroke.setStrokeWidth(2f * ks);
+                rect.set(px - reach, py - reach, px + reach, py + reach);
+                c.drawArc(rect, aDeg - arcDeg / 2f, arcDeg, true, stroke);
+                break;
+            }
+            case Entities.FX_SLAM: { // Slam: a shockwave ring spreading over the ground, cracks, a hot flash
+                float u = 1f - k, r = f.w * sc * (0.3f + 0.7f * Math.min(1f, u * 3f));
+                glow(c, atlas.img("vfx.shockwave_dust"), px, py, r * 2.3f, 0f, f.evo ? fOrange : null, (int) (230 * Math.min(1f, k * 1.6f)));
+                glow(c, atlas.img(f.evo ? "vfx.heat_ring_0" : "vfx.energy_ring"), px, py, r * 2f, 0f, f.evo ? null : fOrange, (int) (200 * k));
+                glow(c, atlas.img("vfx.crack_0"), px, py, f.w * sc * 1.5f, 0f, fOrange, (int) (55 * k));
+                stroke.setColor(((int) (160 * k) << 24) | 0xFFF0D0);
+                stroke.setStrokeWidth(3f * ks);
+                c.drawOval(px - r, py - r * 0.8f, px + r, py + r * 0.8f, stroke);
+                break;
+            }
+            case Entities.FX_MUZZLE: { // muzzle flash at the gun
+                float y = py - SHOT_LIFT * sc;
+                glow(c, atlas.img("vfx.muzzle_flash"), px, y, f.w * ks * (0.7f + 0.5f * k), f.a * 57.29578f, null, (int) (255 * Math.min(1f, k * 2f)));
+                glow(c, atlas.img("vfx.energy_glow_0"), px, y, f.w * ks * 0.8f, 0f, fGold, (int) (200 * k));
+                break;
+            }
+            case Entities.FX_BURST: { // Spore Burst: a ring of spores spreading from the caster
+                float u = 1f - k, r = f.w * sc * (0.2f + 0.8f * Math.min(1f, u * 2.2f));
+                glow(c, atlas.img("vfx.energy_ring"), px, py - 10f * ks, r * 2f, 0f, fGreen, (int) (230 * k));
+                glow(c, atlas.img("vfx.spores_0"), px, py - 10f * ks, r * 1.6f, u * 90f, fGreen, (int) (180 * k));
+                break;
+            }
+            case Entities.FX_THRUST: { // Piston Jab: a narrow white streak along the aim
+                float len = f.w * sc, th = Math.max(10f * ks, len * 0.16f);
+                float x0 = px, y0 = py - 12f * ks;
+                add.setColorFilter(null);
+                add.setAlpha((int) (255 * Math.min(1f, k * 2.4f)));
+                c.save();
+                c.rotate(f.a * 57.29578f, x0, y0);
+                Img im = atlas.img("vfx.plasma_bolt_0");
+                if (im != null) {
+                    dst.set(Math.round(x0 + len * 0.05f), Math.round(y0 - th / 2f), Math.round(x0 + len * (0.4f + 0.7f * (1f - k))), Math.round(y0 + th / 2f));
+                    c.drawBitmap(im.sheet, im.src, dst, add);
+                }
+                c.restore();
+                break;
+            }
+            case Entities.FX_LINE: { // Seismic II: a crack running along the aim
+                float len = f.w * sc, th = len * 0.34f;
+                float x0 = px, y0 = py;
+                Img im = atlas.img("vfx.lightning_1");
+                if (im == null) break;
+                add.setColorFilter(fOrange);
+                add.setAlpha((int) (255 * Math.min(1f, k * 2f)));
+                c.save();
+                c.rotate(f.a * 57.29578f, x0, y0);
+                dst.set(Math.round(x0), Math.round(y0 - th / 2f), Math.round(x0 + len * Math.min(1f, (1f - k) * 4f + 0.2f)), Math.round(y0 + th / 2f));
+                c.drawBitmap(im.sheet, im.src, dst, add);
+                c.restore();
+                break;
+            }
+            case Entities.FX_TENDRIL: { // Grasping Tendrils: a spinning lumen circle where the roots grab
+                float u = 1f - k;
+                glow(c, atlas.img("vfx.magic_circle_green"), px, py, f.w * sc * 2f * (0.7f + 0.3f * Math.min(1f, u * 4f)), u * 120f, null, (int) (240 * Math.min(1f, k * 2f)));
+                glow(c, atlas.img("vfx.spores_0"), px, py - 6f * ks, f.w * sc * 1.6f, -u * 60f, fGreen, (int) (170 * k));
+                break;
+            }
             default:
         }
     }

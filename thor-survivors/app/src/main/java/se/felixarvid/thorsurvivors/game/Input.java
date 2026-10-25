@@ -13,6 +13,14 @@ public final class Input {
 
     public volatile float stickX, stickY, hatX, hatY, touchX, touchY;
     public volatile boolean kLeft, kRight, kUp, kDown;
+    /**
+     * Aim input of the main weapon: right stick, the bottom-screen touch aim area, and the arrow keys on a keyboard
+     * (where WASD moves). No input at all means "aim where you face" (see {@link #aim}).
+     */
+    public volatile float aimStickX, aimStickY, aimTouchX, aimTouchY;
+    public volatile boolean aLeft, aRight, aUp, aDown;
+    /** Set by the A button / DODGE button / space; consumed by {@link Sim#update} through {@link #takeDodge}. */
+    public volatile boolean dodgeReq;
     /** True once a physical gamepad stick has been used (hides the touch joystick hint). */
     public volatile boolean gamepadSeen;
 
@@ -29,6 +37,33 @@ public final class Input {
     public void clearMovement() {
         stickX = stickY = hatX = hatY = touchX = touchY = 0;
         kLeft = kRight = kUp = kDown = false;
+        aimStickX = aimStickY = aimTouchX = aimTouchY = 0;
+        aLeft = aRight = aUp = aDown = false;
+        dodgeReq = false;
+    }
+
+    /** Aim input below this length counts as none (the facing direction is used instead). */
+    public static final float AIM_MIN = 0.2f;
+
+    /**
+     * Combined aim direction as a unit vector in out[0..1]. Returns false (and leaves out untouched) when there is no
+     * aim input, so the caller falls back to the facing direction.
+     */
+    public boolean aim(float[] out) {
+        float x = aimStickX + aimTouchX + (aRight ? 1 : 0) - (aLeft ? 1 : 0);
+        float y = aimStickY + aimTouchY + (aDown ? 1 : 0) - (aUp ? 1 : 0);
+        float m = (float) Math.sqrt(x * x + y * y);
+        if (m < AIM_MIN) return false;
+        out[0] = x / m;
+        out[1] = y / m;
+        return true;
+    }
+
+    /** True once per dodge request. */
+    public boolean takeDodge() {
+        if (!dodgeReq) return false;
+        dodgeReq = false;
+        return true;
     }
 
     /** Applies a radial dead zone and rescales so the usable range still reaches 1. */

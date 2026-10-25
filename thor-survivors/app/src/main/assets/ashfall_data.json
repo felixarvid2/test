@@ -1,5 +1,5 @@
 {
- "_comment": "Ashfall display overlay. Merged by id over game_data.json (GameData.applyOverlay); ids and balance stay as they are. Design: docs/ASHFALL_DESIGN.md section 3, 3.2, 10, 13.",
+ "_comment": "Ashfall overlay. Merged by id over game_data.json (GameData.applyOverlay); VS ids and balance stay as they are. heroes and mainWeapons: design sections 2, 2.1, 2.2 (numbers are starting values to tune). Branch tier mods: a plain key replaces a param, a key ending in Add adds to it (game/MainWeapon). Design: docs/ASHFALL_DESIGN.md section 2, 3, 3.2, 10, 13.",
  "names": {
   "WHIP": {
    "name": "Vibro Lash",
@@ -162,6 +162,509 @@
   "LIBRARY": {
    "ambient": 0.78,
    "radius": 200
+  }
+ },
+ "heroes": {
+  "BASTION": {
+   "name": "Bastion",
+   "role": "Tank, melee",
+   "description": "Hydraulic Hammer swings in a cone and slams every third swing. Tough and slow. Each level: +1% might, +1% max HP.",
+   "hp": 130,
+   "armor": 1,
+   "regen": 0.4,
+   "moveSpeed": 0.92,
+   "crit": 0.05,
+   "critMul": 2,
+   "perLevel": {
+    "power": 0.01,
+    "maxHp": 0.01
+   },
+   "main": "HAMMER",
+   "model": "bastion"
+  },
+  "SPECTRE": {
+   "name": "Spectre",
+   "role": "Glass cannon, kiter",
+   "description": "Twin Pistols fire a volley down the aim line. Fragile and fast. Each level: +1% crit chance, +0.5% move speed.",
+   "hp": 80,
+   "armor": 0,
+   "regen": 0,
+   "moveSpeed": 1.1,
+   "crit": 0.15,
+   "critMul": 2,
+   "perLevel": {
+    "critChance": 0.01,
+    "moveSpeed": 0.005
+   },
+   "main": "PISTOLS",
+   "model": "spectre"
+  },
+  "XENOMANT": {
+   "name": "Xenomant",
+   "role": "Caster, controller",
+   "description": "Lumen Caster sends a piercing bolt and a Spore Burst every fourth cast. Each level: +1% area, +1% pickup range.",
+   "hp": 95,
+   "armor": 0,
+   "regen": 0.2,
+   "moveSpeed": 1.0,
+   "crit": 0.05,
+   "critMul": 2,
+   "perLevel": {
+    "area": 0.01,
+    "magnet": 0.01
+   },
+   "main": "CASTER",
+   "model": "xenomant"
+  }
+ },
+ "mainWeapons": {
+  "HAMMER": {
+   "name": "Hydraulic Hammer",
+   "description": "Cone swing in the aim direction. Every 3rd swing is a Slam: a circle around you that stuns.",
+   "kind": "CONE",
+   "power": 1.6,
+   "interval": 1100,
+   "knockback": 2.0,
+   "params": {
+    "arc": 100,
+    "radius": 80,
+    "slamEvery": 3,
+    "slamPower": 2.4,
+    "slamRadius": 90,
+    "slamStun": 0.4,
+    "slamRadiusMul": 0,
+    "burn": 0,
+    "thrust": 0,
+    "thrustArc": 25,
+    "thrustRange": 130,
+    "thrustPower": 2.5,
+    "thrustCrit": 0,
+    "thrustDecay": 0,
+    "linePower": 0,
+    "lineLen": 200,
+    "wave": 0,
+    "wavePower": 1.0,
+    "guard": 0,
+    "guardTime": 1.0,
+    "reflect": 0,
+    "slamHeal": 0
+   },
+   "branches": [
+    {
+     "id": "SEISMIC",
+     "name": "Seismic",
+     "tiers": [
+      {
+       "name": "Seismic I: Hair Trigger",
+       "desc": "Slam every 2nd swing instead of every 3rd.",
+       "mods": {
+        "slamEvery": 2
+       }
+      },
+      {
+       "name": "Seismic II: Fault Line",
+       "desc": "Slam also sends a 200-unit shock line (1.0P).",
+       "mods": {
+        "linePower": 1.0
+       }
+      },
+      {
+       "name": "Seismic III: Aftershock",
+       "desc": "Slam radius +40%, stun 0.8 s.",
+       "mods": {
+        "slamRadiusMul": 0.4,
+        "slamStun": 0.8
+       }
+      }
+     ]
+    },
+    {
+     "id": "JAB",
+     "name": "Piston Jab",
+     "tiers": [
+      {
+       "name": "Piston Jab I: Thrust",
+       "desc": "Every 3rd swing also fires a narrow thrust: 25 deg, range 130, pierces all, 2.5P.",
+       "mods": {
+        "thrust": 1
+       }
+      },
+      {
+       "name": "Piston Jab II: Shaped Charge",
+       "desc": "Thrust crit chance +25%.",
+       "mods": {
+        "thrustCrit": 0.25
+       }
+      },
+      {
+       "name": "Piston Jab III: Corrosive Tip",
+       "desc": "Thrust leaves 3 s of Decay.",
+       "mods": {
+        "thrustDecay": 1
+       }
+      }
+     ]
+    },
+    {
+     "id": "CLEAVE",
+     "name": "Furnace Cleave",
+     "tiers": [
+      {
+       "name": "Furnace Cleave I: Wide Arc",
+       "desc": "Arc 160 deg. Hits apply Burn.",
+       "mods": {
+        "arc": 160,
+        "burn": 1
+       }
+      },
+      {
+       "name": "Furnace Cleave II: Fuel Feed",
+       "desc": "Burn stacks +1 per hit.",
+       "mods": {
+        "burn": 2
+       }
+      },
+      {
+       "name": "Furnace Cleave III: Flame Wave",
+       "desc": "Every swing releases a 60-unit fire wave.",
+       "mods": {
+        "wave": 60
+       }
+      }
+     ]
+    },
+    {
+     "id": "GUARD",
+     "name": "Riot Guard",
+     "tiers": [
+      {
+       "name": "Riot Guard I: Braced",
+       "desc": "-15% damage taken for 1 s after a swing.",
+       "mods": {
+        "guard": 0.15
+       }
+      },
+      {
+       "name": "Riot Guard II: Deflector",
+       "desc": "-25% damage taken after a swing. Swings reflect projectiles that cross the cone.",
+       "mods": {
+        "guard": 0.25,
+        "reflect": 1
+       }
+      },
+      {
+       "name": "Riot Guard III: Reclaim",
+       "desc": "Slam kills heal 1 HP each (max 5 per second).",
+       "mods": {
+        "slamHeal": 1
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "PISTOLS": {
+   "name": "Twin Pistols",
+   "description": "Volley of 3 bullets with a small spread in the aim direction. Crit chance 15%.",
+   "kind": "VOLLEY",
+   "power": 0.6,
+   "interval": 900,
+   "knockback": 0.6,
+   "params": {
+    "bullets": 3,
+    "bulletsAdd": 0,
+    "spread": 8,
+    "speed": 520,
+    "range": 360,
+    "pierce": 0,
+    "intervalAdd": 0,
+    "critAdd": 0,
+    "critRefund": 0,
+    "slug": 0,
+    "slugPower": 3.0,
+    "slugExplode": 0,
+    "explodeRadius": 50,
+    "explodePower": 1.5,
+    "ring": 0,
+    "ringEvery": 3,
+    "ringCount": 8,
+    "grenadeEvery": 0,
+    "grenadePower": 2.0,
+    "grenadeRadius": 70,
+    "grenadeRange": 220,
+    "bomblets": 0,
+    "bombletPower": 1.0,
+    "bombletRadius": 38,
+    "grenadeBurn": 0,
+    "firePatch": 0
+   },
+   "branches": [
+    {
+     "id": "BARRAGE",
+     "name": "Pistol Barrage",
+     "tiers": [
+      {
+       "name": "Pistol Barrage I: Wide Fan",
+       "desc": "5 bullets per volley, spread 16 deg.",
+       "mods": {
+        "bulletsAdd": 2,
+        "spread": 16
+       }
+      },
+      {
+       "name": "Pistol Barrage II: Hot Barrels",
+       "desc": "Interval -20%.",
+       "mods": {
+        "intervalAdd": -0.2
+       }
+      },
+      {
+       "name": "Pistol Barrage III: Starburst",
+       "desc": "Every 3rd volley is a full ring of 8.",
+       "mods": {
+        "ring": 1
+       }
+      }
+     ]
+    },
+    {
+     "id": "SLUG",
+     "name": "Piercing Shot",
+     "tiers": [
+      {
+       "name": "Piercing Shot I: Heavy Slug",
+       "desc": "Replaces the volley with one slug: 3.0P, pierces all, interval 1.5 s.",
+       "mods": {
+        "slug": 1,
+        "interval": 1500
+       }
+      },
+      {
+       "name": "Piercing Shot II: Tungsten Core",
+       "desc": "Crit multiplier x3.0.",
+       "mods": {
+        "critMul": 3.0
+       }
+      },
+      {
+       "name": "Piercing Shot III: Shrapnel End",
+       "desc": "The slug explodes at the end of its range (radius 50, 1.5P).",
+       "mods": {
+        "slugExplode": 1
+       }
+      }
+     ]
+    },
+    {
+     "id": "QUICK",
+     "name": "Quick Shot",
+     "tiers": [
+      {
+       "name": "Quick Shot I: Light Trigger",
+       "desc": "Interval -25%, but 2 bullets.",
+       "mods": {
+        "intervalAdd": -0.25,
+        "bulletsAdd": -1
+       }
+      },
+      {
+       "name": "Quick Shot II: Steady Aim",
+       "desc": "Crit chance +15%.",
+       "mods": {
+        "critAdd": 0.15
+       }
+      },
+      {
+       "name": "Quick Shot III: Adrenaline",
+       "desc": "Each crit refunds 0.2 s of cooldown.",
+       "mods": {
+        "critRefund": 0.2
+       }
+      }
+     ]
+    },
+    {
+     "id": "GRENADE",
+     "name": "Cluster Grenade",
+     "tiers": [
+      {
+       "name": "Cluster Grenade I: Lobber",
+       "desc": "Every 4th volley lobs a grenade 220 units: radius 70, 2.0P.",
+       "mods": {
+        "grenadeEvery": 4
+       }
+      },
+      {
+       "name": "Cluster Grenade II: Bomblets",
+       "desc": "The grenade splits into 3 bomblets.",
+       "mods": {
+        "bomblets": 3
+       }
+      },
+      {
+       "name": "Cluster Grenade III: Incendiary",
+       "desc": "Grenades apply Burn and leave a 3 s fire patch.",
+       "mods": {
+        "grenadeBurn": 1,
+        "firePatch": 3
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "CASTER": {
+   "name": "Lumen Caster",
+   "description": "A slow lumen bolt that pierces 2 enemies and applies Decay. Every 4th cast is a Spore Burst: a ring of 6 bolts.",
+   "kind": "BOLT",
+   "power": 1.2,
+   "interval": 1000,
+   "knockback": 0.5,
+   "params": {
+    "speed": 380,
+    "pierce": 2,
+    "boltRadius": 11,
+    "decay": 1,
+    "burstEvery": 4,
+    "burstCount": 6,
+    "burstPower": 0.5,
+    "burstSpeed": 300,
+    "burstRange": 210,
+    "darts": 0,
+    "dartPower": 0.3,
+    "dartPierce": 0,
+    "dartDecay": 0,
+    "tendrilEvery": 0,
+    "tendrilRadius": 70,
+    "tendrilRoot": 1.0,
+    "tendrilPower": 1.0,
+    "tendrilPull": 0,
+    "link": 0,
+    "linkTime": 3,
+    "linkPower": 0.5,
+    "linkHeal": 0,
+    "linkJump": 0,
+    "beam": 0,
+    "beamLen": 260,
+    "beamTime": 0.6,
+    "beamTick": 0.15,
+    "beamPower": 0.8,
+    "beamWidth": 18,
+    "beamPierce": 3,
+    "beamGround": 0
+   },
+   "branches": [
+    {
+     "id": "DART",
+     "name": "Spore Dart",
+     "tiers": [
+      {
+       "name": "Spore Dart I: Seekers",
+       "desc": "+2 homing mini-darts per cast, 0.3P each.",
+       "mods": {
+        "darts": 2
+       }
+      },
+      {
+       "name": "Spore Dart II: Barbed",
+       "desc": "Darts pierce 1.",
+       "mods": {
+        "dartPierce": 1
+       }
+      },
+      {
+       "name": "Spore Dart III: Venomous",
+       "desc": "Darts apply Decay.",
+       "mods": {
+        "dartDecay": 1
+       }
+      }
+     ]
+    },
+    {
+     "id": "TENDRILS",
+     "name": "Grasping Tendrils",
+     "tiers": [
+      {
+       "name": "Grasping Tendrils I: Snare",
+       "desc": "Every 4th cast slams the aim point (max 200 away): roots radius 70 for 1.0 s, 1.0P.",
+       "mods": {
+        "tendrilEvery": 4
+       }
+      },
+      {
+       "name": "Grasping Tendrils II: Deep Roots",
+       "desc": "Radius 100, roots for 1.5 s.",
+       "mods": {
+        "tendrilRadius": 100,
+        "tendrilRoot": 1.5
+       }
+      },
+      {
+       "name": "Grasping Tendrils III: Reel In",
+       "desc": "Tendrils pull enemies in by 60 units.",
+       "mods": {
+        "tendrilPull": 60
+       }
+      }
+     ]
+    },
+    {
+     "id": "LINK",
+     "name": "Parasite Link",
+     "tiers": [
+      {
+       "name": "Parasite Link I: Tether",
+       "desc": "The bolt links two enemies for 3 s: 0.5P per second to both.",
+       "mods": {
+        "link": 1
+       }
+      },
+      {
+       "name": "Parasite Link II: Siphon",
+       "desc": "The link heals you for 2% of the damage it deals.",
+       "mods": {
+        "linkHeal": 0.02
+       }
+      },
+      {
+       "name": "Parasite Link III: Hopper",
+       "desc": "The link jumps to a new target when one end dies.",
+       "mods": {
+        "linkJump": 1
+       }
+      }
+     ]
+    },
+    {
+     "id": "WRATH",
+     "name": "Wrath of Lumen",
+     "tiers": [
+      {
+       "name": "Wrath of Lumen I: Beam",
+       "desc": "The cast becomes a 0.6 s beam (length 260): 0.8P per 0.15 s tick, hits 3.",
+       "mods": {
+        "beam": 1
+       }
+      },
+      {
+       "name": "Wrath of Lumen II: Wide Beam",
+       "desc": "Beam width +50% and pierces all.",
+       "mods": {
+        "beamWidth": 27,
+        "beamPierce": 99
+       }
+      },
+      {
+       "name": "Wrath of Lumen III: Scorched Ground",
+       "desc": "The beam leaves lumen ground for 2 s (Decay).",
+       "mods": {
+        "beamGround": 2
+       }
+      }
+     ]
+    }
+   ]
   }
  }
 }

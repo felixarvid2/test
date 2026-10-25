@@ -22,6 +22,7 @@ public class CrowdOrderTest {
         Shots h = new Shots();
         Sim s = h.startRun("FOREST", "WHIP", 3);
         s.inv.weaponCount = 0; // nothing kills: the crowd keeps piling up around the player
+        s.main.cd = 1e9f; // the hero's main weapon neither
         s.recomputeAll();
         s.time = 150;
         h.drive(30, true);
@@ -86,6 +87,7 @@ public class CrowdOrderTest {
         Shots h = new Shots();
         Sim s = h.startRun("FOREST", "WHIP", 5);
         s.inv.weaponCount = 0;
+        s.main.cd = 1e9f; // no attack clip: the idle pose must stay still
         s.recomputeAll();
         h.eng.input.clearMovement();
         s.enemyN = 0;
