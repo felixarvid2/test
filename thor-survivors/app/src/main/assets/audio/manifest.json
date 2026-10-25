@@ -225,33 +225,6 @@
       "file": "sfx/vire_blink.ogg",
       "volume": 0.7,
       "pitchVar": 0.06
-    }
-  },
-  "pending": {
-    "chain_arc": {
-      "file": "sfx/chain_arc.ogg",
-      "volume": 0.8,
-      "pitchVar": 0.06
-    },
-    "kugelblitz_hum": {
-      "file": "sfx/kugelblitz_hum.ogg",
-      "volume": 0.4,
-      "pitchVar": 0.02
-    },
-    "orbital_warn": {
-      "file": "sfx/orbital_warn.ogg",
-      "volume": 0.8,
-      "pitchVar": 0.06
-    },
-    "orbital_hit": {
-      "file": "sfx/orbital_hit.ogg",
-      "volume": 1.0,
-      "pitchVar": 0.06
-    },
-    "nova_frost": {
-      "file": "sfx/nova_frost.ogg",
-      "volume": 0.85,
-      "pitchVar": 0.06
     },
     "elite_spawn": {
       "file": "sfx/elite_spawn.ogg",
@@ -278,11 +251,6 @@
       "volume": 0.75,
       "pitchVar": 0.06
     },
-    "tentacle_emerge": {
-      "file": "sfx/tentacle_emerge.ogg",
-      "volume": 0.9,
-      "pitchVar": 0.06
-    },
     "boss_intro": {
       "file": "sfx/boss_intro.ogg",
       "volume": 1.0,
@@ -296,6 +264,38 @@
     "the_first_roar": {
       "file": "sfx/the_first_roar.ogg",
       "volume": 1.1,
+      "pitchVar": 0.06
+    },
+    "tentacle_emerge": {
+      "file": "sfx/tentacle_emerge.ogg",
+      "volume": 0.9,
+      "pitchVar": 0.06
+    }
+  },
+  "pending": {
+    "chain_arc": {
+      "file": "sfx/chain_arc.ogg",
+      "volume": 0.8,
+      "pitchVar": 0.06
+    },
+    "kugelblitz_hum": {
+      "file": "sfx/kugelblitz_hum.ogg",
+      "volume": 0.4,
+      "pitchVar": 0.02
+    },
+    "orbital_warn": {
+      "file": "sfx/orbital_warn.ogg",
+      "volume": 0.8,
+      "pitchVar": 0.06
+    },
+    "orbital_hit": {
+      "file": "sfx/orbital_hit.ogg",
+      "volume": 1.0,
+      "pitchVar": 0.06
+    },
+    "nova_frost": {
+      "file": "sfx/nova_frost.ogg",
+      "volume": 0.85,
       "pitchVar": 0.06
     }
   },

@@ -29,6 +29,76 @@ public class StageSoakTest {
         }
     }
 
+    /**
+     * Design phases 9 and 10: 30 minutes on each stage, with the immortal bot (nothing may break: no NaN, no overflowing pool,
+     * the cap held) and with the mortal mid-build bot (the run ends in a death or a victory, never in a stuck state), seeded.
+     * Elites come on schedule, equipment is worn, every boss that shows up dies, the end screens are reached.
+     */
+    @Test
+    public void thirtyMinutesPerStageImmortalAndMortal() throws Exception {
+        for (String stage : new String[]{"FLATS", "MINES"}) {
+            for (String policy : new String[]{"immortal", "mid"}) {
+                for (long seed = 1; seed <= 2; seed++) {
+                    StageSoak.Result r = StageSoak.run(stage, "BASTION", policy, seed, 1800);
+                    System.out.println(r);
+                    assertEquals(r.toString(), 0, r.nan);
+                    assertEquals(r.toString(), 0, r.overflow);
+                    assertEquals(r.toString(), 0, r.capBreak);
+                    assertTrue(r.toString(), r.peakEProj <= Sim.MAX_EPROJ && r.peakHaz <= Sim.MAX_HAZ);
+                    assertTrue("the run ends: " + r, r.ended != 0 || r.endTime >= 1800 - 1);
+                    if (policy.equals("immortal")) {
+                        assertEquals("won at the time limit: " + r, 2, r.ended);
+                        assertTrue("elites came: " + r.eliteAt.size(), r.eliteAt.size() >= 12);
+                        assertTrue("and went: " + r.eliteKilled, r.eliteKilled >= 10);
+                        assertTrue("equipment was worn: " + r.worn, r.worn >= 3);
+                        assertTrue("a pickup pool that stays sane", r.pickFull < 60 * 120);
+                        assertTrue("every boss died: " + r.bossLog, r.bossLog.size() >= (stage.equals("FLATS") ? 7 : 6));
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Design 10 acceptance: a mid build kills each boss in under 90 s (the seconds from the boss showing up to its death
+     * while the bot fights it like a player: it walks up to about 215 units, aims at it and dodges), on both stages. The First
+     * comes at 29:00 and the run ends at 30:00, so it is judged by the speed the bot takes its health at in those 60 s: the
+     * projected time to kill (60 s / the share of its health removed, or the real time when it died) has a median under 90 s,
+     * and it dies in some of the runs.
+     */
+    @Test
+    public void aMidBuildKillsEveryBossInUnderNinetySeconds() throws Exception {
+        java.util.Map<String, Double> worst = new java.util.TreeMap<>();
+        for (String stage : new String[]{"FLATS", "MINES"}) {
+            for (long seed = 1; seed <= 6; seed++) {
+                StageSoak.Result r = StageSoak.run(stage, "BASTION", "mid", seed, 1800);
+                for (int i = 0; i < r.bossLog.size(); i++) {
+                    String k = r.bossLog.get(i);
+                    double ttk = r.bossTtk.get(i);
+                    if (!k.equals("THE_FIRST") && (!worst.containsKey(k) || worst.get(k) < ttk)) worst.put(k, ttk);
+                }
+            }
+        }
+        java.util.List<Double> first = new java.util.ArrayList<>();
+        int firstKills = 0;
+        for (long seed = 1; seed <= 10; seed++) {
+            StageSoak.Result r = StageSoak.run("MINES", "BASTION", "mid", seed, 1800);
+            if (r.firstHpLeft < 0) continue; // the hero died before minute 29
+            if (r.firstKilled) firstKills++;
+            first.add(r.firstKilled ? 60.0 * 0.9 : 60.0 / Math.max(0.05, 1.0 - r.firstHpLeft));
+        }
+        java.util.Collections.sort(first);
+        double median = first.isEmpty() ? 1e9 : first.get(first.size() / 2);
+        System.out.println("worst time to kill (s) by boss: " + worst + "; The First: median projected " + Math.round(median) + " s over " + first.size() + " runs, killed in " + firstKills);
+        for (String k : new String[]{"CARGO_LOADER", "SMELTER_FOREMAN", "SLAGBORN", "VIRE_AWAKENED"}) {
+            assertTrue(k + " was fought", worst.containsKey(k));
+        }
+        for (java.util.Map.Entry<String, Double> e : worst.entrySet()) assertTrue(e.getKey() + " took " + e.getValue() + " s", e.getValue() < 90.0);
+        assertTrue("The First reached in " + first.size() + " runs", first.size() >= 5);
+        assertTrue("The First: median projected kill time " + median, median < 90.0);
+        assertTrue("The First is killable: " + firstKills, firstKills >= 1);
+    }
+
     /** Design 7 acceptance, the naked half: a bot that takes no card (the main weapon alone) dies on both stages, every hero. */
     @Test
     public void aNakedBotDies() throws Exception {

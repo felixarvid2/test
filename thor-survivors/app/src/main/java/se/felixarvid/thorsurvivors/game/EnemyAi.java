@@ -35,6 +35,14 @@ final class EnemyAi {
         this.s = s;
     }
 
+    /** A barrel or crate a dashing enemy ran into: broken once the grid is current (see {@link #updateHazards}). */
+    void breakLater(float x, float y, float r) {
+        if (pendN >= pendX.length) return;
+        pendX[pendN] = x;
+        pendY[pendN] = y;
+        pendR[pendN++] = r;
+    }
+
     private float rnd(float a, float b) {
         return a + s.rng.nextFloat() * (b - a);
     }
@@ -60,6 +68,9 @@ final class EnemyAi {
             case EnemyDef.ARCH_SUMMONER:
                 e.aiT = rnd(1.2f, 3f);
                 break;
+            case EnemyDef.ARCH_BOSS:
+                s.boss.init(e);
+                break;
             default:
         }
     }
@@ -77,15 +88,20 @@ final class EnemyAi {
             case EnemyDef.ARCH_EXPLODER: exploder(e, dt, moving, dx, dy, d); break;
             case EnemyDef.ARCH_TANK: tank(e, dt, moving, dx, dy, d); break;
             case EnemyDef.ARCH_SUMMONER: summoner(e, dt, moving, dx, dy, d); break;
+            case EnemyDef.ARCH_BOSS: s.boss.update(e, dt, moving, dx, dy, d); break;
+            case EnemyDef.ARCH_TENTACLE: s.boss.tentacle(e, dt); break;
             default:
         }
     }
 
-    private float speedOf(Enemy e) {
-        return (e.blocked ? e.speed * Sim.BLOCKED_SPEED : e.speed) * e.slow;
+    /** Ashwalker Treads: enemies standing in the hero's ash move at 80% speed. */
+    static final float ASH_SLOW = 0.8f;
+
+    float speedOf(Enemy e) {
+        return (e.blocked ? e.speed * Sim.BLOCKED_SPEED : e.speed) * e.slow * (e.ashLeft > 0f ? ASH_SLOW : 1f);
     }
 
-    private void walkTo(Enemy e, float dt, float dx, float dy, float d, float factor) {
+    void walkTo(Enemy e, float dt, float dx, float dy, float d, float factor) {
         if (d <= 1f) return;
         float sp = speedOf(e) * factor;
         e.x += dx / d * sp * dt;
@@ -118,7 +134,7 @@ final class EnemyAi {
             e.shotT -= dt;
             if (e.shotT <= 0f) {
                 if (e.shots > 0) {
-                    fireAtHero(e, t.def.param("bulletSpeed", 240f), t.def.param("shotDmg", 10f) * e.dmgMul, t.def.param("range", 200f));
+                    fireAtHero(e, t.def.param("bulletSpeed", 240f), t.def.param("shotDmg", 10f) * e.dmgMul * e.shotMul, t.def.param("range", 200f));
                     if (t.arch == EnemyDef.ARCH_FLIER) s.sound.emit(SoundEvents.DRONE_SHOT);
                     e.shots--;
                     e.shotT += t.def.param("burstGap", 0.15f);
@@ -354,7 +370,7 @@ final class EnemyAi {
     }
 
     /** Raises colonists around the caster. */
-    private void raise(Enemy e) {
+    void raise(Enemy e) {
         int n = Math.min(Math.round(e.type.def.param("raise", 3f)), WaveDirector.ENEMY_CAP - s.enemyN); // never past the cap
         if (n <= 0) return;
         float a0 = s.rng.nextFloat() * TAU;
@@ -370,7 +386,7 @@ final class EnemyAi {
     private void ring(Enemy e) {
         EnemyDef def = e.type.def;
         int n = Math.round(def.param("ring", 8f));
-        float sp = def.param("ringSpeed", 220f), dmg = def.param("ringDmg", 10f) * e.dmgMul;
+        float sp = def.param("ringSpeed", 220f), dmg = def.param("ringDmg", 10f) * e.dmgMul * e.shotMul;
         float a0 = e.anim * 0.9f;
         for (int k = 0; k < n; k++) {
             float a = a0 + k * TAU / n;
@@ -381,7 +397,7 @@ final class EnemyAi {
 
     // ------------------------------------------------------------------ enemy projectiles
 
-    private void fireAtHero(Enemy e, float speed, float dmg, float range) {
+    void fireAtHero(Enemy e, float speed, float dmg, float range) {
         float ox = e.x, oy = e.y - 8f;
         float dx = s.px - ox, dy = s.py - oy, d = (float) Math.sqrt(dx * dx + dy * dy);
         if (d < 1f) return;
@@ -482,7 +498,7 @@ final class EnemyAi {
 
     /** A ground area; {@code warn} seconds of harmless warning first. Null when the pool of {@link Sim#MAX_HAZ} is full. */
     Hazard addHazard(int kind, float x, float y, float r, float life, float dps, float warn) {
-        if (s.hazN >= Sim.MAX_HAZ) return null;
+        if (s.hazN >= Sim.MAX_HAZ && !(isTelegraph(kind) && evictOne())) return null;
         Hazard h = s.hazards[s.hazN++];
         h.kind = kind;
         h.x = x;
@@ -493,7 +509,40 @@ final class EnemyAi {
         h.warn = warn;
         h.acc = 0f;
         h.n = 0;
+        h.variant = 0;
+        h.warnMax = warn;
+        h.ang = h.spin = h.w = 0f;
         return h;
+    }
+
+    /** Bombs and lanes are the telegraphs of the boss attacks and the elites: they always get a slot. */
+    private static boolean isTelegraph(int kind) {
+        return kind == Entities.HZ_BOMB || kind == Entities.HZ_LANE;
+    }
+
+    /**
+     * The pool is full and a telegraph needs a slot: drops the least important hazard (the hero's ash first, then frost
+     * patches, then the slag and cloud that has the least time left); never a bomb, a lane or one still warning.
+     * False when nothing could go.
+     */
+    private boolean evictOne() {
+        int best = -1;
+        float bestScore = Float.MAX_VALUE;
+        for (int i = 0; i < s.hazN; i++) {
+            Hazard h = s.hazards[i];
+            if (isTelegraph(h.kind) || h.warn > 0f) continue;
+            float score = (h.kind == Entities.HZ_ASH ? 0f : h.kind == Entities.HZ_FROST ? 100f : 200f) + h.life;
+            if (score < bestScore) {
+                bestScore = score;
+                best = i;
+            }
+        }
+        if (best < 0) return false;
+        Hazard h = s.hazards[best];
+        s.hazards[best] = s.hazards[s.hazN - 1];
+        s.hazards[s.hazN - 1] = h;
+        s.hazN--;
+        return true;
     }
 
     void updateHazards(float dt) {
@@ -504,12 +553,31 @@ final class EnemyAi {
             Hazard h = s.hazards[i];
             if (h.warn > 0f) {
                 h.warn -= dt;
+                if (h.warn <= 0f && h.kind == Entities.HZ_BOMB) detonate(h);
                 continue;
             }
             if ((h.life -= dt) <= 0f) {
                 s.hazards[i] = s.hazards[s.hazN - 1];
                 s.hazards[s.hazN - 1] = h;
                 s.hazN--;
+                continue;
+            }
+            if (h.kind == Entities.HZ_BOMB) continue; // the afterglow of a blast: nothing more happens
+            if (h.kind == Entities.HZ_LANE) {
+                h.ang += h.spin * dt;
+                if (s.ended == 0 && s.invuln <= 0f && laneHits(h)) s.areaDamage(h.dps * dt);
+                continue;
+            }
+            if (h.kind == Entities.HZ_ASH) { // Ashwalker Treads: the ash slows the enemies standing in it, 10 Hz
+                if ((h.acc += dt) >= Status.PASS) {
+                    h.acc -= Status.PASS;
+                    int n = s.query(h.x, h.y, h.r + 30f);
+                    for (int k = 0; k < n; k++) {
+                        Enemy e = s.enemies[s.qbuf[k]];
+                        float ex = e.x - h.x, ey = e.y - h.y, er = h.r + e.radius * 0.5f;
+                        if (ex * ex + ey * ey < er * er) e.ashLeft = 0.3f;
+                    }
+                }
                 continue;
             }
             float dx = s.px - h.x, dy = s.py - h.y, rr = h.r + Sim.PLAYER_R * 0.4f;
@@ -530,12 +598,67 @@ final class EnemyAi {
         }
     }
 
+    /** Distance from the hero to the lane's segment is under half its width (plus the hero's body). */
+    boolean laneHits(Hazard h) {
+        float ux = (float) Math.cos(h.ang), uy = (float) Math.sin(h.ang);
+        float rx = s.px - h.x, ry = s.py - h.y;
+        float along = rx * ux + ry * uy, across = -rx * uy + ry * ux;
+        return along > -10f && along < h.r && Math.abs(across) < h.w * 0.5f + Sim.PLAYER_R * 0.5f;
+    }
+
+    /**
+     * A bomb's ring has run out: one blast of {@code dps} damage inside {@code r} (not while the hero is invulnerable),
+     * the visual of its variant, and for a slag bomb the pool it leaves ({@code w} radius, {@code spin} seconds,
+     * {@code acc} damage per second). The ring stays as a short afterglow.
+     */
+    private void detonate(Hazard h) {
+        float dx = s.px - h.x, dy = s.py - h.y, rr = h.r + Sim.PLAYER_R * 0.4f;
+        boolean inside = dx * dx + dy * dy < rr * rr;
+        if (inside && s.invuln <= 0f && s.ended == 0) {
+            s.hurtHero(Math.max(1f, h.dps - (float) s.stats.armor), 0.4f, true, Sim.DMG_AREA);
+        }
+        switch (h.variant) {
+            case Entities.BV_STOMP:
+                s.addFx(Entities.FX_SLAM, h.x, h.y, h.r, 0f, 0.5f, 0, false);
+                s.screenShake(0.35f);
+                s.sound.emit(SoundEvents.BOSS_SLAM);
+                if (inside) s.shoveHero(dx, dy, 46f);
+                break;
+            case Entities.BV_CRATE:
+                s.addFx(Entities.FX_FLASH, h.x, h.y - 6f, h.r * 1.8f, 0f, 0.25f, 0, false);
+                s.spark(h.x, h.y - 8f, 0xFFB08850, 8);
+                s.sound.emit(SoundEvents.CRATE_BREAK);
+                break;
+            case Entities.BV_VOLCANO:
+                s.addFx(Entities.FX_BLAST, h.x, h.y, h.r * 0.8f, 1f, 0.3f, 0, false);
+                s.spark(h.x, h.y - 8f, 0xFFFFA030, 8);
+                s.sound.emit(SoundEvents.BARREL_EXPLODE);
+                break;
+            default: // a slag bomb
+                s.addFx(Entities.FX_BLAST, h.x, h.y, h.r * 0.9f, 1f, 0.35f, 0, false);
+                s.spark(h.x, h.y - 8f, 0xFFFFA030, 10);
+                s.sound.emit(SoundEvents.BARREL_EXPLODE);
+                if (h.w > 0f) addHazard(Entities.HZ_SLAG, h.x, h.y, h.w, h.spin, h.acc, 0f);
+        }
+        h.life = h.maxLife = Math.max(0.01f, h.variant == Entities.BV_STOMP ? 0.5f : 0.4f);
+    }
+
     private void heroInside(Hazard h, float dt) {
         switch (h.kind) {
             case Entities.HZ_SLAG:
+                if (s.stats.burnImmune) return; // Ashen Heartwood: fire does nothing
                 s.heroBurnT = Status.HERO_BURN_TIME;
                 break;
             case Entities.HZ_CLOUD:
+                if (s.stats.cloudHeal) { // Seed of Accord: the spores heal instead
+                    s.healAcc += CLOUD_HEAL * dt;
+                    if (s.healAcc >= 1f) {
+                        int whole = (int) s.healAcc;
+                        s.healAcc -= whole;
+                        s.heal(whole);
+                    }
+                    return;
+                }
                 s.heroDecayT = Status.HERO_DECAY_TIME;
                 break;
             case Entities.HZ_FROST:
@@ -543,10 +666,9 @@ final class EnemyAi {
                 break;
             default:
         }
-        if (h.dps > 0f && h.kind != Entities.HZ_FROST) {
-            s.hp -= h.dps * dt; // area damage ignores armor and invulnerability frames
-            s.dmgBy[Sim.DMG_AREA] += h.dps * dt;
-            if (s.hp <= 0f) s.checkHeroDeath();
-        }
+        if (h.dps > 0f && h.kind != Entities.HZ_FROST) s.areaDamage(h.dps * dt); // area damage ignores armor and invulnerability frames
     }
+
+    /** HP per second a Seed of Accord hero gains standing in a spore cloud. */
+    static final float CLOUD_HEAL = 4f;
 }

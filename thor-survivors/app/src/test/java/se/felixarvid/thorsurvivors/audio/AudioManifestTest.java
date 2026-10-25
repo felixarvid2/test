@@ -144,7 +144,7 @@ public class AudioManifestTest {
         JSONObject pending = new JSONObject(json).getJSONObject("pending");
         JSONObject sfx = new JSONObject(json).getJSONObject("sfx");
         String spec = new String(Files.readAllBytes(Paths.get("../tools/AUDIO_SPEC.md")), StandardCharsets.UTF_8);
-        assertTrue("design section 12 lists about 36 new ids, 19 of them are wired now (14 still wait for elites, equipment, new weapons and bosses)", pending.length() >= 14);
+        assertTrue("design section 12 lists about 36 new ids, 28 of them are wired now (5 still wait for the new weapons)", pending.length() >= 5);
         for (String id : pendingIds()) {
             String file = pending.getJSONObject(id).getString("file");
             assertTrue(id + " file " + file, Files.exists(audioDir().resolve(file)));

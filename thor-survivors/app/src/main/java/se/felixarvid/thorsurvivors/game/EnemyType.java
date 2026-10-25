@@ -24,6 +24,10 @@ public final class EnemyType {
     public final boolean ranged;
     /** Hot numbers of the archetype, read from the data once (the rest is read from {@code def.params} when needed). */
     public final float stop, backoff, backoffMul, weave, phaseLen, trigger;
+    /** Boss pattern of a {@link EnemyDef#ARCH_BOSS} (BossAi: 1 Cargo Loader, 2 Slagborn, 3 Vire, 4 Foreman, 5 The First). */
+    public final int pattern;
+    /** The name in capitals, made once (the HUD draws it every frame). */
+    public final String nameUpper;
 
     public EnemyType(EnemyDef def) {
         this.def = def;
@@ -96,6 +100,8 @@ public final class EnemyType {
         this.weave = def.param("weave", 0.8f);
         this.phaseLen = def.param("phase", 1f);
         this.trigger = def.param("trigger", 40f);
+        this.pattern = Math.round(def.param("pattern", 0f));
+        this.nameUpper = def.name.toUpperCase(java.util.Locale.ROOT);
         if (def.params.containsKey("radius")) r = def.param("radius", r); // the Ashfall roster sets its own sizes
         this.shape = sh;
         this.color = col;

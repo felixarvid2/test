@@ -32,16 +32,26 @@ public final class StageSoak {
                 nan, overflow, capBreak, weapons, pickFull;
         public String firstProblem = "";
         public float[] dmg = new float[4];
+        /** Elites: spawn times and kills, boss sightings (key, spawn time, seconds alive until it died, -1 = still alive at the end), equipment worn at the end. */
+        public final java.util.ArrayList<Double> eliteAt = new java.util.ArrayList<>();
+        public final java.util.ArrayList<String> bossLog = new java.util.ArrayList<>();
+        public final java.util.ArrayList<Double> bossTtk = new java.util.ArrayList<>();
+        public int eliteKilled, worn, choices, crates, peakExtra;
+        /** Health fraction of The First when the run ended (1 = untouched, 0 = dead, -1 = it never came). */
+        public double firstHpLeft = -1;
+        public boolean firstKilled;
 
         @Override
         public String toString() {
-            return String.format("%-5s %-9s %-8s seed %d  end=%s t=%.0fs kills=%d lvl=%d gold=%d peakEn=%d proj=%d pick=%d(full %ds) eproj=%d haz=%d ranged=%d bosses=%d w=%d nan=%d over=%d cap=%d dmg[c/b/a/x]=%.0f/%.0f/%.0f/%.0f %s",
+            return String.format("%-5s %-9s %-8s seed %d  end=%s t=%.0fs kills=%d lvl=%d gold=%d peakEn=%d proj=%d pick=%d(full %ds) eproj=%d haz=%d ranged=%d bosses=%d w=%d nan=%d over=%d cap=%d dmg[c/b/a/x]=%.0f/%.0f/%.0f/%.0f elites=%d/%d worn=%d %s",
                     stage, hero, policy, seed, ended == 0 ? "alive" : ended == 1 ? "DIED" : "WON", endTime, kills, level, gold,
                     peakEnemies, peakProj, peakPick, pickFull / 60, peakEProj, peakHaz, peakRanged, bosses, weapons, nan, overflow, capBreak,
-                    dmg[0], dmg[1], dmg[2], dmg[3], firstProblem);
+                    dmg[0], dmg[1], dmg[2], dmg[3], eliteKilled, eliteAt.size(), worn, firstProblem);
         }
     }
 
+    /** Enemies a boss, an elite or a tentacle burst may add above the 300 of the waves (elite adds, raised colonists, hounds). */
+    static final int SUMMON_SLACK = 30;
     static final double TRACE_FROM = System.getenv("TRACE") == null ? -1 : Double.parseDouble(System.getenv("TRACE"));
 
     private static GameData data;
@@ -162,9 +172,35 @@ public final class StageSoak {
                     }
                 }
             }
+            // a player fights the boss: walk toward it (to about 215 units) while the crowd around is thin
+            float tx = 0, ty = 0;
+            Enemy bossNow = s.bossNow;
+            if (bossNow != null && crowd < 5) {
+                float dx = bossNow.x - s.px, dy = bossNow.y - s.py, dd = (float) Math.sqrt(dx * dx + dy * dy) + 1e-3f;
+                if (dd > 235f && dd < 900f) {
+                    tx = dx / dd;
+                    ty = dy / dd;
+                }
+            }
+            // an equipment crate in reach is worth a short walk when the crowd is thin
+            float qx = 0, qy = 0;
+            if (crowd < 4) {
+                float qd = 1e18f;
+                for (int i = 0; i < s.pickN; i++) {
+                    Entities.Pickup pk = s.picks[i];
+                    if (pk.kind != Entities.K_EQUIP) continue;
+                    float dx = pk.x - s.px, dy = pk.y - s.py, q = dx * dx + dy * dy;
+                    if (q < qd && q < 500f * 500f) {
+                        qd = q;
+                        float m = (float) Math.sqrt(q) + 1e-3f;
+                        qx = dx / m;
+                        qy = dy / m;
+                    }
+                }
+            }
             double a = s.time * 0.5;
-            float mx = (float) Math.cos(a) * 0.3f + fx * 0.8f + cx * 0.7f + bx * 1.4f + hx2;
-            float my = (float) Math.sin(a) * 0.3f + fy * 0.8f + cy * 0.7f + by * 1.4f + hy2;
+            float mx = (float) Math.cos(a) * 0.3f + fx * 0.8f + cx * 0.7f + bx * 1.4f + hx2 + qx * 1.2f + tx * 0.9f;
+            float my = (float) Math.sin(a) * 0.3f + fy * 0.8f + cy * 0.7f + by * 1.4f + hy2 + qy * 1.2f + ty * 0.9f;
             float ml = (float) Math.sqrt(mx * mx + my * my);
             if (ml > 1f) {
                 mx /= ml;
@@ -173,8 +209,10 @@ public final class StageSoak {
             boolean still = policy.equals("still");
             in.stickX = still ? 0f : mx;
             in.stickY = still ? 0f : my;
-            if (best != null) {
-                float dx = best.x - s.px, dy = best.y - s.py, m = (float) Math.sqrt(dx * dx + dy * dy) + 1e-3f;
+            Enemy aimAt = best;
+            if (s.bossNow != null && Math.hypot(s.bossNow.x - s.px, s.bossNow.y - s.py) < 420) aimAt = s.bossNow; // a player aims at the boss
+            if (aimAt != null) {
+                float dx = aimAt.x - s.px, dy = aimAt.y - s.py, m = (float) Math.sqrt(dx * dx + dy * dy) + 1e-3f;
                 in.aimStickX = dx / m;
                 in.aimStickY = dy / m;
             }
@@ -204,6 +242,11 @@ public final class StageSoak {
                 if (naked) s.pendingChests--;
                 else s.openChest();
             }
+            while (s.equipN > 0) { // the choice screen: the bot wears the better item
+                s.resolveEquip(true);
+                r.choices++;
+            }
+            trackEvents(s, r);
             s.sound.clear();
             if (TRACE_FROM >= 0 && s.time >= TRACE_FROM && s.time <= TRACE_FROM + 40 && step % 30 == 0) {
                 StringBuilder sb = new StringBuilder(String.format("t=%.1f hp=%.0f/%.0f pos=%.0f,%.0f en=%d bolts=%d haz=%d", s.time, s.hp, s.maxHp, s.px, s.py, s.enemyN, s.eprojN, s.hazN));
@@ -216,10 +259,11 @@ public final class StageSoak {
             }
             // checks
             if (step % 30 == 0) {
-                int bosses = 0, ranged = 0;
+                int bosses = 0, ranged = 0, flagged = 0;
                 for (int i = 0; i < s.enemyN; i++) {
                     Enemy e = s.enemies[i];
                     if (e.boss) bosses++;
+                    if (e.boss || e.elite || e.type.arch == se.felixarvid.thorsurvivors.data.EnemyDef.ARCH_TENTACLE) flagged++;
                     if (e.type.ranged) ranged++;
                     if (bad(e.x) || bad(e.y) || bad(e.hp)) r.nan++;
                 }
@@ -227,7 +271,8 @@ public final class StageSoak {
                 for (int i = 0; i < s.eprojN; i++) if (bad(s.eprojs[i].x) || bad(s.eprojs[i].y)) r.nan++;
                 for (int i = 0; i < s.hazN; i++) if (bad(s.hazards[i].x) || bad(s.hazards[i].r)) r.nan++;
                 for (int i = 0; i < s.pickN; i++) if (bad(s.picks[i].x) || bad(s.picks[i].value)) r.nan++;
-                if (s.enemyN > WaveDirector.ENEMY_CAP + bosses) {
+                // the waves stop at 300; bosses, elites, tentacles and what they summon (elite adds, Vire's colonists, hounds) are on top
+                if (s.enemyN > WaveDirector.ENEMY_CAP + flagged + SUMMON_SLACK) {
                     r.capBreak++;
                     if (r.firstProblem.isEmpty()) r.firstProblem = "cap " + s.enemyN + " at " + (int) s.time;
                 }
@@ -257,6 +302,54 @@ public final class StageSoak {
         return r;
     }
 
+    private static int[] bossId = new int[16];
+    private static int bossN;
+    private static double[] bossT0 = new double[16];
+    private static String[] bossKey = new String[16];
+    private static int lastElite, eliteKills;
+
+    /** Logs elite spawns and boss lives (first seen to gone) of the run. */
+    private static void trackEvents(Sim s, Result r) {
+        if (s.time < 0.05) {
+            bossN = 0;
+            lastElite = 0;
+        }
+        if (s.eliteSpawned > lastElite) {
+            lastElite = s.eliteSpawned;
+            r.eliteAt.add(s.time);
+        }
+        r.eliteKilled = s.eliteKilled;
+        r.firstKilled = s.firstKilled;
+        if (s.firstKilled) r.firstHpLeft = 0;
+        for (int i = 0; i < s.enemyN; i++) if (s.enemies[i].boss && s.enemies[i].type.pattern == 5 && !s.enemies[i].dead) r.firstHpLeft = s.enemies[i].hp / s.enemies[i].maxHp;
+        r.worn = s.equip.count();
+        int extra = 0;
+        for (int i = 0; i < s.enemyN; i++) {
+            Enemy e = s.enemies[i];
+            if (e.boss || e.elite || e.type.arch == se.felixarvid.thorsurvivors.data.EnemyDef.ARCH_TENTACLE) extra++;
+            if (!e.boss || e.dead) continue;
+            boolean known = false;
+            for (int k = 0; k < bossN; k++) if (bossId[k] == e.id) known = true;
+            if (!known && bossN < bossId.length) {
+                bossId[bossN] = e.id;
+                bossT0[bossN] = s.time;
+                bossKey[bossN++] = e.type.def.key;
+            }
+        }
+        r.peakExtra = Math.max(r.peakExtra, extra);
+        for (int k = bossN - 1; k >= 0; k--) {
+            boolean alive = false;
+            for (int i = 0; i < s.enemyN; i++) if (s.enemies[i].id == bossId[k] && !s.enemies[i].dead) alive = true;
+            if (alive) continue;
+            r.bossLog.add(bossKey[k]);
+            r.bossTtk.add(s.time - bossT0[k]);
+            bossN--;
+            bossId[k] = bossId[bossN];
+            bossT0[k] = bossT0[bossN];
+            bossKey[k] = bossKey[bossN];
+        }
+    }
+
     public static void main(String[] a) throws Exception {
         String stage = a[0], hero = a[1], policy = a[2];
         long seed = Long.parseLong(a[3]);
@@ -264,5 +357,6 @@ public final class StageSoak {
         long t0 = System.nanoTime();
         Result r = run(stage, hero, policy, seed, limit);
         System.out.println(r + "  [" + (System.nanoTime() - t0) / 1_000_000_000L + " s wall]");
+        System.out.println("  elites at " + r.eliteAt + " bosses " + r.bossLog + " ttk " + r.bossTtk + " firstHpLeft " + r.firstHpLeft);
     }
 }

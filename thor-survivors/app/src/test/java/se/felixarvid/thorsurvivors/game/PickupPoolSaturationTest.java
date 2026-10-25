@@ -90,7 +90,8 @@ public class PickupPoolSaturationTest {
         }
         assertEquals("survived", 0, s.ended);
         assertTrue("level " + s.level + " vs " + levelAt9 + " at 9 min", s.level > levelAt9 && levelAt10 > levelAt9);
-        assertTrue("normal gem holds " + maxNormal + " xp", maxNormal <= 50f);
+        // gems merge up to 40-50 xp; only an elite's pile (five gems worth two levels together, so 0.4 of a level each) is bigger
+        assertTrue("normal gem holds " + maxNormal + " xp", maxNormal <= Math.max(50f, 0.45f * s.xpNeed));
         assertTrue("pickN peaked at " + peak, peak < Sim.MAX_PICK);
     }
 

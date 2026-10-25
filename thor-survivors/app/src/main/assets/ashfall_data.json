@@ -979,7 +979,20 @@
      }
     }
    ],
-   "spawnType": "HORIZONTAL"
+   "spawnType": "HORIZONTAL",
+   "tentacles": {
+    "minutes": [
+     8,
+     13,
+     18,
+     23,
+     27
+    ],
+    "length": 20,
+    "every": 4,
+    "count": 3,
+    "radius": 400
+   }
   }
  },
  "lighting": {
@@ -1657,7 +1670,7 @@
   },
   "CARGO_LOADER": {
    "name": "Cargo Loader",
-   "archetype": "CHARGER",
+   "archetype": "BOSS",
    "boss": true,
    "maxHp": 400,
    "speed": 70,
@@ -1665,6 +1678,7 @@
    "xp": 60,
    "sprite": "cargo_loader",
    "params": {
+    "pattern": 1,
     "hpRamp": 20,
     "radius": 20,
     "runSpeed": 320,
@@ -1673,13 +1687,22 @@
     "gapMin": 1,
     "gapMax": 3.5,
     "windup": 1.0,
-    "dash": 0.8,
-    "recover": 1.0
+    "dash": 1.0,
+    "recover": 1.0,
+    "lineW": 60,
+    "stunHero": 0.4,
+    "stompR": 120,
+    "stompWarn": 0.9,
+    "stompDmg": 22,
+    "crates": 3,
+    "crateR": 44,
+    "crateWarn": 1.0,
+    "crateDmg": 16
    }
   },
   "SLAGBORN": {
    "name": "Slagborn",
-   "archetype": "TANK",
+   "archetype": "BOSS",
    "boss": true,
    "maxHp": 700,
    "speed": 60,
@@ -1687,25 +1710,30 @@
    "xp": 100,
    "sprite": "slagborn",
    "params": {
+    "pattern": 2,
     "hpRamp": 20,
     "radius": 24,
     "castEvery": 8,
     "castTime": 0.8,
-    "poolR": 70,
+    "bombs": 3,
+    "bombsEnraged": 5,
+    "bombR": 46,
+    "bombWarn": 1.0,
+    "bombDmg": 12,
+    "poolR": 44,
     "poolT": 3,
-    "poolDps": 8,
-    "warn": 0.8,
-    "pools": 3,
+    "poolDps": 7,
     "trail": 45,
     "trailT": 4,
     "trailDps": 6,
     "enrageHp": 0.5,
-    "enrageMul": 1.3
+    "enrageMul": 1.3,
+    "enrageCast": 0.7
    }
   },
   "VIRE_AWAKENED": {
    "name": "Vire, Awakened",
-   "archetype": "SUMMONER",
+   "archetype": "BOSS",
    "boss": true,
    "maxHp": 600,
    "speed": 100,
@@ -1713,6 +1741,7 @@
    "xp": 100,
    "sprite": "vire",
    "params": {
+    "pattern": 3,
     "hpRamp": 20,
     "radius": 16,
     "blinkMin": 125,
@@ -1725,12 +1754,15 @@
     "ring": 12,
     "ringSpeed": 220,
     "ringDmg": 10,
-    "castRange": 200
+    "ringGap": 0.1,
+    "phase1Hp": 0.66,
+    "phase2Hp": 0.33,
+    "carriers": 4
    }
   },
   "SMELTER_FOREMAN": {
    "name": "Smelter, Foreman",
-   "archetype": "TANK",
+   "archetype": "BOSS",
    "boss": true,
    "maxHp": 500,
    "speed": 65,
@@ -1739,6 +1771,7 @@
    "sprite": "smelter",
    "scale": 1.8,
    "params": {
+    "pattern": 4,
     "hpRamp": 20,
     "radius": 12,
     "castEvery": 6,
@@ -1748,12 +1781,19 @@
     "poolDps": 8,
     "warn": 0.8,
     "pools": 5,
-    "carpet": 1
+    "pullHp": 0.25,
+    "pullEvery": 8,
+    "pullWarn": 1.1,
+    "pullRange": 340,
+    "pullSpeed": 300,
+    "pullTime": 0.7,
+    "slamR": 70,
+    "slamDmg": 18
    }
   },
   "THE_FIRST": {
    "name": "The First",
-   "archetype": "SUMMONER",
+   "archetype": "BOSS",
    "boss": true,
    "maxHp": 2500,
    "speed": 80,
@@ -1761,20 +1801,295 @@
    "xp": 250,
    "sprite": "the_first",
    "params": {
+    "pattern": 5,
     "hpRamp": 29,
     "radius": 28,
-    "blinkMin": 0,
-    "blinkMax": 0,
-    "tele": 0.2,
-    "wait": 0.5,
-    "stopMin": 2.5,
-    "stopMax": 3.5,
-    "raise": 4,
+    "phase1Hp": 0.66,
+    "phase2Hp": 0.33,
     "ring": 12,
     "ringSpeed": 200,
     "ringDmg": 12,
-    "castRange": 260
+    "ringEvery": 3.5,
+    "ringEvery3": 5,
+    "tentEvery": 5,
+    "tentEvery3": 8,
+    "tentCount": 3,
+    "tentRadius": 300,
+    "lanes": 2,
+    "laneLen": 560,
+    "laneW": 46,
+    "laneDps": 22,
+    "laneWarn": 1.0,
+    "laneLife": 3.2,
+    "laneSpin": 0.85,
+    "laneGap": 2.0,
+    "hounds": 6,
+    "houndEvery": 9,
+    "pulseEvery": 6,
+    "pulseWarn": 1.5,
+    "pulseDmg": 28
+   }
+  },
+  "LUMEN_TENTACLE": {
+   "name": "Lumen Tentacle",
+   "archetype": "TENTACLE",
+   "maxHp": 8.0,
+   "speed": 0,
+   "power": 25,
+   "xp": 5,
+   "knockback": 0,
+   "sprite": "lumen_tentacle",
+   "params": {
+    "radius": 15,
+    "warn": 0.8,
+    "up": 1.2,
+    "hitR": 34
    }
   }
+ },
+ "elites": {
+  "first": 180,
+  "interval": 150,
+  "min": 100,
+  "shrinkPerMin": 0.01,
+  "hpMul": 6,
+  "damageMul": 1.5,
+  "scale": 1.4,
+  "speedMul": 0.9,
+  "xpMul": 8,
+  "dist": 400,
+  "adds": 6,
+  "mods2At": 720,
+  "mods3At": 1440,
+  "xpPileGems": 5,
+  "xpPileLevels": 2.0
+ },
+ "equipment": {
+  "COMBAT_HELM": {
+   "name": "Combat Helm",
+   "slot": "HEAD",
+   "icon": "combat_helm",
+   "values": {
+    "armor": 1
+   }
+  },
+  "HEADLAMP": {
+   "name": "Headlamp",
+   "slot": "HEAD",
+   "icon": "bio_focus",
+   "values": {
+    "lightRadius": 0.1
+   }
+  },
+  "TARGETING_VISOR": {
+   "name": "Targeting Visor",
+   "slot": "HEAD",
+   "icon": "combat_helm_2",
+   "values": {
+    "critChance": 0.04
+   }
+  },
+  "PLATED_VEST": {
+   "name": "Plated Vest",
+   "slot": "BODY",
+   "icon": "plated_vest",
+   "values": {
+    "maxHp": 0.1
+   }
+  },
+  "RIOT_SHIELD": {
+   "name": "Riot Shield",
+   "slot": "BODY",
+   "icon": "riot_shield",
+   "values": {
+    "damageTaken": -0.04
+   }
+  },
+  "INJECTOR_RIG": {
+   "name": "Injector Rig",
+   "slot": "BODY",
+   "icon": "injector_rig",
+   "values": {
+    "regen": 0.2
+   }
+  },
+  "SERVO_GAUNTLETS": {
+   "name": "Servo Gauntlets",
+   "slot": "GLOVES",
+   "icon": "servo_gauntlets",
+   "values": {
+    "power": 0.05
+   }
+  },
+  "HYDRAULIC_KNUCKLES": {
+   "name": "Hydraulic Knuckles",
+   "slot": "GLOVES",
+   "icon": "hydraulic_knuckles",
+   "values": {
+    "mainDamage": 0.08
+   }
+  },
+  "TRIGGER_GLOVES": {
+   "name": "Trigger Gloves",
+   "slot": "GLOVES",
+   "icon": "servo_gauntlets_2",
+   "values": {
+    "cooldown": -0.04
+   }
+  },
+  "MAG_BOOTS": {
+   "name": "Mag Boots",
+   "slot": "FEET",
+   "icon": "mag_boots",
+   "values": {
+    "moveSpeed": 0.05
+   }
+  },
+  "ARMORED_GREAVES": {
+   "name": "Armored Greaves",
+   "slot": "FEET",
+   "icon": "armored_greaves",
+   "values": {
+    "armor": 1,
+    "knockbackTaken": -0.1
+   }
+  },
+  "QUICK_SOLES": {
+   "name": "Quick Soles",
+   "slot": "FEET",
+   "icon": "mag_boots_2",
+   "values": {
+    "dodgeCooldown": -0.1
+   }
+  },
+  "CONDUIT_RING": {
+   "name": "Conduit Ring",
+   "slot": "RING",
+   "icon": "conduit_ring",
+   "values": {
+    "statusChance_electrify": 0.06
+   }
+  },
+  "SIGNET_OF_ASH": {
+   "name": "Signet of Ash",
+   "slot": "RING",
+   "icon": "conduit_ring_2",
+   "values": {
+    "statusChance_burn": 0.06
+   }
+  },
+  "FROST_BAND": {
+   "name": "Frost Band",
+   "slot": "RING",
+   "icon": "conduit_ring_3",
+   "values": {
+    "statusChance_frost": 0.06
+   }
+  },
+  "SIGNAL_PENDANT": {
+   "name": "Signal Pendant",
+   "slot": "NECK",
+   "icon": "signal_pendant",
+   "values": {
+    "magnet": 0.15
+   }
+  },
+  "ECHO_RELIC": {
+   "name": "Echo Relic",
+   "slot": "NECK",
+   "icon": "echo_relic",
+   "values": {
+    "growth": 0.04
+   }
+  },
+  "LUMEN_PENDANT": {
+   "name": "Lumen Pendant",
+   "slot": "NECK",
+   "icon": "crystal_lumen",
+   "values": {
+    "luck": 0.05
+   }
+  },
+  "CROWN_OF_THE_HIVE": {
+   "name": "Crown of the Hive",
+   "slot": "HEAD",
+   "icon": "unique_crown_of_the_hive",
+   "values": {
+    "amount": 1,
+    "enemySpeed": 0.05
+   },
+   "unique": true,
+   "source": "VIRE_AWAKENED"
+  },
+  "ASHEN_HEARTWOOD": {
+   "name": "Ashen Heartwood",
+   "slot": "BODY",
+   "icon": "unique_ashen_heartwood",
+   "values": {
+    "maxHp": 0.25,
+    "burnImmune": 1
+   },
+   "unique": true,
+   "source": "SLAGBORN"
+  },
+  "FIST_OF_KHAROS": {
+   "name": "Fist of Kharos",
+   "slot": "GLOVES",
+   "icon": "unique_fist_of_kharos",
+   "values": {
+    "mainDamage": 0.3,
+    "mainSize": 0.1
+   },
+   "unique": true,
+   "source": "CARGO_LOADER"
+  },
+  "ASHWALKER_TREADS": {
+   "name": "Ashwalker Treads",
+   "slot": "FEET",
+   "icon": "unique_ashwalker_treads",
+   "values": {
+    "moveSpeed": 0.15,
+    "ashTrail": 1
+   },
+   "unique": true,
+   "source": "SMELTER_FOREMAN"
+  },
+  "HEART_OF_LUMEN": {
+   "name": "Heart of Lumen",
+   "slot": "NECK",
+   "icon": "unique_heart_of_lumen",
+   "values": {
+    "revivals": 1,
+    "lightRadius": 0.15
+   },
+   "unique": true,
+   "source": "THE_FIRST"
+  },
+  "SEED_OF_ACCORD": {
+   "name": "Seed of Accord",
+   "slot": "RING",
+   "icon": "unique_seed_of_accord",
+   "values": {
+    "cloudHeal": 1
+   },
+   "unique": true,
+   "source": "LUMEN_TENTACLE"
+  }
+ },
+ "equipmentRules": {
+  "mult": [
+   1.0,
+   1.6,
+   2.4
+  ],
+  "uniqueValue": 3.0,
+  "salvage": 5,
+  "common": 60,
+  "uncommon": 32,
+  "rare": 8,
+  "shiftPerMin": 1.2,
+  "fromMinute": 3,
+  "commonMin": 10,
+  "luckPoints": 20
  }
 }

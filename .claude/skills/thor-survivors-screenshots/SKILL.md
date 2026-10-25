@@ -16,7 +16,13 @@ No KVM in the cloud, so no emulator. Robolectric 4.14.1 with `@GraphicsMode(Grap
   cloud, vire blink and ring, smelter pool warning, Slagborn trail, hound pack, the five statuses on screen, Cinder Flats and Deep Mines fights at
   2/10/20 min, the ash storm, a barrel chain, chest and pylon; it asserts the red-orange danger pixels and the Frost tint), `CrowdOrderTest.java` (6 movement frames, `seq_N.png`), `Shots.java` (helper, sizes), `HeroShotsTest.java` (each hero attacking, Slam/Spore Burst, Wrath beam + Parasite Link, grenade, hero select row, branch card on the bottom screen, dodge; `driveUntil` aims at the nearest enemy and clears `inv.weaponCount` so only the main weapon is in the picture), `AshfallShotsTest.java` (lighting FULL/LOW/OFF with the enemy contrast check, the three boss
   models, the death sequence, the player in 8 directions and 5 states, `bestiary.png`), `RenderCostTest.java` (crowd draw time per
-  lighting mode and the zero-allocation check).
+  lighting mode and the zero-allocation check), `Phase9ShotsTest.java` (design phases 9 and 10: an elite of each modifier with its
+  outline colour measured, equipment crates of the four rarities, the toast, the choice screen and the equipment strip on the bottom
+  screen, a Headlamp widening the light, every boss pattern with its telegraph (charge line, stomp ring, falling crates, slag bombs,
+  tentacle rings, Vire's spiral, the Foreman's carpet and pull ring), The First in its three phases with the lane warning and the pulse's
+  safe half, the boss banners and health bars) and `LateFightShotsTest.java` (late fights at 10/20/28 min on both stages with six
+  weapons: it prints the share of strongly green and of white pixels per frame and saves `late_<SHOT_TAG>_<stage>_<minute>.png`;
+  run it once with `SHOT_TAG=before` on the old code and once with `after` to get a pair).
 - Top screen: 1920x1080 (`Shots.TOP_W/TOP_H`, WorldRenderer). Bottom panel: 1240x1080 (`Shots.BOT_W/BOT_H`, `ui/PanelRenderer`).
   World view is 560 units high (`Sim.VIEW_H`), 1.93 px per unit, one tile (`WorldGen.TILE`) = 80 px.
 - Output dir: env `SHOT_DIR`, default `app/build/screenshots`.
@@ -45,8 +51,12 @@ No KVM in the cloud, so no emulator. Robolectric 4.14.1 with `@GraphicsMode(Grap
 - Blinking or shake on hit: a red filter and a white filter (`PorterDuffColorFilter`), no extra bitmaps.
 - Too dark: judge FULL and LOW frames with the Read tool, then check `lightingFullLowOff` prints enemy contrast (WCAG ratio, design
   target 2.0; the test asserts >= 1.6 for FULL and LOW). Enemies must never go below 64 % brightness (`FLOOR_ENEMY`).
-- A level-up pauses the sim: loops that kill enemies must confirm the level-up (see `deathAnimationBeforeTheCorpseFades`).
+- A level-up pauses the sim: loops that kill enemies must confirm the level-up (see `deathAnimationBeforeTheCorpseFades`). So does the equipment choice (`Engine.PH_EQUIP`: post `CMD_CONFIRM` for Replace, `CMD_BACK` for Keep); `Shots.step` confirms level-ups and chests, so keep that in mind when a long drive picks up an elite's crate.
 - Cluttered damage numbers.
+- Late fights swamped by explosions and spore clouds (fixed in phase 10): big `FX_BLAST` / `FX_FLASH` / `FX_SPORE` effects are budgeted in
+  `WorldRenderer.drawFx` (at most 6 drawn, smaller and fainter the more are alive), clouds and slag pools in `drawHazards`, the Garlic
+  aura and the Santa Water puddles are thin. A new big effect must go through the same budget; judge it with `LateFightShotsTest` frames
+  at 28 minutes, not with a lone effect on an empty floor.
 
 ## Tests that cover the renders
 

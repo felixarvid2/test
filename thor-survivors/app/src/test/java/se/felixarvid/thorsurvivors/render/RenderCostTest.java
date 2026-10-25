@@ -55,6 +55,7 @@ public class RenderCostTest {
             for (int mode = 2; mode >= 0; mode--) {
                 h.eng.meta.lighting = mode;
                 for (int i = 0; i < 100; i++) { stand(h); h.world.draw(c, 1920, 1080, h.eng, true); }
+                java.util.Arrays.fill(WorldRenderer.AL,0);
                 final int n = 120;
                 double[] ms = new double[n];
                 long bytes = 0;
@@ -66,6 +67,7 @@ public class RenderCostTest {
                     ms[i] = (System.nanoTime() - t0) / 1e6;
                     bytes += (Long) alloc.invoke(mx, tid) - a0 - probe;
                 }
+                System.out.println("SECT "+stage+" "+mode+" "+java.util.Arrays.toString(java.util.stream.LongStream.of(WorldRenderer.AL).map(x->x/n).toArray()));
                 Arrays.sort(ms);
                 System.out.printf("PERF %s lighting=%s: enemies=%d draw median %.1f ms, p95 %.1f ms (software raster), allocation %d B/frame%n",
                         stage, new String[]{"OFF", "LOW", "FULL"}[mode], h.eng.sim.enemyN, ms[n / 2], ms[(int) (n * 0.95)], bytes / n);

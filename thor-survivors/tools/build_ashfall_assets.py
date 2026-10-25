@@ -112,7 +112,30 @@ ICONS = {
     "LINK": "meshy/icons/skill_parasite_link", "WRATH": "meshy/icons/skill_wrath_of_lumen",
     "HERO_BASTION": "meshy/icons/portrait_bastion", "HERO_SPECTRE": "meshy/icons/portrait_spectre",
     "HERO_XENOMANT": "meshy/icons/portrait_xenomant",
+    # equipment (ashfall_data.json "equipment", icon names lowercase, design section 6): the Meshy item icons, the FLUX
+    # variants of the same base type for the second and third items of a slot, and the six uniques
+    "combat_helm": "meshy/icons/combat_helm", "bio_focus": "meshy/icons/bio_focus",
+    "combat_helm_2": "flux/items/combat_helm_2", "plated_vest": "meshy/icons/plated_vest",
+    "riot_shield": "meshy/icons/riot_shield", "injector_rig": "meshy/icons/injector_rig",
+    "servo_gauntlets": "meshy/icons/servo_gauntlets", "hydraulic_knuckles": "meshy/icons/hydraulic_knuckles",
+    "servo_gauntlets_2": "flux/items/servo_gauntlets_2", "mag_boots": "meshy/icons/mag_boots",
+    "armored_greaves": "meshy/icons/armored_greaves", "mag_boots_2": "flux/items/mag_boots_2",
+    "conduit_ring": "meshy/icons/conduit_ring", "conduit_ring_2": "flux/items/conduit_ring_2",
+    "conduit_ring_3": "flux/items/conduit_ring_3", "signal_pendant": "meshy/icons/signal_pendant",
+    "echo_relic": "meshy/icons/echo_relic", "crystal_lumen": "meshy/icons/crystal_lumen",
+    "unique_crown_of_the_hive": "flux/items/unique_crown_of_the_hive",
+    "unique_ashen_heartwood": "flux/items/unique_ashen_heartwood",
+    "unique_fist_of_kharos": "flux/items/unique_fist_of_kharos",
+    "unique_ashwalker_treads": "flux/items/unique_ashwalker_treads",
+    "unique_heart_of_lumen": "flux/items/unique_heart_of_lumen",
+    "unique_seed_of_accord": "flux/items/unique_seed_of_accord",
 }
+# rarity frames (transparent middle, drawn over an item icon): Common, Uncommon = magic, Rare, Unique (design section 6)
+FRAMES = {"frame_common": "common", "frame_magic": "magic", "frame_rare": "rare", "frame_unique": "unique"}
+# boss spawn banner portraits (flux/bosses), key = the enemy key; the Ashfall bosses and the picture that suits each
+PORTRAIT_PX = 192
+PORTRAITS = {"boss_CARGO_LOADER": "drowned_engine", "boss_SLAGBORN": "pyre_warden", "boss_VIRE_AWAKENED": "vire",
+             "boss_SMELTER_FOREMAN": "foreman_dray", "boss_THE_FIRST": "the_first"}
 # gem crystals (transparent icons, trimmed): key -> (source, px)
 GEMS = {"crystal_lumen": 64, "crystal_void": 64, "crystal_ember": 64}
 
@@ -258,6 +281,17 @@ def build_images(manifest, sizes):
         px, py = pk.place(im)
         images["icon." + key] = {"sheet": "ashfall/icons.webp", "rect": [px, py, ICON_PX, ICON_PX],
                                  "anchor": [ICON_PX // 2, ICON_PX // 2]}
+    for key, name in FRAMES.items():
+        im = Image.open(os.path.join(AI, "flux", "frames", name + ".webp")).convert("RGBA").resize((ICON_PX, ICON_PX), Image.LANCZOS)
+        px, py = pk.place(im)
+        images["icon." + key] = {"sheet": "ashfall/icons.webp", "rect": [px, py, ICON_PX, ICON_PX],
+                                 "anchor": [ICON_PX // 2, ICON_PX // 2]}
+    for key, name in PORTRAITS.items():
+        im = rounded(Image.open(os.path.join(AI, "flux", "bosses", name + ".webp")).convert("RGBA")
+                     .resize((PORTRAIT_PX, PORTRAIT_PX), Image.LANCZOS), 0.06)
+        px, py = pk.place(im)
+        images["icon." + key] = {"sheet": "ashfall/icons.webp", "rect": [px, py, PORTRAIT_PX, PORTRAIT_PX],
+                                 "anchor": [PORTRAIT_PX // 2, PORTRAIT_PX // 2]}
     for name, longest in GEMS.items():
         im = fit(trim(Image.open(os.path.join(AI, "meshy", "icons", name + ".webp")).convert("RGBA")), longest)
         px, py = pk.place(im)
