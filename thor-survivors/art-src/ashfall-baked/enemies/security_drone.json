@@ -1,0 +1,60 @@
+{
+ "name": "security_drone",
+ "category": "enemies",
+ "source": "assets/ashfall-ai/meshy/models/enemies/security_drone.glb",
+ "atlas": "security_drone.png",
+ "atlasSize": [256,97],
+ "frameSize": [128,128],
+ "anchor": [64,84],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [0.95,0.7,0.56],
+ "directions": [
+  "S",
+  "SE",
+  "E",
+  "NE",
+  "N",
+  "NW",
+  "W",
+  "SW"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [42,51,62,44,33,46]
+    ],
+    [
+     [42,1,65,47,31,43]
+    ],
+    [
+     [1,1,40,49,44,42]
+    ],
+    [
+     [108,1,63,47,35,41]
+    ],
+    [
+     [169,51,62,39,33,47]
+    ],
+    [
+     [172,1,65,47,31,41]
+    ],
+    [
+     [1,51,40,45,44,42]
+    ],
+    [
+     [105,51,63,43,30,42]
+    ]
+   ]
+  }
+ }
+}
