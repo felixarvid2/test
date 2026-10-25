@@ -54,8 +54,16 @@ public class RenderCostTest {
             Canvas c = new Canvas(b);
             for (int mode = 2; mode >= 0; mode--) {
                 h.eng.meta.lighting = mode;
-                for (int i = 0; i < 100; i++) { stand(h); h.world.draw(c, 1920, 1080, h.eng, true); }
-                java.util.Arrays.fill(WorldRenderer.AL,0);
+                // Warm up until the draw has been allocation-free for a while. Robolectric binds every Android API call site with an
+                // invokedynamic whose method handle is re-spun (tens of KB) once, after ~127 invocations; a site that is only reached
+                // now and then (a weapon swing's drawArc) crosses that threshold late and would otherwise land in the measured window.
+                int quiet = 0, minWarm = mode == 2 ? 400 : 100; // the first mode of a stage meets the stage's rarer call sites
+                for (int i = 0; i < 1500 && (i < minWarm || quiet < 40); i++) {
+                    stand(h);
+                    long w0 = (Long) alloc.invoke(mx, tid);
+                    h.world.draw(c, 1920, 1080, h.eng, true);
+                    quiet = (Long) alloc.invoke(mx, tid) - w0 - probe < 64 ? quiet + 1 : 0;
+                }
                 final int n = 120;
                 double[] ms = new double[n];
                 long bytes = 0;
@@ -67,7 +75,6 @@ public class RenderCostTest {
                     ms[i] = (System.nanoTime() - t0) / 1e6;
                     bytes += (Long) alloc.invoke(mx, tid) - a0 - probe;
                 }
-                System.out.println("SECT "+stage+" "+mode+" "+java.util.Arrays.toString(java.util.stream.LongStream.of(WorldRenderer.AL).map(x->x/n).toArray()));
                 Arrays.sort(ms);
                 System.out.printf("PERF %s lighting=%s: enemies=%d draw median %.1f ms, p95 %.1f ms (software raster), allocation %d B/frame%n",
                         stage, new String[]{"OFF", "LOW", "FULL"}[mode], h.eng.sim.enemyN, ms[n / 2], ms[(int) (n * 0.95)], bytes / n);

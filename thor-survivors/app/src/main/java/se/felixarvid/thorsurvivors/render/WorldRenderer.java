@@ -202,18 +202,12 @@ public final class WorldRenderer {
         return Math.round(wy * sc) + oy;
     }
 
-    public static final long[] AL = new long[16];
-    public static java.util.function.LongSupplier TMX;
-    private long al0;
-    private void mark(int i) { long n = (TMX == null ? 0L : TMX.getAsLong()); AL[i] += n - al0; al0 = (TMX == null ? 0L : TMX.getAsLong()); }
     public void draw(Canvas c, int w, int h, Engine e, boolean dualScreen) {
-        al0 = (TMX == null ? 0L : TMX.getAsLong());
         c.drawColor(0xFF000000);
         orderN = 0;
         textsDrawn = 0;
         if (!e.isReady()) return;
         ensureDemo(e);
-        mark(0);
         Sim s = e.sim;
         gd = e.data;
         int ph = e.phase;
@@ -243,33 +237,24 @@ public final class WorldRenderer {
         String stage = e.stage().key;
         tilePx = Math.max(8, Math.round(WorldGen.TILE * sc));
         boolean mines = WorldGen.of(stage).mines;
-        mark(1);
         ground.setup(WorldGen.of(stage), stage, tilePx, mines ? TINT_MINES : TINT_FLATS);
         bmp.setColorFilter(null);
         bmp.setAlpha(255);
         ground.draw(c, bmp, ox, oy, camPx, camPy, w, h);
-        mark(2);
         gen = WorldGen.of(stage);
         listProps();
-        mark(3);
         float[] lp = e.data.lightingOf(stage);
         setupLights(c, w, h, e, s, menu, lp);
-        mark(4);
         if (menu) {
             drawPropsOnly(c, e, stage);
             drawDemo(c, e);
         } else {
             drawWorld(c, s, stage);
         }
-        mark(5);
         if (lightMode == MetaProgress.LIGHT_FULL) light.drawGlows(c);
-        mark(6);
         drawMood(c, w, h);
-        mark(7);
         if (!menu) drawAsh(c, s, w, h);
-        mark(8);
         drawOverlay(c, w, h, e, s, menu, dualScreen);
-        mark(9);
     }
 
     // ------------------------------------------------------------------ lights
