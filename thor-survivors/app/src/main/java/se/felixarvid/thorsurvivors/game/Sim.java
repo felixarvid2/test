@@ -76,6 +76,13 @@ public final class Sim {
     public final Particle[] parts = new Particle[MAX_PART];
     public final DamageText[] texts = new DamageText[MAX_TEXT];
     public final Effect[] fx = new Effect[MAX_FX];
+    /** Dying enemies (visual only), a ring: the renderer plays their death clip, then they fade (see {@link #CORPSE_LIFE}). */
+    public static final int MAX_CORPSES = 96;
+    public static final float CORPSE_LIFE = 2.0f;
+    public final Corpse[] corpses = new Corpse[MAX_CORPSES];
+    private int corpseHead;
+    /** Time of the latest weapon use; the renderer plays the player's attack clip for a moment after it. */
+    public float lastAttack = -10f;
     private int partHead, textHead, fxHead, nextId = 1, nextStamp = 1;
     public final WeaponState[] weapons = new WeaponState[Inventory.MAX_WEAPONS];
 
@@ -126,6 +133,7 @@ public final class Sim {
         for (int i = 0; i < MAX_PART; i++) parts[i] = new Particle();
         for (int i = 0; i < MAX_TEXT; i++) texts[i] = new DamageText();
         for (int i = 0; i < MAX_FX; i++) fx[i] = new Effect();
+        for (int i = 0; i < MAX_CORPSES; i++) corpses[i] = new Corpse();
         for (int i = 0; i < weapons.length; i++) weapons[i] = new WeaponState();
         inv.add(data.weapons.get(starterKey));
         recomputeAll();
@@ -342,6 +350,7 @@ public final class Sim {
         destKey[i] = destKey[destN];
         destsBroken++;
         sound.emit(SoundEvents.BRAZIER_BREAK);
+        addFx(Entities.FX_FLASH, x, y - 10f, 150f, 0f, 0.3f, 0, false);
         spark(x, y - 10f, 0xFFFFA030, 9);
         spark(x, y, 0xFF8A8070, 7);
         // mostly gold, sometimes a roast, rarely one of the power pickups
@@ -652,7 +661,7 @@ public final class Sim {
             e.kvx += kx * v;
             e.kvy += ky * v;
         }
-        spark(e.x, e.y, e.type.color, 2);
+        spark(e.x, e.y, e.type.gore, 2);
         if (e.hp <= 0) killNow(e);
         else sound.emit(SoundEvents.ENEMY_HIT);
     }
@@ -669,13 +678,27 @@ public final class Sim {
             if (!e.dead) continue;
             kills++;
             sound.emit(SoundEvents.ENEMY_DEATH);
-            spark(e.x, e.y, e.type.color, e.boss ? 24 : 7);
+            spark(e.x, e.y, e.type.gore, e.boss ? 24 : 7);
+            addCorpse(e);
             drops(e);
             Enemy last = enemies[enemyN - 1];
             enemies[i] = last;
             enemies[enemyN - 1] = e;
             enemyN--;
         }
+    }
+
+    private void addCorpse(Enemy e) {
+        Corpse c = corpses[corpseHead];
+        corpseHead = (corpseHead + 1) % MAX_CORPSES;
+        c.type = e.type;
+        c.boss = e.boss;
+        c.id = e.id;
+        c.x = e.x;
+        c.y = e.y;
+        c.radius = e.radius;
+        c.age = 0f;
+        c.active = true;
     }
 
     private void drops(Enemy e) {
@@ -1155,6 +1178,7 @@ public final class Sim {
     }
 
     private void fire(WeaponState w, int slot) {
+        lastAttack = tNow;
         switch (w.behavior) {
             case B_WHIP: whip(w); break;
             case B_MISSILE: {
@@ -1325,6 +1349,7 @@ public final class Sim {
 
     private void strike(WeaponState w, float tx, float ty) {
         float r = 25f * w.area;
+        lastAttack = tNow;
         sound.emit(SoundEvents.LIGHTNING);
         addFx(Entities.FX_BOLT, tx, ty, r, 0, BOLT_LIFE, 0, w.evo);
         if (destN > 0) hitDest(tx, ty, r);
@@ -1346,6 +1371,7 @@ public final class Sim {
         if (w.cd > 0) return;
         w.cd += Math.max(0.15f, w.hasHitDelay ? w.hitDelay : w.interval);
         w.pulse = 0.25f;
+        lastAttack = tNow;
         float r = w.auraRadius;
         if (destN > 0) hitDest(px, py, r);
         int n = query(px, py, r + 30f);
@@ -1471,6 +1497,9 @@ public final class Sim {
                     e.markHit(p.stamp);
                 }
                 hurt(e, p.dmg, p.critChance, p.critMul, dx / d, dy / d, p.knock);
+                if (p.kind == Entities.P_FIRE || p.kind == Entities.P_AXE) { // a small burst where it hits
+                    addFx(Entities.FX_BLAST, e.x, e.y, p.kind == Entities.P_FIRE ? 34f : 24f, p.kind == Entities.P_FIRE ? 1f : 0f, 0.28f, 0, p.evo);
+                }
                 if (--p.hitsLeft <= 0) { remove = true; break; }
             }
             if (remove) removeProj(i);
@@ -1492,6 +1521,12 @@ public final class Sim {
         }
         for (int i = 0; i < MAX_TEXT; i++) if (texts[i].life > 0) { texts[i].life -= dt; texts[i].y -= 40f * dt; }
         for (int i = 0; i < MAX_FX; i++) if (fx[i].life > 0) fx[i].life -= dt;
+        for (int i = 0; i < MAX_CORPSES; i++) {
+            Corpse c = corpses[i];
+            if (!c.active) continue;
+            c.age += dt;
+            if (c.age >= CORPSE_LIFE) c.active = false;
+        }
     }
 
     private void spark(float x, float y, int color, int count) {

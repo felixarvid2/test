@@ -1,0 +1,32 @@
+{
+ "name": "signal_tower",
+ "category": "props",
+ "source": "assets/ashfall-ai/meshy/models/props/signal_tower.glb",
+ "atlas": "signal_tower.png",
+ "atlasSize": [512,496],
+ "frameSize": [512,512],
+ "anchor": [256,447],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [4.64,9,2.79],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,299,494,106,9]
+    ]
+   ]
+  }
+ }
+}

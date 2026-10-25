@@ -1,0 +1,60 @@
+{
+ "name": "lumen_tentacle",
+ "category": "enemies",
+ "source": "assets/ashfall-ai/meshy/models/enemies/lumen_tentacle.glb",
+ "atlas": "lumen_tentacle.png",
+ "atlasSize": [256,490],
+ "frameSize": [192,192],
+ "anchor": [96,175],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [0.81,3,1.16],
+ "directions": [
+  "S",
+  "SE",
+  "E",
+  "NE",
+  "N",
+  "NW",
+  "W",
+  "SW"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [64,1,56,176,68,5]
+    ],
+    [
+     [1,1,62,181,68,6]
+    ],
+    [
+     [121,1,78,173,57,15]
+    ],
+    [
+     [76,183,74,156,59,27]
+    ],
+    [
+     [1,347,56,142,68,35]
+    ],
+    [
+     [58,347,62,142,62,32]
+    ],
+    [
+     [151,183,78,150,57,23]
+    ],
+    [
+     [1,183,74,163,59,12]
+    ]
+   ]
+  }
+ }
+}

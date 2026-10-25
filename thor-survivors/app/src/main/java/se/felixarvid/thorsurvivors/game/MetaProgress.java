@@ -22,6 +22,9 @@ public final class MetaProgress {
     /** Volume steps 0..{@link #VOL_MAX} (0 = off). */
     public static final int VOL_MAX = 3;
     public volatile int musicVol, sfxVol;
+    /** Lighting quality: 0 OFF, 1 LOW (static vignette), 2 FULL (lightmap). */
+    public static final int LIGHT_OFF = 0, LIGHT_LOW = 1, LIGHT_FULL = 2;
+    public volatile int lighting = LIGHT_FULL;
     private final Map<String, Integer> ranks = new HashMap<>();
 
     public MetaProgress(GameData data, Store store) {
@@ -32,6 +35,7 @@ public final class MetaProgress {
         bestKills = store.getInt("bestKills", 0);
         musicVol = Math.max(0, Math.min(VOL_MAX, store.getInt("volMusic", 2)));
         sfxVol = Math.max(0, Math.min(VOL_MAX, store.getInt("volSfx", 3)));
+        lighting = Math.max(0, Math.min(LIGHT_FULL, store.getInt("lighting", LIGHT_FULL)));
         for (String k : data.powerUps.keySet()) ranks.put(k, store.getInt("pu_" + k, 0));
     }
 
@@ -95,5 +99,11 @@ public final class MetaProgress {
     public void stepSfx(int delta) {
         sfxVol = (sfxVol + delta + VOL_MAX + 1) % (VOL_MAX + 1);
         store.putInt("volSfx", sfxVol);
+    }
+
+    /** Steps the lighting quality by delta (wrapping) and stores it. */
+    public void stepLighting(int delta) {
+        lighting = (lighting + delta + LIGHT_FULL + 1) % (LIGHT_FULL + 1);
+        store.putInt("lighting", lighting);
     }
 }

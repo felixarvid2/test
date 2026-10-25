@@ -1,0 +1,7 @@
+Ashfall art
+
+All sprites are the owner's own assets from the game Ashfall (https://github.com/felixarvid2/Ashfall):
+- 3D models generated with Meshy, baked to 8-direction sprite sheets by tools/bake (art-src/ashfall-baked)
+- 2D art (effects, decals, ground texture, stat icons) generated with FLUX.2 Turbo on fal.ai, icons with Meshy
+  (assets/ashfall-ai). No third-party licence or credit applies.
+Rebuilt by tools/build_ashfall_assets.py, do not edit by hand.

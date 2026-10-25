@@ -20,6 +20,11 @@ public final class PowerUpDef {
         this.rows = rows;
     }
 
+    /** A copy with another display name (the Ashfall overlay). */
+    public PowerUpDef withName(String newName) {
+        return new PowerUpDef(key, newName, description, basePrice, rows);
+    }
+
     public int maxRank() {
         return rows.size();
     }

@@ -1,0 +1,32 @@
+{
+ "name": "emergency_light",
+ "category": "props",
+ "source": "assets/ashfall-ai/meshy/models/props/emergency_light.glb",
+ "atlas": "emergency_light.png",
+ "atlasSize": [256,178],
+ "frameSize": [192,192],
+ "anchor": [96,176],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [0.67,3.2,0.67],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,46,176,73,8]
+    ]
+   ]
+  }
+ }
+}

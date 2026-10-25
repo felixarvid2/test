@@ -1,0 +1,32 @@
+{
+ "name": "hydraulic_hammer",
+ "category": "props",
+ "source": "assets/ashfall-ai/meshy/models/props/hydraulic_hammer.glb",
+ "atlas": "hydraulic_hammer.png",
+ "atlasSize": [256,73],
+ "frameSize": [96,96],
+ "anchor": [48,83],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [0.3,1.3,0.24],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,22,71,37,13]
+    ]
+   ]
+  }
+ }
+}

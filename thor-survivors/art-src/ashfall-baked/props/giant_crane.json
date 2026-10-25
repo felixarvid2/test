@@ -1,0 +1,32 @@
+{
+ "name": "giant_crane",
+ "category": "props",
+ "source": "assets/ashfall-ai/meshy/models/props/giant_crane.glb",
+ "atlas": "giant_crane.png",
+ "atlasSize": [512,359],
+ "frameSize": [512,512],
+ "anchor": [256,376],
+ "pxPerMetre": 10.17,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [49.07,35,18.67],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,502,357,5,77]
+    ]
+   ]
+  }
+ }
+}

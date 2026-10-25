@@ -1,0 +1,32 @@
+{
+ "name": "fuel_tank",
+ "category": "props",
+ "source": "assets/ashfall-ai/meshy/models/props/fuel_tank.glb",
+ "atlas": "fuel_tank.png",
+ "atlasSize": [256,143],
+ "frameSize": [256,256],
+ "anchor": [128,180],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [3.46,2.2,1.08],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,224,141,16,57]
+    ]
+   ]
+  }
+ }
+}

@@ -1,0 +1,32 @@
+{
+ "name": "supply_chest",
+ "category": "props",
+ "source": "assets/ashfall-ai/meshy/models/props/supply_chest.glb",
+ "atlas": "supply_chest.png",
+ "atlasSize": [256,80],
+ "frameSize": [96,96],
+ "anchor": [48,70],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [0.87,0.9,0.98],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,60,78,18,9]
+    ]
+   ]
+  }
+ }
+}

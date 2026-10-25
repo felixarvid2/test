@@ -1,0 +1,32 @@
+{
+ "name": "pipe_section",
+ "category": "props",
+ "source": "assets/ashfall-ai/meshy/models/props/pipe_section.glb",
+ "atlas": "pipe_section.png",
+ "atlasSize": [512,82],
+ "frameSize": [448,448],
+ "anchor": [224,253],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [6,1.2,1.11],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,388,80,30,184]
+    ]
+   ]
+  }
+ }
+}

@@ -1,0 +1,32 @@
+{
+ "name": "smelters_cathedral",
+ "category": "props",
+ "source": "assets/ashfall-ai/meshy/models/props/smelters_cathedral.glb",
+ "atlas": "smelters_cathedral.png",
+ "atlasSize": [512,503],
+ "frameSize": [512,512],
+ "anchor": [256,495],
+ "pxPerMetre": 20.17,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [20.25,30,2.85],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,412,501,50,5]
+    ]
+   ]
+  }
+ }
+}

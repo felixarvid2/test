@@ -1,0 +1,32 @@
+{
+ "name": "lumen_wrath",
+ "category": "props",
+ "source": "assets/ashfall-ai/meshy/models/props/lumen_wrath.glb",
+ "atlas": "lumen_wrath.png",
+ "atlasSize": [256,322],
+ "frameSize": [320,320],
+ "anchor": [160,247],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [3.55,4.5,3.76],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,230,320,45,0]
+    ]
+   ]
+  }
+ }
+}

@@ -1,0 +1,32 @@
+{
+ "name": "vent",
+ "category": "props",
+ "source": "assets/ashfall-ai/meshy/models/props/vent.glb",
+ "atlas": "vent.png",
+ "atlasSize": [256,95],
+ "frameSize": [128,128],
+ "anchor": [64,73],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [1.83,0.4,1.83],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,120,93,4,18]
+    ]
+   ]
+  }
+ }
+}

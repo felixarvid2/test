@@ -1,0 +1,32 @@
+{
+ "name": "debris_rock",
+ "category": "environment",
+ "source": "assets/ashfall-ai/meshy/models/environment/debris_rock.glb",
+ "atlas": "debris_rock.png",
+ "atlasSize": [256,31],
+ "frameSize": [48,48],
+ "anchor": [24,31],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [0.58,0.4,0.39],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,40,29,4,9]
+    ]
+   ]
+  }
+ }
+}

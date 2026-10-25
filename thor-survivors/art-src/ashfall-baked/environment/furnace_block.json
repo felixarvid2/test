@@ -1,0 +1,32 @@
+{
+ "name": "furnace_block",
+ "category": "environment",
+ "source": "assets/ashfall-ai/meshy/models/environment/furnace_block.glb",
+ "atlas": "furnace_block.png",
+ "atlasSize": [512,389],
+ "frameSize": [448,448],
+ "anchor": [224,360],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [6.22,6,2.9],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,402,387,23,31]
+    ]
+   ]
+  }
+ }
+}

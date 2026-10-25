@@ -123,7 +123,18 @@ public final class Entities {
         public boolean crit, heal;
     }
 
-    public static final int FX_WHIP = 0, FX_BOLT = 1, FX_RING = 2, FX_FLASH = 3;
+    public static final int FX_WHIP = 0, FX_BOLT = 1, FX_RING = 2, FX_FLASH = 3, FX_BLAST = 4;
+
+    /**
+     * A dead enemy that is still playing its death animation and fading out. Purely visual: the Sim keeps a small ring
+     * of these (Sim.corpses) so the renderer can draw the fall after the enemy has left the pool.
+     */
+    public static final class Corpse {
+        public EnemyType type;
+        public boolean boss, active;
+        public int id;
+        public float x, y, age, radius;
+    }
 
     public static final class Effect {
         public int kind;

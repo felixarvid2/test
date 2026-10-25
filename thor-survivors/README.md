@@ -2,6 +2,7 @@
 
 En Vampire Survivors-liknande auto-shooter för AYN Thor, en handhållen Android-spelare med två skärmar. Ren Java med Canvas/SurfaceView, inga beroenden.
 
+- Spelet heter **ASHFALL: Lumen Tide** i menyn (mörk industriell sci-fi, formgivning i `docs/ASHFALL_DESIGN.md`). Paketet och mappen heter fortfarande Thor Survivors. Spelreglerna och balansen är oförändrade: den här fasen byter bara utseende och namn (design fas 1, 2 och 8).
 - Paket: `se.felixarvid.thorsurvivors`
 - minSdk 29, targetSdk 35
 
@@ -28,21 +29,38 @@ I emulatorn: WASD eller piltangenterna.
 
 ## Innehåll
 
-- **Stages:** Mad Forest och Library. Banan är oändlig och bestäms av `game/WorldGen.java` (ren funktion av rutan, så den ser likadan ut varje gång): Mad Forest har täta skogsdungar (gröna och höstfärgade) av hela träd, jordstigar och gläntor med riktiga kanter, blomängar, buskar, svampar och spridda träd som sorteras i djupled med figurerna. Library har långa hyllrader över och under ett fritt mittstråk, med luckor, bord, tunnor och pallar. Inget krockar.
-- **Förstörbara:** brasor i Mad Forest, kandelabrar i Library (cirka en per 500 x 500 enheter, aldrig nära start). Vapen slår sönder dem och de ger oftast guld, ibland kyckling och sällan Vacuum, Orologion, Rosary eller Clover.
-- **Vapen:** 10 vapen med evolutioner:
-  - Whip → Bloody Tear
-  - Magic Wand → Holy Wand
-  - Knife → Thousand Edge
-  - Axe → Death Spiral
-  - Cross → Heaven Sword
-  - King Bible → Unholy Vespers
-  - Fire Wand → Hellfire
-  - Garlic → Soul Eater
-  - Santa Water → La Borra
-  - Lightning Ring → Thunder Loop
-- **Passiver:** 13.
-- **Fiender:** 42 typer, inklusive bossar.
+- **Stages:** Cinder Flats (nyckel `FOREST`, förut Mad Forest) och Deep Mines (nyckel `LIBRARY`, förut Library). Nycklarna är desamma så sparfiler och data fungerar. Banan är oändlig och bestäms av `game/WorldGen.java` (ren funktion av rutan, så den ser likadan ut varje gång). Cinder Flats är en askslätt: skrotgårdar med lastlådor, barrikader, bränsletankar, slagg- och spillrestenar, lysande lumentillväxter i klungor (de lyser grönt), nödljusstolpar, kraschade landare och flyktkapslar, och en skorsten långt bort. Deep Mines har långa väggrader (väggsegment, catwalks, rörklungor, slaggstenar) över och under ett fritt mittstråk, med luckor, bråte mellan raderna och nödljus längs stråket. Golvet är dekaler (olja, blod, sot, spillror, galler, ben, mossa, kristaller, varningsränder) utspridda per ruta. Inget krockar och startplatsen är alltid fri.
+- **Förstörbara:** sprängtunnor i Cinder Flats (förut brasor), förrådskistor i Deep Mines (förut kandelabrar) (cirka en per 500 x 500 enheter, aldrig nära start). Vapen slår sönder dem och de ger oftast guld, ibland kyckling och sällan Vacuum, Orologion, Rosary eller Clover.
+- **Vapen:** 10 vapen med evolutioner (Ashfall-namn och beskrivningar kommer från `ashfall_data.json`, id:n och balans är de gamla):
+  - Vibro Lash (Whip) → Leech Scythe
+  - Spore Dart (Magic Wand) → Lumen Volley
+  - Scalpel Throw (Knife) → Scalpel Storm
+  - Cluster Grenade (Axe) → Shrapnel Spiral
+  - Ricochet Drone (Cross) → Strike Wing
+  - Ward Drones (King Bible) → Sentinel Ring
+  - Slag Cannon (Fire Wand) → Furnace Burst
+  - Toxic Vent (Garlic) → Lumen Devourer
+  - Corrosive Flask (Santa Water) → Corrosive Wake
+  - Arc Coil (Lightning Ring) → Tesla Loop
+- **Passiver:** 13 (Servo Amplifier, Plate Weave, Bio-Gel Pack, Medi-Foam, Overclock Chip, Wide-Beam Lens, Rail Accelerator, Stabilizer Coil, Multiplexer, Mag Boots, Gravity Collar, Lumen Charm, Neural Tap; Salvage License, Spore Taint och Defibrillator i butiken).
+- **Fiender:** 42 typer, inklusive bossar. De spelar fortfarande Vampire Survivors-rollerna, men ritas med de bakade Ashfall-modellerna tills det riktiga Ashfall-galleriet kommer (mappningen står i `game/EnemyType.java`):
+
+  | Nyckel i datan | Ashfall-modell |
+  |---|---|
+  | ZOMBIE, MUD, MUDMAN* | infected_colonist |
+  | BAT*, XLBAT | spore_hound (ingen rigg: guppar och kläms ihop) |
+  | SKELETON, SKULL*, DULL* | sergeant |
+  | GHOST, ECTO* | security_drone (ingen rigg: svävar) |
+  | WEREWOLF | welder |
+  | MUMMY, XLMUMMY | smelter |
+  | FLOWER, XLFLOWER | lumen_tentacle (ingen rigg: svajar) |
+  | MEDUSA*, WITCH*, COUNT*, DEATH | vire |
+  | MANTIS, XLMANTIS, BUER | spore_carrier |
+  | bossar (flaggan boss) med XL i nyckeln, utom BOSS_XLMEDUSA | slagborn (ingen rigg) |
+  | BOSS_XLMEDUSA, BOSS_XLDEATH | the_first (ingen rigg, ritas i 0,8 x) |
+  | övriga bossar | cargo_loader (ingen rigg) |
+
+  Spelaren är bastion (idle, run, attack, hit, death).
 - **Kistor:** följer stagens skattetabell (`treasure` i `game_data.json`, raden för aktuell eller senaste minut som har en). Antal föremål: 5 med `chances[0]` procent, annars 3 med `chances[1]` procent, annars 1 (en kista är aldrig tom, så `chances[2]` styr inget). Platserna fylls i ordningen `prizeTypes`: EVOLUTION utvecklar ett färdigt vapen (annars som EXISTING_ANY), EXISTING_ANY höjer ett slumpat vapen eller en passiv som inte är på max, EXISTING_WEAPON samma men bara vapen, okända typer räknas som EXISTING_ANY. Går inget att höja ges bara guld. `level` och `fixedPrizes` i datan används inte.
 - **Greed:** gäller även enstaka mynt; bråkdelen av guldet sparas (`Sim.goldFrac`), så 10 mynt med Greed 1,2 ger 12 guld.
 - **Böcker och pölar:** varje bok (King Bible, Unholy Vespers) och varje Santa Water-pöl träffar på egen hand med sin egen `hitBoxDelay` per fiende (`Enemy.tryTick`), så fler böcker (Amount) ger mer skada.
@@ -63,11 +81,14 @@ Datan kommer från ett kommersiellt spel. Appen är endast för personligt bruk 
 
 ## Grafik
 
-- CC0-sprites från Kenney (Tiny Dungeon, Tiny Town) och Clint Bellanger (Tiny Creatures, OpenGameArt).
-- Originalen, övriga nedladdade CC0-paket och deras licenser ligger i `art-src/`.
-- Mappningen görs i `tools/build_atlas.py`, som skapar `app/src/main/assets/sprites/atlas.json`. Krediter finns i `CREDITS.txt`. Marken (golv, jordens autotile, träd, hyllor) listas där per stage och indexeras av `WorldGen`; brasan och kandelabern är handritade i `PixelSprites`.
-- Marken ritas i förberäknade bitmappar om 8 x 8 rutor (`render/GroundCache`, cirka 24 i en LRU, de utanför bild bakas på en bakgrundstråd). Mörk kantvinjett är en enda liten bitmapp.
-- Piskan, böckerna, vitlöken, blixtarna och ädelstenarna ritas procedurellt.
+All grafik är ägarens egna Ashfall-tillgångar (Meshy-modeller och FLUX-bilder, ingen tredjepartslicens): `art-src/ashfall-baked/` (3D-modeller bakade till 8-riktningssprites av `tools/bake/`), `../assets/ashfall-ai/flux/` (effekter, dekaler, golvtextur, statikoner) och `../assets/ashfall-ai/meshy/icons/`. Kenney- och Tiny Creatures-paketen ligger kvar i `art-src/` men används inte längre.
+
+- **Pipeline:** `python3 tools/build_ashfall_assets.py` (Pillow, numpy) skapar allt spelet läser i `app/src/main/assets/ashfall/`: ett ark per animerad modell (`m_<modell>.webp`, ramarna skalade 0,78 så att en människa blir cirka 75 px hög på 1080p, och omförpackade), `world.webp` (rekvisita, miljö, dekaler), `vfx.webp` (effekter, svart bakgrund omräknad till alfa), `icons.webp` (panelikoner och kristaller), `ground/mine_rock.webp`, `manifest.json` och `CREDITS.txt`. Allt är WebP utan förlust utom golvtexturen. Cirka 12 MB filer; modellarken tar cirka 41 MB bitmappsminne (plus cirka 16 MB för världs-, effekt- och ikonarken och upp till 39 MB för marken) när de avkodas (inga hit-klipp eller idle för fiender, de går alltid). `tools/build_atlas.py` är det gamla Kenney-bygget och används inte längre.
+- **Ritning** (`render/WorldRenderer`, `render/SpriteAtlas`): animerade 8-riktningssprites. Riktningen kommer från rörelsen (spelaren från `faceX/faceY`, fiender mot spelaren med hysteres), klippet från tillståndet (walk, attack när de rör spelaren, death), klocka per entitet (`Enemy.anim`), och gång-fps skalas med rörelsehastigheten. Döden spelas upp färdigt (`Sim.corpses`, en ring om 96) innan liket tonas ut efter cirka 2 s. Ramar ritas 1:1 med `Rect src/dst` på hela pixlar. Träffblixten är ett vitt färgfilter på samma ram (ingen extra bitmapp). Y-sortering och mjuk skugga är kvar. Omodellerade (origga) modeller får procedurell rörelse: guppa, klämma, svaja.
+- **Marken** (`render/GroundCache`): bergstexturen läggs i världspixlar (sömlös mellan bitar), tonas per stage (askgrå respektive mörkare och kallare), en vänd kopia läggs ovanpå för att dölja upprepningen, och dekalerna bakas in i samma 8 x 8-rutors bitar. Rekvisitan listas av `WorldGen.props` varje bildruta och sorteras med figurerna.
+- **Mörker och ljus** (`render/Lighting`, design avsnitt 10): en lågupplöst (1/6) ALPHA_8-ljuskarta fylls med omgivande mörker (0,65 Cinder Flats, 0,78 Deep Mines, `ashfall_data.json`) och ljus stansas in med mjuka cirklar (spelaren r 240 u, 200 i gruvan; nödljus r 130 flimrande varmt; lumentillväxt r 90 grönt pulserande; eld och explosioner). Kartan ritas en gång över marken med filtrering. Spritar får samma ljus analytiskt som ett färgfilter, så fiender aldrig går under 64 % ljusstyrka (och ritas ljusare än modellens bake), skott och effekter ritas additivt ovanför mörkret, ädelstenar lyser. Inställningen LIGHTING i huvudmenyn (FULL, LOW, OFF, sparas som volymraderna) väljer dynamisk karta, en statisk vinjett med bara spelarens ljus, eller inget.
+- **Effekter:** Vibro Lash = slash, Spore Dart = plasmablixt, Scalpel Throw = skalpell med ljusstreck, Cluster Grenade = granat med explosion, Ricochet Drone = drönarmodellen, Ward Drones = hex-sköld, Slag Cannon = eldklot med lågsvans, Toxic Vent = spormoln, Corrosive Flask = giftpöl, Arc Coil = blixtsprite. Träffar ger gnistor, dödsfall blod, ichor eller gnistor efter modell. Ädelstenar är lumenkristaller (grön, lila, röd för den sammanslagna).
+- **Ikoner:** panelens vapen- och passivikoner är Ashfalls färdighets-, stat- och kristallikoner (`ICONS` i bygget). Hela panelskinnet kommer i en senare fas.
 - **Röd ädelsten:** ädelstenar längre bort än `Sim.RECYCLE_DIST` slås ihop till en enda röd, större gem som flyttas till 250 till 350 enheter från spelaren och ger hela värdet när den tas (`Sim.condenseFar`, var 0,5 s). Är poolen full slås nya gems ihop med en nära (80 enheter) eller trycks in i den röda; kistor, mynt, mat och power-ups får alltid plats. Testas i `PickupPoolSaturationTest`.
 
 ## Ljud
@@ -87,7 +108,7 @@ Kräver Android SDK (plattform 35, build-tools 35.0.0). Skapa `local.properties`
 ./gradlew assembleDebug testDebugUnitTest
 ```
 
-Det finns 147 JVM-enhetstester (inklusive Robolectric-skärmdumpar till `app/build/screenshots/`, eller `$SHOT_DIR`): statistikberäkning, level-up-erbjudanden, evolutioner, vågor, butik, headless-simuleringar, ljudhändelser (gräns, ringbuffert, manifest) och att atlasen är giltig. Vyn visar 560 världsenheter på höjden (`Sim.VIEW_H`).
+Det finns 158 JVM-enhetstester (inklusive Robolectric-skärmdumpar till `app/build/screenshots/`, eller `$SHOT_DIR`): statistikberäkning, level-up-erbjudanden, evolutioner, vågor, butik, headless-simuleringar, ljudhändelser (gräns, ringbuffert, manifest), att Ashfall-manifestet och modellramarna är giltiga, namnöverlägget, banans layout, ljuskartan (kontrast, allokering) och dödsanimationen. Vyn visar 560 världsenheter på höjden (`Sim.VIEW_H`).
 
 Kopiera sedan `app/build/outputs/apk/debug/app-debug.apk` till `dist/`.
 
@@ -97,7 +118,7 @@ Kopiera sedan `app/build/outputs/apk/debug/app-debug.apk` till `dist/`.
 |---|---|
 | `data/` | JSON-inläsning |
 | `game/` | Motor, Sim, vapen, vågor, `WorldGen` (banans layout). Inga `android.*`-importer. |
-| `render/` | `WorldRenderer`, `SpriteAtlas`, `GroundCache` (markbitmappar), `PixelSprites` |
+| `render/` | `WorldRenderer`, `SpriteAtlas` (modeller och bilder ur `ashfall/manifest.json`), `GroundCache` (markbitmappar), `Lighting` (ljuskarta), `PixelSprites` (mynt, mat, granat) |
 | `ui/` | `PanelRenderer` för nedre skärmen |
 | `screen/` | `MainActivity`, `GameView` (spelloopen), `DualScreenManager`, `PanelPresentation`, `SecondaryActivity`, `InputRouter` |
 

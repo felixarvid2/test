@@ -6,163 +6,134 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
-/** The stage layout is a pure function of the tile: stable, seamless across chunk borders, clear at the start. */
+/** The stage layout is a pure function of the tile: stable, owned by exactly one chunk, clear at the start. */
 public class WorldGenTest {
-    private final WorldGen forest = WorldGen.of("FOREST"), library = WorldGen.of("LIBRARY");
-
-    private static boolean isRightEdge(int piece) {
-        return piece == 2 || piece == 5 || piece == 8;
-    }
-
-    private static boolean isLeftEdge(int piece) {
-        return piece == 0 || piece == 3 || piece == 6;
-    }
-
-    private static boolean isBottomEdge(int piece) {
-        return piece == 6 || piece == 7 || piece == 8;
-    }
-
-    private static boolean isTopEdge(int piece) {
-        return piece == 0 || piece == 1 || piece == 2;
-    }
+    private final WorldGen flats = WorldGen.of("FOREST"), mines = WorldGen.of("LIBRARY");
+    private final float[] xs = new float[WorldGen.MAX_LIST], ys = new float[WorldGen.MAX_LIST];
+    private final int[] ks = new int[WorldGen.MAX_LIST];
 
     @Test
     public void generationIsDeterministic() {
-        for (WorldGen g : new WorldGen[]{forest, library}) {
-            for (int ty = -40; ty < 40; ty++) {
-                for (int tx = -40; tx < 40; tx++) {
-                    assertEquals(g.ground(tx, ty), g.ground(tx, ty));
-                    assertEquals(g.object(tx, ty), g.object(tx, ty));
-                }
-            }
-            float[] x1 = new float[64], y1 = new float[64], x2 = new float[64], y2 = new float[64];
-            int[] k1 = new int[64], k2 = new int[64];
-            int n1 = g.props(3, -2, x1, y1, k1), n2 = g.props(3, -2, x2, y2, k2);
+        for (WorldGen g : new WorldGen[]{flats, mines}) {
+            float[] x2 = new float[64], y2 = new float[64];
+            int[] k2 = new int[64];
+            float[] x1 = new float[64], y1 = new float[64];
+            int[] k1 = new int[64];
+            int n1 = g.props(3, -2, 18, 9, x1, y1, k1), n2 = g.props(3, -2, 18, 9, x2, y2, k2);
+            assertEquals(n1, n2);
+            for (int i = 0; i < n1; i++) assertTrue(x1[i] == x2[i] && y1[i] == y2[i] && k1[i] == k2[i]);
+            n1 = g.decals(-9, 4, 6, 12, x1, y1, k1);
+            n2 = g.decals(-9, 4, 6, 12, x2, y2, k2);
             assertEquals(n1, n2);
             for (int i = 0; i < n1; i++) assertTrue(x1[i] == x2[i] && y1[i] == y2[i] && k1[i] == k2[i]);
         }
     }
 
-    /** Where two neighbouring dirt tiles meet, neither draws an edge on the shared side (also across chunk borders). */
+    /** Splitting a window in two lists every prop and decal exactly once: a chunk border never loses or duplicates one. */
     @Test
-    public void dirtAutotileEdgesMatchTheirNeighbours() {
-        int pairs = 0, corners = 0;
-        for (int ty = -120; ty < 120; ty++) {
-            for (int tx = -120; tx < 120; tx++) {
-                int a = forest.ground(tx, ty) - WorldGen.G_DIRT;
-                if (a < 0) continue;
-                int e = forest.ground(tx + 1, ty) - WorldGen.G_DIRT, s = forest.ground(tx, ty + 1) - WorldGen.G_DIRT;
-                if (e >= 0) {
-                    assertFalse("right edge against dirt at " + tx + "," + ty, isRightEdge(a));
-                    assertFalse("left edge against dirt at " + (tx + 1) + "," + ty, isLeftEdge(e));
-                    pairs++;
-                } else {
-                    assertTrue("no right edge at the rim " + tx + "," + ty, isRightEdge(a));
-                }
-                if (s >= 0) {
-                    assertFalse(isBottomEdge(a));
-                    assertFalse(isTopEdge(s));
-                } else {
-                    assertTrue("no bottom edge at the rim " + tx + "," + ty, isBottomEdge(a));
-                }
-                if (a >= WorldGen.DIRT_IN_TL) corners++;
-            }
-        }
-        assertTrue("some dirt exists: " + pairs, pairs > 500);
-        assertTrue("inner corners occur: " + corners, corners > 5);
-        boolean crossesChunk = false; // a dirt run that spans a chunk border exists in the sampled area
-        for (int ty = -120; ty < 120 && !crossesChunk; ty++) {
-            for (int tx = -120; tx < 120; tx++) {
-                if (Math.floorMod(tx, WorldGen.CHUNK) == WorldGen.CHUNK - 1 && forest.ground(tx, ty) >= WorldGen.G_DIRT
-                        && forest.ground(tx + 1, ty) >= WorldGen.G_DIRT) {
-                    crossesChunk = true;
-                    break;
+    public void everyPropAndDecalBelongsToExactlyOneChunk() {
+        for (WorldGen g : new WorldGen[]{flats, mines}) {
+            for (int cy = -3; cy < 3; cy++) {
+                for (int cx = -3; cx < 3; cx++) {
+                    int x0 = cx * WorldGen.CHUNK, y0 = cy * WorldGen.CHUNK, e = WorldGen.CHUNK;
+                    int whole = g.props(x0, y0, x0 + 2 * e - 1, y0 + e - 1, xs, ys, ks);
+                    int a = g.props(x0, y0, x0 + e - 1, y0 + e - 1, xs, ys, ks);
+                    int b = g.props(x0 + e, y0, x0 + 2 * e - 1, y0 + e - 1, xs, ys, ks);
+                    assertEquals("props " + cx + "," + cy, whole, a + b);
+                    whole = g.decals(x0, y0, x0 + 2 * e - 1, y0 + e - 1, xs, ys, ks);
+                    a = g.decals(x0, y0, x0 + e - 1, y0 + e - 1, xs, ys, ks);
+                    b = g.decals(x0 + e, y0, x0 + 2 * e - 1, y0 + e - 1, xs, ys, ks);
+                    assertEquals("decals " + cx + "," + cy, whole, a + b);
                 }
             }
         }
-        assertTrue(crossesChunk);
     }
 
     @Test
-    public void noClumpWithinTheStartRadius() {
-        float[] xs = new float[WorldGen.MAX_LIST], ys = new float[WorldGen.MAX_LIST];
-        int[] ks = new int[WorldGen.MAX_LIST];
-        int n = forest.clumpTrees(-12, -12, 11, 11, xs, ys, ks);
+    public void theStartAreaIsClear() {
+        for (WorldGen g : new WorldGen[]{flats, mines}) {
+            int n = g.props(-16, -16, 15, 15, xs, ys, ks);
+            for (int i = 0; i < n; i++) {
+                assertTrue("prop " + WorldGen.PROP[ks[i]] + " at " + xs[i] + "," + ys[i], Math.hypot(xs[i], ys[i]) >= 4.0);
+            }
+            assertFalse("spawn is free", g.blocked(0, 0));
+            assertFalse(g.blocked(60, 40));
+        }
+        assertFalse(WorldGen.clumpAllowed(0, 0));
+        assertFalse(WorldGen.clumpAllowed(200, 50));
+        assertTrue(WorldGen.clumpAllowed(400, 0));
+        // the flats keep the whole spawn disc free of junk and rock, only a light post may stand closer than CLEAR
+        int n = flats.props(-16, -16, 15, 15, xs, ys, ks);
+        for (int i = 0; i < n; i++) if (ks[i] != WorldGen.P_LIGHT) assertTrue(Math.hypot(xs[i], ys[i]) >= WorldGen.CLEAR);
+    }
+
+    @Test
+    public void densityIsFullButReadable() {
+        for (WorldGen g : new WorldGen[]{flats, mines}) {
+            int tiles = 0, props = 0, decals = 0, lights = 0;
+            for (int cy = -10; cy < 10; cy++) {
+                for (int cx = -10; cx < 10; cx++) {
+                    int x0 = cx * WorldGen.CHUNK, y0 = cy * WorldGen.CHUNK, e = WorldGen.CHUNK;
+                    tiles += e * e;
+                    int n = g.props(x0, y0, x0 + e - 1, y0 + e - 1, xs, ys, ks);
+                    props += n;
+                    for (int i = 0; i < n; i++) if (ks[i] == WorldGen.P_LIGHT) lights++;
+                    decals += g.decals(x0, y0, x0 + e - 1, y0 + e - 1, xs, ys, ks);
+                }
+            }
+            double p = props / (double) tiles, d = decals / (double) tiles;
+            System.out.printf("WORLDGEN %s props/tile=%.4f decals/tile=%.4f lights=%d%n", g.mines ? "mines" : "flats", p, d, lights);
+            // a 24 x 13.5 tile view: 10..70 props and 20..90 decals, inside the design caps (60 props, 120 decals)
+            assertTrue("props " + p, p > 0.025 && p < 0.22);
+            assertTrue("decals " + d, d > 0.06 && d < 0.30);
+            assertTrue("emergency lights exist: " + lights, lights > 8);
+        }
+    }
+
+    @Test
+    public void minesHaveWallRowsWithAFreeLane() {
+        int walls = 0;
+        boolean gap = false;
+        for (int g = 0; g < 3; g++) {
+            int slots = 0;
+            for (int x0 = -200; x0 < 200; x0 += 20) {
+                int n = mines.props(x0, 6 + g * 7 - 1, x0 + 19, 6 + g * 7 + 4, xs, ys, ks);
+                for (int i = 0; i < n; i++) {
+                    if (ks[i] == WorldGen.P_WALL || ks[i] == WorldGen.P_SEGMENT || ks[i] == WorldGen.P_CATWALK || ks[i] == WorldGen.P_SLAG || ks[i] == WorldGen.P_PIPES) {
+                        slots++;
+                        assertTrue("wall below the lane edge: y=" + ys[i], ys[i] >= 6f);
+                    }
+                }
+            }
+            walls += slots;
+            gap |= slots < 133; // 400 tiles / 3 = 133 slots per row: fewer means breaks exist
+        }
+        assertTrue("wall pieces " + walls, walls > 150);
+        assertTrue("rows have breaks", gap);
+        int n = mines.props(-100, -5, 100, 5, xs, ys, ks); // the lane itself: only the light posts at its edges
+        for (int i = 0; i < n; i++) assertTrue(WorldGen.PROP[ks[i]], ks[i] == WorldGen.P_LIGHT || ks[i] == WorldGen.P_STACK);
+    }
+
+    @Test
+    public void blockedFollowsTheProps() {
+        int n = flats.props(20, 20, 40, 40, xs, ys, ks);
+        assertTrue(n > 5);
         for (int i = 0; i < n; i++) {
-            assertTrue("tree at " + xs[i] + "," + ys[i], Math.hypot(xs[i], ys[i]) >= WorldGen.CLEAR);
+            if (ks[i] == WorldGen.P_LIGHT) continue;
+            assertTrue(WorldGen.PROP[ks[i]], flats.blocked(xs[i] * WorldGen.TILE, ys[i] * WorldGen.TILE - 1f));
         }
-        for (int ty = -20; ty < 20; ty++) {
-            for (int tx = -20; tx < 20; tx++) {
-                float wx = (tx + 0.5f) * WorldGen.TILE, wy = (ty + 0.5f) * WorldGen.TILE;
-                if (Math.hypot(wx, wy) < 300f) {
-                    assertFalse("clump tile " + tx + "," + ty, forest.inClump(tx + 0.5f, ty + 0.5f));
-                    assertTrue(forest.object(tx, ty) < 0 || forest.object(tx, ty) >= WorldGen.D_MUSHROOM);
-                }
-            }
-        }
-        for (int cy = -2; cy <= 1; cy++) {
-            for (int cx = -2; cx <= 1; cx++) {
-                int m = forest.props(cx, cy, xs, ys, ks);
-                for (int i = 0; i < m; i++) assertTrue(Math.hypot(xs[i], ys[i]) >= WorldGen.SCATTER_CLEAR);
-            }
-        }
-        // library: no shelf in the central band
-        for (int tx = -30; tx < 30; tx++) for (int ty = -5; ty < 5; ty++) assertTrue(library.object(tx, ty) < WorldGen.L_SHELF_A || library.object(tx, ty) > WorldGen.L_SHELF_B);
     }
 
     @Test
-    public void coverageFeelsFullButReadable() {
-        int n = 0, clump = 0, dirt = 0, flowers = 0, props = 0;
-        float[] xs = new float[64], ys = new float[64];
-        int[] ks = new int[64];
-        for (int ty = -150; ty < 150; ty++) {
-            for (int tx = -150; tx < 150; tx++) {
-                n++;
-                if (forest.inClump(tx + 0.5f, ty + 0.5f)) clump++;
-                int g = forest.ground(tx, ty);
-                if (g >= WorldGen.G_DIRT) dirt++;
-                if (g == WorldGen.G_FLOWER) flowers++;
-            }
+    public void decalKindsAreValid() {
+        int n = flats.decals(-30, -30, 30, 30, xs, ys, ks);
+        boolean[] seen = new boolean[WorldGen.DECAL.length];
+        for (int i = 0; i < n; i++) {
+            assertTrue((ks[i] & 255) < WorldGen.DECAL.length);
+            seen[ks[i] & 255] = true;
         }
-        for (int cy = -19; cy < 19; cy++) for (int cx = -19; cx < 19; cx++) props += forest.props(cx, cy, xs, ys, ks);
-        System.out.printf("WORLDGEN clump=%.3f dirt=%.3f flowers=%.3f props/tile=%.4f%n", clump / (double) n, dirt / (double) n,
-                flowers / (double) n, props / (double) n);
-        assertTrue("clump " + clump / (double) n, clump / (double) n > 0.08 && clump / (double) n < 0.28);
-        assertTrue("dirt " + dirt / (double) n, dirt / (double) n > 0.03 && dirt / (double) n < 0.14);
-        assertTrue("props", props / (double) n > 0.02 && props / (double) n < 0.12);
-    }
-
-    @Test
-    public void libraryHasRowsWithBreaks() {
-        int shelves = 0, breaks = 0;
-        for (int ty = -40; ty < 40; ty++) {
-            boolean row = false;
-            for (int tx = -200; tx < 200; tx++) {
-                int o = library.object(tx, ty);
-                boolean shelf = o == WorldGen.L_SHELF_A || o == WorldGen.L_SHELF_B;
-                if (shelf) {
-                    shelves++;
-                    row = true;
-                } else if (row && Math.abs(ty) >= 6 && Math.abs(ty) <= 7 && !shelf) {
-                    breaks++;
-                }
-            }
-        }
-        assertTrue("shelves " + shelves, shelves > 1500);
-        assertTrue("breaks " + breaks, breaks > 20);
-    }
-
-    /** Dumps a map region as ASCII when you want to look at it: set WORLDGEN_DUMP=1. */
-    @Test
-    public void dumpForRegion() {
-        if (System.getenv("WORLDGEN_DUMP") == null) return;
-        StringBuilder sb = new StringBuilder();
-        for (int ty = -30; ty < 30; ty++) {
-            for (int tx = -60; tx < 60; tx++) {
-                sb.append(forest.inClump(tx + 0.5f, ty + 0.5f) ? '#' : forest.ground(tx, ty) >= WorldGen.G_DIRT ? '=' : forest.ground(tx, ty) == WorldGen.G_FLOWER ? '*' : '.');
-            }
-            sb.append('\n');
-        }
-        System.out.println(sb);
+        int distinct = 0;
+        for (boolean b : seen) if (b) distinct++;
+        assertTrue("variety " + distinct, distinct >= 8);
     }
 }

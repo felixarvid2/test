@@ -1,0 +1,32 @@
+{
+ "name": "coolant_valve",
+ "category": "props",
+ "source": "assets/ashfall-ai/meshy/models/props/coolant_valve.glb",
+ "atlas": "coolant_valve.png",
+ "atlasSize": [256,114],
+ "frameSize": [128,128],
+ "anchor": [64,101],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [1.23,1.4,1.67],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,82,112,23,8]
+    ]
+   ]
+  }
+ }
+}

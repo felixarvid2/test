@@ -1,0 +1,32 @@
+{
+ "name": "refinery_silhouette",
+ "category": "props",
+ "source": "assets/ashfall-ai/meshy/models/props/refinery_silhouette.glb",
+ "atlas": "refinery_silhouette.png",
+ "atlasSize": [512,325],
+ "frameSize": [512,512],
+ "anchor": [256,356],
+ "pxPerMetre": 6.79,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [73.45,45,29.98],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,502,323,5,94]
+    ]
+   ]
+  }
+ }
+}

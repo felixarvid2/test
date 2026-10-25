@@ -1,0 +1,32 @@
+{
+ "name": "echo_relic",
+ "category": "props",
+ "source": "assets/ashfall-ai/meshy/models/props/echo_relic.glb",
+ "atlas": "echo_relic.png",
+ "atlasSize": [256,108],
+ "frameSize": [128,128],
+ "anchor": [64,94],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [1.14,1.6,1.15],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,76,106,26,11]
+    ]
+   ]
+  }
+ }
+}

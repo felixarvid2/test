@@ -1,0 +1,32 @@
+{
+ "name": "pump_house",
+ "category": "environment",
+ "source": "assets/ashfall-ai/meshy/models/environment/pump_house.glb",
+ "atlas": "pump_house.png",
+ "atlasSize": [512,385],
+ "frameSize": [512,512],
+ "anchor": [256,355],
+ "pxPerMetre": 43.28,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [11.49,7,7.35],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,500,383,6,65]
+    ]
+   ]
+  }
+ }
+}

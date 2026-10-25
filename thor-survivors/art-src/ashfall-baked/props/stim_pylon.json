@@ -1,0 +1,32 @@
+{
+ "name": "stim_pylon",
+ "category": "props",
+ "source": "assets/ashfall-ai/meshy/models/props/stim_pylon.glb",
+ "atlas": "stim_pylon.png",
+ "atlasSize": [256,153],
+ "frameSize": [160,160],
+ "anchor": [80,142],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [0.61,2.6,0.59],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,42,151,59,4]
+    ]
+   ]
+  }
+ }
+}

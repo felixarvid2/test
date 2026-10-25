@@ -1,0 +1,60 @@
+{
+ "name": "slagborn",
+ "category": "enemies",
+ "source": "assets/ashfall-ai/meshy/models/enemies/slagborn.glb",
+ "atlas": "slagborn.png",
+ "atlasSize": [256,663],
+ "frameSize": [192,192],
+ "anchor": [96,160],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [1.75,2.6,0.77],
+ "directions": [
+  "S",
+  "SE",
+  "E",
+  "NE",
+  "N",
+  "NW",
+  "W",
+  "SW"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,515,116,147,38,26]
+    ],
+    [
+     [100,183,93,164,52,17]
+    ],
+    [
+     [1,1,52,181,70,4]
+    ],
+    [
+     [54,1,98,175,51,6]
+    ],
+    [
+     [95,353,115,155,38,21]
+    ],
+    [
+     [1,353,93,161,47,20]
+    ],
+    [
+     [153,1,52,175,70,12]
+    ],
+    [
+     [1,183,98,169,43,15]
+    ]
+   ]
+  }
+ }
+}

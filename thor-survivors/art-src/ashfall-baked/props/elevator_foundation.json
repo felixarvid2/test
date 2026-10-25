@@ -1,0 +1,32 @@
+{
+ "name": "elevator_foundation",
+ "category": "props",
+ "source": "assets/ashfall-ai/meshy/models/props/elevator_foundation.glb",
+ "atlas": "elevator_foundation.png",
+ "atlasSize": [512,505],
+ "frameSize": [512,512],
+ "anchor": [256,402],
+ "pxPerMetre": 11.79,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [28.99,40,28.67],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,345,503,84,4]
+    ]
+   ]
+  }
+ }
+}

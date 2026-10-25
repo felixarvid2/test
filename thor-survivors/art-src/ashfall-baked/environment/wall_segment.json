@@ -1,0 +1,32 @@
+{
+ "name": "wall_segment",
+ "category": "environment",
+ "source": "assets/ashfall-ai/meshy/models/environment/wall_segment.glb",
+ "atlas": "wall_segment.png",
+ "atlasSize": [512,211],
+ "frameSize": [320,320],
+ "anchor": [160,223],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [4.35,3,2.14],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,282,209,19,55]
+    ]
+   ]
+  }
+ }
+}

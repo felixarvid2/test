@@ -22,16 +22,14 @@ import java.io.FileInputStream;
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = 35)
 public class GroundCacheTest {
-    private static final int K = 5, T = 16 * K, CH = WorldGen.CHUNK;
+    private static final int T = 80, CH = WorldGen.CHUNK;
 
     private GroundCache cache(String stage) {
         SpriteAtlas a = SpriteAtlas.get();
         a.load(path -> new FileInputStream("src/main/assets/" + path));
         GroundCache c = new GroundCache();
-        SpriteAtlas.Sprite t = a.find("tile." + stage);
-        assertNotNull(t);
-        assertTrue("ground pieces loaded", stage.equals("LIBRARY") || t.ground.length == 14);
-        c.setup(WorldGen.of(stage), t, K);
+        assertNotNull(a.groundTexture());
+        c.setup(WorldGen.of(stage), stage, T, stage.equals("LIBRARY") ? 0xFF70747F : 0xFF8F8A84);
         return c;
     }
 
@@ -46,8 +44,8 @@ public class GroundCacheTest {
     }
 
     /**
-     * Two neighbouring chunks drawn separately must equal the same 2-chunk window baked in one go: trees and bushes
-     * that straddle the border are drawn by both sides, an autotile edge matches its neighbour across the border.
+     * Two neighbouring chunks drawn separately must equal the same 2-chunk window baked in one go: the rock texture is
+     * sampled by world pixel, so only the decals that straddle the border could differ, and both sides paint those.
      */
     @Test
     public void chunksAreSeamlessAcrossBorders() {
@@ -56,7 +54,7 @@ public class GroundCacheTest {
             WorldGen g = WorldGen.of(stage);
             Bitmap wide = Bitmap.createBitmap(2 * CH * T, CH * T, Bitmap.Config.ARGB_8888);
             Bitmap tall = Bitmap.createBitmap(CH * T, 2 * CH * T, Bitmap.Config.ARGB_8888);
-            int treesAcross = 0;
+            int across = 0;
             for (int cy = -3; cy < 3; cy++) {
                 for (int cx = -3; cx < 3; cx++) {
                     c.bake(new Canvas(wide), cx * CH, cy * CH, 2 * CH, CH);
@@ -67,11 +65,11 @@ public class GroundCacheTest {
                     assertSame(tall, 0, CH * T, c.chunkBitmap(cx, cy + 1), stage + " chunk " + cx + "," + (cy + 1) + " bottom half");
                     float[] xs = new float[WorldGen.MAX_LIST], ys = new float[WorldGen.MAX_LIST];
                     int[] ks = new int[WorldGen.MAX_LIST];
-                    int n = g.clumpTrees(cx * CH, cy * CH, cx * CH + 2 * CH - 1, cy * CH + CH - 1, xs, ys, ks);
-                    for (int i = 0; i < n; i++) if (Math.abs(xs[i] - (cx + 1) * CH) < 0.5f) treesAcross++;
+                    int n = g.decals(cx * CH, cy * CH, cx * CH + 2 * CH - 1, cy * CH + CH - 1, xs, ys, ks);
+                    for (int i = 0; i < n; i++) if (Math.abs(xs[i] - (cx + 1) * CH) < 1.2f) across++;
                 }
             }
-            if (stage.equals("FOREST")) assertTrue("trees straddle chunk borders somewhere: " + treesAcross, treesAcross > 20);
+            assertTrue("decals straddle chunk borders somewhere: " + across, across > 10);
         }
     }
 
@@ -102,6 +100,31 @@ public class GroundCacheTest {
         assertTrue("live chunks " + live, live <= GroundCache.CAP);
         assertTrue("worst frame built " + worst, worst <= 2);
         assertEquals(0, c.peek(0, 0) == null ? 0 : 1); // the start is long evicted
+    }
+
+    /** The ground is dark rock, not flat colour: real texture detail and decals show up in the bitmap. */
+    @Test
+    public void groundHasTextureAndStageTint() {
+        int[] avg = new int[2];
+        String[] stages = {"FOREST", "LIBRARY"};
+        for (int s = 0; s < 2; s++) {
+            Bitmap b = cache(stages[s]).chunkBitmap(5, 5);
+            long sum = 0, sq = 0;
+            int n = 0;
+            for (int y = 0; y < b.getHeight(); y += 4) {
+                for (int x = 0; x < b.getWidth(); x += 4) {
+                    int p = b.getPixel(x, y), l = ((p >> 16 & 255) + (p >> 8 & 255) + (p & 255)) / 3;
+                    sum += l;
+                    sq += (long) l * l;
+                    n++;
+                }
+            }
+            double mean = sum / (double) n, var = sq / (double) n - mean * mean;
+            avg[s] = (int) mean;
+            assertTrue(stages[s] + " has texture variance " + var, var > 40);
+            assertTrue(stages[s] + " is dark " + mean, mean < 110 && mean > 15);
+        }
+        assertTrue("mines darker than the flats: " + avg[1] + " vs " + avg[0], avg[1] <= avg[0]);
     }
 
     /** With the background thread: the ring just outside the view gets baked by the worker while the camera keeps still. */

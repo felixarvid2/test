@@ -1,0 +1,60 @@
+{
+ "name": "cargo_loader",
+ "category": "enemies",
+ "source": "assets/ashfall-ai/meshy/models/enemies/cargo_loader.glb",
+ "atlas": "cargo_loader.png",
+ "atlasSize": [512,651],
+ "frameSize": [256,256],
+ "anchor": [128,197],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [1.87,3.2,2.39],
+ "directions": [
+  "S",
+  "SE",
+  "E",
+  "NE",
+  "N",
+  "NW",
+  "W",
+  "SW"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [310,225,122,212,67,22]
+    ],
+    [
+     [124,1,154,219,50,20]
+    ],
+    [
+     [1,443,156,207,50,16]
+    ],
+    [
+     [279,1,153,217,52,24]
+    ],
+    [
+     [1,1,122,223,67,18]
+    ],
+    [
+     [1,225,154,217,52,22]
+    ],
+    [
+     [158,443,156,196,50,22]
+    ],
+    [
+     [156,225,153,214,51,22]
+    ]
+   ]
+  }
+ }
+}

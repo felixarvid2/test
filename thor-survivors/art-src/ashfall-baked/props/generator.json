@@ -1,0 +1,32 @@
+{
+ "name": "generator",
+ "category": "props",
+ "source": "assets/ashfall-ai/meshy/models/props/generator.glb",
+ "atlas": "generator.png",
+ "atlasSize": [256,127],
+ "frameSize": [192,192],
+ "anchor": [96,139],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [2.53,1.8,1.21],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,166,125,13,33]
+    ]
+   ]
+  }
+ }
+}

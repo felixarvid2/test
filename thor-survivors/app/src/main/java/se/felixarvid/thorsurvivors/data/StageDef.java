@@ -34,6 +34,12 @@ public final class StageDef {
         this.rows = rows;
     }
 
+    /** A copy with another display name (the Ashfall overlay). */
+    public StageDef withName(String newName) {
+        return new StageDef(key, newName, timeLimit, playerSpeed, enemySpeed, enemyHealth, goldMultiplier, xpBonus,
+                startingSpawns, horizontalSpawns, destructible, rows);
+    }
+
     /** The row that governs the given run time: the last row whose minute is <= elapsed minutes. */
     public WaveRow rowAt(double seconds) {
         return WaveSelector.rowAt(rows, seconds);

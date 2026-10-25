@@ -1,0 +1,32 @@
+{
+ "name": "the_pillar",
+ "category": "props",
+ "source": "assets/ashfall-ai/meshy/models/props/the_pillar.glb",
+ "atlas": "the_pillar.png",
+ "atlasSize": [256,504],
+ "frameSize": [512,512],
+ "anchor": [256,449],
+ "pxPerMetre": 7.77,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [25.34,70,25.57],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,200,502,156,4]
+    ]
+   ]
+  }
+ }
+}
