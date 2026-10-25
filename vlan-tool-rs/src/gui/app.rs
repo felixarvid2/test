@@ -328,6 +328,8 @@ impl App {
         }
     }
 
+    /// Används av testerna och reserv för kommandon; rubrikens Exportera-knapp öppnar views::export.
+    #[allow(dead_code)]
     pub fn export(&mut self, format: Format) {
         let Some(project) = &self.project else { return };
         if self.fleet.devices.is_empty() {
@@ -356,6 +358,7 @@ impl App {
         }
     }
 
+    #[allow(dead_code)]
     pub fn export_fix_scripts(&mut self) {
         let Some(project) = &self.project else { return };
         let mut written = 0;
@@ -468,32 +471,9 @@ impl App {
                             return;
                         }
                         ui.add_space(8.0);
-                        ui.menu_button("⇩ Exportera", |ui| {
-                            for (label, f) in [
-                                ("HTML-rapport (öppnas i webbläsaren)", Format::Html),
-                                ("Markdown", Format::Markdown),
-                                ("JSON", Format::Json),
-                                ("CSV", Format::Csv),
-                                ("Text", Format::Text),
-                            ] {
-                                if ui.button(label).clicked() {
-                                    self.export(f);
-                                    ui.close();
-                                }
-                            }
-                            ui.separator();
-                            if ui.button("Rättningsskript per enhet").clicked() {
-                                self.export_fix_scripts();
-                                ui.close();
-                            }
-                            if ui.button("Öppna rapportmappen").clicked() {
-                                if let Some(p) = &self.project {
-                                    let _ = std::fs::create_dir_all(p.reports());
-                                    open_path(&p.reports());
-                                }
-                                ui.close();
-                            }
-                        });
+                        if ui.button("⇩ Exportera …").on_hover_text("Välj format och spara i reports/").clicked() {
+                            views::export::open(self);
+                        }
                         if ui.button("⟳ Läs om").on_hover_text("Läs om CSV och konfigar (F5)").clicked() {
                             self.reload();
                             self.toast("Läste om projektet");
@@ -665,6 +645,7 @@ impl eframe::App for App {
                 crate::folder::Outcome::Pending => {}
             }
         }
+        views::export::show(self, &ctx);
         self.about(&ctx);
         self.toasts(&ctx);
     }
