@@ -237,11 +237,13 @@ public class Phase11ShotsTest {
         h.eng.input.post(Input.CMD_CONFIRM, 0, 0, 0);
         h.eng.advance(1f / 60f);
         // pause
+        h.eng.nextRunSeed = 1L; // deterministic run
         h.eng.input.post(Input.CMD_START, 0, 0, 0);
         h.eng.advance(1f / 60f);
         assertEquals(Engine.PH_PAUSED, h.eng.phase);
         Shots.save(h.renderBottom(), "p11_pause_bottom.png");
         Shots.save(h.renderTop(), "p11_pause_top.png");
+        h.eng.nextRunSeed = 1L; // deterministic run
         h.eng.input.post(Input.CMD_START, 0, 0, 0);
         h.eng.advance(1f / 60f);
         // result: the First killed, gold x2
@@ -318,6 +320,7 @@ public class Phase11ShotsTest {
         h.eng.input.post(Input.CMD_CONFIRM, 0, 0, 0);
         h.eng.advance(1f / 60f);
         // pause
+        h.eng.nextRunSeed = 1L; // deterministic run
         h.eng.input.post(Input.CMD_START, 0, 0, 0);
         h.eng.advance(1f / 60f);
         h.world.draw(fc, 1920, 1080, h.eng, false); // single screen: dualScreen = false

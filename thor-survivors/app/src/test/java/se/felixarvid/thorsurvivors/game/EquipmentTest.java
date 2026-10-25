@@ -384,6 +384,7 @@ public class EquipmentTest {
         e.phase = Engine.PH_MENU;
         e.focus = Engine.MENU_START;
         e.selectStage("FLATS");
+        e.nextRunSeed = 1L; // deterministic run
         e.input.post(Input.CMD_START, 0, 0, 0);
         e.advance(DT);
         assertEquals(Engine.PH_PLAYING, e.phase);

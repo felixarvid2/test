@@ -73,6 +73,7 @@ public class EngineSoundTest {
     @Test
     public void runEndPlaysGameOverOrVictory() throws Exception {
         Engine e = menu();
+        e.nextRunSeed = 1L; // deterministic run
         e.input.post(Input.CMD_START, 0, 0, 0);
         e.advance(1f / 60f);
         assertEquals(Engine.PH_PLAYING, e.phase);

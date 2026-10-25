@@ -71,6 +71,7 @@ final class Shots {
         for (int i = 0; i < eng.starters.size(); i++) if (eng.starters.get(i).equals(starter)) eng.weaponIdx = i;
         eng.phase = Engine.PH_MENU;
         eng.focus = Engine.MENU_START;
+        eng.nextRunSeed = seed; // deterministic from the first spawn on
         eng.input.post(Input.CMD_START, 0, 0, 0);
         eng.advance(1f / 60f);
         Sim s = eng.sim;

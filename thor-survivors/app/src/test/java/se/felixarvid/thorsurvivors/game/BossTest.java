@@ -685,6 +685,7 @@ public class BossTest {
         e.phase = Engine.PH_MENU;
         e.focus = Engine.MENU_START;
         e.selectStage("MINES");
+        e.nextRunSeed = 1L; // deterministic run
         e.input.post(Input.CMD_START, 0, 0, 0);
         e.advance(DT);
         assertEquals(Engine.PH_PLAYING, e.phase);
@@ -697,6 +698,7 @@ public class BossTest {
         e.input.clearMovement();
         e.phase = Engine.PH_MENU;
         e.focus = Engine.MENU_START;
+        e.nextRunSeed = 1L; // deterministic run
         e.input.post(Input.CMD_START, 0, 0, 0);
         e.advance(DT);
         Sim s = e.sim;
@@ -724,6 +726,7 @@ public class BossTest {
         e.input.clearMovement();
         e.phase = Engine.PH_MENU;
         e.focus = Engine.MENU_START;
+        e.nextRunSeed = 1L; // deterministic run
         e.input.post(Input.CMD_START, 0, 0, 0);
         e.advance(DT);
         e.sim.noSpawns = true;

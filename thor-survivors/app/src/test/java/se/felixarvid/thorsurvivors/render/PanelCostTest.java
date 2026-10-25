@@ -129,6 +129,7 @@ public class PanelCostTest {
         h.eng.input.post(Input.CMD_CONFIRM, 0, 0, 0);
         h.eng.advance(1f / 60f);
         h.eng.advance(1f / 60f);
+        h.eng.nextRunSeed = 1L; // deterministic run
         h.eng.input.post(Input.CMD_START, 0, 0, 0);
         h.eng.advance(1f / 60f);
         measure("pause", p, c, 1240, 1080, null);
