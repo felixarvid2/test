@@ -9,7 +9,7 @@ use eframe::egui::{
 use egui_extras::{Column, TableBuilder};
 use std::collections::BTreeSet;
 use vlantool::finding::{Finding, Severity};
-use vlantool::inventory::{join_vlans, short_port, PortMode};
+use vlantool::inventory::{join_vlans, short_port};
 use vlantool::net::{self, Subnet};
 use vlantool::parser::{IfMode, Kind};
 use vlantool::{rules, topology};
@@ -22,6 +22,8 @@ mod topo;
 mod config;
 mod drift;
 mod csv;
+mod csv_edit;
+pub mod export;
 mod subnet;
 mod settings;
 pub mod state_a;
