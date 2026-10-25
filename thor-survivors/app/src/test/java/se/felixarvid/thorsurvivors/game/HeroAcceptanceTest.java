@@ -19,8 +19,7 @@ import java.util.Random;
 public class HeroAcceptanceTest {
     static int kills(String hero, String starter, long seed, double secs, boolean immortal, boolean still, double[] death) throws Exception {
         GameData d = TestData.load();
-        Sim s = new Sim(d, d.stages.get("FOREST"), starter, new HashMap<>(), hero);
-        s.rng.setSeed(seed);
+        Sim s = new Sim(d, d.stages.get("FOREST"), starter, new HashMap<>(), hero, seed); // seeded from the first spawn on
         Random rng = new Random(seed);
         Input in = new Input();
         int step = 0;
