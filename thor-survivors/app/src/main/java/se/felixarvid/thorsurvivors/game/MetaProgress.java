@@ -27,6 +27,7 @@ public final class MetaProgress {
     public volatile int lighting = LIGHT_FULL;
     /** Selected hero: index into {@link GameData#HERO_ORDER} among the heroes the data defines (0 = Bastion, also for old saves). */
     public volatile int heroIdx;
+    private String[] heroKeys;
     private final Map<String, Integer> ranks = new HashMap<>();
 
     public MetaProgress(GameData data, Store store) {
@@ -106,8 +107,8 @@ public final class MetaProgress {
 
     /** Key of the selected hero, or null when the data defines none. */
     public String heroKey() {
-        java.util.List<String> keys = data.heroKeys();
-        return keys.isEmpty() ? null : keys.get(Math.min(heroIdx, keys.size() - 1));
+        if (heroKeys == null) heroKeys = data.heroKeys().toArray(new String[0]); // once: this is read every frame
+        return heroKeys.length == 0 ? null : heroKeys[Math.min(heroIdx, heroKeys.length - 1)];
     }
 
     /** Steps the selected hero by delta (wrapping) and stores it. */

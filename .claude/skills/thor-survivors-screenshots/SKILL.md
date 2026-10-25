@@ -12,7 +12,7 @@ No KVM in the cloud, so no emulator. Robolectric 4.14.1 with `@GraphicsMode(Grap
 
 - Files in `thor-survivors/app/src/test/java/se/felixarvid/thorsurvivors/render/`:
   `ScreenshotTest.java` (menu, fight, level-up, weapons, movement), `StageShotsTest.java` (forest and library stages,
-  brazier before/after), `CrowdOrderTest.java` (6 movement frames, `seq_N.png`), `Shots.java` (helper, sizes), `AshfallShotsTest.java` (lighting FULL/LOW/OFF with the enemy contrast check, the three boss
+  brazier before/after), `CrowdOrderTest.java` (6 movement frames, `seq_N.png`), `Shots.java` (helper, sizes), `HeroShotsTest.java` (each hero attacking, Slam/Spore Burst, Wrath beam + Parasite Link, grenade, hero select row, branch card on the bottom screen, dodge; `driveUntil` aims at the nearest enemy and clears `inv.weaponCount` so only the main weapon is in the picture), `AshfallShotsTest.java` (lighting FULL/LOW/OFF with the enemy contrast check, the three boss
   models, the death sequence, the player in 8 directions and 5 states, `bestiary.png`), `RenderCostTest.java` (crowd draw time per
   lighting mode and the zero-allocation check).
 - Top screen: 1920x1080 (`Shots.TOP_W/TOP_H`, WorldRenderer). Bottom panel: 1240x1080 (`Shots.BOT_W/BOT_H`, `ui/PanelRenderer`).

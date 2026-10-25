@@ -59,4 +59,27 @@ public class MetaProgressTest {
         assertEquals(100, mp.bestTimeSec);
         assertEquals(80, mp.bestKills);
     }
+
+    @Test
+    public void heroSelectionPersistsAndOldSavesDefaultToBastion() throws Exception {
+        MemStore st = new MemStore();
+        MetaProgress fresh = new MetaProgress(TestData.load(), st); // a save without a "hero" key
+        assertEquals(0, fresh.heroIdx);
+        assertEquals("BASTION", fresh.heroKey());
+        fresh.stepHero(1);
+        assertEquals("SPECTRE", fresh.heroKey());
+        assertEquals(1, (int) st.m.get("hero"));
+        assertEquals("SPECTRE", new MetaProgress(TestData.load(), st).heroKey());
+        fresh.stepHero(2); // wraps
+        assertEquals("BASTION", fresh.heroKey());
+        fresh.stepHero(-1);
+        assertEquals("XENOMANT", fresh.heroKey());
+        st.m.put("hero", 99); // a damaged save clamps
+        assertEquals("XENOMANT", new MetaProgress(TestData.load(), st).heroKey());
+        st.m.put("hero", -4);
+        assertEquals("BASTION", new MetaProgress(TestData.load(), st).heroKey());
+        // the other save values are untouched by the new key
+        st.m.put("gold", 77);
+        assertEquals(77, new MetaProgress(TestData.load(), st).gold);
+    }
 }

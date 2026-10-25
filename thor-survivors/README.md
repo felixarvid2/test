@@ -20,12 +20,22 @@ Den nedre panelen använder `android.app.Presentation`. Om det inte fungerar sta
 ## Kontroller
 
 - Vänster spak eller d-pad: rörelse
-- A: bekräfta
-- B: tillbaka
-- Start: paus
-- Touch på nedre skärmen
+- Höger spak (AXIS_Z/AXIS_RZ, annars RX/RY): sikta huvudvapnet. Utan spakutslag siktar det dit hjälten tittar (rörelseriktningen).
+- A: undvik (dodge) under spel, bekräfta i menyer. B: tillbaka. Start: paus
+- Touch på nedre skärmen: vänster yta rör, höger yta siktar (visas bara utan handkontroll), knappen DODGE undviker. I överlägget på en skärm är hela skärmen rörelsespak (den sätter bara riktningen) och DODGE ligger nere till höger.
 
-I emulatorn: WASD eller piltangenterna.
+I emulatorn: WASD rör, piltangenterna siktar, mellanslag undviker.
+
+## Hjältar, huvudvapen och grenar (design fas 3 och 4)
+
+- **Hjältar** (`heroes` i `ashfall_data.json`, väljs på raden HERO i huvudmenyn, sparas i `MetaProgress` som `hero`; gamla sparfiler har ingen nyckel och får Bastion): Bastion (130 HP, rustning 1, regen 0,4, fart 0,92, +1 % might och +1 % max HP per nivå), Spectre (80 HP, fart 1,10, krit 15 %, +1 % krit och +0,5 % fart per nivå) och Xenomant (95 HP, regen 0,2, +1 % area och +1 % plockavstånd per nivå). `PlayerStats.compute(..., hero, level)` lägger hjältens värden över VS-grunden. Utan hjälte (`Sim` utan hjältnyckel, som de gamla testerna) gäller de gamla reglerna.
+- **Huvudvapen** (`mainWeapons`, `game/MainWeapon.java`): alltid ägda, utanför de 6 vapenplatserna, avfyras automatiskt mot sikteriktningen och använder VS-pipelinen (might, area, cooldown, amount, projektilfart, krit). Bastion Hydraulic Hammer: kägelsvep (100 grader, radie 80), var 3:e svep en Slam (cirkel radie 90, 0,4 s stun). Spectre Twin Pistols: 3 kulor med 8 graders spridning. Xenomant Lumen Caster: piercande bolt (träffar 1 + pierce 2 fiender, Decay), var 4:e kast en Spore Burst med 6 bolts.
+- **Grenar:** 4 grenar x 3 nivåer per hjälte. Ett grenkort ersätter de sista korten vid hjältenivå 5, 10, 15, ... (`OfferGenerator.branchOffers`): nivå I från nivå 5, II från 15, III från 25, alltid i ordning. Kan någon påbörjad gren ta nästa nivå erbjuds de (högst 2 kort), annars nivå I av högst 2 grenar som inte är påbörjade. Nivåernas effekter står som `mods` i datan (en vanlig nyckel ersätter parametern, en nyckel som slutar på `Add` adderas); `MainWeaponTest.everyTierModIsAKnownParameter` fångar felstavningar.
+- **Approximationer tills statusfasen:** Burn och Decay är enkla stackar på `Enemy` (`burn`, `decay`, kontinuerlig skada per stack enligt design avsnitt 7, ingen 10 Hz-pass, inga siffror) och Stun/Root är en tidräknare på `Enemy`; `Sim.applyStatus` har en TODO för statusfasen. Riot Guard II (reflektera projektiler) ger i stället -25 % skada, eftersom fiender inte har projektiler än. Parasite Link skadar båda ändarna (0,5P/s) i stället för att dela skadan. Furnace Cleave III är en 60 enheters eldvåg (projektil). Piston Jab och Slam kan ske på samma svep.
+- **Undvik (dodge):** A-knappen (gamepad, mellanslag på tangentbord) eller knappen DODGE på nedre skärmen: 0,25 s osårbarhet och ett språng på 90 enheter i rörelseriktningen (annars blickriktningen), 4 s återhämtning skalad med Cooldown-värdet, en laddning. Återhämtningen visas på knappen.
+- **Siktindikator:** en liten pil vid spelarens fötter (ljusare när spaken används).
+- **Bakade hjältemodeller:** `tools/bake/overrides.json` samplar korta fönster ur de långa klippen (Spectres shoot/throw, alla hjältars dodge, Bastions attack/slam, Xenomants cast/cast2/slam); bygg om med `cd tools/bake && node bake.mjs --only bastion,spectre,xenomant` och sedan `python3 tools/build_ashfall_assets.py`. Modellarken tar nu cirka 60 MB bitmappsminne.
+- **Acceptans (headless, `HeroAcceptanceTest`):** en bot som siktar på närmaste fiende och går i cirklar (odödlig, 5 min, 3 frön) dödar i snitt cirka 150 % av Whip-basen med bara huvudvapnet och cirka 150 till 190 % med Whip; en hjälte som står still dör före minut 3.
 
 ## Innehåll
 
@@ -60,7 +70,7 @@ I emulatorn: WASD eller piltangenterna.
   | BOSS_XLMEDUSA, BOSS_XLDEATH | the_first (ingen rigg, ritas i 0,8 x) |
   | övriga bossar | cargo_loader (ingen rigg) |
 
-  Spelaren är bastion (idle, run, attack, hit, death).
+  Spelaren är den valda hjälten (bastion, spectre eller xenomant: idle, run, huvudvapnets klipp, dodge, hit, death).
 - **Kistor:** följer stagens skattetabell (`treasure` i `game_data.json`, raden för aktuell eller senaste minut som har en). Antal föremål: 5 med `chances[0]` procent, annars 3 med `chances[1]` procent, annars 1 (en kista är aldrig tom, så `chances[2]` styr inget). Platserna fylls i ordningen `prizeTypes`: EVOLUTION utvecklar ett färdigt vapen (annars som EXISTING_ANY), EXISTING_ANY höjer ett slumpat vapen eller en passiv som inte är på max, EXISTING_WEAPON samma men bara vapen, okända typer räknas som EXISTING_ANY. Går inget att höja ges bara guld. `level` och `fixedPrizes` i datan används inte.
 - **Greed:** gäller även enstaka mynt; bråkdelen av guldet sparas (`Sim.goldFrac`), så 10 mynt med Greed 1,2 ger 12 guld.
 - **Böcker och pölar:** varje bok (King Bible, Unholy Vespers) och varje Santa Water-pöl träffar på egen hand med sin egen `hitBoxDelay` per fiende (`Enemy.tryTick`), så fler böcker (Amount) ger mer skada.
@@ -93,7 +103,7 @@ All grafik är ägarens egna Ashfall-tillgångar (Meshy-modeller och FLUX-bilder
 
 ## Ljud
 
-- **Händelser:** `game/SoundEvents` är en ringbuffert av heltal utan android.* och utan allokering. `Sim` och `Engine` skickar 26 händelser (whip, magic_missile, knife, axe, cross, bible, fireball, garlic, holy_water, lightning, enemy_hit, enemy_death, player_hurt, gem, coin, level_up, chest_open, evolution, brazier_break, food_heal, boss_spawn, game_over, victory, ui_move, ui_confirm, ui_back). Varje id har en gräns (högst N per 100 ms, ibland ett minsta avstånd), så 50 träffar i en bildruta blir några få ljud. Gem-ljudet höjs en skalsteg per gem som tas inom 0,4 s.
+- **Händelser:** `game/SoundEvents` är en ringbuffert av heltal utan android.* och utan allokering. `Sim` och `Engine` skickar 32 händelser (whip, magic_missile, knife, axe, cross, bible, fireball, garlic, holy_water, lightning, enemy_hit, enemy_death, player_hurt, gem, coin, level_up, chest_open, evolution, brazier_break, food_heal, boss_spawn, game_over, victory, ui_move, ui_confirm, ui_back, hammer_swing, hammer_slam, pistol_shot, caster_bolt, spore_burst, dodge). Varje id har en gräns (högst N per 100 ms, ibland ett minsta avstånd), så 50 träffar i en bildruta blir några få ljud. Gem-ljudet höjs en skalsteg per gem som tas inom 0,4 s.
 - **Spelaren:** `audio/AudioEngine` tömmer kön på speltråden varje bildruta. Effekter går via `SoundPool` (USAGE_GAME, 16 strömmar, slumpad tonhöjd och volym per ljud, äldsta rösten av samma ljud klipps). Musik går via `MediaPlayer` på en egen tråd med in- och uttoning: `menu`, `forest` (Cinder Flats), `library` (Deep Mines), `boss` (valfri, annars stagets spår), `final` (The First, tyst tills koden spelar det) och stingers `gameover`/`victory`. Musiken pausas i `onPause` och släpps i `onDestroy`. Ljudet följer systemets valda utgång, inget särskilt för tvåskärmsläget.
 - **Inställningar:** raderna MUSIC och SOUND EFFECTS i huvudmenyn (OFF, LOW, MEDIUM, HIGH; sparas i `PrefsStore`).
 - **Filer:** `app/src/main/assets/audio/sfx/<id>.ogg`, `audio/music/<spår>.ogg` och `audio/manifest.json` (id till fil, basvolym). En fil som saknas är bara tyst. Manifestet har tre delar: `sfx` (de 26 inkopplade id:na), `pending` (33 nya id:n ur designen, avsnitt 12, färdiga men ännu inte inkopplade: flytta posten till `sfx` när `SoundEvents` får id:t) och `music`. Exakta id:n, längd, stil och nivåer (cirka -16 LUFS musik, peak -1 dBFS effekter, mono 44,1 kHz för effekter, stereo för musik, sömlösa loopar) står i `tools/AUDIO_SPEC.md`.
@@ -108,7 +118,7 @@ Kräver Android SDK (plattform 35, build-tools 35.0.0). Skapa `local.properties`
 ./gradlew assembleDebug testDebugUnitTest
 ```
 
-Det finns 158 JVM-enhetstester (inklusive Robolectric-skärmdumpar till `app/build/screenshots/`, eller `$SHOT_DIR`): statistikberäkning, level-up-erbjudanden, evolutioner, vågor, butik, headless-simuleringar, ljudhändelser (gräns, ringbuffert, manifest), att Ashfall-manifestet och modellramarna är giltiga, namnöverlägget, banans layout, ljuskartan (kontrast, allokering) och dödsanimationen. Vyn visar 560 världsenheter på höjden (`Sim.VIEW_H`).
+Det finns cirka 190 JVM-enhetstester (inklusive Robolectric-skärmdumpar till `app/build/screenshots/`, eller `$SHOT_DIR`): statistikberäkning, level-up-erbjudanden, evolutioner, vågor, butik, headless-simuleringar, ljudhändelser (gräns, ringbuffert, manifest), att Ashfall-manifestet och modellramarna är giltiga, namnöverlägget, banans layout, ljuskartan (kontrast, allokering) och dödsanimationen. Vyn visar 560 världsenheter på höjden (`Sim.VIEW_H`).
 
 Kopiera sedan `app/build/outputs/apk/debug/app-debug.apk` till `dist/`.
 

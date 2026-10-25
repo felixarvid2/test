@@ -130,9 +130,7 @@
       "file": "sfx/ui_back.ogg",
       "volume": 0.6,
       "pitchVar": 0.0
-    }
-  },
-  "pending": {
+    },
     "hammer_swing": {
       "file": "sfx/hammer_swing.ogg",
       "volume": 0.8,
@@ -162,7 +160,9 @@
       "file": "sfx/dodge.ogg",
       "volume": 0.6,
       "pitchVar": 0.06
-    },
+    }
+  },
+  "pending": {
     "burn_tick": {
       "file": "sfx/burn_tick.ogg",
       "volume": 0.4,

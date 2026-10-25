@@ -201,10 +201,6 @@ SFX = {
                        max=0.14, fade=0.03, vol=0.6, pitchVar=0.0),
     "ui_back": dict(layers=[L("interface", "switch_006.ogg", 0, 0.12, 0, rate=0.85, af="lowpass=f=3000")],
                     max=0.1, fade=0.03, vol=0.6, pitchVar=0.0),
-}
-
-# New ids of design section 12: built now, listed under "pending" in manifest.json until SoundEvents has them.
-SFX_PENDING = {
     "hammer_swing": dict(layers=[L("rd-100v2", "sfx100v2_air_02.ogg", 0, 0.4, 0, rate=0.7,
                                    af="lowpass=f=2000,highpass=f=80")],
                          max=0.4, fade=0.12, comp=3, vol=0.8),
@@ -223,6 +219,10 @@ SFX_PENDING = {
                         max=0.4, fade=0.15, vol=0.8),
     "dodge": dict(layers=[L("rd-100v2", "sfx100v2_air_01.ogg", 0, 0.3, 0, af="highpass=f=300,lowpass=f=5000")],
                   max=0.25, fade=0.1, vol=0.6),
+}
+
+# New ids of design section 12 that SoundEvents does not have yet: built, listed under "pending" in manifest.json.
+SFX_PENDING = {
     "burn_tick": dict(layers=[L("steam", "steam hisses - Marker #5.wav", 0, 0.15, 0, af="highpass=f=2500"),
                               L("rd-rpg", "spell_fire_07.ogg", 0, 0.2, 6, af="highpass=f=1500")],
                       max=0.14, fade=0.05, vol=0.4),

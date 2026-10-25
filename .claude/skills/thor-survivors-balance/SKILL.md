@@ -22,6 +22,15 @@ automatically wrong. Measure, do not eyeball. Absence of data is a finding: if a
   (passives and shop to multipliers; note the `cooldownMul` floor of 0.25), `game/Progression.java` (`xpToNext`),
   `game/OfferGenerator.java` (level-up offers), `game/MetaProgress.java` (shop prices and rank).
 
+## Heroes (design phase 3 and 4)
+
+`new Sim(d, stage, starter, meta, "BASTION")` adds a hero and its main weapon (`starter` null = main weapon only); without the hero
+argument the VS rules are unchanged. Main weapons and branch tiers are data: `ashfall_data.json` `mainWeapons` (`params`, tier `mods`).
+Bot pattern in `HeroAcceptanceTest`: set `in.aimStickX/Y` to the nearest enemy every step, walk in circles, immortal for kills,
+standing still and mortal for survival; pass `s.main.def`/`s.main.tier`/offer level to `OfferGenerator.generate` for branch cards.
+Measured (3 seeds, 5 min, kills): Whip baseline about 1000, hero main weapon alone about 1200 to 1900, so the main weapon beats
+the whole early VS build; consider lowering main weapon power when tuning.
+
 ## Method
 
 1. Scope: weapons, enemies/waves, progression, or economy (default: all, shallow).
