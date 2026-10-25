@@ -65,6 +65,7 @@ Datan kommer från ett kommersiellt spel. Appen är endast för personligt bruk 
 - Mappningen görs i `tools/build_atlas.py`, som skapar `app/src/main/assets/sprites/atlas.json`. Krediter finns i `CREDITS.txt`. Marken (golv, jordens autotile, träd, hyllor) listas där per stage och indexeras av `WorldGen`; brasan och kandelabern är handritade i `PixelSprites`.
 - Marken ritas i förberäknade bitmappar om 8 x 8 rutor (`render/GroundCache`, cirka 24 i en LRU, de utanför bild bakas på en bakgrundstråd). Mörk kantvinjett är en enda liten bitmapp.
 - Piskan, böckerna, vitlöken, blixtarna och ädelstenarna ritas procedurellt.
+- **Röd ädelsten:** ädelstenar längre bort än `Sim.RECYCLE_DIST` slås ihop till en enda röd, större gem som flyttas till 250 till 350 enheter från spelaren och ger hela värdet när den tas (`Sim.condenseFar`, var 0,5 s). Är poolen full slås nya gems ihop med en nära (80 enheter) eller trycks in i den röda; kistor, mynt, mat och power-ups får alltid plats. Testas i `PickupPoolSaturationTest`.
 
 ## Ljud
 
@@ -83,7 +84,7 @@ Kräver Android SDK (plattform 35, build-tools 35.0.0). Skapa `local.properties`
 ./gradlew assembleDebug testDebugUnitTest
 ```
 
-Det finns 129 JVM-enhetstester (inklusive Robolectric-skärmdumpar till `app/build/screenshots/`, eller `$SHOT_DIR`): statistikberäkning, level-up-erbjudanden, evolutioner, vågor, butik, headless-simuleringar, ljudhändelser (gräns, ringbuffert, manifest) och att atlasen är giltig. Vyn visar 560 världsenheter på höjden (`Sim.VIEW_H`).
+Det finns 134 JVM-enhetstester (inklusive Robolectric-skärmdumpar till `app/build/screenshots/`, eller `$SHOT_DIR`): statistikberäkning, level-up-erbjudanden, evolutioner, vågor, butik, headless-simuleringar, ljudhändelser (gräns, ringbuffert, manifest) och att atlasen är giltig. Vyn visar 560 världsenheter på höjden (`Sim.VIEW_H`).
 
 Kopiera sedan `app/build/outputs/apk/debug/app-debug.apk` till `dist/`.
 
