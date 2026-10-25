@@ -534,9 +534,9 @@ mod tests {
     use vlantool::parser::Config;
 
     fn fleet(native_b: u16) -> FleetReport {
-        let a = "hostname SW-A\ninterface GigabitEthernet0/1\n description Port mot SW-B\n switchport mode trunk\n switchport trunk allowed vlan 10,20\n switchport trunk native vlan 999\n!\n\
+        let a = "hostname SW-A\nvlan 10\nvlan 20\nvlan 999\n!\ninterface GigabitEthernet0/1\n description Port mot SW-B\n switchport mode trunk\n switchport trunk allowed vlan 10,20\n switchport trunk native vlan 999\n!\n\
                  interface FastEthernet0/1\n description Port mot Dator-1\n switchport mode access\n switchport access vlan 10\n!\n";
-        let b = format!("hostname SW-B\ninterface GigabitEthernet0/1\n description Port mot SW-A\n switchport mode trunk\n switchport trunk allowed vlan 10,20\n switchport trunk native vlan {native_b}\n!\n");
+        let b = format!("hostname SW-B\nvlan 10\nvlan 20\nvlan 999\n!\ninterface GigabitEthernet0/1\n description Port mot SW-A\n switchport mode trunk\n switchport trunk allowed vlan 10,20\n switchport trunk native vlan {native_b}\n!\n");
         vlantool::audit::audit_fleet(vec![Config::parse("SW-A", "SW-A.cfg", a), Config::parse("SW-B", "SW-B.cfg", &b)], &[])
     }
 
