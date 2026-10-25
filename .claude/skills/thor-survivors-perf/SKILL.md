@@ -21,6 +21,7 @@ Never optimise without a measurement, and never report headroom against a budget
 | Pools | `Sim.MAX_ENEMIES` 320, `MAX_PROJ` 600, `MAX_PICK` 1200, `MAX_PART` 600 never exceeded | `Sim.java` |
 | Ground chunk bake | background thread `ground-chunks`, never on the frame path except start/teleport | `render/GroundCache.java` (CAP 24 chunks, 640 px each at 1080p) |
 | Bitmap memory | ground LRU 24 x 640x640x4 B ~ 39 MB, model sheets ~41 MB, world/vfx/icons atlases ~15 MB; total heap under ~150 MB | `GroundCache.CAP`, `tools/build_ashfall_assets.py` prints the model RAM |
+| Panel (bottom screen, redrawn every vsync) | 0 bytes per frame on every screen; UI pictures decoded only while a menu is open (about 4 MB, 0 during a run) | `PanelCostTest` (`PERF panel` lines, < 256 B/frame counts as Robolectric noise), `UiArt.bytesHeld()` |
 | Lighting | `Lighting` map 320x180 A8 plus <= 12 blobs per frame; LIGHTING FULL/LOW/OFF row in the menu. Device cost UNMEASURED (software proxy: FULL ~4x OFF) | `render/Lighting.java`, `RenderCostTest` |
 
 ## Measure headless
@@ -41,7 +42,7 @@ Never optimise without a measurement, and never report headroom against a budget
 
 ## Static review checklist (candidates only, confirm by measuring)
 
-`new`, boxing, string concat or `String.format` in `Sim.update`, `WorldRenderer.draw`, `PanelRenderer` per frame;
+`new`, boxing, string concat or `String.format` in `Sim.update`, `WorldRenderer.draw`, `PanelRenderer`, `TopOverlay` per frame (use the `cs`/`tcs`/`up` caches of `PanelRenderer`; `toUpperCase`, `"icon." + key` and `Describe.offer` all allocated once);
 `HashMap` lookups per enemy per frame; O(n*m) loops over enemies x projectiles (the spatial grid `gridHead` exists);
 `Paint`/`Path` creation in draw; Bitmap creation outside load; locks held across draw (`Engine.lock`).
 

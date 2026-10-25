@@ -5,7 +5,7 @@ import se.felixarvid.thorsurvivors.data.WeaponDef;
 import java.util.Map;
 import java.util.TreeMap;
 
-/** Human-readable text for level-up cards. */
+/** Human-readable text for level-up cards, in the Ashfall tone: short, flat, no jokes. */
 public final class Describe {
     private Describe() {
     }
@@ -13,9 +13,9 @@ public final class Describe {
     public static String offer(Offer o) {
         switch (o.kind) {
             case Offer.HEAL:
-                return "Restores 30 HP.";
+                return "Field repair. Restores 30 HP.";
             case Offer.GOLD:
-                return "Adds 25 gold.";
+                return "Salvage haul. +25 gold.";
             case Offer.BRANCH:
                 return o.branch.tiers[o.newLevel - 1].description;
             case Offer.NEW_WEAPON:
@@ -37,13 +37,13 @@ public final class Describe {
             if (sb.length() > 0) sb.append(", ");
             sb.append(s);
         }
-        return sb.length() == 0 ? "Level up." : sb.toString();
+        return sb.length() == 0 ? "Upgrade installed." : sb.toString();
     }
 
     private static String one(String k, double v) {
         switch (k) {
             case "amount":
-                return sign(v, 0) + " projectile" + (Math.abs(v) > 1 ? "s" : "");
+                return sign(v, 0) + " round" + (Math.abs(v) > 1 ? "s" : "") + " per volley";
             case "power":
                 return "Damage " + sign(v * 10, 0);
             case "area":

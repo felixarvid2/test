@@ -12,6 +12,7 @@ public final class PanelView extends View {
 
     public PanelView(Context context, boolean compact) {
         super(context);
+        UiArt.get().ensure(context.getApplicationContext().getAssets()); // typeface and textures, once
         renderer = new PanelRenderer(compact);
         setWillNotDraw(false);
         setFocusable(false);

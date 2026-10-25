@@ -29,6 +29,7 @@ public final class MetaProgress {
     public volatile int heroIdx;
     private String[] heroKeys;
     private final Map<String, Integer> ranks = new HashMap<>();
+    private final Map<String, Integer> stageBest = new HashMap<>();
 
     public MetaProgress(GameData data, Store store) {
         this.data = data;
@@ -85,6 +86,25 @@ public final class MetaProgress {
     public void addGold(int g) {
         gold += g;
         store.putInt("gold", gold);
+    }
+
+    /** Best survival time on one stage (0 = none yet; saves from before the stage cards only have the overall best). */
+    public int bestTimeOf(String stageKey) {
+        Integer v = stageBest.get(stageKey);
+        if (v == null) {
+            v = store.getInt("bestTime_" + stageKey, 0);
+            stageBest.put(stageKey, v);
+        }
+        return v;
+    }
+
+    /** {@link #recordRun(int, int)} that also keeps the record of the stage played. */
+    public void recordRun(int timeSec, int kills, String stageKey) {
+        recordRun(timeSec, kills);
+        if (stageKey != null && timeSec > bestTimeOf(stageKey)) {
+            stageBest.put(stageKey, timeSec);
+            store.putInt("bestTime_" + stageKey, timeSec);
+        }
     }
 
     public void recordRun(int timeSec, int kills) {

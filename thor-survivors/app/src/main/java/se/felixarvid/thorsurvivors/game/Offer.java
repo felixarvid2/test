@@ -44,7 +44,7 @@ public final class Offer {
 
     public String title() {
         if (kind == BRANCH) return branch.tiers[newLevel - 1].name;
-        if (def == null) return kind == HEAL ? "Floor Chicken" : "Gold Coins";
+        if (def == null) return kind == HEAL ? "Field Repair" : "Salvage Haul";
         return def.name;
     }
 }

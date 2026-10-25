@@ -120,13 +120,19 @@ public final class Equipment {
         return out;
     }
 
+    /** The stat keys of an item in the order of {@link #lines} (the panel draws a stat icon in front of each line). */
+    public static String[] keys(EquipDef def) {
+        return def.values.keySet().toArray(new String[0]);
+    }
+
     /** One stat of {@code to} compared with {@code from} (either may be null): the line and whether it improves the hero. */
     public static final class Diff {
-        public final String line;
+        public final String line, key;
         public final boolean good;
 
-        Diff(String line, boolean good) {
+        Diff(String line, String key, boolean good) {
             this.line = line;
+            this.key = key;
             this.good = good;
         }
     }
@@ -143,7 +149,7 @@ public final class Equipment {
             double b = to == null || !to.values.containsKey(k) ? 0 : to.values.get(k) * mult(d, toRar);
             double delta = b - a;
             if (Math.abs(delta) < 1e-9) continue;
-            out[n++] = new Diff(statLine(k, delta), (delta > 0) == higherIsBetter(k));
+            out[n++] = new Diff(statLine(k, delta), k, (delta > 0) == higherIsBetter(k));
         }
         return n == out.length ? out : java.util.Arrays.copyOf(out, n);
     }

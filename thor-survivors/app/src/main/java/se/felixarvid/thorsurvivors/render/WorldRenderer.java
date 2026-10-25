@@ -80,6 +80,7 @@ public final class WorldRenderer {
     private final Paint stroke = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint text = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint big = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final se.felixarvid.thorsurvivors.ui.TopOverlay topUi = new se.felixarvid.thorsurvivors.ui.TopOverlay();
     private final Paint vig = new Paint();
     private final RectF rect = new RectF();
     private final Rect src = new Rect(), dst = new Rect();
@@ -220,6 +221,12 @@ public final class WorldRenderer {
         gd = e.data;
         int ph = e.phase;
         boolean menu = s == null || ph == Engine.PH_MENU || ph == Engine.PH_SHOP;
+        if (menu && topUi.menuReady()) { // the title screen: painting, embers and title instead of the world
+            ks = h / 1080f;
+            topUi.drawMenu(c, w, h, e, dualScreen, e.menuTime);
+            return;
+        }
+        if (!menu) topUi.leaveMenu();
         sc = h / Sim.VIEW_H;
         ks = h / 1080f;
         scrW = w;
@@ -1799,14 +1806,7 @@ public final class WorldRenderer {
             c.drawRect(0, 0, w, h, fill);
         }
         float el = s.stormElapsed();
-        if (el >= 0f && el < 3.5f) {
-            text.setTextAlign(Paint.Align.CENTER);
-            text.setTextSize(44f * ks);
-            text.setShadowLayer(4f, 0f, 3f, 0xFF000000);
-            text.setColor(((int) (255 * Math.min(1f, (3.5f - el) * 1.5f)) << 24) | 0xFF5A2A);
-            c.drawText("ASH STORM", w / 2f, h * 0.2f, text);
-            text.clearShadowLayer();
-        }
+        if (el >= 0f && el < 3.5f) topUi.drawStormBanner(c, w, h, el, ks);
     }
 
     /** Big explosion / spore effects drawn at most this many per frame, and how crowded they are (0..1, scales size and alpha down). */
@@ -2002,8 +2002,6 @@ public final class WorldRenderer {
 
     // ------------------------------------------------------------------ overlays (screen space)
 
-    private String bestLine = "";
-    private int bestT = -1, bestK = -1, bestG = -1;
 
     private void drawOverlay(Canvas c, int w, int h, Engine e, Sim s, boolean menu, boolean dual) {
         int ph = e.phase;
@@ -2019,101 +2017,32 @@ public final class WorldRenderer {
                 c.drawRect(0, 0, w, h, fill);
             }
             drawBossBarTop(c, w, s);
-            drawToasts(c, w, h, s);
+            drawToasts(c, w, h, s, dual);
         }
-        if (menu) {
+        if (menu) { // only without the UI art (the title screen is TopOverlay.drawMenu)
             fill.setColor(0x66000000);
             c.drawRect(0, 0, w, h, fill);
-            big.setShadowLayer(h * 0.006f, 0, h * 0.006f, 0xCC000000);
             big.setColor(0xFFFF8A2A);
             big.setTextSize(h * 0.13f);
             c.drawText("ASHFALL", w / 2f, h * 0.27f, big);
             big.setColor(0xFF39FF88);
             big.setTextSize(h * 0.06f);
             c.drawText("LUMEN TIDE", w / 2f, h * 0.35f, big);
-            big.setColor(0xFFE8E4DC);
-            big.setTextSize(h * 0.045f);
-            c.drawText(e.stageKeys.isEmpty() ? "" : e.stage().name, w / 2f, h * 0.42f, big);
-            if (e.meta != null) {
-                if (bestT != e.meta.bestTimeSec || bestK != e.meta.bestKills || bestG != e.meta.gold) {
-                    bestT = e.meta.bestTimeSec;
-                    bestK = e.meta.bestKills;
-                    bestG = e.meta.gold;
-                    bestLine = "Best " + fmtTime(bestT) + "   Kills " + bestK + "   Gold " + bestG;
-                }
-                big.setTextSize(h * 0.04f);
-                big.setColor(0xFFB8B0A4);
-                c.drawText(bestLine, w / 2f, h * 0.48f, big);
-            }
-            if (dual) {
-                big.setTextSize(h * 0.035f);
-                big.setColor(0xFF988C7C);
-                c.drawText("Use the bottom screen (or gamepad: stick/d-pad + A)", w / 2f, h * 0.93f, big);
-            }
-            big.clearShadowLayer();
             return;
         }
         if (ph == Engine.PH_LEVELUP || ph == Engine.PH_PAUSED || ph == Engine.PH_CHEST || ph == Engine.PH_RESULT || ph == Engine.PH_EQUIP) {
-            fill.setColor(0x77000000);
-            c.drawRect(0, 0, w, h, fill);
-            big.setShadowLayer(h * 0.006f, 0, h * 0.006f, 0xCC000000);
-            big.setTextSize(h * 0.1f);
-            String t1;
-            int col;
-            if (ph == Engine.PH_LEVELUP) { t1 = "LEVEL UP!"; col = 0xFFFF8A2A; }
-            else if (ph == Engine.PH_PAUSED) { t1 = "PAUSED"; col = 0xFFFFFFFF; }
-            else if (ph == Engine.PH_CHEST) { t1 = "SUPPLIES!"; col = 0xFF39FF88; }
-            else if (ph == Engine.PH_EQUIP) { t1 = "EQUIPMENT"; col = 0xFFFFD84A; }
-            else if (e.resultWin) { t1 = "VICTORY"; col = 0xFF39FF88; }
-            else { t1 = "YOU DIED"; col = 0xFFE04040; }
-            big.setColor(col);
-            c.drawText(t1, w / 2f, h * 0.5f, big);
-            if (dual && ph != Engine.PH_RESULT) {
-                big.setTextSize(h * 0.04f);
-                big.setColor(0xFFC0C8E0);
-                c.drawText("Choose on the bottom screen", w / 2f, h * 0.58f, big);
-            }
-            big.clearShadowLayer();
+            topUi.drawPhase(c, w, h, e, dual);
         }
     }
 
-    /** The boss's health, a thin bar across the top of the world (the full bar is on the bottom screen). */
+    /** The boss's health, a framed bar across the top of the world (the full bar is on the bottom screen). */
     private void drawBossBarTop(Canvas c, int w, Sim s) {
-        Enemy b = s.bossNow;
-        if (b == null || b.dead) return;
-        float x0 = w * 0.18f, x1 = w * 0.82f, y = 14f * ks, hgt = 8f * ks;
-        fill.setColor(0xCC000000);
-        c.drawRect(x0 - 2f * ks, y - 2f * ks, x1 + 2f * ks, y + hgt + 2f * ks, fill);
-        fill.setColor(0xFF2A0808);
-        c.drawRect(x0, y, x1, y + hgt, fill);
-        fill.setColor(b.phase >= 2 ? 0xFFFF3B1F : 0xFFE02828);
-        c.drawRect(x0, y, x0 + (x1 - x0) * Math.max(0f, Math.min(1f, b.hp / b.maxHp)), y + hgt, fill);
-        if (b.type.pattern == 5) { // the phase marks of The First: 66% and 33%
-            fill.setColor(0xFF000000);
-            c.drawRect(x0 + (x1 - x0) * 0.66f - ks, y, x0 + (x1 - x0) * 0.66f + ks, y + hgt, fill);
-            c.drawRect(x0 + (x1 - x0) * 0.33f - ks, y, x0 + (x1 - x0) * 0.33f + ks, y + hgt, fill);
-        }
-        text.setTextAlign(Paint.Align.CENTER);
-        text.setTextSize(17f * ks);
-        text.setShadowLayer(3f, 0f, 2f, 0xFF000000);
-        text.setColor(0xFFFFE0D0);
-        c.drawText(b.type.nameUpper, w / 2f, y + hgt + 20f * ks, text);
-        text.clearShadowLayer();
+        topUi.drawBossBar(c, w, s, ks);
     }
 
-    /** What the hero found: a few lines under the top edge that fade out (equipped, salvaged). */
-    private void drawToasts(Canvas c, int w, int h, Sim s) {
-        text.setTextAlign(Paint.Align.CENTER);
-        text.setTextSize(28f * ks);
-        text.setShadowLayer(4f, 0f, 3f, 0xFF000000);
-        for (int i = 0; i < Sim.MAX_TOASTS; i++) {
-            float life = s.toastT[i];
-            if (life <= 0f || s.toastText[i] == null) continue;
-            int a = (int) (255 * Math.min(1f, life * 2.5f));
-            text.setColor((s.toastColor[i] & 0xFFFFFF) | (a << 24));
-            c.drawText(s.toastText[i], w / 2f, h * 0.2f + i * 38f * ks, text);
-        }
-        text.clearShadowLayer();
+    /** What the hero found: a few pills under the top edge that fade out (equipped, salvaged). */
+    private void drawToasts(Canvas c, int w, int h, Sim s, boolean dual) {
+        topUi.drawToasts(c, w, h, s, ks, dual);
     }
 
     private void ensureVignette(int w, int h) {

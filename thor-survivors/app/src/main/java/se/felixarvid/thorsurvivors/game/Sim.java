@@ -215,7 +215,7 @@ public final class Sim {
      * @param heroKey    hero key ("BASTION", ...) or null for the plain VS player without a main weapon
      */
     public Sim(GameData data, StageDef stage, String starterKey, Map<String, Double> meta, String heroKey) {
-        this(data, stage, starterKey, meta, heroKey, null);
+        this(data, stage, starterKey, meta, heroKey, 0L); // deterministic by default; the game passes a fresh seed
     }
 
     /** Same, with the random generator seeded before the first spawns (headless runs and soaks are then reproducible). */
@@ -224,7 +224,7 @@ public final class Sim {
     }
 
     private Sim(GameData data, StageDef stage, String starterKey, Map<String, Double> meta, String heroKey, Long seed) {
-        if (seed != null) rng.setSeed(seed);
+        rng.setSeed(seed);
         this.data = data;
         this.stage = stage;
         this.meta = meta;

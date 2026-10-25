@@ -20,9 +20,14 @@ No KVM in the cloud, so no emulator. Robolectric 4.14.1 with `@GraphicsMode(Grap
   outline colour measured, equipment crates of the four rarities, the toast, the choice screen and the equipment strip on the bottom
   screen, a Headlamp widening the light, every boss pattern with its telegraph (charge line, stomp ring, falling crates, slag bombs,
   tentacle rings, Vire's spiral, the Foreman's carpet and pull ring), The First in its three phases with the lane warning and the pulse's
-  safe half, the boss banners and health bars) and `LateFightShotsTest.java` (late fights at 10/20/28 min on both stages with six
+  safe half, the boss banners and health bars) and `Phase11ShotsTest.java` (design phase 11, the ASHFALL UI skin: every screen of the bottom panel, the title and overlays of the top screen
+  and the single-screen compact overlay, saved as `p11_*.png`; it also asserts the accent colours and that the menu paintings are decoded on
+  open and released when a run starts), `PanelCostTest.java` (panel draw time and the zero-allocation check per screen, `PERF panel` lines) and `LateFightShotsTest.java` (late fights at 10/20/28 min on both stages with six
   weapons: it prints the share of strongly green and of white pixels per frame and saves `late_<SHOT_TAG>_<stage>_<minute>.png`;
   run it once with `SHOT_TAG=before` on the old code and once with `after` to get a pair).
+- UI skin frames: `UiArt` must be initialised (`Shots` does it from `src/main/assets`); a test that builds its own `PanelRenderer`/`WorldRenderer`
+  without `Shots` gets the system font and flat colours. The single-screen overlay is `new PanelRenderer(true)` drawn over `world.draw(c, w, h, eng, false)`
+  (`dualScreen = false`: the top screen then only dims for the paused phases and keeps the title small); `Shots.renderTop()` always passes `true`.
 - Top screen: 1920x1080 (`Shots.TOP_W/TOP_H`, WorldRenderer). Bottom panel: 1240x1080 (`Shots.BOT_W/BOT_H`, `ui/PanelRenderer`).
   World view is 560 units high (`Sim.VIEW_H`), 1.93 px per unit, one tile (`WorldGen.TILE`) = 80 px.
 - Output dir: env `SHOT_DIR`, default `app/build/screenshots`.

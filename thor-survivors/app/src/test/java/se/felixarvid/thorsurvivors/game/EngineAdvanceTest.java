@@ -20,6 +20,7 @@ public class EngineAdvanceTest {
         e.meta = fresh; // Engine is a JVM-wide singleton: don't inherit another test's gold or power-ups
         e.input.clearMovement();
         e.phase = Engine.PH_MENU;
+        e.nextRunSeed = 1L; // deterministic run
         e.input.post(Input.CMD_START, 0, 0, 0);
         e.advance(1f / 60f);
         assertEquals(Engine.PH_PLAYING, e.phase);
