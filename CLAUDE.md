@@ -1,10 +1,12 @@
 # Working in this repository
 
-Several projects live here: `rune/`, `natverksspel/`, `cisco-analyzer/`, `tiny-dungeon/`, `thor-survivors/`, `vlan-tool-rs/`, `familychat/`, and the
+Several projects live here: `rune/`, `natverksspel/`, `cisco-analyzer/`, `tiny-dungeon/`, `thor-survivors/`, `vlan-tool-rs/`, and the
 asset library in `assets/`.
 
 Ashfall (the TypeScript/Three.js action RPG) moved to https://github.com/felixarvid2/Ashfall.
 `assets/ashfall-ai/` stays here as its asset library.
+
+FamilyChat moved to https://github.com/felixarvid2/swahn-chatt and is now called Swahn Chat.
 
 ## Who does what
 
