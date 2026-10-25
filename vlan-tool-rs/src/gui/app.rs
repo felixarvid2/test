@@ -121,6 +121,9 @@ pub struct App {
     pub toasts: Vec<Toast>,
     pub show_about: bool,
     pub scene_rect: egui::Rect,
+    /// Tillstånd för flikarna i views/state_a.rs respektive views/state_b.rs.
+    pub sa: crate::views::state_a::StateA,
+    pub sb: crate::views::state_b::StateB,
     applied_dark: Option<bool>,
 }
 
@@ -172,6 +175,8 @@ impl App {
             toasts: Vec::new(),
             show_about: false,
             scene_rect: egui::Rect::ZERO,
+            sa: Default::default(),
+            sb: Default::default(),
             applied_dark: None,
         }
     }
