@@ -625,7 +625,7 @@ public final class WorldRenderer {
     private static final String[] GEM_KEYS = {"pickup.GEM.0", "pickup.GEM.1", "pickup.GEM.2"};
 
     private void drawPickup(Canvas c, Pickup p) {
-        String key = p.kind == Entities.K_GEM ? GEM_KEYS[p.value < 3f ? 0 : p.value < 10f ? 1 : 2] : PICK_KEYS[p.kind];
+        String key = p.red ? "pickup.GEM.RED" : p.kind == Entities.K_GEM ? GEM_KEYS[p.value < 3f ? 0 : p.value < 10f ? 1 : 2] : PICK_KEYS[p.kind];
         Sprite sp = atlas.find(key);
         if (sp == null) return;
         int k = SpriteAtlas.scaleFor(sp, ks);
@@ -636,6 +636,12 @@ public final class WorldRenderer {
             stroke.setColor(((int) (110 * glow) << 24) | 0xFFE060);
             stroke.setStrokeWidth(3f);
             c.drawCircle(px, py, 30 * ks, stroke);
+        }
+        if (p.red) { // slow pulsing halo so the pile can be found
+            float glow = 0.5f + 0.5f * (float) Math.sin(p.bob * 0.8f);
+            stroke.setColor(((int) (40 + 90 * glow) << 24) | 0xFF2040);
+            stroke.setStrokeWidth(3f);
+            c.drawCircle(px, py, (14 + 4 * glow) * ks, stroke);
         }
         drawSprite(c, sp, k, SpriteAtlas.T_NORMAL, false, px, py, 255);
     }

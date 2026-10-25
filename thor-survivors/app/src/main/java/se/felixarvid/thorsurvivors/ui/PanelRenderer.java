@@ -510,7 +510,7 @@ public final class PanelRenderer {
         int pn = Math.min(s.pickN, Sim.MAX_PICK);
         for (int i = 0; i < pn; i++) {
             Entities.Pickup p = s.picks[i];
-            if (p.kind != Entities.K_GEM) continue;
+            if (p.kind != Entities.K_GEM || p.red) continue;
             float dx = (p.x - s.px) * k, dy = (p.y - s.py) * k;
             if (Math.abs(dx) > side / 2 || Math.abs(dy) > side / 2) continue;
             ptsB[n++] = cx + dx;
@@ -541,6 +541,11 @@ public final class PanelRenderer {
         }
         for (int i = 0; i < pn; i++) {
             Entities.Pickup p = s.picks[i];
+            if (p.red) { // the condensed gem pile: a bigger crimson dot
+                fill.setColor(0xFFD01838);
+                c.drawCircle(cx + (p.x - s.px) * k, cy + (p.y - s.py) * k, 7f, fill);
+                continue;
+            }
             if (p.kind == Entities.K_GEM) continue;
             float dx = (p.x - s.px) * k, dy = (p.y - s.py) * k;
             float lim = side / 2 - 8;

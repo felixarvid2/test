@@ -215,6 +215,9 @@ final class PixelSprites {
             add(atlas, "pickup.GEM." + i, GEM, 3, "L", mix(c, 0xFFFFFFFF, 0.55f), "m", c, "d", mix(c, 0xFF000000, 0.35f),
                     "o", mix(c, 0xFF000000, 0.7f));
         }
+        int red = 0xFFD01838; // the condensed far-gem pile: bigger, crimson
+        add(atlas, "pickup.GEM.RED", GEM, 5, "L", mix(red, 0xFFFFFFFF, 0.5f), "m", red, "d", mix(red, 0xFF000000, 0.35f),
+                "o", mix(red, 0xFF000000, 0.7f));
         add(atlas, "proj.HOLYBOOK", BOOK, 4, "o", 0xFF0B1030, "B", 0xFF78A8FF, "b", 0xFF2F5CD0, "d", 0xFF1E3C99,
                 "g", 0xFFFFD84A, "p", 0xFFF4E8C8, "P", 0xFFC8B890);
         add(atlas, "proj.VESPERS", BOOK, 4, "o", 0xFF1E0A30, "B", 0xFFC898FF, "b", 0xFF7A3AD0, "d", 0xFF4E2299,

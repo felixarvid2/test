@@ -79,6 +79,8 @@ public final class Entities {
         public int kind;
         public float x, y, value, bob;
         public boolean pulled;
+        /** The single condensed red gem (kind K_GEM): holds the XP of far-away gems. */
+        public boolean red;
     }
 
     public static final class Particle {
