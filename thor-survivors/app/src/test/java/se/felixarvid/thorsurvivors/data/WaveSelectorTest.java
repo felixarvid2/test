@@ -41,13 +41,17 @@ public class WaveSelectorTest {
     }
 
     @Test
-    public void spawnCountRespectsMinimumAndCap() {
-        WaveRow row = new WaveRow(0, 50, 1000, new String[]{"A"}, new String[0]);
-        assertEquals(30, WaveDirector.spawnCount(row, 0, 0)); // bounded per tick
-        assertEquals(5, WaveDirector.spawnCount(row, 45, 0));
-        assertEquals(1, WaveDirector.spawnCount(row, 60, 0)); // above minimum: trickle
-        assertEquals(0, WaveDirector.spawnCount(row, WaveDirector.ENEMY_CAP, 0));
+    public void spawnsOneOfEachTypeThenTopsUpToMinimum() {
+        WaveRow row = new WaveRow(0, 50, 1000, new String[]{"A", "B", "C"}, new String[0]);
+        assertEquals(3, WaveDirector.eachCount(row, 0));
+        assertEquals(3, WaveDirector.eachCount(row, 200)); // also above `minimum`
+        assertEquals(30, WaveDirector.topUpCount(row, 0)); // bounded per tick
+        assertEquals(5, WaveDirector.topUpCount(row, 45));
+        assertEquals(0, WaveDirector.topUpCount(row, 60));
+        assertEquals(0, WaveDirector.eachCount(row, WaveDirector.ENEMY_CAP));
+        assertEquals(0, WaveDirector.topUpCount(row, WaveDirector.ENEMY_CAP));
+        assertEquals(2, WaveDirector.eachCount(row, WaveDirector.ENEMY_CAP - 2));
         WaveRow big = new WaveRow(0, 999, 1000, new String[]{"A"}, new String[0]);
-        assertEquals(WaveDirector.ENEMY_CAP - 295, WaveDirector.spawnCount(big, 295, 0));
+        assertEquals(WaveDirector.ENEMY_CAP - 295, WaveDirector.topUpCount(big, 295));
     }
 }

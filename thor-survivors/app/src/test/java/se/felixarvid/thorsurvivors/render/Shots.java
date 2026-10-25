@@ -45,11 +45,12 @@ final class Shots {
 
     Shots() throws Exception {
         GameData d = TestData.load();
-        if (!eng.isReady()) {
-            MetaProgress mp = new MetaProgress(d, new MemStore());
-            mp.addGold(1234);
-            eng.init(d, mp);
-        }
+        // Engine is a JVM-wide singleton: always start from fresh meta progress, or power-ups bought by other
+        // tests (e.g. EngineSoundTest) leak into these runs and make the shots depend on test order.
+        MetaProgress mp = new MetaProgress(d, new MemStore());
+        mp.addGold(1234);
+        eng.init(d, mp);
+        eng.meta = mp;
         SpriteAtlas.get().load(path -> new FileInputStream("src/main/assets/" + path));
         eng.input.clearMovement();
         eng.phase = Engine.PH_MENU;

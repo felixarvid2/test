@@ -13,10 +13,11 @@ automatically wrong. Measure, do not eyeball. Absence of data is a finding: if a
 
 ## Where the numbers live
 
-- `thor-survivors/app/src/main/assets/game_data.json`: `weapons` (level 1 row is absolute, later rows are deltas;
-  `interval` ms, `power`, `area`, `amount`, `critChance`), `enemies` (`maxHp`, `speed`, `power`, `xp`),
-  `stages.<KEY>.rows` (minute-by-minute waves: `minimum`, `frequencyMs`, enemy and boss lists) and
-  `mods` (`EnemyHealthMultiplier`, `GoldMultiplier`, `XPBonus`), `powerups` (shop, `price`, per-rank delta).
+- `thor-survivors/app/src/main/assets/game_data.json`: `weapons[KEY]` is an array of rows (row 1 is absolute, later
+  rows are deltas; `interval` ms, `power`, `area`, `amount`, `critChance`), `enemies` (`maxHp`, `speed`, `power`,
+  `xp`), `stages[KEY]` is a list of minute rows (`minute`, `minimum`, `frequency` in ms, `enemies`, `bosses`, optional
+  `treasure`), with the stage `mods` (`EnemyHealthMultiplier`, `GoldMultiplier`, `XPBonus`) in row 0 only, `powerups`
+  (shop, `price`, per-rank delta). In Java: `StageDef.rows` (`WaveRow.frequencyMs`, `treasure`).
 - Formulas: `game/Sim.java` (damage, crit, knockback, gem and gold pickup, `openChest`), `game/PlayerStats.java`
   (passives and shop to multipliers; note the `cooldownMul` floor of 0.25), `game/Progression.java` (`xpToNext`),
   `game/OfferGenerator.java` (level-up offers), `game/MetaProgress.java` (shop prices and rank).
@@ -30,8 +31,18 @@ automatically wrong. Measure, do not eyeball. Absence of data is a finding: if a
    `s.rng.setSeed(n)`, step `s.update(1f/60f, input)`, keep the player alive with `s.hp = s.maxHp`, drain
    `s.pendingLevelUps` with `OfferGenerator.generate(...)`. Write results to `$SCRATCH_OUT` (fallback
    `app/build/scratch/`), one CSV per measurement, not to stdout.
-3. Run: `cd thor-survivors && ./gradlew testDebugUnitTest --tests '*ScratchBalanceTest*' --rerun`. Use 3+ seeds and
-   report the median; a single seed is an anecdote.
+3. Run: `cd thor-survivors && ./gradlew --offline testDebugUnitTest --tests '*ScratchBalanceTest*' --rerun -q`. Always
+   `--offline` (no network in the container) and a `--tests` filter that excludes other agents' scratch tests (or work
+   in a separate worktree), else their half-written files break your run. Use 3+ seeds and report the median; a
+   single seed is an anecdote. A full 30-minute Sim run takes about 3 s, so a matrix of runs is cheap.
+   Harness lessons:
+   - `Sim` is final: you cannot subclass or hook it. Measure damage by watching enemy HP by id between steps; count a
+     dying enemy's last HP as damage too.
+   - Re-pin dummies (x, y, `kvx`, `kvy`) every frame: knockback drifts them. A single stationary dummy misleads for
+     facing-based weapons (whip, knife, wand); use a ring or a crowd.
+   - Drain `pendingChests` with `openChest()` as well as `pendingLevelUps`. To keep the player alive set
+     `s.hp = s.maxHp` AFTER `update` (record damage taken first).
+   - Survival cannot be measured with naive bots (random walk or standing still). Write `NOT MEASURED` for it.
 4. Measurements worth taking:
    - Weapon DPS: weapon alone at level 1..max against stationary 1e5-HP dummies (`WeaponBehaviourTest.dummy`), damage
      dealt per second. Repeat for each evolution and for the pair (weapon + its `evoSynergy` passive).
@@ -42,6 +53,8 @@ automatically wrong. Measure, do not eyeball. Absence of data is a finding: if a
      a typical enemy; bosses separately); contact damage per second against `maxHp` and `armor`.
    - XP curve: minutes to reach level 10/20/30/40 and gems collected; flag a dead zone (no level-up for > 90 s) or
      a spike (3+ levels at once outside chests).
+   - Checklist, report but do NOT "fix" (this is Vampire Survivors data): the fallback "Gold Coins" level-up card when
+     everything is maxed or no offer is left, and the XP flood in the last two minutes (huge level-up spike at the end).
    - Economy: gold per run per stage, runs needed to buy each `powerups` rank (`MetaProgress.nextPrice`); an item
      never worth buying, or a catalog that is exhausted in a few runs, is a finding.
 5. Compare with VS expectations only where the data shows them (REA values); mark other targets as `no target`.

@@ -2,6 +2,7 @@ package se.felixarvid.thorsurvivors.game;
 
 import se.felixarvid.thorsurvivors.data.GameData;
 import se.felixarvid.thorsurvivors.data.StageDef;
+import se.felixarvid.thorsurvivors.data.Treasure;
 import se.felixarvid.thorsurvivors.data.WaveRow;
 import se.felixarvid.thorsurvivors.data.WeaponDef;
 import se.felixarvid.thorsurvivors.game.Entities.*;
@@ -110,6 +111,8 @@ public final class Sim {
 
     private int lastRow = -1;
     private float spawnTimer;
+    /** Fractional gold not yet paid out (Greed on 1-gold coins). */
+    private double goldFrac;
     private float regenAcc;
 
     public Sim(GameData data, StageDef stage, String starterKey, Map<String, Double> meta) {
@@ -217,6 +220,11 @@ public final class Sim {
         updateProjectiles(dt);
         contactDamage();
         reap();
+        condenseT += dt;
+        if (condenseT >= CONDENSE_EVERY) {
+            condenseT = 0f;
+            condenseFar();
+        }
         updatePickups(dt);
         updateVisuals(dt);
         if (freezeTimer > 0) freezeTimer -= dt;
@@ -401,8 +409,11 @@ public final class Sim {
         spawnTimer += dt * 1000f;
         if (spawnTimer >= row.frequencyMs) {
             spawnTimer = 0;
-            int n = WaveDirector.spawnCount(row, enemyN, time);
-            for (int i = 0; i < n; i++) {
+            // Vampire Survivors: each tick one of EACH enemy type of the row, then top the field up to `minimum`
+            int each = WaveDirector.eachCount(row, enemyN);
+            for (int i = 0; i < each; i++) spawnAtRing(type(row.enemies[i]), false, 0);
+            int extra = WaveDirector.topUpCount(row, enemyN);
+            for (int i = 0; i < extra; i++) {
                 spawnAtRing(type(row.enemies[rng.nextInt(row.enemies.length)]), false, 0);
             }
         }
@@ -448,7 +459,7 @@ public final class Sim {
         e.softFlash = false;
         e.textSlot = -1;
         e.anim = rng.nextFloat() * 6f;
-        java.util.Arrays.fill(e.hitUntil, 0f);
+        e.clearTicks();
         e.clearHits();
         double hp = t.def.maxHp * 10.0 * (t.def.hpTimesLevel ? t.def.level : 1) * stage.enemyHealth
                 * (1 + stats.curse) * (boss ? 3.0 : 1.0);
@@ -690,17 +701,21 @@ public final class Sim {
         }
     }
 
-    private void addPickup(int kind, float x, float y, float value) {
-        if (pickN >= MAX_PICK) {
-            if (kind == Entities.K_GEM) { // merge into an existing gem
-                for (int i = 0; i < pickN; i++) {
-                    if (picks[i].kind == Entities.K_GEM) {
-                        picks[i].value += value;
-                        return;
-                    }
-                }
-            }
-            return;
+    /** Gems farther than this from the player are condensed into the red gem (VS: far gems merge). */
+    static final float CONDENSE_DIST = RECYCLE_DIST;
+    /** The red gem is kept (or moved) this close to the player; it moves when farther than RED_MAX. */
+    static final float RED_MIN = 250f, RED_MAX = 350f;
+    /** A new gem merges into a normal gem this near its drop point when the pool is full. */
+    static final float MERGE_DIST = 80f, MERGE_CAP = 40f;
+    static final float CONDENSE_EVERY = 0.5f;
+    static final int GEM_RESERVE = 64;
+    private float condenseT;
+
+    void addPickup(int kind, float x, float y, float value) {
+        // gems stop growing the pool GEM_RESERVE slots early so coins, food and chests always find room
+        if (pickN >= (kind == Entities.K_GEM ? MAX_PICK - GEM_RESERVE : MAX_PICK)) {
+            if (kind == Entities.K_GEM && mergeNearby(x, y, value)) return;
+            if (!freeSlot() && pickN >= MAX_PICK) return; // only chests left: nothing to evict
         }
         Pickup p = picks[pickN++];
         p.kind = kind;
@@ -708,7 +723,127 @@ public final class Sim {
         p.y = y + (rng.nextFloat() - 0.5f) * 10f;
         p.value = value;
         p.pulled = false;
+        p.red = false;
         p.bob = rng.nextFloat() * 6f;
+    }
+
+    /** Pool full: adds a gem to the nearest normal gem within MERGE_DIST of (x, y). */
+    private boolean mergeNearby(float x, float y, float value) {
+        int best = -1;
+        float bd = MERGE_DIST * MERGE_DIST;
+        for (int i = 0; i < pickN; i++) {
+            Pickup p = picks[i];
+            if (p.kind != Entities.K_GEM || p.red || p.value + value > MERGE_CAP) continue;
+            float dx = p.x - x, dy = p.y - y, d2 = dx * dx + dy * dy;
+            if (d2 < bd) {
+                bd = d2;
+                best = i;
+            }
+        }
+        if (best < 0) return false;
+        picks[best].value += value;
+        return true;
+    }
+
+    /** Pool full: frees one slot. Condenses the farthest normal gem into the red gem, else drops the farthest
+     *  non-chest pickup. Returns false only when the pool holds nothing but chests. */
+    private boolean freeSlot() {
+        int g = farthest(true);
+        if (g < 0) return dropFarthestOther();
+        Pickup red = findRed();
+        if (red == null) { // the evicted gem becomes the red gem; a second one is condensed into it to free a slot
+            red = picks[g];
+            red.red = true;
+            int g2 = farthest(true);
+            if (g2 < 0) { // a lone gem: it stays normal, evict something else
+                red.red = false;
+                return dropFarthestOther();
+            }
+            red.value += picks[g2].value;
+            removePick(g2);
+            relocateRed(red);
+            return true;
+        }
+        red.value += picks[g].value;
+        removePick(g);
+        return true;
+    }
+
+    private boolean dropFarthestOther() {
+        int f = farthest(false);
+        if (f < 0) return false;
+        removePick(f);
+        return true;
+    }
+
+    /** Index of the farthest pickup from the player: a normal gem (gems = true) or any non-gem non-chest; -1 if none. */
+    private int farthest(boolean gems) {
+        int best = -1;
+        float bd = -1f;
+        for (int i = 0; i < pickN; i++) {
+            Pickup p = picks[i];
+            if (gems ? (p.kind != Entities.K_GEM || p.red) : (p.kind == Entities.K_GEM || p.kind == Entities.K_CHEST)) continue;
+            float dx = p.x - px, dy = p.y - py, d2 = dx * dx + dy * dy;
+            if (d2 > bd) {
+                bd = d2;
+                best = i;
+            }
+        }
+        return best;
+    }
+
+    Pickup findRed() {
+        for (int i = 0; i < pickN; i++) if (picks[i].red) return picks[i];
+        return null;
+    }
+
+    private void removePick(int i) {
+        Pickup p = picks[i];
+        picks[i] = picks[pickN - 1];
+        picks[pickN - 1] = p;
+        pickN--;
+    }
+
+    private void relocateRed(Pickup red) {
+        float a = rng.nextFloat() * 6.2831855f, r = RED_MIN + rng.nextFloat() * (RED_MAX - RED_MIN);
+        red.x = px + (float) Math.cos(a) * r;
+        red.y = py + (float) Math.sin(a) * r;
+    }
+
+    /** Far-gem condensing (every CONDENSE_EVERY s): gems beyond CONDENSE_DIST fold into the single red gem, far
+     *  non-chest pickups are despawned, and a red gem farther than RED_MAX is moved to the screen edge. */
+    void condenseFar() {
+        float lim2 = CONDENSE_DIST * CONDENSE_DIST, sum = 0f;
+        Pickup red = null;
+        for (int i = pickN - 1; i >= 0; i--) {
+            Pickup p = picks[i];
+            if (p.red) {
+                red = p;
+                continue;
+            }
+            if (p.kind == Entities.K_CHEST) continue;
+            float dx = p.x - px, dy = p.y - py;
+            if (dx * dx + dy * dy <= lim2) continue;
+            if (p.kind == Entities.K_GEM) sum += p.value;
+            removePick(i);
+        }
+        if (sum > 0f) {
+            if (red == null) { // a slot was freed above, so this cannot overflow
+                red = picks[pickN++];
+                red.kind = Entities.K_GEM;
+                red.value = 0f;
+                red.red = true;
+                red.pulled = false;
+                red.bob = 0f;
+                red.x = px + RED_MAX * 2f; // relocated below
+                red.y = py;
+            }
+            red.value += sum;
+        }
+        if (red != null) {
+            float dx = red.x - px, dy = red.y - py;
+            if (dx * dx + dy * dy > RED_MAX * RED_MAX) relocateRed(red);
+        }
     }
 
     private void updatePickups(float dt) {
@@ -752,7 +887,11 @@ public final class Sim {
             case Entities.K_COIN:
             case Entities.K_COINBAG:
                 sound.emit(SoundEvents.COIN);
-                gold += Math.max(1, Math.round(p.value * (float) stage.goldMultiplier * (float) stats.greedMul));
+                // Greed gives fractions (1 gold x 1.2): carry the remainder so single coins still add up
+                goldFrac += p.value * stage.goldMultiplier * stats.greedMul;
+                int whole = (int) (goldFrac + 1e-6);
+                goldFrac -= whole;
+                gold += whole;
                 break;
             case Entities.K_ROAST:
                 sound.emit(SoundEvents.FOOD_HEAL);
@@ -827,27 +966,47 @@ public final class Sim {
         recomputeAll();
     }
 
-    /** Opens one pending chest: evolves a ready weapon, else grants upgrades. Returns text lines. */
+    /** Used when the stage has no treasure table at or before the current minute: one evolution, else one upgrade. */
+    private static final Treasure DEFAULT_TREASURE =
+            new Treasure(new double[]{0, 0, 100}, 1, new String[]{Treasure.EVOLUTION});
+
+    /** Opens one pending chest with the stage's treasure table for the current minute. Returns text lines. */
     public String[] openChest() {
+        Treasure t = stage.treasureAt(time);
+        return openChest(t != null ? t : DEFAULT_TREASURE);
+    }
+
+    /**
+     * Opens one pending chest after a treasure table (the latest minute row at or before now that has one).
+     * Item count: 5 with chance[0] percent, else 3 with chance[1] percent, else 1. chance[2] is the data's 1-item
+     * chance; a chest never comes up empty, so a failed roll still gives 1 item. Item slots are filled in
+     * prizeTypes order: EVOLUTION evolves a ready weapon (else acts as EXISTING_ANY), EXISTING_ANY levels a random
+     * owned weapon or passive that is not maxed, EXISTING_WEAPON the same among weapons only, anything else counts
+     * as EXISTING_ANY. When nothing can be levelled the slot is skipped; the gold bonus is always paid. The data's
+     * `level` and `fixedPrizes` are not used.
+     */
+    public String[] openChest(Treasure t) {
         pendingChests--;
         sound.emit(SoundEvents.CHEST_OPEN);
         java.util.ArrayList<String> lines = new java.util.ArrayList<>();
-        int slot = inv.firstEvolvable(data.weapons);
-        if (slot >= 0) {
-            String from = inv.weapons[slot].def.name;
-            WeaponDef to = inv.evolve(slot, data.weapons);
-            sound.emit(SoundEvents.EVOLUTION);
-            lines.add("EVOLUTION!");
-            lines.add(from + " -> " + to.name);
-        } else {
-            int r = rng.nextInt(100);
-            int n = r < 70 ? 1 : r < 95 ? 3 : 5;
-            for (int i = 0; i < n; i++) {
-                Inventory.Slot s = randomUpgradable();
-                if (s == null) break;
-                inv.levelUp(s.def.key);
-                lines.add(s.def.name + " -> Lv " + s.level);
+        int n = rng.nextDouble() * 100 < t.chances[0] ? 5 : rng.nextDouble() * 100 < t.chances[1] ? 3 : 1;
+        for (int i = 0; i < n; i++) {
+            String type = t.prizeAt(i);
+            if (Treasure.EVOLUTION.equals(type)) {
+                int slot = inv.firstEvolvable(data.weapons);
+                if (slot >= 0) {
+                    String from = inv.weapons[slot].def.name;
+                    WeaponDef to = inv.evolve(slot, data.weapons);
+                    sound.emit(SoundEvents.EVOLUTION);
+                    lines.add("EVOLUTION!");
+                    lines.add(from + " -> " + to.name);
+                    continue;
+                }
             }
+            Inventory.Slot s = randomUpgradable(Treasure.EXISTING_WEAPON.equals(type));
+            if (s == null) continue;
+            inv.levelUp(s.def.key);
+            lines.add(s.def.name + " -> Lv " + s.level);
         }
         int coins = Math.round((30 + rng.nextInt(60)) * (float) stage.goldMultiplier * (float) stats.greedMul);
         gold += coins;
@@ -856,11 +1015,13 @@ public final class Sim {
         return lines.toArray(new String[0]);
     }
 
-    private Inventory.Slot randomUpgradable() {
+    private Inventory.Slot randomUpgradable(boolean weaponsOnly) {
         Inventory.Slot[] pool = new Inventory.Slot[12];
         int n = 0;
         for (int i = 0; i < inv.weaponCount; i++) if (inv.weapons[i].level < inv.weapons[i].def.maxLevel()) pool[n++] = inv.weapons[i];
-        for (int i = 0; i < inv.passiveCount; i++) if (inv.passives[i].level < inv.passives[i].def.maxLevel()) pool[n++] = inv.passives[i];
+        if (!weaponsOnly) {
+            for (int i = 0; i < inv.passiveCount; i++) if (inv.passives[i].level < inv.passives[i].def.maxLevel()) pool[n++] = inv.passives[i];
+        }
         return n == 0 ? null : pool[rng.nextInt(n)];
     }
 
@@ -1304,8 +1465,7 @@ public final class Sim {
                 if (dx * dx + dy * dy >= rr * rr) continue;
                 float d = (float) Math.sqrt(dx * dx + dy * dy) + 0.01f;
                 if (p.kind == Entities.P_BOOK || p.kind == Entities.P_PUDDLE) {
-                    if (tNow < e.hitUntil[p.slot]) continue;
-                    e.hitUntil[p.slot] = tNow + p.hitDelay;
+                    if (!e.tryTick(p.stamp, tNow, p.hitDelay)) continue; // each book / puddle ticks on its own
                 } else {
                     if (e.hitBy(p.stamp)) continue;
                     e.markHit(p.stamp);

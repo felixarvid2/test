@@ -510,7 +510,7 @@ public final class PanelRenderer {
         int pn = Math.min(s.pickN, Sim.MAX_PICK);
         for (int i = 0; i < pn; i++) {
             Entities.Pickup p = s.picks[i];
-            if (p.kind != Entities.K_GEM) continue;
+            if (p.kind != Entities.K_GEM || p.red) continue;
             float dx = (p.x - s.px) * k, dy = (p.y - s.py) * k;
             if (Math.abs(dx) > side / 2 || Math.abs(dy) > side / 2) continue;
             ptsB[n++] = cx + dx;
@@ -541,6 +541,11 @@ public final class PanelRenderer {
         }
         for (int i = 0; i < pn; i++) {
             Entities.Pickup p = s.picks[i];
+            if (p.red) { // the condensed gem pile: a bigger crimson dot
+                fill.setColor(0xFFD01838);
+                c.drawCircle(cx + (p.x - s.px) * k, cy + (p.y - s.py) * k, 7f, fill);
+                continue;
+            }
             if (p.kind == Entities.K_GEM) continue;
             float dx = (p.x - s.px) * k, dy = (p.y - s.py) * k;
             float lim = side / 2 - 8;
@@ -751,8 +756,10 @@ public final class PanelRenderer {
         float x = (w - cw) / 2f;
         text(c, "TREASURE!", w / 2f, h * 0.2f, 80 * u, GOLD, Paint.Align.CENTER);
         String[] lines = eng.chestLines;
+        // a 5-item chest has up to 7 lines: squeeze the spacing so they stay above the OK button
+        float step = Math.min(56 * u, (h - 190 * u - h * 0.32f - 30 * u) / Math.max(1, lines.length));
         for (int i = 0; i < lines.length; i++) {
-            text(c, lines[i], w / 2f, h * 0.32f + i * 56 * u, 40 * u, i == 0 && lines[i].startsWith("EVO") ? 0xFFFF9AF0 : TEXT, Paint.Align.CENTER);
+            text(c, lines[i], w / 2f, h * 0.32f + i * step, Math.min(40 * u, step * 0.75f), lines[i].startsWith("EVO") ? 0xFFFF9AF0 : TEXT, Paint.Align.CENTER);
         }
         float by = h - 190 * u;
         button(c, x, by, x + cw, by + 110 * u, "OK", true);
