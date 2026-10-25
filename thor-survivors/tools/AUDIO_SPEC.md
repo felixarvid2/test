@@ -96,7 +96,7 @@ names (whip, magic_missile, ...) are kept as ids; the sounds follow the ASHFALL 
 
 ### New ids (design section 12, in `manifest.json` under `pending`)
 
-Built and shipped, not wired yet. "Limit" is a suggestion for the per-100 ms cap when the code wires them (events
+Built and shipped. The first six (hammer to dodge) and `burn_tick`, `frost_hit`, `electrify_zap`, `decay_hiss`, `stun_hit`, `barrel_explode`, `crate_break`, `pylon_use`, `drone_shot`, `sergeant_burst`, `welder_charge`, `carrier_burst` and `vire_blink` are wired now (they live under `sfx`); the rest wait in `pending`. "Limit" is a suggestion for the per-100 ms cap when the code wires them (events
 that can fire many times per second should be capped low and kept quiet).
 
 | id | When | Length | Style | Limit |

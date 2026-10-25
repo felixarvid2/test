@@ -152,6 +152,834 @@
   },
   "LIBRARY": {
    "name": "Deep Mines"
+  },
+  "FLATS": {
+   "name": "Cinder Flats",
+   "mods": {
+    "TimeLimit": 1800,
+    "PlayerPxSpeed": 1.1,
+    "EnemySpeed": 1.1,
+    "EnemyHealthMultiplier": 1,
+    "GoldMultiplier": 1,
+    "XPBonus": 1
+   },
+   "startingSpawns": 10,
+   "destructibleType": "MIXED_FLATS",
+   "rows": [
+    {
+     "minute": 0,
+     "minimum": 10,
+     "frequency": 1400,
+     "enemies": [
+      "COLONIST"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 1,
+     "minimum": 14,
+     "frequency": 1200,
+     "enemies": [
+      "COLONIST",
+      "SPORE_HOUND"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 2,
+     "minimum": 18,
+     "frequency": 1100,
+     "enemies": [
+      "COLONIST",
+      "SPORE_HOUND"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 3,
+     "minimum": 22,
+     "frequency": 1000,
+     "enemies": [
+      "COLONIST",
+      "SPORE_HOUND",
+      "SERGEANT"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 4,
+     "minimum": 26,
+     "frequency": 900,
+     "enemies": [
+      "COLONIST",
+      "SPORE_HOUND",
+      "SERGEANT"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 5,
+     "minimum": 20,
+     "frequency": 1100,
+     "enemies": [
+      "SPORE_HOUND",
+      "SERGEANT",
+      "SPORE_CARRIER"
+     ],
+     "bosses": [
+      "CARGO_LOADER"
+     ],
+     "treasure": {
+      "chances": [
+       1,
+       5,
+       100
+      ],
+      "level": 1,
+      "prizeTypes": [
+       "EXISTING_WEAPON",
+       "EXISTING_ANY",
+       "EXISTING_ANY",
+       "EXISTING_ANY",
+       "EXISTING_ANY"
+      ]
+     }
+    },
+    {
+     "minute": 6,
+     "minimum": 24,
+     "frequency": 1000,
+     "enemies": [
+      "COLONIST",
+      "SERGEANT",
+      "SPORE_CARRIER"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 7,
+     "minimum": 30,
+     "frequency": 900,
+     "enemies": [
+      "COLONIST",
+      "SPORE_HOUND",
+      "SECURITY_DRONE"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 8,
+     "minimum": 32,
+     "frequency": 850,
+     "enemies": [
+      "SPORE_HOUND",
+      "SERGEANT",
+      "SECURITY_DRONE",
+      "SPORE_CARRIER"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 9,
+     "minimum": 36,
+     "frequency": 800,
+     "enemies": [
+      "COLONIST",
+      "WELDER",
+      "SECURITY_DRONE"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 10,
+     "minimum": 40,
+     "frequency": 800,
+     "enemies": [
+      "SPORE_HOUND",
+      "WELDER",
+      "SPORE_CARRIER"
+     ],
+     "bosses": [
+      "SMELTER_FOREMAN"
+     ],
+     "treasure": {
+      "chances": [
+       3,
+       10,
+       100
+      ],
+      "level": 1,
+      "prizeTypes": [
+       "EVOLUTION",
+       "EXISTING_ANY",
+       "EXISTING_ANY",
+       "EXISTING_WEAPON",
+       "EXISTING_WEAPON"
+      ]
+     }
+    },
+    {
+     "minute": 11,
+     "minimum": 44,
+     "frequency": 750,
+     "enemies": [
+      "COLONIST",
+      "SERGEANT",
+      "WELDER"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 12,
+     "minimum": 48,
+     "frequency": 750,
+     "enemies": [
+      "SPORE_HOUND",
+      "SECURITY_DRONE",
+      "SPORE_CARRIER",
+      "WELDER"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 13,
+     "minimum": 52,
+     "frequency": 700,
+     "enemies": [
+      "COLONIST",
+      "SERGEANT",
+      "SECURITY_DRONE"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 14,
+     "minimum": 56,
+     "frequency": 700,
+     "enemies": [
+      "SPORE_HOUND",
+      "WELDER",
+      "SMELTER"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 15,
+     "minimum": 60,
+     "frequency": 650,
+     "enemies": [
+      "COLONIST",
+      "SERGEANT",
+      "SMELTER",
+      "SPORE_CARRIER"
+     ],
+     "bosses": [
+      "SLAGBORN"
+     ],
+     "treasure": {
+      "chances": [
+       3,
+       10,
+       100
+      ],
+      "level": 1,
+      "prizeTypes": [
+       "EVOLUTION",
+       "EXISTING_ANY",
+       "EXISTING_ANY",
+       "EXISTING_ANY",
+       "EXISTING_ANY"
+      ]
+     }
+    },
+    {
+     "minute": 16,
+     "minimum": 64,
+     "frequency": 650,
+     "enemies": [
+      "SPORE_HOUND",
+      "SECURITY_DRONE",
+      "WELDER"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 17,
+     "minimum": 68,
+     "frequency": 600,
+     "enemies": [
+      "COLONIST",
+      "SERGEANT",
+      "SMELTER"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 18,
+     "minimum": 72,
+     "frequency": 600,
+     "enemies": [
+      "SPORE_HOUND",
+      "SPORE_CARRIER",
+      "WELDER",
+      "SECURITY_DRONE"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 19,
+     "minimum": 76,
+     "frequency": 600,
+     "enemies": [
+      "COLONIST",
+      "SMELTER",
+      "VIRE"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 20,
+     "minimum": 80,
+     "frequency": 550,
+     "enemies": [
+      "SPORE_HOUND",
+      "SERGEANT",
+      "VIRE",
+      "WELDER"
+     ],
+     "bosses": [
+      "VIRE_AWAKENED"
+     ],
+     "treasure": {
+      "chances": [
+       3,
+       10,
+       100
+      ],
+      "level": 1,
+      "prizeTypes": [
+       "EVOLUTION",
+       "EXISTING_ANY",
+       "EXISTING_ANY",
+       "EXISTING_ANY",
+       "EXISTING_ANY"
+      ]
+     }
+    },
+    {
+     "minute": 21,
+     "minimum": 84,
+     "frequency": 550,
+     "enemies": [
+      "COLONIST",
+      "SECURITY_DRONE",
+      "SMELTER"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 22,
+     "minimum": 88,
+     "frequency": 500,
+     "enemies": [
+      "SPORE_HOUND",
+      "SPORE_CARRIER",
+      "WELDER"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 23,
+     "minimum": 92,
+     "frequency": 500,
+     "enemies": [
+      "COLONIST",
+      "SERGEANT",
+      "SMELTER",
+      "VIRE"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 24,
+     "minimum": 96,
+     "frequency": 500,
+     "enemies": [
+      "SPORE_HOUND",
+      "SECURITY_DRONE",
+      "WELDER",
+      "SPORE_CARRIER"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 25,
+     "minimum": 100,
+     "frequency": 450,
+     "enemies": [
+      "COLONIST",
+      "SMELTER",
+      "VIRE"
+     ],
+     "bosses": [
+      "CARGO_LOADER",
+      "CARGO_LOADER"
+     ],
+     "treasure": {
+      "chances": [
+       3,
+       10,
+       100
+      ],
+      "level": 1,
+      "prizeTypes": [
+       "EVOLUTION",
+       "EXISTING_ANY",
+       "EXISTING_ANY",
+       "EXISTING_ANY",
+       "EXISTING_ANY"
+      ]
+     }
+    },
+    {
+     "minute": 26,
+     "minimum": 110,
+     "frequency": 450,
+     "enemies": [
+      "SPORE_HOUND",
+      "SERGEANT",
+      "SECURITY_DRONE",
+      "WELDER"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 27,
+     "minimum": 120,
+     "frequency": 400,
+     "enemies": [
+      "COLONIST",
+      "SMELTER",
+      "VIRE",
+      "SPORE_CARRIER"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 28,
+     "minimum": 130,
+     "frequency": 400,
+     "enemies": [
+      "SPORE_HOUND",
+      "WELDER",
+      "SMELTER",
+      "VIRE"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 29,
+     "minimum": 140,
+     "frequency": 350,
+     "enemies": [
+      "COLONIST",
+      "SPORE_HOUND",
+      "SERGEANT",
+      "SECURITY_DRONE",
+      "WELDER",
+      "SPORE_CARRIER",
+      "SMELTER",
+      "VIRE"
+     ],
+     "bosses": [
+      "SLAGBORN",
+      "SMELTER_FOREMAN"
+     ],
+     "treasure": {
+      "chances": [
+       3,
+       10,
+       100
+      ],
+      "level": 1,
+      "prizeTypes": [
+       "EVOLUTION",
+       "EXISTING_ANY",
+       "EXISTING_ANY",
+       "EXISTING_ANY",
+       "EXISTING_ANY"
+      ]
+     }
+    }
+   ]
+  },
+  "MINES": {
+   "name": "Deep Mines",
+   "mods": {
+    "TimeLimit": 1800,
+    "PlayerPxSpeed": 1.25,
+    "EnemySpeed": 1.3125,
+    "EnemyHealthMultiplier": 1.25,
+    "GoldMultiplier": 1,
+    "XPBonus": 1
+   },
+   "startingSpawns": 12,
+   "destructibleType": "MIXED_MINES",
+   "rows": [
+    {
+     "minute": 0,
+     "minimum": 12,
+     "frequency": 1300,
+     "enemies": [
+      "COLONIST"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 1,
+     "minimum": 16,
+     "frequency": 1100,
+     "enemies": [
+      "COLONIST",
+      "SPORE_HOUND"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 2,
+     "minimum": 20,
+     "frequency": 1000,
+     "enemies": [
+      "SPORE_HOUND",
+      "SECURITY_DRONE"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 3,
+     "minimum": 24,
+     "frequency": 900,
+     "enemies": [
+      "COLONIST",
+      "SPORE_HOUND",
+      "SERGEANT"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 4,
+     "minimum": 28,
+     "frequency": 850,
+     "enemies": [
+      "SPORE_HOUND",
+      "SECURITY_DRONE"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 5,
+     "minimum": 22,
+     "frequency": 1000,
+     "enemies": [
+      "SPORE_HOUND",
+      "SPORE_CARRIER",
+      "SERGEANT"
+     ],
+     "bosses": [
+      "CARGO_LOADER"
+     ],
+     "treasure": {
+      "chances": [
+       1,
+       5,
+       100
+      ],
+      "level": 1,
+      "prizeTypes": [
+       "EXISTING_WEAPON",
+       "EXISTING_ANY",
+       "EXISTING_ANY",
+       "EXISTING_ANY",
+       "EXISTING_ANY"
+      ]
+     }
+    },
+    {
+     "minute": 6,
+     "minimum": 28,
+     "frequency": 900,
+     "enemies": [
+      "COLONIST",
+      "WELDER",
+      "SECURITY_DRONE"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 7,
+     "minimum": 34,
+     "frequency": 850,
+     "enemies": [
+      "SPORE_HOUND",
+      "SPORE_CARRIER",
+      "WELDER"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 8,
+     "minimum": 38,
+     "frequency": 800,
+     "enemies": [
+      "COLONIST",
+      "SERGEANT",
+      "SECURITY_DRONE"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 9,
+     "minimum": 42,
+     "frequency": 750,
+     "enemies": [
+      "SPORE_HOUND",
+      "WELDER",
+      "SMELTER"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 10,
+     "minimum": 46,
+     "frequency": 750,
+     "enemies": [
+      "COLONIST",
+      "SECURITY_DRONE",
+      "SPORE_CARRIER"
+     ],
+     "bosses": [
+      "SLAGBORN"
+     ],
+     "treasure": {
+      "chances": [
+       3,
+       10,
+       100
+      ],
+      "level": 1,
+      "prizeTypes": [
+       "EVOLUTION",
+       "EXISTING_ANY",
+       "EXISTING_ANY",
+       "EXISTING_WEAPON",
+       "EXISTING_WEAPON"
+      ]
+     }
+    },
+    {
+     "minute": 12,
+     "minimum": 52,
+     "frequency": 700,
+     "enemies": [
+      "SPORE_HOUND",
+      "SERGEANT",
+      "VIRE"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 14,
+     "minimum": 60,
+     "frequency": 650,
+     "enemies": [
+      "COLONIST",
+      "WELDER",
+      "SMELTER"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 15,
+     "minimum": 64,
+     "frequency": 600,
+     "enemies": [
+      "SPORE_HOUND",
+      "SECURITY_DRONE",
+      "SPORE_CARRIER"
+     ],
+     "bosses": [
+      "SMELTER_FOREMAN"
+     ],
+     "treasure": {
+      "chances": [
+       3,
+       10,
+       100
+      ],
+      "level": 1,
+      "prizeTypes": [
+       "EVOLUTION",
+       "EXISTING_ANY",
+       "EXISTING_ANY",
+       "EXISTING_ANY",
+       "EXISTING_ANY"
+      ]
+     }
+    },
+    {
+     "minute": 17,
+     "minimum": 72,
+     "frequency": 600,
+     "enemies": [
+      "COLONIST",
+      "SMELTER",
+      "VIRE"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 19,
+     "minimum": 80,
+     "frequency": 550,
+     "enemies": [
+      "SPORE_HOUND",
+      "WELDER",
+      "SECURITY_DRONE"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 20,
+     "minimum": 84,
+     "frequency": 550,
+     "enemies": [
+      "SERGEANT",
+      "SMELTER",
+      "VIRE"
+     ],
+     "bosses": [
+      "VIRE_AWAKENED"
+     ],
+     "treasure": {
+      "chances": [
+       3,
+       10,
+       100
+      ],
+      "level": 1,
+      "prizeTypes": [
+       "EVOLUTION",
+       "EVOLUTION",
+       "EVOLUTION",
+       "EXISTING_ANY",
+       "EXISTING_ANY"
+      ]
+     }
+    },
+    {
+     "minute": 22,
+     "minimum": 92,
+     "frequency": 500,
+     "enemies": [
+      "SPORE_HOUND",
+      "SPORE_CARRIER",
+      "WELDER"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 24,
+     "minimum": 100,
+     "frequency": 450,
+     "enemies": [
+      "COLONIST",
+      "SMELTER",
+      "VIRE",
+      "SECURITY_DRONE"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 25,
+     "minimum": 110,
+     "frequency": 450,
+     "enemies": [
+      "SPORE_HOUND",
+      "WELDER",
+      "SMELTER"
+     ],
+     "bosses": [
+      "CARGO_LOADER",
+      "CARGO_LOADER",
+      "SLAGBORN"
+     ],
+     "treasure": {
+      "chances": [
+       3,
+       10,
+       100
+      ],
+      "level": 1,
+      "prizeTypes": [
+       "EVOLUTION",
+       "EXISTING_ANY",
+       "EXISTING_ANY",
+       "EXISTING_ANY",
+       "EXISTING_ANY"
+      ]
+     }
+    },
+    {
+     "minute": 27,
+     "minimum": 120,
+     "frequency": 400,
+     "enemies": [
+      "COLONIST",
+      "SPORE_HOUND",
+      "SERGEANT",
+      "SECURITY_DRONE",
+      "WELDER",
+      "SPORE_CARRIER",
+      "SMELTER",
+      "VIRE"
+     ],
+     "bosses": []
+    },
+    {
+     "minute": 29,
+     "minimum": 140,
+     "frequency": 350,
+     "enemies": [
+      "COLONIST",
+      "SPORE_HOUND",
+      "SERGEANT",
+      "SECURITY_DRONE",
+      "WELDER",
+      "SPORE_CARRIER",
+      "SMELTER",
+      "VIRE"
+     ],
+     "bosses": [
+      "THE_FIRST"
+     ],
+     "treasure": {
+      "chances": [
+       3,
+       10,
+       100
+      ],
+      "level": 1,
+      "prizeTypes": [
+       "EVOLUTION",
+       "EXISTING_ANY",
+       "EXISTING_ANY",
+       "EXISTING_ANY",
+       "EXISTING_ANY"
+      ]
+     }
+    }
+   ],
+   "spawnType": "HORIZONTAL"
   }
  },
  "lighting": {
@@ -160,6 +988,14 @@
    "radius": 240
   },
   "LIBRARY": {
+   "ambient": 0.78,
+   "radius": 200
+  },
+  "FLATS": {
+   "ambient": 0.65,
+   "radius": 240
+  },
+  "MINES": {
    "ambient": 0.78,
    "radius": 200
   }
@@ -346,9 +1182,8 @@
       },
       {
        "name": "Riot Guard II: Deflector",
-       "desc": "-25% damage taken after a swing. Swings reflect projectiles that cross the cone.",
+       "desc": "Swings reflect enemy projectiles that cross the cone back at the shooters.",
        "mods": {
-        "guard": 0.25,
         "reflect": 1
        }
       },
@@ -665,6 +1500,281 @@
      ]
     }
    ]
+  }
+ },
+ "enemies": {
+  "COLONIST": {
+   "name": "Infected Colonist",
+   "archetype": "CHASER",
+   "maxHp": 1.0,
+   "speed": 100,
+   "power": 10,
+   "xp": 1,
+   "sprite": "infected_colonist",
+   "params": {
+    "radius": 11
+   }
+  },
+  "SPORE_HOUND": {
+   "name": "Spore Hound",
+   "archetype": "FAST_PACK",
+   "maxHp": 0.5,
+   "speed": 160,
+   "power": 6,
+   "xp": 1,
+   "sprite": "spore_hound",
+   "params": {
+    "radius": 9,
+    "group": 4,
+    "weave": 0.8,
+    "phase": 1.0
+   }
+  },
+  "SERGEANT": {
+   "name": "Sergeant",
+   "archetype": "RANGED",
+   "maxHp": 1.5,
+   "speed": 90,
+   "power": 8,
+   "xp": 2,
+   "sprite": "sergeant",
+   "params": {
+    "radius": 12,
+    "stop": 132,
+    "backoff": 100,
+    "backoffMul": 0.7,
+    "pause": 0.5,
+    "burst": 3,
+    "burstGap": 0.15,
+    "interval": 3.5,
+    "bulletSpeed": 230,
+    "shotDmg": 8,
+    "range": 190,
+    "clip": 1
+   }
+  },
+  "SECURITY_DRONE": {
+   "name": "Security Drone",
+   "archetype": "FLIER",
+   "maxHp": 0.7,
+   "speed": 120,
+   "power": 5,
+   "xp": 2,
+   "sprite": "security_drone",
+   "params": {
+    "radius": 10,
+    "stop": 150,
+    "backoff": 120,
+    "backoffMul": 0.8,
+    "pause": 0.2,
+    "burst": 1,
+    "burstGap": 0,
+    "interval": 2.4,
+    "bulletSpeed": 270,
+    "shotDmg": 6,
+    "range": 210
+   }
+  },
+  "WELDER": {
+   "name": "Welder",
+   "archetype": "CHARGER",
+   "maxHp": 3.0,
+   "speed": 110,
+   "power": 16,
+   "xp": 4,
+   "sprite": "welder",
+   "params": {
+    "radius": 14,
+    "runSpeed": 300,
+    "minDist": 80,
+    "maxDist": 160,
+    "gapMin": 2,
+    "gapMax": 6,
+    "windup": 0.6,
+    "dash": 0.6,
+    "recover": 1.0
+   }
+  },
+  "SPORE_CARRIER": {
+   "name": "Spore Carrier",
+   "archetype": "EXPLODER",
+   "maxHp": 1.2,
+   "speed": 80,
+   "power": 0,
+   "xp": 3,
+   "sprite": "spore_carrier",
+   "params": {
+    "radius": 12,
+    "trigger": 40,
+    "fuse": 0.35,
+    "cloudR": 90,
+    "cloudT": 3,
+    "cloudDps": 4
+   }
+  },
+  "SMELTER": {
+   "name": "Smelter",
+   "archetype": "TANK",
+   "maxHp": 8.0,
+   "speed": 70,
+   "power": 20,
+   "xp": 8,
+   "knockback": 0,
+   "sprite": "smelter",
+   "params": {
+    "radius": 18,
+    "castEvery": 8,
+    "castTime": 0.6,
+    "poolR": 60,
+    "poolT": 3,
+    "poolDps": 8,
+    "warn": 0.6,
+    "pools": 1
+   }
+  },
+  "VIRE": {
+   "name": "Vire",
+   "archetype": "SUMMONER",
+   "maxHp": 5.0,
+   "speed": 90,
+   "power": 14,
+   "xp": 10,
+   "sprite": "vire",
+   "params": {
+    "radius": 13,
+    "blinkMin": 125,
+    "blinkMax": 200,
+    "tele": 0.2,
+    "wait": 0.75,
+    "stopMin": 2.5,
+    "stopMax": 4,
+    "raise": 3,
+    "ring": 8,
+    "ringSpeed": 220,
+    "ringDmg": 10,
+    "castRange": 180
+   }
+  },
+  "CARGO_LOADER": {
+   "name": "Cargo Loader",
+   "archetype": "CHARGER",
+   "boss": true,
+   "maxHp": 400,
+   "speed": 70,
+   "power": 26,
+   "xp": 60,
+   "sprite": "cargo_loader",
+   "params": {
+    "hpRamp": 20,
+    "radius": 20,
+    "runSpeed": 320,
+    "minDist": 80,
+    "maxDist": 420,
+    "gapMin": 1,
+    "gapMax": 3.5,
+    "windup": 1.0,
+    "dash": 0.8,
+    "recover": 1.0
+   }
+  },
+  "SLAGBORN": {
+   "name": "Slagborn",
+   "archetype": "TANK",
+   "boss": true,
+   "maxHp": 700,
+   "speed": 60,
+   "power": 35,
+   "xp": 100,
+   "sprite": "slagborn",
+   "params": {
+    "hpRamp": 20,
+    "radius": 24,
+    "castEvery": 8,
+    "castTime": 0.8,
+    "poolR": 70,
+    "poolT": 3,
+    "poolDps": 8,
+    "warn": 0.8,
+    "pools": 3,
+    "trail": 45,
+    "trailT": 4,
+    "trailDps": 6,
+    "enrageHp": 0.5,
+    "enrageMul": 1.3
+   }
+  },
+  "VIRE_AWAKENED": {
+   "name": "Vire, Awakened",
+   "archetype": "SUMMONER",
+   "boss": true,
+   "maxHp": 600,
+   "speed": 100,
+   "power": 20,
+   "xp": 100,
+   "sprite": "vire",
+   "params": {
+    "hpRamp": 20,
+    "radius": 16,
+    "blinkMin": 125,
+    "blinkMax": 200,
+    "tele": 0.2,
+    "wait": 0.6,
+    "stopMin": 2,
+    "stopMax": 3.5,
+    "raise": 6,
+    "ring": 12,
+    "ringSpeed": 220,
+    "ringDmg": 10,
+    "castRange": 200
+   }
+  },
+  "SMELTER_FOREMAN": {
+   "name": "Smelter, Foreman",
+   "archetype": "TANK",
+   "boss": true,
+   "maxHp": 500,
+   "speed": 65,
+   "power": 30,
+   "xp": 100,
+   "sprite": "smelter",
+   "scale": 1.8,
+   "params": {
+    "hpRamp": 20,
+    "radius": 12,
+    "castEvery": 6,
+    "castTime": 0.8,
+    "poolR": 60,
+    "poolT": 3,
+    "poolDps": 8,
+    "warn": 0.8,
+    "pools": 5,
+    "carpet": 1
+   }
+  },
+  "THE_FIRST": {
+   "name": "The First",
+   "archetype": "SUMMONER",
+   "boss": true,
+   "maxHp": 2500,
+   "speed": 80,
+   "power": 40,
+   "xp": 250,
+   "sprite": "the_first",
+   "params": {
+    "hpRamp": 29,
+    "radius": 28,
+    "blinkMin": 0,
+    "blinkMax": 0,
+    "tele": 0.2,
+    "wait": 0.5,
+    "stopMin": 2.5,
+    "stopMax": 3.5,
+    "raise": 4,
+    "ring": 12,
+    "ringSpeed": 200,
+    "ringDmg": 12,
+    "castRange": 260
+   }
   }
  }
 }

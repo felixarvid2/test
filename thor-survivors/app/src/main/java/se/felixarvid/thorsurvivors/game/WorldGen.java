@@ -12,10 +12,10 @@ package se.felixarvid.thorsurvivors.game;
  * <li><b>props</b>: standing things (crates, barrels, pipes, rocks, light posts, landmarks, mine walls) that the
  * renderer y-sorts with the creatures. Nothing collides.</li>
  * </ul>
- * Stage FOREST is the ash plain (Cinder Flats): junk yards of crates and rock, glowing lumen growths in clusters, light
- * posts and the odd crashed ship. Stage LIBRARY is the deep mine: long rows of wall pieces above and below a free
+ * Stage FLATS (legacy key FOREST) is the ash plain (Cinder Flats): junk yards of crates and rock, glowing lumen growths in
+ * clusters, light posts and the odd crashed ship. Stage MINES (legacy key LIBRARY) is the deep mine: long rows of wall pieces above and below a free
  * central lane with breaks, clutter between the rows and emergency lights along the lane. The spawn point (0, 0) is
- * kept clear in both. The keys keep the old stage ids so saves and data do not change.
+ * kept clear in both.
  */
 public final class WorldGen {
     /** World units per tile at 1080p (80 px at 1.9286 px per unit). */
@@ -65,7 +65,7 @@ public final class WorldGen {
     }
 
     public static WorldGen of(String stageKey) {
-        return "LIBRARY".equals(stageKey) ? MINES : FLATS;
+        return "MINES".equals(stageKey) || "LIBRARY".equals(stageKey) ? MINES : FLATS;
     }
 
     // ------------------------------------------------------------------ noise

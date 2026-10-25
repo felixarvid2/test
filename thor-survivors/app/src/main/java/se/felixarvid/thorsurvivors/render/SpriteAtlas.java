@@ -38,9 +38,9 @@ public final class SpriteAtlas {
 
     /** Clip slots of a {@link Model}. A character's "run" is stored in the walk slot. */
     public static final int C_IDLE = 0, C_WALK = 1, C_ATTACK = 2, C_HIT = 3, C_DEATH = 4, C_STATIC = 5, C_ATTACK2 = 6,
-            C_SLAM = 7, C_SHOOT = 8, C_THROW = 9, C_CAST = 10, C_CAST2 = 11, C_DODGE = 12, CLIPS = 13;
+            C_SLAM = 7, C_SHOOT = 8, C_THROW = 9, C_CAST = 10, C_CAST2 = 11, C_DODGE = 12, C_RUN = 13, CLIPS = 14;
     private static final String[] CLIP_NAMES = {"idle", "walk", "attack", "hit", "death", "static", "attack2", "slam",
-            "shoot", "throw", "cast", "cast2", "dodge"};
+            "shoot", "throw", "cast", "cast2", "dodge", "run"};
 
     /** Supplies asset bytes by path ("ashfall/manifest.json"); lets tests read the files straight from disk. */
     public interface Opener {
@@ -171,6 +171,7 @@ public final class SpriteAtlas {
         for (int id = 0; id < CLIPS; id++) {
             String cn = CLIP_NAMES[id];
             if (id == C_WALK && !cs.has("walk") && cs.has("run")) cn = "run";
+            if (id == C_RUN && !cs.has("walk")) continue; // a hero's run is its walk slot; C_RUN is a second gait (the welder's dash)
             JSONObject c = cs.optJSONObject(cn);
             if (c == null) continue;
             Clip k = new Clip();

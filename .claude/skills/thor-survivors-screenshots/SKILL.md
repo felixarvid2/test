@@ -12,7 +12,9 @@ No KVM in the cloud, so no emulator. Robolectric 4.14.1 with `@GraphicsMode(Grap
 
 - Files in `thor-survivors/app/src/test/java/se/felixarvid/thorsurvivors/render/`:
   `ScreenshotTest.java` (menu, fight, level-up, weapons, movement), `StageShotsTest.java` (forest and library stages,
-  brazier before/after), `CrowdOrderTest.java` (6 movement frames, `seq_N.png`), `Shots.java` (helper, sizes), `HeroShotsTest.java` (each hero attacking, Slam/Spore Burst, Wrath beam + Parasite Link, grenade, hero select row, branch card on the bottom screen, dodge; `driveUntil` aims at the nearest enemy and clears `inv.weaponCount` so only the main weapon is in the picture), `AshfallShotsTest.java` (lighting FULL/LOW/OFF with the enemy contrast check, the three boss
+  brazier before/after), `Phase7ShotsTest.java` (design phases 5 to 7: charger telegraph line and dash, sergeant and drone bolts, carrier fuse and
+  cloud, vire blink and ring, smelter pool warning, Slagborn trail, hound pack, the five statuses on screen, Cinder Flats and Deep Mines fights at
+  2/10/20 min, the ash storm, a barrel chain, chest and pylon; it asserts the red-orange danger pixels and the Frost tint), `CrowdOrderTest.java` (6 movement frames, `seq_N.png`), `Shots.java` (helper, sizes), `HeroShotsTest.java` (each hero attacking, Slam/Spore Burst, Wrath beam + Parasite Link, grenade, hero select row, branch card on the bottom screen, dodge; `driveUntil` aims at the nearest enemy and clears `inv.weaponCount` so only the main weapon is in the picture), `AshfallShotsTest.java` (lighting FULL/LOW/OFF with the enemy contrast check, the three boss
   models, the death sequence, the player in 8 directions and 5 states, `bestiary.png`), `RenderCostTest.java` (crowd draw time per
   lighting mode and the zero-allocation check).
 - Top screen: 1920x1080 (`Shots.TOP_W/TOP_H`, WorldRenderer). Bottom panel: 1240x1080 (`Shots.BOT_W/BOT_H`, `ui/PanelRenderer`).
@@ -21,6 +23,11 @@ No KVM in the cloud, so no emulator. Robolectric 4.14.1 with `@GraphicsMode(Grap
 - Run one class: `SHOT_DIR=<scratch>/frames ./gradlew testDebugUnitTest --tests '*ScreenshotTest*' --rerun`,
   with `<scratch>` the session scratchpad.
 - Seed for reproducible frames: `s.rng.setSeed(n)` (see `Shots.java` line ~75).
+- Stages: `h.startRun("FLATS" | "MINES", ...)` are the menu stages. `FOREST` / `LIBRARY` (Vampire Survivors) are not in the menu any more; `Shots.startRun`
+  reaches them through `Engine.selectStage(key)` (the debug hook; the menu row clears it). Older tests keep using them.
+- Scenes with exact enemies: `scene()` in `Phase7ShotsTest` (no waves, no weapons, hero immortal) and then `s.spawnAt(key, x, y, boss)`, `s.shootForTest(...)`,
+  `s.hazardForTest(...)`, `s.applyStatus(...)`, `s.hitDestForTest(...)`, `s.destX/destKind` (public test hooks on `Sim`); `e.actT = 0` makes an archetype act now.
+  Crop the interesting 960 x 540 around the hero (`(480,270,1440,810)`) and make a contact sheet; the telegraphs are small on a full frame.
 - Save a weapon shot only when that weapon's own effect is on screen. A shot of an empty field proves nothing.
 
 ## Looking at the frames

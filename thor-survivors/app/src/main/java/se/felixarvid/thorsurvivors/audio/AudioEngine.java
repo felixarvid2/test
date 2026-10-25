@@ -164,7 +164,7 @@ public final class AudioEngine {
             }
         }
         Sim s = eng.sim;
-        String stage = s == null ? "FOREST" : s.stage.key;
+        String stage = s == null ? "FLATS" : s.stage.key;
         String t = MusicDirector.trackFor(eng.phase, stage, bossAlive, eng.resultWin);
         if (MusicDirector.BOSS.equals(t) && !manifest.music.containsKey(t)) t = MusicDirector.stageTrack(stage);
         wantTrack = t;

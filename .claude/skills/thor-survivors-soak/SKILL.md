@@ -17,7 +17,7 @@ Throwaway `ScratchSoakTest.java` in `thor-survivors/app/src/test/java/se/felixar
 afterwards; keep only cheap, deterministic assertions as a real test if the owner wants one). Base it on
 `SimSmokeTest.run`: `TestData.load()`, `new Sim(d, d.stages.get(stage), starter, new HashMap<>())`, a seeded `Random`
 steering `Input.stickX/stickY` every 2 s, drain `pendingLevelUps` via `OfferGenerator.generate(...)`,
-`openChest()` while `pendingChests > 0`. Matrix: stages `FOREST`, `LIBRARY` x every starter weapon key in
+`openChest()` while `pendingChests > 0`. Matrix: stages `FLATS`, `MINES` (and the old `FOREST`, `LIBRARY`) x every starter weapon key in
 `game_data.json` x policies {walk randomly, stand still with `s.hp = s.maxHp`, kite one direction} x 2-3 seeds, to
 `stage.timeLimit` (1800 s = 108000 steps). Also a late-game variant: all evolutions added via `s.inv.add(...)` and
 `s.time` set to 25 min. Run the matrix in parallel test methods if it takes too long; report the wall time.
@@ -25,6 +25,21 @@ Heroes: also run the matrix with `new Sim(..., hero)` for BASTION, SPECTRE, XENO
 random branch picks, and check `projN` (main bullets, patches and bomblets share the 600 pool), `main.linkN <= MAX_LINKS`, no NaN in
 `aimX/aimY`, and the dodge cooldown never negative.
 Run: `cd thor-survivors && SOAK=1 ./gradlew --offline testDebugUnitTest --tests '*ScratchSoakTest*' --rerun`.
+
+Ashfall stages (design phase 7): the stage keys are `FLATS` (Cinder Flats) and `MINES` (Deep Mines); `FOREST` and `LIBRARY` are the old VS
+stages and only exist for old tests. `app/src/test/java/se/felixarvid/thorsurvivors/game/StageSoak.java` is the ready harness (not a JUnit test):
+a bot that aims the main weapon at the nearest enemy, flees the melee crowd, runs shooters down, sidesteps bolts and charge lines, keeps out of
+pools and uses the dodge, with three policies: `immortal` (hp refilled: NaN, pools, the 300 cap), `mid` (mortal, takes weapons and branches first)
+and `naked` (mortal, takes no card), plus `still` (mortal, never moves). It reads the same data as the game and uses the seeded constructor
+`new Sim(d, stage, null, meta, hero, seed)` (the unseeded `Random` of the old constructor made the first spawns differ between runs).
+Run one cell after `./gradlew --offline compileDebugUnitTestJavaWithJavac -q`:
+`cd thor-survivors/app && java -cp <main classes>:<test classes>:json-20240303.jar:junit-4.13.2.jar:android.jar se.felixarvid.thorsurvivors.game.StageSoak FLATS BASTION mid 3 1800`
+(`TRACE=296` prints the hero hp, bolts, hazards and the boss every half second from t=296 s). A full 30-minute run takes 1 to 6 s, so a
+24-cell matrix with `xargs -P 4` runs in well under a minute. `StageSoakTest` runs a 5-minute immortal slice and the naked-bot rule in the normal
+suite; with `SOAK=1` it also runs 30 minutes per hero and the mid-build survival rule. Extra checks for the roster: `eprojN <= Sim.MAX_EPROJ` (40),
+`hazN <= MAX_HAZ` (32), ranged alive <= 24 (+6 slack for summons), `enemyN <= 300 + live bosses`, `dmgBy[]` (hero damage by source: contact, bolts,
+areas and statuses, barrel blasts) to see what kills the bot. A pickup pool at 1200 for a minute or two in a 60 000-kill run is the designed
+merge behaviour, not a leak; flag it only when it stays at the cap for a large share of the run.
 
 Lessons from earlier soaks:
 - `Sim.rng` is unseeded: call `s.rng.setSeed(seed)` right after construction or no run is reproducible.

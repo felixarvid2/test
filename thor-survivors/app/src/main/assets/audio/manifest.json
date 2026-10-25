@@ -160,9 +160,7 @@
       "file": "sfx/dodge.ogg",
       "volume": 0.6,
       "pitchVar": 0.06
-    }
-  },
-  "pending": {
+    },
     "burn_tick": {
       "file": "sfx/burn_tick.ogg",
       "volume": 0.4,
@@ -188,31 +186,6 @@
       "volume": 0.9,
       "pitchVar": 0.06
     },
-    "chain_arc": {
-      "file": "sfx/chain_arc.ogg",
-      "volume": 0.8,
-      "pitchVar": 0.06
-    },
-    "kugelblitz_hum": {
-      "file": "sfx/kugelblitz_hum.ogg",
-      "volume": 0.4,
-      "pitchVar": 0.02
-    },
-    "orbital_warn": {
-      "file": "sfx/orbital_warn.ogg",
-      "volume": 0.8,
-      "pitchVar": 0.06
-    },
-    "orbital_hit": {
-      "file": "sfx/orbital_hit.ogg",
-      "volume": 1.0,
-      "pitchVar": 0.06
-    },
-    "nova_frost": {
-      "file": "sfx/nova_frost.ogg",
-      "volume": 0.85,
-      "pitchVar": 0.06
-    },
     "barrel_explode": {
       "file": "sfx/barrel_explode.ogg",
       "volume": 1.0,
@@ -226,31 +199,6 @@
     "pylon_use": {
       "file": "sfx/pylon_use.ogg",
       "volume": 0.8,
-      "pitchVar": 0.06
-    },
-    "elite_spawn": {
-      "file": "sfx/elite_spawn.ogg",
-      "volume": 1.0,
-      "pitchVar": 0.06
-    },
-    "elite_die": {
-      "file": "sfx/elite_die.ogg",
-      "volume": 1.0,
-      "pitchVar": 0.06
-    },
-    "equip_drop": {
-      "file": "sfx/equip_drop.ogg",
-      "volume": 0.8,
-      "pitchVar": 0.06
-    },
-    "equip_pick": {
-      "file": "sfx/equip_pick.ogg",
-      "volume": 0.8,
-      "pitchVar": 0.06
-    },
-    "equip_swap": {
-      "file": "sfx/equip_swap.ogg",
-      "volume": 0.75,
       "pitchVar": 0.06
     },
     "drone_shot": {
@@ -276,6 +224,58 @@
     "vire_blink": {
       "file": "sfx/vire_blink.ogg",
       "volume": 0.7,
+      "pitchVar": 0.06
+    }
+  },
+  "pending": {
+    "chain_arc": {
+      "file": "sfx/chain_arc.ogg",
+      "volume": 0.8,
+      "pitchVar": 0.06
+    },
+    "kugelblitz_hum": {
+      "file": "sfx/kugelblitz_hum.ogg",
+      "volume": 0.4,
+      "pitchVar": 0.02
+    },
+    "orbital_warn": {
+      "file": "sfx/orbital_warn.ogg",
+      "volume": 0.8,
+      "pitchVar": 0.06
+    },
+    "orbital_hit": {
+      "file": "sfx/orbital_hit.ogg",
+      "volume": 1.0,
+      "pitchVar": 0.06
+    },
+    "nova_frost": {
+      "file": "sfx/nova_frost.ogg",
+      "volume": 0.85,
+      "pitchVar": 0.06
+    },
+    "elite_spawn": {
+      "file": "sfx/elite_spawn.ogg",
+      "volume": 1.0,
+      "pitchVar": 0.06
+    },
+    "elite_die": {
+      "file": "sfx/elite_die.ogg",
+      "volume": 1.0,
+      "pitchVar": 0.06
+    },
+    "equip_drop": {
+      "file": "sfx/equip_drop.ogg",
+      "volume": 0.8,
+      "pitchVar": 0.06
+    },
+    "equip_pick": {
+      "file": "sfx/equip_pick.ogg",
+      "volume": 0.8,
+      "pitchVar": 0.06
+    },
+    "equip_swap": {
+      "file": "sfx/equip_swap.ogg",
+      "volume": 0.75,
       "pitchVar": 0.06
     },
     "tentacle_emerge": {

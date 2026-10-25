@@ -23,16 +23,54 @@ public final class Entities {
         /** Knockback multiplier, 1 by default; Garlic raises it (lowers the enemy's knockback resistance). */
         public float kbMul = 1f;
         /**
-         * Status placeholders until the status phase (design section 7): seconds stunned (cannot move or attack) and
-         * rooted (cannot move), and Burn / Decay stacks with their time left and the damage per second of one stack.
+         * Statuses (design section 7): one byte of stacks and one float timer per status. Burn ticks every 0.33 s for
+         * 2.5 s, Frost slows for 4 s, Electrify ticks at 2.0 s x 0.854^(n-1) (every tick removes a stack), Decay lasts
+         * 8 s. The *Hit fields hold the damage of the strongest applying hit: ticks are a fraction of it.
          */
-        public float stun, root, burnT, decayT, burnPer, decayPer;
-        public int burn, decay;
+        public byte burn, frost, elec, decay;
+        public float burnT, frostT, elecT, decayT, burnAcc, burnHit, elecHit, decayHit;
+        /** Speed multiplier from Frost (1 = none) and damage multiplier from Decay (1 = none), set by the status pass. */
+        public float slow = 1f, dmgMul = 1f;
+        /** Seconds stunned (cannot move or attack; Frost at its cap freezes through this) and rooted (cannot move). */
+        public float stun, root;
+        /** Pool slot of the latest status number of this enemy (checked against DamageText.owner), -1 for none. */
+        public int statusTextSlot = -1;
+        /** Fractional status damage not yet shown as a number, seconds of the Frost freeze left (for the tint), elite flag (stun x0.5). */
+        public float dotAcc, freezeT;
+        public boolean elite;
+
+        // archetype state (design section 4; Sim.updateEnemies switches on type.arch)
+        /** AI phase (AI_* of the archetype), seconds left in it, the cooldown to the next action, burst shots left. */
+        public int ai, shots;
+        public float aiT, actT, shotT;
+        /** A locked direction or target (charge line, slag pool spot) and the telegraph: seconds left / total. */
+        public float ax, ay, tele, teleMax, teleLen;
+        /** Clip request for the renderer (CL_*): shot, cast or dash; 0 = walk. */
+        public int clip;
+        /** Seconds until this hound weaves the other way, and the weave sign. */
+        public float weaveT;
+        public int weave = 1;
+        /** Trail spacing: distance moved since the last slag patch (Slagborn). */
+        public float trail;
+        public boolean enraged;
 
         public void clearStatus() {
-            stun = root = burnT = decayT = burnPer = decayPer = 0f;
-            burn = decay = 0;
+            burn = frost = elec = decay = 0;
+            burnT = frostT = elecT = decayT = burnAcc = burnHit = elecHit = decayHit = 0f;
+            slow = dmgMul = 1f;
+            stun = root = 0f;
+            statusTextSlot = -1;
+            dotAcc = freezeT = 0f;
         }
+
+        public void clearAi() {
+            ai = shots = clip = 0;
+            aiT = actT = shotT = tele = teleMax = trail = 0f;
+            weaveT = 0f;
+            weave = 1;
+            enraged = false;
+        }
+
         /**
          * Re-hit cooldowns of orbiting books and puddles: a ring of (projectile stamp, absolute time before which that
          * projectile cannot hit this enemy again), so every book and every puddle ticks on its own.
@@ -94,8 +132,29 @@ public final class Entities {
     /** {@link Projectile#sub} of P_MAIN projectiles (the main weapons, see {@code MainWeapon}) and of ground patches. */
     public static final int SUB_NONE = 0, SUB_BULLET = 1, SUB_SLUG = 2, SUB_BOLT = 3, SUB_BURST = 4, SUB_DART = 5,
             SUB_GRENADE = 6, SUB_BOMBLET = 7, SUB_WAVE = 8, SUB_PATCH_FIRE = 9, SUB_PATCH_DECAY = 10;
-    /** {@link Projectile#status}: what a hit applies besides damage (placeholders for the status phase). */
-    public static final int ST_NONE = 0, ST_BURN = 1, ST_DECAY = 2;
+    /** {@link Projectile#status}: what a hit applies besides damage (see {@link Status}). */
+    public static final int ST_NONE = 0, ST_BURN = 1, ST_DECAY = 2, ST_FROST = 3, ST_ELECTRIFY = 4;
+
+    /** Clip requests of an enemy (Enemy.clip): the renderer plays the closest clip its model has. */
+    public static final int CL_WALK = 0, CL_ATTACK2 = 1, CL_CAST = 2, CL_CAST2 = 3, CL_RUN = 4;
+
+    /**
+     * A projectile fired by an enemy (design section 4: red-orange core with a black outline, at most
+     * {@link Sim#MAX_EPROJ} at once). A bolt reflected by Riot Guard II turns friendly and hurts enemies.
+     */
+    public static final class EProj {
+        public float x, y, vx, vy, life, radius, dmg;
+        public boolean friendly;
+    }
+
+    /** Ground areas of the enemies and the world: slag pools, spore clouds, frost patches (see {@link Sim#MAX_HAZ}). */
+    public static final int HZ_SLAG = 0, HZ_CLOUD = 1, HZ_FROST = 2;
+
+    public static final class Hazard {
+        public int kind;
+        public float x, y, r, life, maxLife, warn, dps, acc;
+        public int n;
+    }
 
     public static final class Projectile {
         public int kind, slot;
@@ -143,10 +202,13 @@ public final class Entities {
         public final char[] digits = new char[8];
         public int len, total, owner;
         public boolean crit, heal;
+        /** RGB of a status number (burn orange, frost cyan, ...); 0 = the normal white / crit / heal colours. */
+        public int color;
     }
 
     public static final int FX_WHIP = 0, FX_BOLT = 1, FX_RING = 2, FX_FLASH = 3, FX_BLAST = 4, FX_SWING = 5,
-            FX_SLAM = 6, FX_MUZZLE = 7, FX_BURST = 8, FX_THRUST = 9, FX_LINE = 10, FX_TENDRIL = 11;
+            FX_SLAM = 6, FX_MUZZLE = 7, FX_BURST = 8, FX_THRUST = 9, FX_LINE = 10, FX_TENDRIL = 11,
+            FX_SPORE = 12, FX_BLINK = 13;
 
     /**
      * A dead enemy that is still playing its death animation and fading out. Purely visual: the Sim keeps a small ring

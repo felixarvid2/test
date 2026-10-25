@@ -19,8 +19,7 @@ import java.util.Random;
 public class HeroAcceptanceTest {
     static int kills(String hero, String starter, long seed, double secs, boolean immortal, boolean still, double[] death) throws Exception {
         GameData d = TestData.load();
-        Sim s = new Sim(d, d.stages.get("FOREST"), starter, new HashMap<>(), hero);
-        s.rng.setSeed(seed);
+        Sim s = new Sim(d, d.stages.get("FOREST"), starter, new HashMap<>(), hero, seed); // seeded from the first spawn on
         Random rng = new Random(seed);
         Input in = new Input();
         int step = 0;
@@ -83,7 +82,8 @@ public class HeroAcceptanceTest {
 
     /**
      * Standing still (no walking, aim = facing) with random level-up picks: the median death is before minute 3 and none
-     * lives past 6 minutes. A lucky pick (garlic, an early evolution) lets the odd Bastion run reach minute 5 (12 seeds:
+     * lives past 9 minutes (Toxic Vent's Decay, -4% enemy damage per stack, lets a lucky garlic run last longer than the
+     * 6 minutes it took before the status phase). A lucky pick (garlic, an early evolution) lets the odd Bastion run reach minute 5 (12 seeds:
      * Bastion 66 to 315 s, median 106; Spectre 22 to 67; Xenomant 25 to 69), so the rule is the median, not every seed.
      */
     @Test
@@ -92,8 +92,8 @@ public class HeroAcceptanceTest {
             double[] t = new double[7];
             for (int i = 0; i < t.length; i++) {
                 double[] death = new double[1];
-                kills(hero, "WHIP", i + 1, 400, false, true, death);
-                assertTrue(hero + " seed " + (i + 1) + " died at " + death[0], death[0] > 0 && death[0] < 360);
+                kills(hero, "WHIP", i + 1, 560, false, true, death);
+                assertTrue(hero + " seed " + (i + 1) + " died at " + death[0], death[0] > 0 && death[0] < 540);
                 t[i] = death[0];
             }
             java.util.Arrays.sort(t);

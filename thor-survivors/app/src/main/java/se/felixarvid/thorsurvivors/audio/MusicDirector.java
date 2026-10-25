@@ -25,7 +25,7 @@ public final class MusicDirector {
     }
 
     public static String stageTrack(String stageKey) {
-        return "LIBRARY".equals(stageKey) ? LIBRARY : FOREST;
+        return "MINES".equals(stageKey) || "LIBRARY".equals(stageKey) ? LIBRARY : FOREST;
     }
 
     /** Stingers play once; every other track loops. */

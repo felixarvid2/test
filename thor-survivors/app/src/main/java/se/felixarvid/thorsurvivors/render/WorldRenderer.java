@@ -20,9 +20,12 @@ import se.felixarvid.thorsurvivors.game.Entities.Corpse;
 import se.felixarvid.thorsurvivors.game.Entities.DamageText;
 import se.felixarvid.thorsurvivors.game.Entities.Effect;
 import se.felixarvid.thorsurvivors.game.Entities.Enemy;
+import se.felixarvid.thorsurvivors.game.Entities.EProj;
+import se.felixarvid.thorsurvivors.game.Entities.Hazard;
 import se.felixarvid.thorsurvivors.game.Entities.Particle;
 import se.felixarvid.thorsurvivors.game.Entities.Pickup;
 import se.felixarvid.thorsurvivors.game.Entities.Projectile;
+import se.felixarvid.thorsurvivors.data.EnemyDef;
 import se.felixarvid.thorsurvivors.game.EnemyType;
 import se.felixarvid.thorsurvivors.game.MainWeapon;
 import se.felixarvid.thorsurvivors.game.MetaProgress;
@@ -213,9 +216,9 @@ public final class WorldRenderer {
         int camPx = Math.round(camX * sc), camPy = Math.round(camY * sc);
         ox = w / 2 - camPx;
         oy = h / 2 - camPy;
-        String stage = e.stageKeys.get(e.stageIdx);
+        String stage = e.stage().key;
         tilePx = Math.max(8, Math.round(WorldGen.TILE * sc));
-        boolean mines = "LIBRARY".equals(stage);
+        boolean mines = WorldGen.of(stage).mines;
         ground.setup(WorldGen.of(stage), stage, tilePx, mines ? TINT_MINES : TINT_FLATS);
         bmp.setColorFilter(null);
         bmp.setAlpha(255);
@@ -232,6 +235,7 @@ public final class WorldRenderer {
         }
         if (lightMode == MetaProgress.LIGHT_FULL) light.drawGlows(c);
         drawMood(c, w, h);
+        if (!menu) drawAsh(c, s, w, h);
         drawOverlay(c, w, h, e, s, menu, dualScreen);
     }
 
@@ -240,7 +244,7 @@ public final class WorldRenderer {
     /** Collects the lights of the frame and draws the darkness over the ground (FULL: dynamic map, LOW: static, OFF: none). */
     private void setupLights(Canvas c, int w, int h, Engine e, Sim s, boolean menu, float[] lp) {
         light.begin(lp[0]);
-        float pr = lp[1] * sc;
+        float pr = lp[1] * sc * (s != null && !menu ? s.lightRadiusMul() : 1f); // ash storms shrink the pool of light
         if (menu) {
             light.add(w / 2f, h * 0.55f, 300f * sc, 1f, Lighting.WARM);
         } else {
@@ -268,6 +272,14 @@ public final class WorldRenderer {
             int px = sx(p.x), py = sy(p.y);
             if (px < -200 || px > scrW + 200 || py < -200 || py > scrH + 200) continue;
             light.add(px, py, 70f * sc * (p.evo ? 1.4f : 1f), 0.9f, Lighting.WARM);
+            fires++;
+        }
+        for (int i = 0; i < s.hazN && fires < 3; i++) { // slag pools glow orange (r70)
+            Hazard h = s.hazards[i];
+            if (h.kind != Entities.HZ_SLAG || h.warn > 0f) continue;
+            int px = sx(h.x), py = sy(h.y);
+            if (px < -200 || px > scrW + 200 || py < -200 || py > scrH + 200) continue;
+            light.add(px, py, Math.max(70f, h.r * 1.3f) * sc, 0.85f, Lighting.WARM);
             fires++;
         }
         for (int i = 0; i < Sim.MAX_FX && light.n < Lighting.MAX - 4; i++) {
@@ -395,7 +407,7 @@ public final class WorldRenderer {
         int px = prSx[i], py = prSy[i];
         Img im;
         if (prKind[i] == DEST_PROP) {
-            im = s == null ? null : atlas.img(destImg(s.destType()));
+            im = s == null ? null : atlas.img(destImg(s.destType(), s.destKind[prA[i]]));
         } else {
             im = propImg[prKind[i]];
         }
@@ -408,8 +420,13 @@ public final class WorldRenderer {
         bmp.setColorFilter(null);
     }
 
-    private static String destImg(String type) {
-        return "CANDELABRA".equals(type) ? "prop.supply_chest" : "prop.explosive_barrel";
+    private static String destImg(String type, int kind) {
+        switch (kind) {
+            case Sim.DK_BARREL: return "prop.explosive_barrel";
+            case Sim.DK_CHEST: return "prop.supply_chest";
+            case Sim.DK_PYLON: return "prop.stim_pylon";
+            default: return "CANDELABRA".equals(type) ? "prop.supply_chest" : "prop.explosive_barrel";
+        }
     }
 
     /** Draws an image with its anchor at (x, y), scaled; integer rectangles so 1:1 stays crisp. */
@@ -490,7 +507,7 @@ public final class WorldRenderer {
             int px = sx(x), py = sy(y);
             drawShadow(c, px, py, Math.round(20 * ks * (d.boss ? 2.4f : 1f)));
             bmp.setColorFilter(shadeAt(px, py, FLOOR_ENEMY, shadeLift));
-            drawCreature(c, m, d.type, d.boss, px, py, 0, t + i, (float) i, 60f, false, false, false);
+            drawCreature(c, m, d.type, d.boss, px, py, 0, t + i, (float) i, 60f, false, false, false, 0);
             bmp.setColorFilter(null);
         }
         String hk = e.meta == null ? null : e.meta.heroKey();
@@ -539,11 +556,33 @@ public final class WorldRenderer {
      * clock, speed its movement speed in world units/s (scales the walk fps), dir the 8-way facing.
      */
     private void drawCreature(Canvas c, Model m, EnemyType type, boolean boss, int fx, int fy, int dir, double t, float seed,
-                              float speed, boolean attacking, boolean frozen, boolean slowed) {
+                              float speed, boolean attacking, boolean frozen, boolean slowed, int clipReq) {
         float s = ks * visualScale(type, boss, m);
         Paint p = bmp;
         if (m.rigged()) {
             Clip walk = m.clip(SpriteAtlas.C_WALK);
+            if (clipReq != Entities.CL_WALK && !frozen) { // a shot, a cast or a dash: the closest clip the model has
+                int slot = clipReq == Entities.CL_ATTACK2 ? SpriteAtlas.C_ATTACK2 : clipReq == Entities.CL_CAST ? SpriteAtlas.C_CAST
+                        : clipReq == Entities.CL_CAST2 ? SpriteAtlas.C_CAST2 : SpriteAtlas.C_WALK;
+                if (clipReq == Entities.CL_RUN) { // the welder's dash: its run clip (else the walk clip, fast)
+                    Clip run = m.clip(SpriteAtlas.C_RUN);
+                    int id = run != null ? SpriteAtlas.C_RUN : SpriteAtlas.C_WALK;
+                    Clip use = run != null ? run : walk;
+                    float fps = run != null ? Math.max(10f, Math.min(20f, run.count * 2.2f)) : Math.max(10f, Math.min(24f, walk.count * 3f));
+                    drawFrameAt(c, m, id, dir, ((int) (t * fps)) % use.count, fx, fy, s, 1f, 1f, 0, p);
+                    return;
+                }
+                Clip cl = m.clip(slot);
+                if (cl == null) cl = m.clip(SpriteAtlas.C_ATTACK);
+                if (cl != null) {
+                    int id = m.clip(slot) != null ? slot : SpriteAtlas.C_ATTACK;
+                    drawFrameAt(c, m, id, dir, ((int) (t * cl.count / 0.9)) % cl.count, fx, fy, s, 1f, 1f, 0, p);
+                } else { // no cast clip (spore carrier): the walk frame swells and shakes
+                    float pulse = (float) Math.sin(t * 34.0) * 0.07f;
+                    drawFrameAt(c, m, SpriteAtlas.C_WALK, dir, 0, fx, fy, s, 1.1f + pulse, 1.1f - pulse, 0, p);
+                }
+                return;
+            }
             if (attacking && m.clip(SpriteAtlas.C_ATTACK) != null) {
                 Clip a = m.clip(SpriteAtlas.C_ATTACK);
                 int fi = ((int) (t * a.count / 0.9)) % a.count;
@@ -564,9 +603,11 @@ public final class WorldRenderer {
             case "the_first": hz = 0.5f; amp = 2f * s; sway = 0.8f; squash = 0.015f; break;
             default: hz = 1.6f; amp = 2.5f * s; sway = 0.6f; squash = 0.02f; break; // cargo_loader, slagborn
         }
+        if (clipReq == Entities.CL_RUN && !frozen) { hz *= 3f; amp *= 1.6f; } // a charge: fast, heavy hops
         float ph = (float) (t * hz * Math.PI * 2 + seed);
         float bob = frozen ? 0f : (float) Math.abs(Math.sin(ph * 0.5)) * amp;
         float sq = frozen ? 0f : (float) Math.sin(ph) * squash;
+        if ((clipReq == Entities.CL_CAST || clipReq == Entities.CL_CAST2) && !frozen) sq = (float) Math.sin(t * 22.0) * 0.07f;
         float deg = frozen ? 0f : (float) Math.sin(ph * 0.5 + 1.3) * sway;
         float lift = m.name.equals("security_drone") ? 14f * s : 0f; // hovers above its shadow
         int yOff = -Math.round(bob + lift);
@@ -644,6 +685,8 @@ public final class WorldRenderer {
             if (p.kind == Entities.P_PUDDLE && p.maxLife - p.life >= p.flight) drawPuddle(c, p, t);
         }
 
+        drawHazards(c, s, t);
+
         // 2. pickups, y-sorted (flat on the ground, under the creatures); corpses first
         drawCorpses(c, s);
         int np = 0;
@@ -657,9 +700,12 @@ public final class WorldRenderer {
         sort(sKey, sIdx, np);
         for (int j = 0; j < np; j++) drawPickup(c, s.picks[sIdx[j]]);
 
+        drawTelegraphs(c, s, t);
+
         // 3. enemies + player (visible only), strictly ordered by (feet y, id)
         int n = 0, nb = 0;
         flashing = 0;
+        statusGlows = 0;
         for (int i = 0; i < s.enemyN; i++) {
             Enemy en = s.enemies[i];
             int px = sx(en.x), py = sy(en.y);
@@ -737,6 +783,7 @@ public final class WorldRenderer {
             drawLinks(c, s);
             drawBeam(c, s, ppx, ppy);
         }
+        drawEnemyProjectiles(c, s, t);
 
         // 6. effects, sparks, hp bar, numbers
         for (int i = 0; i < Sim.MAX_FX; i++) {
@@ -800,16 +847,56 @@ public final class WorldRenderer {
         int dir = stDir[en.id & (STATE - 1)];
         boolean soft = en.softFlash || flashing >= MANY_FLASHING; // lightning / crowds: brighten, never a white silhouette
         ColorFilter cf;
+        boolean iced = frozen || en.freezeT > 0f;
         if (flash) cf = soft ? fBright : fWhite;
-        else if (frozen) cf = fIce;
+        else if (iced || en.frost > 0) cf = fIce; // Frost: a cyan tint
         else cf = shadeAt(px, py - 30f * ks, FLOOR_ENEMY, en.boss ? shade : shadeLift); // bosses are big and already pale: no gain
         bmp.setColorFilter(cf);
         bmp.setAlpha((int) (255 * en.type.alpha));
         float dx = s.px - en.x, dy = s.py - en.y, rr = en.radius * 0.8f + Sim.PLAYER_R * 0.8f + 8f;
         boolean attacking = dx * dx + dy * dy < rr * rr;
-        drawCreature(c, m, en.type, en.boss, px, py, dir, en.anim, en.id * 0.7f, en.speed, attacking, frozen, en.blocked);
+        drawCreature(c, m, en.type, en.boss, px, py, dir, en.anim, en.id * 0.7f, en.speed, attacking, iced,
+                en.blocked || en.frost > 0, en.clip);
         bmp.setColorFilter(null);
         bmp.setAlpha(255);
+        if ((en.burn | en.elec | en.decay) != 0 || en.stun > 0f) drawStatus(c, en, m, px, py);
+    }
+
+    private int statusGlows;
+
+    /** Burn embers, Electrify arcs, Decay drip glow and Stun stars on one enemy (additive, a budget per frame). */
+    private void drawStatus(Canvas c, Enemy en, Model m, int px, int py) {
+        if (statusGlows >= 48) return;
+        float head = (m == null ? 40f : m.headPx) * ks * (en.boss ? 1f : 1f);
+        if (en.burn > 0) {
+            statusGlows++;
+            float pu = 0.65f + 0.35f * (float) Math.sin(now * 9.0 + en.id);
+            glow(c, atlas.img("vfx.embers_0"), px, py - head * 0.5f, head * (1.0f + 0.05f * en.burn), (float) now * 40f + en.id, null, (int) (150 + 105 * pu));
+            glow(c, atlas.img("vfx.flame_" + (((int) (now * 10.0) + en.id) & 3)), px, py - head * 0.35f, head * 0.55f, 0f, null, (int) (120 + 15 * en.burn));
+        }
+        if (en.elec > 0 && ((int) (now * 16.0) + en.id) % 3 != 0) { // the arc flickers on and off
+            statusGlows++;
+            Img arc = atlas.img(((int) (now * 16.0) + en.id) % 2 == 0 ? "vfx.arc_0" : "vfx.arc_1");
+            glow(c, arc, px, py - head * 0.5f, head * 1.25f, ((int) (now * 16.0) * 53 + en.id * 31) % 360, null, 235);
+        }
+        if (en.decay > 0) {
+            statusGlows++;
+            glow(c, atlas.img("vfx.spores_0"), px, py - head * 0.7f, head * 0.9f, (float) now * 30f, fGreen, 110 + 14 * en.decay);
+        }
+        if (en.stun > 0f) { // three little stars circling the head
+            statusGlows++;
+            for (int k = 0; k < 3; k++) {
+                float a = (float) now * 5f + k * 2.0944f;
+                float sx2 = px + (float) Math.cos(a) * head * 0.32f, sy2 = py - head * 1.0f + (float) Math.sin(a) * head * 0.1f;
+                float u = 5f * ks;
+                fill.setColor(0xFF000000);
+                c.drawRect(sx2 - u - ks, sy2 - ks * 2f, sx2 + u + ks, sy2 + ks * 2f, fill);
+                c.drawRect(sx2 - ks * 2f, sy2 - u - ks, sx2 + ks * 2f, sy2 + u + ks, fill);
+                fill.setColor(0xFFFFE860);
+                c.drawRect(sx2 - u, sy2 - ks, sx2 + u, sy2 + ks, fill);
+                c.drawRect(sx2 - ks, sy2 - u, sx2 + ks, sy2 + u, fill);
+            }
+        }
     }
 
     /** Dying enemies: the death clip once, a short hold, then a fade; unrigged ones flatten and fade. */
@@ -1219,6 +1306,155 @@ public final class WorldRenderer {
         c.drawOval(cx - rr, cy - rr * 0.85f, cx + rr, cy + rr * 0.85f, stroke);
     }
 
+    // ------------------------------------------------------------------ hazards, telegraphs, enemy bolts (design 10)
+
+    /** Warn ring: red-orange with a black outline, full brightness (telegraphs are never dimmed). */
+    private void warnRing(Canvas c, float cx, float cy, float r, float pulse) {
+        stroke.setStrokeWidth(5f * ks);
+        stroke.setColor(0xDD000000);
+        c.drawOval(cx - r, cy - r * 0.8f, cx + r, cy + r * 0.8f, stroke);
+        stroke.setStrokeWidth(2.5f * ks);
+        stroke.setColor(0xFFFF3B1F);
+        c.drawOval(cx - r, cy - r * 0.8f, cx + r, cy + r * 0.8f, stroke);
+        glow(c, atlas.img("vfx.warn_ring_0"), cx, cy, r * 2.05f, 0f, null, (int) (150 + 90 * pulse));
+    }
+
+    /** Slag pools, spore clouds and frost patches lie on the ground; a pool that is still warning shows only its ring. */
+    private void drawHazards(Canvas c, Sim s, float t) {
+        for (int i = 0; i < s.hazN; i++) {
+            Hazard h = s.hazards[i];
+            int cx = sx(h.x), cy = sy(h.y);
+            float r = h.r * sc;
+            if (cx < -r - 100 || cx > scrW + r + 100 || cy < -r - 100 || cy > scrH + r + 100) continue;
+            if (h.warn > 0f) {
+                warnRing(c, cx, cy, r, 0.5f + 0.5f * (float) Math.sin(t * 16f));
+                fill.setColor(0x30FF3B1F);
+                c.drawOval(cx - r, cy - r * 0.8f, cx + r, cy + r * 0.8f, fill);
+                continue;
+            }
+            float k = Math.min(1f, h.life * 2f);
+            switch (h.kind) {
+                case Entities.HZ_SLAG:
+                    glow(c, atlas.img("vfx.scorch_0"), cx, cy, r * 2.3f, h.x * 7f % 360f, null, (int) (190 * k));
+                    glow(c, atlas.img(((int) (t * 8f + h.x) & 1) == 0 ? "vfx.flame_1" : "vfx.flame_2"), cx, cy - r * 0.3f, r * 1.7f, 0f, null, (int) (235 * k));
+                    glow(c, atlas.img("vfx.embers_0"), cx, cy - r * 0.2f, r * 2f, t * 10f, null, (int) (200 * k));
+                    stroke.setStrokeWidth(2f * ks);
+                    stroke.setColor(((int) (200 * k) << 24) | 0xFF8A2A);
+                    c.drawOval(cx - r, cy - r * 0.8f, cx + r, cy + r * 0.8f, stroke);
+                    break;
+                case Entities.HZ_CLOUD: {
+                    float pu = 0.85f + 0.15f * (float) Math.sin(t * 3f + h.x);
+                    glow(c, atlas.img("vfx.spore_cloud_" + (((int) (t * 2f + h.x)) & 1)), cx, cy - r * 0.15f, r * 2.3f * pu, t * 9f, fGreen, (int) (200 * k));
+                    glow(c, atlas.img("vfx.spore_cloud_2"), cx, cy - r * 0.25f, r * 1.6f, -t * 14f, fGreen, (int) (150 * k));
+                    glow(c, atlas.img("vfx.spores_0"), cx, cy - r * 0.3f, r * 1.8f, t * 24f, fGreen, (int) (160 * k));
+                    stroke.setStrokeWidth(2f * ks);
+                    stroke.setColor(((int) (140 * k) << 24) | 0x70FF90);
+                    c.drawOval(cx - r, cy - r * 0.8f, cx + r, cy + r * 0.8f, stroke);
+                    break;
+                }
+                default:
+                    glow(c, atlas.img("vfx.magic_circle_cyan"), cx, cy, r * 2.1f, t * 20f, null, (int) (190 * k));
+            }
+        }
+    }
+
+    /** Charger lines and carrier fuse rings: the line shows where the dash goes and fills as the windup runs out. */
+    private void drawTelegraphs(Canvas c, Sim s, float t) {
+        for (int i = 0; i < s.enemyN; i++) {
+            Enemy e = s.enemies[i];
+            if (e.tele <= 0f || e.dead) continue;
+            int cx = sx(e.x), cy = sy(e.y);
+            if (cx < -400 || cx > scrW + 400 || cy < -400 || cy > scrH + 400) continue;
+            float prog = 1f - e.tele / Math.max(0.01f, e.teleMax);
+            switch (e.type.arch) {
+                case EnemyDef.ARCH_CHARGER: {
+                    float len = e.teleLen * sc, wd = Math.max(26f * ks, e.radius * sc * 1.5f);
+                    float deg = (float) Math.atan2(e.ay, e.ax) * 57.29578f;
+                    c.save();
+                    c.rotate(deg, cx, cy);
+                    fill.setColor(0xFF000000);
+                    c.drawRect(-3f * ks + cx, cy - wd / 2f - 3f * ks, cx + len + 3f * ks, cy + wd / 2f + 3f * ks, fill);
+                    fill.setColor(0xFF4A1208);
+                    c.drawRect(cx, cy - wd / 2f, cx + len, cy + wd / 2f, fill);
+                    fill.setColor(0xFFFF3B1F);
+                    c.drawRect(cx, cy - wd / 2f, cx + len * prog, cy + wd / 2f, fill);
+                    stroke.setStrokeWidth(2.5f * ks);
+                    stroke.setColor(0xFFFF7A3A);
+                    c.drawRect(cx, cy - wd / 2f, cx + len, cy + wd / 2f, stroke);
+                    c.restore();
+                    break;
+                }
+                case EnemyDef.ARCH_EXPLODER: {
+                    float r = e.type.def.param("cloudR", 90f) * sc;
+                    warnRing(c, cx, cy, r, 0.5f + 0.5f * (float) Math.sin(t * 30f));
+                    fill.setColor(((int) (40 + 90 * prog) << 24) | 0xFF3B1F);
+                    c.drawOval(cx - r * prog, cy - r * prog * 0.8f, cx + r * prog, cy + r * prog * 0.8f, fill);
+                    break;
+                }
+                case EnemyDef.ARCH_SUMMONER:
+                    glow(c, atlas.img("vfx.blink_0"), cx, cy - 28f * ks, 120f * ks * (1.2f - prog * 0.5f), 0f, fViolet, 255);
+                    break;
+                default:
+            }
+        }
+    }
+
+    /** Enemy bolts: red-orange core, black outline (readable on any floor); a reflected bolt turns white-cyan. */
+    private void drawEnemyProjectiles(Canvas c, Sim s, float t) {
+        for (int i = 0; i < s.eprojN; i++) {
+            EProj p = s.eprojs[i];
+            float x = sx(p.x), y = sy(p.y);
+            if (x < -60 || x > scrW + 60 || y < -60 || y > scrH + 60) continue;
+            float r = p.radius * sc * 1.1f;
+            boolean mine = p.friendly;
+            glow(c, atlas.img("vfx.energy_glow_0"), x, y, r * 6f, 0f, mine ? fCyan : fRedAdd, 150);
+            fill.setColor(0xFF000000);
+            c.drawCircle(x, y, r + 3f * ks, fill);
+            fill.setColor(mine ? 0xFFD8FFF8 : 0xFFFF3B1F);
+            c.drawCircle(x, y, r, fill);
+            fill.setColor(mine ? 0xFFFFFFFF : 0xFFFFC890);
+            c.drawCircle(x, y, r * 0.5f, fill);
+        }
+    }
+
+    /** Falling ash on Cinder Flats (40 flakes, many more and slanted streaks in a storm), a dust haze and the storm banner. */
+    private void drawAsh(Canvas c, Sim s, int w, int h) {
+        if (!s.stage.key.equals("FLATS")) return;
+        float storm = s.stormLevel();
+        int n = 40 + (int) (130 * storm);
+        float tt = (float) now;
+        for (int k = 0; k < n; k++) {
+            float u = (k * 0.6180339f) % 1f, v = (k * 0.7548777f + 0.3f) % 1f, sp = 0.5f + (k * 0.3819660f) % 0.9f;
+            float fall = (tt * (0.06f + 0.04f * sp) * (1f + 4.5f * storm) + v) % 1f;
+            float wind = fall * 0.35f * storm + tt * 0.01f * storm;
+            float x = ((u + wind + 0.02f * (float) Math.sin(tt * 0.7f + k)) % 1f) * w;
+            float y = fall * h;
+            float size = (2.5f + 3.5f * sp) * ks;
+            int a = (int) ((0.35f + 0.4f * sp) * 255f);
+            if (storm > 0.05f) { // wind-blown streaks of ash: warm grey, short, soft
+                stroke.setStrokeWidth(Math.max(1.5f, size * 0.7f));
+                stroke.setColor(((int) (a * 0.55f) << 24) | 0xA89684);
+                c.drawLine(x, y, x - size * 4.5f * storm, y - size * 1.2f * storm, stroke);
+            } else {
+                fill.setColor((a << 24) | 0xC8BEB0);
+                c.drawRect(x, y, x + size, y + size, fill);
+            }
+        }
+        if (storm > 0f) {
+            fill.setColor(((int) (95 * storm) << 24) | 0x2A150A);
+            c.drawRect(0, 0, w, h, fill);
+        }
+        float el = s.stormElapsed();
+        if (el >= 0f && el < 3.5f) {
+            text.setTextAlign(Paint.Align.CENTER);
+            text.setTextSize(44f * ks);
+            text.setShadowLayer(4f, 0f, 3f, 0xFF000000);
+            text.setColor(((int) (255 * Math.min(1f, (3.5f - el) * 1.5f)) << 24) | 0xFF5A2A);
+            c.drawText("ASH STORM", w / 2f, h * 0.2f, text);
+            text.clearShadowLayer();
+        }
+    }
+
     private void drawFx(Canvas c, Effect f) {
         float k = f.life / f.maxLife;
         int px = sx(f.x), py = sy(f.y);
@@ -1331,6 +1567,17 @@ public final class WorldRenderer {
                 c.restore();
                 break;
             }
+            case Entities.FX_SPORE: { // a spore carrier bursting
+                float u = 1f - k, rr = f.w * sc * (0.3f + 0.7f * Math.min(1f, u * 3f));
+                glow(c, atlas.img("vfx.spore_cloud_1"), px, py - 10f * ks, rr * 2.2f, u * 60f, fGreen, (int) (230 * Math.min(1f, k * 2f)));
+                glow(c, atlas.img("vfx.ichor_burst"), px, py - 12f * ks, rr * 1.4f, 0f, fGreen, (int) (200 * k));
+                break;
+            }
+            case Entities.FX_BLINK: { // the vire's blink: a violet flash
+                float u = 1f - k;
+                glow(c, atlas.img("vfx.blink_0"), px, py - 30f * ks, f.w * ks * (1.0f + 0.5f * u), 0f, fViolet, (int) (255 * Math.min(1f, k * 2f)));
+                break;
+            }
             case Entities.FX_TENDRIL: { // Grasping Tendrils: a spinning lumen circle where the roots grab
                 float u = 1f - k;
                 glow(c, atlas.img("vfx.magic_circle_green"), px, py, f.w * sc * 2f * (0.7f + 0.3f * Math.min(1f, u * 4f)), u * 120f, null, (int) (240 * Math.min(1f, k * 2f)));
@@ -1380,9 +1627,9 @@ public final class WorldRenderer {
             DamageText d = s.texts[i];
             if (d.life <= 0) continue;
             if (!d.crit && !d.heal && (d.life < thresh || (d.life == thresh && ties-- <= 0))) continue;
-            text.setTextSize((d.crit ? 24f : 18f) * ks);
+            text.setTextSize((d.crit ? 24f : d.color != 0 ? 15f : 18f) * ks); // status numbers are small and coloured
             int a = (int) (255 * Math.min(1f, d.life * 4f));
-            text.setColor((d.heal ? 0x40FF60 : d.crit ? 0xFFD030 : 0xFFFFFF) | (a << 24));
+            text.setColor((d.color != 0 ? d.color : d.heal ? 0x40FF60 : d.crit ? 0xFFD030 : 0xFFFFFF) | (a << 24));
             c.drawText(d.digits, 0, d.len, sx(d.x), sy(d.y), text);
             textsDrawn++;
         }

@@ -66,7 +66,7 @@ final class Shots {
 
     /** Starts a Forest run with the given starter and extra weapons, deterministic from `seed` on. */
     Sim startRun(String stage, String starter, long seed, String... extra) {
-        for (int i = 0; i < eng.stageKeys.size(); i++) if (eng.stageKeys.get(i).equals(stage)) eng.stageIdx = i;
+        eng.selectStage(stage); // FLATS / MINES from the menu list, FOREST / LIBRARY through the debug hook
         for (int i = 0; i < eng.starters.size(); i++) if (eng.starters.get(i).equals(starter)) eng.weaponIdx = i;
         eng.phase = Engine.PH_MENU;
         eng.focus = Engine.MENU_START;
