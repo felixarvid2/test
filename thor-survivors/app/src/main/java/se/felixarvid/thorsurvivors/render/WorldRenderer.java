@@ -729,15 +729,20 @@ public final class WorldRenderer {
 
         // 2. pickups, y-sorted (flat on the ground, under the creatures); corpses first
         drawCorpses(c, s);
-        int np = 0;
+        int np = 0, gemsShown = 0;
         for (int i = 0; i < s.pickN; i++) {
             Pickup p = s.picks[i];
             int px = sx(p.x), py = sy(p.y);
             if (px < -m || px > w + m || py < -m || py > h + m) continue;
+            if (p.kind == Entities.K_GEM && !p.red) gemsShown++;
             sKey[np] = (bias(py) << 40) | (bias(px) << 24) | (p.kind << 16) | (Float.floatToIntBits(p.value) & 0xFFFF);
             sIdx[np++] = i;
         }
         sort(sKey, sIdx, np);
+        // late fights: the more gems lie on screen, the smaller and dimmer the low-value ones far from the hero are drawn
+        gemCrowd = Math.max(0f, Math.min(1f, (gemsShown - GEM_CROWD_FROM) / GEM_CROWD_SPAN));
+        gemHeroX = sx(s.px);
+        gemHeroY = sy(s.py);
         for (int j = 0; j < np; j++) drawPickup(c, s.picks[sIdx[j]]);
 
         drawTelegraphs(c, s, t);
@@ -841,7 +846,7 @@ public final class WorldRenderer {
             int kd = s.fx[i].kind;
             if (s.fx[i].life > 0 && (kd == Entities.FX_BLAST || kd == Entities.FX_FLASH || kd == Entities.FX_SPORE)) bigFx++;
         }
-        fxCrowd = Math.max(0f, Math.min(1f, (bigFx - 2) / 8f));
+        fxCrowd = Math.max(0f, Math.min(1f, (bigFx - 1) / 6f));
         bigDrawn = 0;
         for (int i = 0; i < Sim.MAX_FX; i++) {
             Effect f = s.fx[i];
@@ -1131,6 +1136,13 @@ public final class WorldRenderer {
     private static final String[] GEM_KEYS = {"gem.crystal_lumen", "gem.crystal_lumen", "gem.crystal_void"};
     private static final float[] GEM_SIZE = {26f, 34f, 42f};
 
+    /** Gems on screen before the crowd rule starts, and the count over which it reaches full strength. */
+    private static final float GEM_CROWD_FROM = 24f, GEM_CROWD_SPAN = 80f;
+    /** Gems this close to the hero (world units) and the violet / red ones keep their full size and glow in a crowd. */
+    private static final float GEM_NEAR = 190f;
+    private float gemCrowd;
+    private int gemHeroX, gemHeroY;
+
     private void drawPickup(Canvas c, Pickup p) {
         int px = sx(p.x), bob = Math.round((float) Math.sin(p.bob) * ks * 2f);
         int py = sy(p.y) + bob;
@@ -1138,15 +1150,24 @@ public final class WorldRenderer {
             int tier = p.value < 3f ? 0 : p.value < 10f ? 1 : 2;
             Img im = atlas.img(p.red ? "gem.crystal_ember" : GEM_KEYS[tier]);
             if (im == null) return;
-            float size = (p.red ? 58f : GEM_SIZE[tier]) * ks;
+            // crowd rule: near the hero, violet and the red gem count a third as much; far low-tier gems shrink to 55% and dim
+            float crowd = p.red || tier == 2 ? 0f : gemCrowd;
+            if (crowd > 0f) {
+                float dx = (px - gemHeroX) / sc, dy = (py - gemHeroY) / sc;
+                if (dx * dx + dy * dy < GEM_NEAR * GEM_NEAR) crowd *= 0.3f;
+            }
+            float size = (p.red ? 58f : GEM_SIZE[tier]) * ks * (1f - 0.45f * crowd);
             ColorFilter tint = p.red ? fRedAdd : tier == 0 ? fGreen : tier == 1 ? fCyan : fViolet;
             float pulse = p.red ? 0.75f + 0.25f * (float) Math.sin(p.bob * 0.8f) : 1f;
-            // soft glow under the crystal: gems stay findable in the dark
-            glow(c, atlas.img("vfx.energy_glow_1"), px, py - size * 0.4f, size * (p.red ? 3.6f : 2.6f), 0f, tint, (int) (150 * pulse));
+            // soft glow under the crystal: gems stay findable in the dark (fainter and smaller, and gone for far green gems, in a crowd)
+            if (crowd < 0.7f || tier > 0) {
+                glow(c, atlas.img("vfx.energy_glow_1"), px, py - size * 0.4f, size * (p.red ? 3.6f : 2.6f - 0.7f * crowd), 0f, tint, (int) (150 * pulse * (1f - 0.8f * crowd)));
+            }
             float k = size / Math.max(im.w(), im.h());
             bmp.setColorFilter(null);
-            bmp.setAlpha(255);
+            bmp.setAlpha((int) (255 * (1f - 0.4f * crowd)));
             blit(c, im, px, py, k, bmp);
+            bmp.setAlpha(255);
             return;
         }
         Img im = atlas.img(PICK_KEYS[p.kind]);
@@ -1435,7 +1456,7 @@ public final class WorldRenderer {
             if (h.kind == Entities.HZ_CLOUD) nCloud++;
             else if (h.kind == Entities.HZ_SLAG) nSlag++;
         }
-        float cloudK = Math.max(0f, Math.min(1f, (nCloud - 1) / 5f)), slagK = Math.max(0f, Math.min(1f, (nSlag - 2) / 6f));
+        float cloudK = Math.max(0f, Math.min(1f, (nCloud - 1) / 4f)), slagK = Math.max(0f, Math.min(1f, (nSlag - 1) / 4f));
         int cloudsDrawn = 0, slagDrawn = 0;
         for (int i = 0; i < s.hazN; i++) {
             Hazard h = s.hazards[i];
@@ -1466,27 +1487,27 @@ public final class WorldRenderer {
             float k = Math.min(1f, h.life * 2f);
             switch (h.kind) {
                 case Entities.HZ_SLAG: {
-                    float sz = 1f - 0.25f * slagK, al = 1f - 0.5f * slagK;
-                    if (++slagDrawn <= 12) {
+                    float sz = 1f - 0.4f * slagK, al = 1f - 0.6f * slagK;
+                    if (++slagDrawn <= 5) {
                         glow(c, atlas.img("vfx.scorch_0"), cx, cy, r * 2.3f * sz, h.x * 7f % 360f, null, (int) (190 * al * k));
                         glow(c, atlas.img(((int) (t * 8f + h.x) & 1) == 0 ? "vfx.flame_1" : "vfx.flame_2"), cx, cy - r * 0.3f, r * 1.7f * sz, 0f, null, (int) (235 * al * k));
                         if (slagK < 0.5f) glow(c, atlas.img("vfx.embers_0"), cx, cy - r * 0.2f, r * 2f * sz, t * 10f, null, (int) (200 * al * k));
                     }
-                    stroke.setStrokeWidth(2f * ks);
-                    stroke.setColor(((int) (200 * k) << 24) | 0xFF8A2A);
+                    stroke.setStrokeWidth((2f - 0.7f * slagK) * ks); // the ring that marks the damaging area stays, thinner and fainter when crowded
+                    stroke.setColor(((int) (200 * (1f - 0.45f * slagK) * k) << 24) | 0xFF8A2A);
                     c.drawOval(cx - r, cy - r * 0.8f, cx + r, cy + r * 0.8f, stroke);
                     break;
                 }
                 case Entities.HZ_CLOUD: {
                     float pu = 0.85f + 0.15f * (float) Math.sin(t * 3f + h.x);
-                    float sz = 1f - 0.35f * cloudK, al = 1f - 0.6f * cloudK;
-                    if (++cloudsDrawn <= 6) {
+                    float sz = 1f - 0.4f * cloudK, al = 1f - 0.65f * cloudK;
+                    if (++cloudsDrawn <= 4) {
                         glow(c, atlas.img("vfx.spore_cloud_" + (((int) (t * 2f + h.x)) & 1)), cx, cy - r * 0.15f, r * 2.3f * pu * sz, t * 9f, fGreen, (int) (200 * al * k));
                         if (cloudK < 0.7f) glow(c, atlas.img("vfx.spore_cloud_2"), cx, cy - r * 0.25f, r * 1.6f * sz, -t * 14f, fGreen, (int) (150 * al * k));
                         if (cloudK < 0.4f) glow(c, atlas.img("vfx.spores_0"), cx, cy - r * 0.3f, r * 1.8f * sz, t * 24f, fGreen, (int) (160 * al * k));
                     }
-                    stroke.setStrokeWidth(2f * ks);
-                    stroke.setColor(((int) (140 * k) << 24) | 0x70FF90);
+                    stroke.setStrokeWidth((2f - 0.7f * cloudK) * ks);
+                    stroke.setColor(((int) (140 * (1f - 0.45f * cloudK) * k) << 24) | 0x70FF90);
                     c.drawOval(cx - r, cy - r * 0.8f, cx + r, cy + r * 0.8f, stroke);
                     break;
                 }
@@ -1810,7 +1831,7 @@ public final class WorldRenderer {
     }
 
     /** Big explosion / spore effects drawn at most this many per frame, and how crowded they are (0..1, scales size and alpha down). */
-    private static final int MAX_BIG_FX = 6;
+    private static final int MAX_BIG_FX = 4;
     private static final float BIG_FX_SIZE = 0.78f;
     private int bigDrawn;
     private float fxCrowd;

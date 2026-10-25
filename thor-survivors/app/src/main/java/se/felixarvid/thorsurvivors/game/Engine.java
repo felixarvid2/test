@@ -184,8 +184,9 @@ public final class Engine {
     }
 
     private void startRun() {
-        sim = new Sim(data, stage(), starters.get(weaponIdx), meta.bonuses(), meta.heroKey(),
-                nextRunSeed != null ? nextRunSeed : System.nanoTime()); // a new run every time unless a test fixed it
+        long seed = nextRunSeed != null ? nextRunSeed : System.nanoTime(); // a new run every time unless a test fixed it
+        sim = new Sim(data, stage(), starters.get(weaponIdx), meta.bonuses(), meta.heroKey(), seed);
+        rng.setSeed(seed * 31L + 7L); // the level-up cards follow the run seed too, so a fixed seed repeats the whole run
         nextRunSeed = null;
         sim.sound = sound;
         input.clearMovement();

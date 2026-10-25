@@ -175,6 +175,12 @@ public final class GameData {
                 mods.optDouble("EnemyHealthMultiplier", 1), mods.optDouble("GoldMultiplier", 1),
                 mods.optDouble("XPBonus", 1), o.optInt("startingSpawns", 10),
                 "HORIZONTAL".equals(o.optString("spawnType")), o.optString("destructibleType", ""), rows);
+        JSONObject fade = o.optJSONObject("xpFade");
+        if (fade != null) {
+            sd.xpFadeFrom = fade.optDouble("from", 0);
+            sd.xpFadeTo = fade.optDouble("to", 0);
+            sd.xpFadeEnd = fade.optDouble("end", 1);
+        }
         JSONObject tn = o.optJSONObject("tentacles");
         if (tn != null) {
             JSONArray mins = tn.optJSONArray("minutes");

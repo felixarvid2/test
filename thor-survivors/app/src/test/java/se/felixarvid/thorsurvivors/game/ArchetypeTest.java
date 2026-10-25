@@ -49,7 +49,7 @@ public class ArchetypeTest {
         EnemyDef c = d.enemies.get("COLONIST");
         assertEquals(z.maxHp, c.maxHp, 1e-9);
         assertEquals(z.speed, c.speed, 1e-9);
-        assertEquals(z.power, c.power, 1e-9);
+        assertEquals("phase 12: the colonist hits harder than the VS zombie", 1.2 * z.power, c.power, 1e-9);
         assertEquals(EnemyDef.ARCH_RANGED, d.enemies.get("SERGEANT").archetype);
         assertEquals(EnemyDef.ARCH_FLIER, d.enemies.get("SECURITY_DRONE").archetype);
         assertEquals(EnemyDef.ARCH_CHARGER, d.enemies.get("WELDER").archetype);
@@ -58,8 +58,8 @@ public class ArchetypeTest {
         assertEquals(EnemyDef.ARCH_SUMMONER, d.enemies.get("VIRE").archetype);
         assertEquals(EnemyDef.ARCH_PACK, d.enemies.get("SPORE_HOUND").archetype);
         assertEquals(8.0, d.enemies.get("SMELTER").maxHp, 1e-9);
-        assertEquals(400.0, d.enemies.get("CARGO_LOADER").maxHp, 1e-9);
-        assertEquals(2500.0, d.enemies.get("THE_FIRST").maxHp, 1e-9);
+        assertEquals(360.0, d.enemies.get("CARGO_LOADER").maxHp, 1e-9);
+        assertEquals(1800.0, d.enemies.get("THE_FIRST").maxHp, 1e-9);
         assertEquals(132f, d.enemies.get("SERGEANT").param("stop", 0), 0f);
         assertEquals(100f, d.enemies.get("SERGEANT").param("backoff", 0), 0f);
         assertEquals("the VS roster is untouched", EnemyDef.ARCH_CHASER, z.archetype);
@@ -207,7 +207,7 @@ public class ArchetypeTest {
         for (int i = 0; i < 30; i++) s.update(DT, in);
         assertEquals("the cloud is up", 1, s.hazN);
         assertEquals(Entities.HZ_CLOUD, s.hazards[0].kind);
-        assertEquals(90f, s.hazards[0].r, 0f);
+        assertEquals(85f, s.hazards[0].r, 0f);
         assertTrue("a kill", s.kills >= 1);
         assertTrue(s.sound.emitted[SoundEvents.CARRIER_BURST] >= 1);
         run(s, 2.0, false);
@@ -368,16 +368,16 @@ public class ArchetypeTest {
     @Test
     public void bossesCarryTheirFinalHpWhichRampsWithTheRunTime() throws Exception {
         Sim s = sim(null);
-        s.time = 20 * 60; // the ramp is over at minute 20 (The First at 29)
+        float hm = (float) s.stage.enemyHealth; // the stage's health multiplier (Flats 1.2 in phase 12)
+        s.time = 20 * 60; // the ramp is over at minute 20 (The First at 28)
         Enemy b = s.addEnemy("CARGO_LOADER", 500, 0, true);
-        assertEquals(400f * 10f, b.maxHp, 1f); // Z units x 10, no extra boss factor
+        assertEquals(360f * 10f * hm, b.maxHp, 1f); // Z units x 10 x the stage multiplier, no extra boss factor
         Enemy tf = s.addEnemy("THE_FIRST", 500, 100, true);
-        assertEquals(25000f * (0.2f + 0.8f * 20f / 29f), tf.maxHp, 5f);
+        assertEquals(18000f * hm * (0.2f + 0.8f * 20f / 28f), tf.maxHp, 5f);
         s.time = 5 * 60;
-        assertEquals("a first boss at 5:00 has 40% of its HP", 1600f, s.addEnemy("CARGO_LOADER", 500, 200, true).maxHp, 1f);
+        assertEquals("a first boss at 5:00 has 40% of its HP", 3600f * hm * 0.4f, s.addEnemy("CARGO_LOADER", 500, 200, true).maxHp, 1f);
         s.time = 0;
-        assertEquals(800f, s.addEnemy("CARGO_LOADER", 500, 300, true).maxHp, 1f);
-        assertEquals("a non-boss spawn of the key keeps its plain HP", 400f * 10f * 1f, 4000f, 0f);
+        assertEquals(3600f * hm * 0.2f, s.addEnemy("CARGO_LOADER", 500, 300, true).maxHp, 1f);
         assertFalse(b.dead);
         GameData d = d();
         String[] order = {"CARGO_LOADER", "SMELTER_FOREMAN", "SLAGBORN", "VIRE_AWAKENED"};

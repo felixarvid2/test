@@ -18,6 +18,8 @@ import java.util.Random;
  * <li><b>mid</b>: mortal, takes level-ups and chests like a player who prefers weapons and branches.</li>
  * <li><b>naked</b>: mortal, takes no level-up card at all (the main weapon alone).</li>
  * <li><b>still</b>: mortal, takes cards like <b>mid</b> but never moves (it only dodges).</li>
+ * <li><b>plan</b>: mortal, like <b>mid</b> but goes for evolutions like a player does: the passive that a held weapon evolves with
+ * (Offer def of a passive in the {@code evoSynergy} of an owned weapon) is taken before anything but a branch card.</li>
  * </ul>
  *
  * Not a JUnit test (it takes minutes): {@code StageSoakTest} runs a short slice under {@code SOAK=1}, and
@@ -40,6 +42,15 @@ public final class StageSoak {
         /** Health fraction of The First when the run ended (1 = untouched, 0 = dead, -1 = it never came). */
         public double firstHpLeft = -1;
         public boolean firstKilled;
+        /** Level and kills at 5, 10 ... 30 minutes, the time any weapon first became an evolution (-1 = never), the weapons and main branch tiers at the end, worn gear points. */
+        public final int[] lvlAt = new int[6], killsAt = new int[6];
+        public final long[] xpAt = new long[6];
+        public double firstEvo = -1;
+        public String weaponsEnd = "", mainEnd = "", slotsEnd = "";
+        public float gearPoints;
+        /** Mean pickups and gems on the field over minutes 25 to 30 (sampled twice a second). */
+        public double lateGems, latePick;
+        private int lateN;
 
         @Override
         public String toString() {
@@ -81,6 +92,19 @@ public final class StageSoak {
         }
     }
 
+    private static boolean holdsSynergy(Inventory inv, se.felixarvid.thorsurvivors.data.WeaponDef w) {
+        for (String p : w.evoSynergy) if (inv.hasPassive(p)) return true;
+        return false;
+    }
+
+    /** True when a weapon in the inventory evolves with this passive. */
+    private static boolean synergyOfOwned(Inventory inv, String passive) {
+        for (int i = 0; i < inv.weaponCount; i++) {
+            for (String p : inv.weapons[i].def.evoSynergy) if (p.equals(passive)) return true;
+        }
+        return false;
+    }
+
     public static Result run(String stage, String hero, String policy, long seed, double limit) throws Exception {
         GameData d = data();
         Result r = new Result();
@@ -89,6 +113,8 @@ public final class StageSoak {
         r.policy = policy;
         r.seed = seed;
         boolean immortal = policy.equals("immortal"), naked = policy.equals("naked");
+        boolean plan = policy.equals("plan");
+        boolean noGear = "0".equals(System.getenv("GEAR")); // A/B: the same run without any equipment worn
         Sim s = new Sim(d, d.stages.get(stage), null, new HashMap<String, Double>(), hero, seed);
         Random rng = new Random(seed * 7919 + 1);
         Input in = new Input();
@@ -229,6 +255,9 @@ public final class StageSoak {
                     int bestScore = -1;
                     for (Offer c : o) {
                         int sc = score(c) * 10 + rng.nextInt(10);
+                        if (plan && c.def != null && c.def.powerUp && synergyOfOwned(s.inv, c.def.key)) sc = 55 + rng.nextInt(10);
+                        // and puts the levels into a weapon whose evolution passive it already holds (7 levels to the maximum)
+                        if (plan && c.kind == Offer.WEAPON_LEVEL && c.def != null && !c.def.evoSynergy.isEmpty() && holdsSynergy(s.inv, c.def)) sc = 57 + rng.nextInt(5);
                         if (sc > bestScore) {
                             bestScore = sc;
                             pick = c;
@@ -247,9 +276,24 @@ public final class StageSoak {
                 r.choices++;
             }
             trackEvents(s, r);
+            if (noGear && s.equip.count() > 0) {
+                s.equip.clear();
+                s.recomputeAll();
+            }
+            for (int m = 0; m < 6; m++) if (r.lvlAt[m] == 0 && s.time >= (m + 1) * 300 - 0.001) {
+                r.lvlAt[m] = s.level;
+                r.killsAt[m] = s.kills;
+                long tot = (long) s.xp;
+                for (int l = 1; l < s.level; l++) tot += Progression.xpToNext(l);
+                r.xpAt[m] = tot;
+            }
+            if (r.firstEvo < 0) for (int i = 0; i < s.inv.weaponCount; i++) if (s.inv.weapons[i].def.evolution) r.firstEvo = s.time;
             s.sound.clear();
             if (TRACE_FROM >= 0 && s.time >= TRACE_FROM && s.time <= TRACE_FROM + 40 && step % 30 == 0) {
-                StringBuilder sb = new StringBuilder(String.format("t=%.1f hp=%.0f/%.0f pos=%.0f,%.0f en=%d bolts=%d haz=%d", s.time, s.hp, s.maxHp, s.px, s.py, s.enemyN, s.eprojN, s.hazN));
+                int[] hk = new int[6];
+                for (int i = 0; i < s.hazN; i++) hk[s.hazards[i].kind]++;
+                StringBuilder sb = new StringBuilder(String.format("t=%.1f hp=%.0f/%.0f pos=%.0f,%.0f en=%d bolts=%d haz=%d [slag %d cloud %d frost %d bomb %d lane %d] taken c/b/a/x=%.0f/%.0f/%.0f/%.0f", s.time, s.hp, s.maxHp, s.px, s.py,
+                        s.enemyN, s.eprojN, s.hazN, hk[0], hk[1], hk[2], hk[3], hk[4], s.dmgBy[0], s.dmgBy[1], s.dmgBy[2], s.dmgBy[3]));
                 for (int i = 0; i < s.enemyN; i++) {
                     Enemy e = s.enemies[i];
                     if (!e.boss) continue;
@@ -258,6 +302,13 @@ public final class StageSoak {
                 System.out.println(sb);
             }
             // checks
+            if (step % 30 == 0 && s.time >= 1500) {
+                int g = 0;
+                for (int i = 0; i < s.pickN; i++) if (s.picks[i].kind == Entities.K_GEM) g++;
+                r.lateGems += g;
+                r.latePick += s.pickN;
+                r.lateN++;
+            }
             if (step % 30 == 0) {
                 int bosses = 0, ranged = 0, flagged = 0;
                 for (int i = 0; i < s.enemyN; i++) {
@@ -292,6 +343,10 @@ public final class StageSoak {
             r.peakEProj = Math.max(r.peakEProj, s.eprojN);
             r.peakHaz = Math.max(r.peakHaz, s.hazN);
         }
+        if (r.lateN > 0) {
+            r.lateGems /= r.lateN;
+            r.latePick /= r.lateN;
+        }
         r.endTime = s.time;
         r.ended = s.ended;
         r.kills = s.kills;
@@ -299,6 +354,17 @@ public final class StageSoak {
         r.gold = s.gold;
         r.weapons = s.inv.weaponCount;
         r.dmg = s.dmgBy.clone();
+        StringBuilder wb = new StringBuilder();
+        for (int i = 0; i < s.inv.weaponCount; i++) wb.append(s.inv.weapons[i].def.key).append(i + 1 < s.inv.weaponCount ? "," : "");
+        r.weaponsEnd = wb.toString();
+        StringBuilder pb = new StringBuilder();
+        for (int i = 0; i < s.inv.weaponCount; i++) pb.append(s.inv.weapons[i].def.key).append(':').append(s.inv.weapons[i].level).append(' ');
+        for (int i = 0; i < s.inv.passiveCount; i++) pb.append(s.inv.passives[i].def.key).append(':').append(s.inv.passives[i].level).append(' ');
+        r.slotsEnd = pb.toString().trim();
+        StringBuilder mb = new StringBuilder();
+        if (s.main != null) for (int t : s.main.tier) mb.append(t);
+        r.mainEnd = mb.toString();
+        for (int i = 0; i < s.equip.def.length; i++) if (s.equip.def[i] != null) r.gearPoints += Equipment.value(d, s.equip.rar[i]);
         return r;
     }
 
@@ -357,6 +423,8 @@ public final class StageSoak {
         long t0 = System.nanoTime();
         Result r = run(stage, hero, policy, seed, limit);
         System.out.println(r + "  [" + (System.nanoTime() - t0) / 1_000_000_000L + " s wall]");
+        System.out.println("  lvlAt " + java.util.Arrays.toString(r.lvlAt) + " killsAt " + java.util.Arrays.toString(r.killsAt) + " xpAt " + java.util.Arrays.toString(r.xpAt) + " firstEvo " + (int) r.firstEvo
+                + " slots [" + r.slotsEnd + "] weapons " + r.weaponsEnd + " tiers " + r.mainEnd + " gear " + r.gearPoints + String.format(" lateGems %.0f latePick %.0f", r.lateGems, r.latePick));
         System.out.println("  elites at " + r.eliteAt + " bosses " + r.bossLog + " ttk " + r.bossTtk + " firstHpLeft " + r.firstHpLeft);
     }
 }

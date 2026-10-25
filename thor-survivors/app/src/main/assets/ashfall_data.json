@@ -159,7 +159,7 @@
     "TimeLimit": 1800,
     "PlayerPxSpeed": 1.1,
     "EnemySpeed": 1.1,
-    "EnemyHealthMultiplier": 1,
+    "EnemyHealthMultiplier": 1.2,
     "GoldMultiplier": 1,
     "XPBonus": 1
    },
@@ -611,7 +611,12 @@
       ]
      }
     }
-   ]
+   ],
+   "xpFade": {
+    "from": 420,
+    "to": 1800,
+    "end": 0.15
+   }
   },
   "MINES": {
    "name": "Deep Mines",
@@ -619,7 +624,7 @@
     "TimeLimit": 1800,
     "PlayerPxSpeed": 1.25,
     "EnemySpeed": 1.3125,
-    "EnemyHealthMultiplier": 1.25,
+    "EnemyHealthMultiplier": 1.5,
     "GoldMultiplier": 1,
     "XPBonus": 1
    },
@@ -946,9 +951,9 @@
      "bosses": []
     },
     {
-     "minute": 29,
-     "minimum": 140,
-     "frequency": 350,
+     "minute": 28,
+     "minimum": 130,
+     "frequency": 375,
      "enemies": [
       "COLONIST",
       "SPORE_HOUND",
@@ -977,9 +982,30 @@
        "EXISTING_ANY"
       ]
      }
+    },
+    {
+     "minute": 29,
+     "minimum": 140,
+     "frequency": 350,
+     "enemies": [
+      "COLONIST",
+      "SPORE_HOUND",
+      "SERGEANT",
+      "SECURITY_DRONE",
+      "WELDER",
+      "SPORE_CARRIER",
+      "SMELTER",
+      "VIRE"
+     ],
+     "bosses": []
     }
    ],
    "spawnType": "HORIZONTAL",
+   "xpFade": {
+    "from": 360,
+    "to": 1500,
+    "end": 0.08
+   },
    "tentacles": {
     "minutes": [
      8,
@@ -1020,7 +1046,7 @@
    "description": "Hydraulic Hammer swings in a cone and slams every third swing. Tough and slow. Each level: +1% might, +1% max HP.",
    "hp": 130,
    "armor": 1,
-   "regen": 0.4,
+   "regen": 0.3,
    "moveSpeed": 0.92,
    "crit": 0.05,
    "critMul": 2,
@@ -1034,16 +1060,18 @@
   "SPECTRE": {
    "name": "Spectre",
    "role": "Glass cannon, kiter",
-   "description": "Twin Pistols fire a volley down the aim line. Fragile and fast. Each level: +1% crit chance, +0.5% move speed.",
-   "hp": 80,
-   "armor": 0,
-   "regen": 0,
+   "description": "Twin Pistols fire a volley down the aim line. Fragile and fast. Each level: +1% crit chance, +0.5% move speed, -0.7% damage taken.",
+   "hp": 105,
+   "armor": 1,
+   "regen": 0.5,
    "moveSpeed": 1.1,
    "crit": 0.15,
    "critMul": 2,
    "perLevel": {
     "critChance": 0.01,
-    "moveSpeed": 0.005
+    "moveSpeed": 0.005,
+    "maxHp": 0.004,
+    "damageTaken": -0.007
    },
    "main": "PISTOLS",
    "model": "spectre"
@@ -1071,14 +1099,14 @@
    "name": "Hydraulic Hammer",
    "description": "Cone swing in the aim direction. Every 3rd swing is a Slam: a circle around you that stuns.",
    "kind": "CONE",
-   "power": 1.6,
-   "interval": 1100,
+   "power": 1.2,
+   "interval": 1200,
    "knockback": 2.0,
    "params": {
     "arc": 100,
     "radius": 80,
     "slamEvery": 3,
-    "slamPower": 2.4,
+    "slamPower": 1.8,
     "slamRadius": 90,
     "slamStun": 0.4,
     "slamRadiusMul": 0,
@@ -1365,7 +1393,7 @@
    "name": "Lumen Caster",
    "description": "A slow lumen bolt that pierces 2 enemies and applies Decay. Every 4th cast is a Spore Burst: a ring of 6 bolts.",
    "kind": "BOLT",
-   "power": 1.2,
+   "power": 0.8,
    "interval": 1000,
    "knockback": 0.5,
    "params": {
@@ -1375,7 +1403,7 @@
     "decay": 1,
     "burstEvery": 4,
     "burstCount": 6,
-    "burstPower": 0.5,
+    "burstPower": 0.4,
     "burstSpeed": 300,
     "burstRange": 210,
     "darts": 0,
@@ -1521,7 +1549,7 @@
    "archetype": "CHASER",
    "maxHp": 1.0,
    "speed": 100,
-   "power": 10,
+   "power": 12,
    "xp": 1,
    "sprite": "infected_colonist",
    "params": {
@@ -1533,7 +1561,7 @@
    "archetype": "FAST_PACK",
    "maxHp": 0.5,
    "speed": 160,
-   "power": 6,
+   "power": 7,
    "xp": 1,
    "sprite": "spore_hound",
    "params": {
@@ -1548,7 +1576,7 @@
    "archetype": "RANGED",
    "maxHp": 1.5,
    "speed": 90,
-   "power": 8,
+   "power": 9,
    "xp": 2,
    "sprite": "sergeant",
    "params": {
@@ -1593,7 +1621,7 @@
    "archetype": "CHARGER",
    "maxHp": 3.0,
    "speed": 110,
-   "power": 16,
+   "power": 18,
    "xp": 4,
    "sprite": "welder",
    "params": {
@@ -1620,9 +1648,9 @@
     "radius": 12,
     "trigger": 40,
     "fuse": 0.35,
-    "cloudR": 90,
-    "cloudT": 3,
-    "cloudDps": 4
+    "cloudR": 85,
+    "cloudT": 2.5,
+    "cloudDps": 2
    }
   },
   "SMELTER": {
@@ -1630,7 +1658,7 @@
    "archetype": "TANK",
    "maxHp": 8.0,
    "speed": 70,
-   "power": 20,
+   "power": 23,
    "xp": 8,
    "knockback": 0,
    "sprite": "smelter",
@@ -1640,7 +1668,7 @@
     "castTime": 0.6,
     "poolR": 60,
     "poolT": 3,
-    "poolDps": 8,
+    "poolDps": 6,
     "warn": 0.6,
     "pools": 1
    }
@@ -1650,7 +1678,7 @@
    "archetype": "SUMMONER",
    "maxHp": 5.0,
    "speed": 90,
-   "power": 14,
+   "power": 16,
    "xp": 10,
    "sprite": "vire",
    "params": {
@@ -1672,9 +1700,9 @@
    "name": "Cargo Loader",
    "archetype": "BOSS",
    "boss": true,
-   "maxHp": 400,
+   "maxHp": 360,
    "speed": 70,
-   "power": 26,
+   "power": 22,
    "xp": 60,
    "sprite": "cargo_loader",
    "params": {
@@ -1704,7 +1732,7 @@
    "name": "Slagborn",
    "archetype": "BOSS",
    "boss": true,
-   "maxHp": 700,
+   "maxHp": 520,
    "speed": 60,
    "power": 35,
    "xp": 100,
@@ -1735,7 +1763,7 @@
    "name": "Vire, Awakened",
    "archetype": "BOSS",
    "boss": true,
-   "maxHp": 600,
+   "maxHp": 540,
    "speed": 100,
    "power": 20,
    "xp": 100,
@@ -1764,7 +1792,7 @@
    "name": "Smelter, Foreman",
    "archetype": "BOSS",
    "boss": true,
-   "maxHp": 500,
+   "maxHp": 450,
    "speed": 65,
    "power": 30,
    "xp": 100,
@@ -1778,7 +1806,7 @@
     "castTime": 0.8,
     "poolR": 60,
     "poolT": 3,
-    "poolDps": 8,
+    "poolDps": 6,
     "warn": 0.8,
     "pools": 5,
     "pullHp": 0.25,
@@ -1795,14 +1823,14 @@
    "name": "The First",
    "archetype": "BOSS",
    "boss": true,
-   "maxHp": 2500,
+   "maxHp": 1800,
    "speed": 80,
    "power": 40,
    "xp": 250,
    "sprite": "the_first",
    "params": {
     "pattern": 5,
-    "hpRamp": 29,
+    "hpRamp": 28,
     "radius": 28,
     "phase1Hp": 0.66,
     "phase2Hp": 0.33,
@@ -1849,20 +1877,21 @@
  },
  "elites": {
   "first": 180,
-  "interval": 150,
-  "min": 100,
+  "interval": 125,
+  "min": 90,
   "shrinkPerMin": 0.01,
   "hpMul": 6,
   "damageMul": 1.5,
   "scale": 1.4,
   "speedMul": 0.9,
-  "xpMul": 8,
+  "xpMul": 4,
   "dist": 400,
   "adds": 6,
   "mods2At": 720,
   "mods3At": 1440,
   "xpPileGems": 5,
-  "xpPileLevels": 2.0
+  "xpPileLevels": 0.7,
+  "armor": 3
  },
  "equipment": {
   "COMBAT_HELM": {

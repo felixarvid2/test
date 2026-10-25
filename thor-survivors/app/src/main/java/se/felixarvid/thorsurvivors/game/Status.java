@@ -32,7 +32,7 @@ public final class Status {
     /** Hero side (from enemy hazards): fixed values, no stacking. */
     public static final float HERO_BURN_DPS = 2f, HERO_BURN_TIME = 3f;
     public static final float HERO_SLOW = 0.25f, HERO_SLOW_TIME = 2f;
-    public static final float HERO_DECAY_DPS = 3f, HERO_DECAY_TIME = 2f;
+    public static final float HERO_DECAY_DPS = 1.5f, HERO_DECAY_TIME = 1.5f;
 
     /** Colours (RGB) of the status damage numbers and particles. */
     public static final int C_BURN = 0xFF9A30, C_FROST = 0x6FE6FF, C_ELEC = 0xFFF070, C_DECAY = 0x7CE04A;

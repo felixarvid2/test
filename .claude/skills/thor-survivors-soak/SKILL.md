@@ -52,6 +52,13 @@ tentacles; the slack is the elite adds, Vire's colonists and the hounds). Run on
 seconds each), `aMidBuildKillsEveryBossInUnderNinetySeconds` the boss acceptance. What to look for after a change to bosses or elites: eliteAt gaps equal
 `Elites.interval`, every boss dies (a boss that never dies is a stuck state), `peakHaz <= 32`, no NaN in the lanes and pulses.
 
+Phase 12 additions to `StageSoak`: policy `plan` (like `mid`, but takes the passive a held weapon evolves with first, for the time to the first
+evolution), `GEAR=0` in the environment (the equipment is taken off every step: A/B for the gear share), `Result.lvlAt/killsAt/xpAt` (level, kills and total XP at
+5, 10 ... 30 min), `firstEvo`, `weaponsEnd`/`mainEnd` (inventory and branch tiers at the end), `gearPoints`, `lateGems`/`latePick` (mean gems and pickups
+on the field during minutes 25 to 30) and `TRACE` lines with hazards by kind and damage taken by source. The Deep Mines boss The First arrives at 28:00.
+A matrix of 240 runs (40 seeds x 2 stages x 3 heroes) takes about 3 minutes with `xargs -P 4`; retry a cell that prints nothing (once in 120 a JVM
+printed no line during a parallel run).
+
 Lessons from earlier soaks:
 - `Sim.rng` is unseeded: call `s.rng.setSeed(seed)` right after construction or no run is reproducible.
 - System properties (`-Dsoak=1`) do not reach the forked test JVM. Gate long runs on an env var (`SOAK=1`, read with

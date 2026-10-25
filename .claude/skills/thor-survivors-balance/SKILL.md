@@ -29,7 +29,7 @@ argument the VS rules are unchanged. Main weapons and branch tiers are data: `as
 Bot pattern in `HeroAcceptanceTest`: set `in.aimStickX/Y` to the nearest enemy every step, walk in circles, immortal for kills,
 standing still and mortal for survival; pass `s.main.def`/`s.main.tier`/offer level to `OfferGenerator.generate` for branch cards.
 Measured (3 seeds, 5 min, kills): Whip baseline about 1000, hero main weapon alone about 1200 to 1900, so the main weapon beats
-the whole early VS build; consider lowering main weapon power when tuning.
+the whole early VS build. Phase 12 lowered it, see the lessons below (and why the Bastion number does not follow power).
 
 ## Ashfall roster, stages and statuses (design phases 5 to 7)
 
@@ -49,6 +49,16 @@ the whole early VS build; consider lowering main weapon power when tuning.
   Decay 0.06 x hit per s per stack and -4% enemy damage per stack). Garlic and Corrosive Flask apply Decay, Slag Cannon Burn, Arc Coil Electrify; a Garlic
   standing-still run can now outlive 6 minutes (`HeroAcceptanceTest` allows 9). Check that a Burn-only build does not out-damage a Might build by more than
   25% (design 14, phase 5) when you balance: that comparison is NOT MEASURED yet.
+
+## Phase 12 lessons (balance pass, Ashfall layer only)
+
+- **Tuning loop that worked:** a throwaway `patch.py a.b.c=value` that rewrites single paths of `ashfall_data.json` from a pristine copy, then 20 to 40 seeds x 2 stages x 3 heroes of `StageSoak` with `xargs -P 4` (about 3 min for 30 minutes x 240 runs), summary = survivors per cell and a histogram of death times. Bake the winning numbers into `tools/build_ashfall_stages.py` (`HERO_TUNE`, `MAIN_TUNE`, `XP_FADE`, the tables) and verify the generated file with the same matrix. Copy the compiled classes to a snapshot directory first, or a gradle run in the middle of a matrix swaps the classes under the running JVMs. 20 seeds give about +-11 points (one standard deviation) on a survival rate; use 40 before believing a 10 point change.
+- **The death histogram tells what to touch:** deaths at 5 to 6 min are the first boss and elite, 10 to 20 min are area damage (spore clouds and slag pools ignore armor), after 20 min almost nobody dies because levels and gems flood in. Most of the survival differences between heroes were chronic low HP: `TRACE=<t>` prints hp, hazards by kind and the damage taken by source every half second.
+- **Biggest levers found:** the hero Decay from spore clouds (`Status.HERO_DECAY_DPS` 3 to 1.5) moved every hero 15 to 25 points; a per-level `damageTaken` of -0.005 to -0.007 in Spectre's `perLevel` moved him about 30 points; XP from kills fading with the run time (`StageDef.xpFade`) cut the level at 30:00 from 114 to 230 to 66 to 90 without slowing the first minutes (cutting enemy XP uniformly slowed the early levels and made 5 to 8 min deadly); elite XP (x8, 2 level piles) was a quarter of all XP.
+- **"Kills at 5 min against the Whip baseline" saturates for Bastion:** the immortal bot stands in a crowd, the hammer hits everything around it, so kills barely react to damage (power 1.6 gives 153 %, 0.5 gives 136 %, 0.2 gives 107 %, 0.1 gives 80 % of the Whip). Read the ratio with `picks=false` (no level-up cards at all): with random cards the main-weapon-alone and hero-plus-Whip columns cannot both be right (the Whip is one of ten random weapons). Xenomant and Spectre react to damage (Spectre's pierce 1 pushed him from 77 to 111 % without helping his survival, so it was dropped); judge Bastion with mortal runs.
+- **Time to first evolution** is about 20:30 with both `mid` and `plan` (chests at 10:30, 15:30, 20:30; a weapon needs level 8 plus its passive and the cards are VS rolls: even 70 % more early XP evolved nothing before 15:00 in 24 runs), so the 8 to 14 min target is not reachable in the Ashfall layer; report it instead of forcing it.
+- Bosses take the stage health multiplier too (`Sim.initEnemy`): changing `EnemyHealthMultiplier` moves every boss HP.
+- The bot never walks to a roast or pylon, so survival numbers are cautious.
 
 ## Method
 

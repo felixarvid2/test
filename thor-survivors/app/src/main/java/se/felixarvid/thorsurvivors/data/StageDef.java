@@ -23,6 +23,11 @@ public final class StageDef {
     public int[] tentacleMinutes = new int[0];
     public float tentacleLen = 20f, tentacleEvery = 4f, tentacleRadius = 400f;
     public int tentacleCount = 3;
+    /**
+     * Ashfall balance (phase 12): the gem value of a kill fades linearly from 1.0 at {@code xpFadeFrom} seconds to
+     * {@code xpFadeEnd} at {@code xpFadeTo} (no fade when {@code xpFadeTo <= xpFadeFrom}). Keeps the early levels, stops the late XP flood.
+     */
+    public double xpFadeFrom, xpFadeTo, xpFadeEnd = 1.0;
 
     public StageDef(String key, String name, double timeLimit, double playerSpeed, double enemySpeed,
                     double enemyHealth, double goldMultiplier, double xpBonus, int startingSpawns,
@@ -50,7 +55,17 @@ public final class StageDef {
         d.tentacleEvery = tentacleEvery;
         d.tentacleRadius = tentacleRadius;
         d.tentacleCount = tentacleCount;
+        d.xpFadeFrom = xpFadeFrom;
+        d.xpFadeTo = xpFadeTo;
+        d.xpFadeEnd = xpFadeEnd;
         return d;
+    }
+
+    /** Multiplier on the XP a kill drops at run time {@code seconds} (1 without a fade). */
+    public double xpFade(double seconds) {
+        if (xpFadeTo <= xpFadeFrom || seconds <= xpFadeFrom) return 1.0;
+        if (seconds >= xpFadeTo) return xpFadeEnd;
+        return 1.0 + (xpFadeEnd - 1.0) * (seconds - xpFadeFrom) / (xpFadeTo - xpFadeFrom);
     }
 
     /** The row that governs the given run time: the last row whose minute is <= elapsed minutes. */
