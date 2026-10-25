@@ -4,7 +4,6 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -14,6 +13,8 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import se.felixarvid.thorsurvivors.util.IO;
 
 /** Parsed game_data.json: weapons/passives, stages, enemies, items and shop power-ups. */
 public final class GameData {
@@ -30,11 +31,7 @@ public final class GameData {
     public final Map<String, PowerUpDef> powerUps = new LinkedHashMap<>();
 
     public static GameData load(InputStream in) throws IOException, JSONException {
-        ByteArrayOutputStream bos = new ByteArrayOutputStream(64 * 1024);
-        byte[] buf = new byte[8192];
-        int n;
-        while ((n = in.read(buf)) > 0) bos.write(buf, 0, n);
-        return parse(new String(bos.toByteArray(), "UTF-8"));
+        return parse(IO.readUtf8(in));
     }
 
     public static GameData parse(String json) throws JSONException {

@@ -24,7 +24,31 @@ public final class Entities {
         public float kbMul = 1f;
         /** Absolute sim time before which the weapon in this slot cannot hit this enemy again. */
         public final float[] hitUntil = new float[Inventory.MAX_WEAPONS];
+        /**
+         * Stamps (Projectile.stamp, one per projectile and leg) of the last projectiles that hit this enemy, as a
+         * ring; 0 is empty. Keeps "hit once per pass" exact however many enemies share the projectile's path.
+         */
+        public final int[] hitStamp = new int[HIT_STAMPS];
+        private int hitHead;
+
+        public boolean hitBy(int stamp) {
+            for (int i = 0; i < HIT_STAMPS; i++) if (hitStamp[i] == stamp) return true;
+            return false;
+        }
+
+        public void markHit(int stamp) {
+            hitStamp[hitHead] = stamp;
+            hitHead = (hitHead + 1) % HIT_STAMPS;
+        }
+
+        public void clearHits() {
+            java.util.Arrays.fill(hitStamp, 0);
+            hitHead = 0;
+        }
     }
+
+    /** Distinct projectile passes an enemy remembers (the oldest is forgotten first). */
+    public static final int HIT_STAMPS = 16;
 
     public static final int P_WHIP = 0, P_MISSILE = 1, P_KNIFE = 2, P_AXE = 3, P_CROSS = 4, P_BOOK = 5,
             P_FIRE = 6, P_PUDDLE = 7;
@@ -44,20 +68,8 @@ public final class Entities {
         public float flight;
         /** P_PUDDLE: radius growth in u/s once landed (La Borra) and drift speed toward the player in u/s. */
         public float grow, drift;
-        public final int[] hit = new int[24];
-        public int hitN;
-
-        public boolean alreadyHit(int id) {
-            for (int i = 0; i < hitN; i++) if (hit[i] == id) return true;
-            return false;
-        }
-
-        public void remember(int id) {
-            if (hitN < hit.length) hit[hitN++] = id;
-            else {
-                hit[(id & 0x7fffffff) % hit.length] = id; // overwrite pseudo-randomly: very old hits may repeat
-            }
-        }
+        /** Unique per projectile and per leg (a returning cross gets a fresh one); matched against Enemy.hitStamp. */
+        public int stamp;
     }
 
     public static final int K_GEM = 0, K_COIN = 1, K_COINBAG = 2, K_ROAST = 3, K_VACUUM = 4, K_OROLOGION = 5,

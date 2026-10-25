@@ -83,7 +83,7 @@ Kräver Android SDK (plattform 35, build-tools 35.0.0). Skapa `local.properties`
 ./gradlew assembleDebug testDebugUnitTest
 ```
 
-Det finns 119 JVM-enhetstester (inklusive Robolectric-skärmdumpar till `app/build/screenshots/`, eller `$SHOT_DIR`): statistikberäkning, level-up-erbjudanden, evolutioner, vågor, butik, headless-simuleringar, ljudhändelser (gräns, ringbuffert, manifest) och att atlasen är giltig. Vyn visar 560 världsenheter på höjden (`Sim.VIEW_H`).
+Det finns 129 JVM-enhetstester (inklusive Robolectric-skärmdumpar till `app/build/screenshots/`, eller `$SHOT_DIR`): statistikberäkning, level-up-erbjudanden, evolutioner, vågor, butik, headless-simuleringar, ljudhändelser (gräns, ringbuffert, manifest) och att atlasen är giltig. Vyn visar 560 världsenheter på höjden (`Sim.VIEW_H`).
 
 Kopiera sedan `app/build/outputs/apk/debug/app-debug.apk` till `dist/`.
 

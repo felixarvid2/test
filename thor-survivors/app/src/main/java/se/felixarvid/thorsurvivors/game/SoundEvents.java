@@ -40,8 +40,9 @@ public final class SoundEvents {
 
     private final int[] ring = new int[CAPACITY];
     private int head, size;
-    private float now;
-    private final float[] winStart = new float[COUNT], last = new float[COUNT];
+    /** Seconds since creation; a double so it keeps advancing by 1/60 s after days of play (a float stalls near 2^18 s). */
+    private double now;
+    private final double[] winStart = new double[COUNT], last = new double[COUNT];
     private final int[] winCount = new int[COUNT];
     /** Events thrown away by the rate limit / by a full ring (for tests and diagnostics). */
     public int limited, overwritten;
@@ -49,14 +50,14 @@ public final class SoundEvents {
     public final int[] emitted = new int[COUNT];
 
     public SoundEvents() {
-        for (int i = 0; i < COUNT; i++) winStart[i] = last[i] = -1e9f;
+        for (int i = 0; i < COUNT; i++) winStart[i] = last[i] = -1e9;
     }
 
     public void advance(float dt) {
         now += dt;
     }
 
-    public float now() {
+    public double now() {
         return now;
     }
 

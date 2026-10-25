@@ -9,10 +9,11 @@ import android.graphics.Paint;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Iterator;
+
+import se.felixarvid.thorsurvivors.util.IO;
 
 /**
  * Single lookup for every sprite drawn in the game: key -> frames sliced out of the sheets.
@@ -88,7 +89,7 @@ public final class SpriteAtlas {
         sprites.clear();
         sheets.clear();
         try {
-            JSONObject root = new JSONObject(new String(readAll(op.open("sprites/atlas.json")), "UTF-8"));
+            JSONObject root = new JSONObject(readAtlasJson(op));
             readGroup(op, root.optJSONObject("sprites"));
             readGroup(op, root.optJSONObject("tiles"));
         } catch (Exception ignored) {
@@ -98,15 +99,9 @@ public final class SpriteAtlas {
         sheets.clear(); // slices are copies; the big sheets are not needed any more
     }
 
-    private static byte[] readAll(InputStream in) throws Exception {
-        try {
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            byte[] b = new byte[8192];
-            int n;
-            while ((n = in.read(b)) > 0) bos.write(b, 0, n);
-            return bos.toByteArray();
-        } finally {
-            in.close();
+    private static String readAtlasJson(Opener op) throws Exception {
+        try (InputStream in = op.open("sprites/atlas.json")) {
+            return IO.readUtf8(in);
         }
     }
 

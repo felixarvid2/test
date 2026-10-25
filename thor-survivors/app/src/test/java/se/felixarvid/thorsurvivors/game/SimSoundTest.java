@@ -167,4 +167,42 @@ public class SimSoundTest {
         for (int i = 0; i < 30; i++) s.update(DT, new Input());
         assertEquals(1, s.sound.emitted[SoundEvents.PLAYER_HURT]);
     }
+
+    @Test
+    public void noBossSpawnSoundWhenThePoolIsFull() throws Exception {
+        GameData d = TestData.load();
+        Sim b = fresh("FOREST", "WHIP");
+        b.update(DT, new Input());
+        int minute = -1;
+        for (WaveRow r : d.stages.get("FOREST").rows) {
+            for (String boss : r.bosses) if (!boss.equals("BOSS_XLDEATH")) minute = minute < 0 ? r.minute : minute;
+        }
+        b.hp = b.maxHp = 1e9f;
+        while (b.enemyN < Sim.MAX_ENEMIES) b.addEnemy("ZOMBIE", b.px + 900, b.py, false);
+        b.sound.clear();
+        int before = b.sound.emitted[SoundEvents.BOSS_SPAWN];
+        b.time = minute * 60.0;
+        b.update(DT, new Input());
+        assertEquals(before, b.sound.emitted[SoundEvents.BOSS_SPAWN]);
+    }
+
+    @Test
+    public void noMuzzleSoundWhenTheProjectilePoolIsFull() throws Exception {
+        Sim s = fresh("FOREST", "KNIFE");
+        s.noSpawnsForTest();
+        s.enemyN = 0;
+        for (int i = 0; i < Sim.MAX_PROJ; i++) { // long-lived axes parked on the player keep the pool full
+            Entities.Projectile p = s.projs[i];
+            p.kind = Entities.P_AXE;
+            p.x = s.px;
+            p.y = s.py;
+            p.vx = p.vy = p.gravity = 0;
+            p.life = p.maxLife = 100f;
+            p.hitsLeft = 1;
+        }
+        s.projN = Sim.MAX_PROJ;
+        for (int i = 0; i < 120; i++) s.update(DT, new Input());
+        assertEquals(Sim.MAX_PROJ, s.projN);
+        assertEquals(0, s.sound.emitted[SoundEvents.KNIFE]);
+    }
 }

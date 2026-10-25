@@ -10,7 +10,6 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.SystemClock;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -22,6 +21,7 @@ import se.felixarvid.thorsurvivors.game.Engine;
 import se.felixarvid.thorsurvivors.game.MetaProgress;
 import se.felixarvid.thorsurvivors.game.Sim;
 import se.felixarvid.thorsurvivors.game.SoundEvents;
+import se.felixarvid.thorsurvivors.util.IO;
 
 /**
  * Sound effects (SoundPool, USAGE_GAME) and music (MediaPlayer with fades), both fed from the game state.
@@ -75,6 +75,8 @@ public final class AudioEngine {
         MediaPlayer mp;
         float level, target, fadeSec, base;
         boolean dying;
+        /** Set by {@link #pause}: this player was really playing then, so {@link #resume} may restart it. */
+        boolean resumeOnResume;
     }
 
     public AudioEngine(Context ctx, Engine eng) {
@@ -118,10 +120,7 @@ public final class AudioEngine {
         }
         String json = null;
         try (InputStream in = assets.open("audio/manifest.json")) {
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            byte[] b = new byte[4096];
-            for (int n; (n = in.read(b)) > 0; ) out.write(b, 0, n);
-            json = out.toString("UTF-8");
+            json = IO.readUtf8(in);
         } catch (IOException ignored) {
             // no manifest: default paths
         }
@@ -200,9 +199,15 @@ public final class AudioEngine {
         if (released) return;
         pool.autoPause();
         music.post(() -> {
-            for (Voice v : playing) safe(() -> {
-                if (v.mp.isPlaying()) v.mp.pause();
-            });
+            for (Voice v : playing) {
+                v.resumeOnResume = false; // isPlaying() can throw in a bad state, so it stays inside safe()
+                safe(() -> {
+                    if (v.mp.isPlaying()) {
+                        v.mp.pause();
+                        v.resumeOnResume = true;
+                    }
+                });
+            }
         });
     }
 
@@ -212,7 +217,11 @@ public final class AudioEngine {
         paused = false;
         pool.autoResume();
         music.post(() -> {
-            for (Voice v : playing) safe(() -> v.mp.start());
+            for (Voice v : playing) { // a finished stinger was not playing at pause time and stays finished
+                if (!v.resumeOnResume) continue;
+                v.resumeOnResume = false;
+                safe(() -> v.mp.start());
+            }
             lastTickMs = SystemClock.uptimeMillis();
             music.removeCallbacks(tickTask);
             music.post(tickTask);
@@ -239,8 +248,15 @@ public final class AudioEngine {
         float dt = lastTickMs == 0 ? TICK_MS / 1000f : Math.min(0.25f, (ms - lastTickMs) / 1000f);
         lastTickMs = ms;
         String want = wantTrack;
-        if (want == null ? curTrack != null : !want.equals(curTrack)) switchTo(want);
-        float gain = SoundEvents.stepGain(meta.musicVol) * (ducked ? DUCK : 1f);
+        int musicVol = meta.musicVol;
+        if (musicVol <= 0) { // music OFF: no player at all; raising it again starts the current phase's track
+            for (Voice v : playing) free(v);
+            playing.clear();
+            curTrack = null;
+        } else if (want == null ? curTrack != null : !want.equals(curTrack)) {
+            switchTo(want);
+        }
+        float gain = SoundEvents.stepGain(musicVol) * (ducked ? DUCK : 1f);
         for (int i = playing.size() - 1; i >= 0; i--) {
             Voice v = playing.get(i);
             float step = dt / Math.max(0.01f, v.fadeSec);

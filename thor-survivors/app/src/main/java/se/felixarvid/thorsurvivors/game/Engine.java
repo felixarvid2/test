@@ -168,10 +168,12 @@ public final class Engine {
         switch (c[0]) {
             case Input.CMD_NAV: nav(c[1]); break;
             case Input.CMD_CONFIRM: confirm(0); break;
-            case Input.CMD_BACK:
-                if (phase != PH_PLAYING && phase != PH_MENU) sound.emit(SoundEvents.UI_BACK);
+            case Input.CMD_BACK: {
+                int before = phase;
                 back();
+                if (phase != before && before != PH_PLAYING) sound.emit(SoundEvents.UI_BACK);
                 break;
+            }
             case Input.CMD_START: start(); break;
             case Input.CMD_TAP:
                 if (c[1] == phase) {
@@ -203,12 +205,13 @@ public final class Engine {
         int n = itemCount();
         int f = focus;
         int before = f;
+        boolean changed = false;
         switch (phase) {
             case PH_MENU:
                 if (dir == Input.UP) f = (f + n - 1) % n;
                 else if (dir == Input.DOWN) f = (f + 1) % n;
                 else if (f == MENU_STAGE || f == MENU_WEAPON || f == MENU_MUSIC || f == MENU_SFX) {
-                    cycle(f, dir == Input.RIGHT ? 1 : -1);
+                    changed = cycle(f, dir == Input.RIGHT ? 1 : -1);
                 }
                 break;
             case PH_SHOP:
@@ -226,22 +229,32 @@ public final class Engine {
             default:
         }
         focus = f;
-        if (phase != PH_PLAYING && phase != PH_CHEST && phase != PH_RESULT && (f != before || dir == Input.LEFT
-                || dir == Input.RIGHT)) {
+        if (phase != PH_PLAYING && phase != PH_CHEST && phase != PH_RESULT && (f != before || changed)) {
             sound.emit(SoundEvents.UI_MOVE);
         }
     }
 
-    private void cycle(int item, int delta) {
+    /** Step a menu row's value; true if it changed (a one-entry list or a clamped setting does not). */
+    private boolean cycle(int item, int delta) {
+        int before = cycleValue(item);
         if (item == MENU_STAGE) stageIdx = (stageIdx + delta + stageKeys.size()) % stageKeys.size();
         else if (item == MENU_MUSIC) meta.stepMusic(delta);
         else if (item == MENU_SFX) meta.stepSfx(delta);
         else weaponIdx = (weaponIdx + delta + starters.size()) % starters.size();
+        return cycleValue(item) != before;
+    }
+
+    private int cycleValue(int item) {
+        if (item == MENU_STAGE) return stageIdx;
+        if (item == MENU_MUSIC) return meta.musicVol;
+        if (item == MENU_SFX) return meta.sfxVol;
+        return weaponIdx;
     }
 
     private void confirm(int sub) {
         int f = focus;
-        if (phase != PH_PLAYING) sound.emit(SoundEvents.UI_CONFIRM);
+        int ph = phase;
+        boolean ok = true;
         switch (phase) {
             case PH_MENU:
                 if (f == MENU_START) startRun();
@@ -261,10 +274,10 @@ public final class Engine {
                     String k = shopKeys.get(f);
                     if (meta.isMaxed(k)) {
                         toast("Already maxed");
-                        sound.emit(SoundEvents.UI_BACK);
+                        ok = false;
                     } else if (!meta.buy(k)) {
                         toast("Not enough gold");
-                        sound.emit(SoundEvents.UI_BACK);
+                        ok = false;
                     }
                     else toast("Purchased " + data.powerUps.get(k).name);
                 }
@@ -297,6 +310,7 @@ public final class Engine {
                 break;
             default:
         }
+        if (ph != PH_PLAYING) sound.emit(ok ? SoundEvents.UI_CONFIRM : SoundEvents.UI_BACK);
     }
 
     private void resume() {

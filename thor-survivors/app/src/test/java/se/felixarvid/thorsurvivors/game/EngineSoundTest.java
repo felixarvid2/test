@@ -83,4 +83,65 @@ public class EngineSoundTest {
         int[] ids = drain(e.sound);
         assertEquals(SoundEvents.GAME_OVER, ids[ids.length - 1]);
     }
+
+    private Engine in(Engine e, int phase) {
+        e.phase = phase;
+        e.focus = 0;
+        e.advance(0.2f);
+        e.sound.clear();
+        return e;
+    }
+
+    @Test
+    public void aFailedPurchaseOnlyPlaysBack() throws Exception {
+        Engine e = in(menu(), Engine.PH_SHOP);
+        e.meta.gold = 0;
+        e.input.post(Input.CMD_CONFIRM, 0, 0, 0);
+        e.advance(1f / 60f);
+        int[] ids = drain(e.sound);
+        assertEquals(1, ids.length);
+        assertEquals(SoundEvents.UI_BACK, ids[0]);
+    }
+
+    @Test
+    public void aSuccessfulPurchaseOnlyPlaysConfirm() throws Exception {
+        Engine e = in(menu(), Engine.PH_SHOP);
+        e.meta.gold = 1_000_000;
+        e.input.post(Input.CMD_CONFIRM, 0, 0, 0);
+        e.advance(1f / 60f);
+        int[] ids = drain(e.sound);
+        assertEquals(1, ids.length);
+        assertEquals(SoundEvents.UI_CONFIRM, ids[0]);
+    }
+
+    @Test
+    public void backWhereItDoesNothingIsSilent() throws Exception {
+        for (int ph : new int[]{Engine.PH_LEVELUP, Engine.PH_CHEST}) {
+            Engine e = in(menu(), ph);
+            e.input.post(Input.CMD_BACK, 0, 0, 0);
+            e.advance(1f / 60f);
+            assertEquals(ph, e.phase);
+            assertEquals(0, e.sound.size());
+        }
+    }
+
+    @Test
+    public void sidewaysOnARowThatDoesNotCycleIsSilent() throws Exception {
+        Engine e = in(menu(), Engine.PH_MENU);
+        e.focus = Engine.MENU_START;
+        e.input.post(Input.CMD_NAV, Input.RIGHT, 0, 0);
+        e.advance(1f / 60f);
+        e.focus = Engine.MENU_SHOP;
+        e.input.post(Input.CMD_NAV, Input.LEFT, 0, 0);
+        e.advance(1f / 60f);
+        assertEquals(0, e.sound.size());
+
+        in(e, Engine.PH_SHOP); // clamped at the left edge
+        e.input.post(Input.CMD_NAV, Input.LEFT, 0, 0);
+        e.advance(1f / 60f);
+        assertEquals(0, e.sound.size());
+        e.input.post(Input.CMD_NAV, Input.RIGHT, 0, 0); // a real move still sounds
+        e.advance(1f / 60f);
+        assertEquals(SoundEvents.UI_MOVE, drain(e.sound)[0]);
+    }
 }
