@@ -22,7 +22,10 @@ public final class GameData {
     public static final String[] SHOP_ORDER = {
             "POWER", "ARMOR", "MAXHEALTH", "REGEN", "COOLDOWN", "AREA", "SPEED", "DURATION",
             "AMOUNT", "MOVESPEED", "MAGNET", "LUCK", "GROWTH", "GREED", "CURSE", "REVIVAL"};
-    public static final String[] STAGE_ORDER = {"FOREST", "LIBRARY"};
+    /** The stages the menu offers: Cinder Flats and Deep Mines (ashfall_data.json "stages"). */
+    public static final String[] STAGE_ORDER = {"FLATS", "MINES"};
+    /** The Vampire Survivors stages: still loaded (older tests and balance runs), but not in the menu. */
+    public static final String[] LEGACY_STAGES = {"FOREST", "LIBRARY"};
     /** Hero select order (the JSON object order is not reliable). */
     public static final String[] HERO_ORDER = {"BASTION", "SPECTRE", "XENOMANT"};
 
@@ -67,8 +70,22 @@ public final class GameData {
                 if (p != null) powerUps.put(id, p.withName(o.optString("name", p.name)));
             }
         }
+        JSONObject en = root.optJSONObject("enemies");
+        if (en != null) {
+            Iterator<String> it = en.keys();
+            while (it.hasNext()) {
+                String key = it.next();
+                enemies.put(key, parseAshfallEnemy(key, en.getJSONObject(key)));
+            }
+        }
         JSONObject st = root.optJSONObject("stages");
         if (st != null) {
+            Iterator<String> it = st.keys();
+            while (it.hasNext()) { // whole stages (Cinder Flats, Deep Mines) come with their wave rows
+                String key = it.next();
+                JSONObject o = st.getJSONObject(key);
+                if (o.has("rows")) stages.put(key, parseOverlayStage(key, o));
+            }
             for (String key : new ArrayList<>(stages.keySet())) {
                 JSONObject o = st.optJSONObject(key);
                 if (o != null) stages.put(key, stages.get(key).withName(o.optString("name", stages.get(key).name)));
@@ -98,6 +115,32 @@ public final class GameData {
                 if (o != null) heroes.put(key, parseHero(key, o));
             }
         }
+    }
+
+    /** Design section 4: stats in the VS units of the ZOMBIE row (hp 1.0 = one Z), archetype and its numbers. */
+    private static EnemyDef parseAshfallEnemy(String key, JSONObject o) {
+        return new EnemyDef(key, o.optString("name", key), o.optDouble("maxHp", 1), o.optDouble("speed", 100),
+                o.optDouble("power", 10), o.optDouble("knockback", 1), o.optDouble("xp", 1), 1, o.optDouble("scale", 1),
+                1, false, EnemyDef.archOf(o.optString("archetype", "CHASER")), o.optString("sprite", ""),
+                numbers(o.optJSONObject("params")), o.optBoolean("boss", false));
+    }
+
+    private static StageDef parseOverlayStage(String key, JSONObject o) throws JSONException {
+        JSONObject mods = o.optJSONObject("mods");
+        if (mods == null) mods = new JSONObject();
+        JSONArray arr = o.getJSONArray("rows");
+        List<WaveRow> rows = new ArrayList<>();
+        for (int i = 0; i < arr.length(); i++) {
+            JSONObject r = arr.getJSONObject(i);
+            rows.add(new WaveRow(r.optInt("minute", i), r.optInt("minimum", 0), r.optInt("frequency", 1000),
+                    strings(r.optJSONArray("enemies")).toArray(new String[0]),
+                    strings(r.optJSONArray("bosses")).toArray(new String[0]), treasure(r.optJSONObject("treasure"))));
+        }
+        return new StageDef(key, o.optString("name", key), mods.optDouble("TimeLimit", 1800),
+                mods.optDouble("PlayerPxSpeed", 1), mods.optDouble("EnemySpeed", 1),
+                mods.optDouble("EnemyHealthMultiplier", 1), mods.optDouble("GoldMultiplier", 1),
+                mods.optDouble("XPBonus", 1), o.optInt("startingSpawns", 10),
+                "HORIZONTAL".equals(o.optString("spawnType")), o.optString("destructibleType", ""), rows);
     }
 
     private static Map<String, Double> numbers(JSONObject o) {
@@ -195,7 +238,7 @@ public final class GameData {
     }
 
     private void parseStages(JSONObject o) throws JSONException {
-        for (String key : STAGE_ORDER) {
+        for (String key : LEGACY_STAGES) {
             if (!o.has(key)) continue;
             JSONArray arr = o.getJSONArray(key);
             JSONObject r0 = arr.getJSONObject(0);

@@ -22,18 +22,23 @@ uses the Kenney / Tiny Creatures sheets (they stay in `art-src/`; `tools/build_a
 `app/src/main/assets/ashfall/`: `m_<model>.webp` per animated model, `world.webp` (props, environment, decals), `vfx.webp`,
 `icons.webp`, `ground/mine_rock.webp`, `manifest.json`, `CREDITS.txt`. Never edit these by hand.
 
-Tables at the top of the script: `MODELS` (clips kept per model; enemies keep walk/attack/death only to save memory),
+Tables at the top of the script: `MODELS` (clips kept per model; enemies keep walk, attack and death, plus the clips the archetypes use: sergeant `attack2` (shots),
+welder `run` (the dash), smelter `cast`, vire `cast` and `cast2`, spore carrier `cast`; the baked sources already hold them, so only this list and a rebuild are needed),
 `PROPS`, `DECALS` (longest side in px), `VFX` (stored size), `ICONS` (key -> source file), `GEMS`. `SCALE` = 0.78 turns the
 64 px/m bake into a ~75 px human at 1080p. A frame is re-cut, Lanczos-scaled and shelf-packed with a 1 px gap, so no bleeding.
 The script prints the file sizes and how much RAM every model sheet needs once decoded (target: all sheets together
-under ~40 MB, APK under ~30 MB).
+under ~70 MB now that the enemy action clips are in (68 MB), APK under ~30 MB).
 
 ## Keys the game reads (render/SpriteAtlas.java)
 
-- Models by name: `bastion`, `infected_colonist`, ... Clip slots: idle, walk (a character's `run` is stored as walk), attack, hit, death, static.
+- Models by name: `bastion`, `infected_colonist`, ... Clip slots (`SpriteAtlas.C_*`): idle, walk (a character's `run` is stored as walk), attack, attack2, hit, death,
+  static, cast, cast2, `C_RUN` (a second gait, loaded only when the model also has `walk`: the welder's dash). Enemies ask for a clip with `Enemy.clip`
+  (`Entities.CL_ATTACK2/CAST/CAST2/RUN`, set by `game/EnemyAi`); `WorldRenderer.drawCreature` plays the closest clip the model has (cast -> attack -> a squash
+  and shake of the walk frame for a model without either).
 - Images: `prop.NAME`, `decal.NAME`, `vfx.NAME`, `icon.KEY` (weapon base id or passive id), `gem.crystal_*`, `pix.NAME` (hand-drawn in
   `render/PixelSprites.java`: coin, bag, roast, vacuum, orologion, rosary, clover, grenade, flask).
-- Enemy key -> model: `game/EnemyType.modelFor` / `bossModelFor` (temporary VS-to-Ashfall mapping; test `AshfallAssetsTest`).
+- Enemy key -> model: the Ashfall roster names its model in the data (`ashfall_data.json` `enemies.<KEY>.sprite`, also for the bosses: `CARGO_LOADER`,
+  `SLAGBORN`, `VIRE_AWAKENED`, `SMELTER_FOREMAN`, `THE_FIRST`); `game/EnemyType.modelFor` / `bossModelFor` is only the mapping of the old VS keys (test `AshfallAssetsTest`).
 - Stage props and decals: `game/WorldGen` (`PROP` and `DECAL` name arrays; a name there must exist in the manifest).
 
 ## Adding things

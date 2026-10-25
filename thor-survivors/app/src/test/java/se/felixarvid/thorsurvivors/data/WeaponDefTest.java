@@ -53,7 +53,7 @@ public class WeaponDefTest {
         GameData d = TestData.load();
         assertTrue(d.weapons.get("VAMPIRICA").evolution);
         assertTrue(d.weapons.get("POWER").powerUp);
-        assertEquals(2, d.stages.size());
+        assertEquals("FOREST and LIBRARY (legacy) plus FLATS and MINES", 4, d.stages.size());
         assertEquals(16, d.powerUps.size());
         assertEquals(100.0, d.enemies.get("ZOMBIE").speed, 1e-9);
         assertEquals(1800.0, d.stages.get("FOREST").timeLimit, 1e-9);

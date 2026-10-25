@@ -15,24 +15,33 @@ public final class SoundEvents {
             GARLIC = 7, HOLY_WATER = 8, LIGHTNING = 9, ENEMY_HIT = 10, ENEMY_DEATH = 11, PLAYER_HURT = 12, GEM = 13,
             COIN = 14, LEVEL_UP = 15, CHEST_OPEN = 16, EVOLUTION = 17, BRAZIER_BREAK = 18, FOOD_HEAL = 19,
             BOSS_SPAWN = 20, GAME_OVER = 21, VICTORY = 22, UI_MOVE = 23, UI_CONFIRM = 24, UI_BACK = 25, HAMMER_SWING = 26,
-            HAMMER_SLAM = 27, PISTOL_SHOT = 28, CASTER_BOLT = 29, SPORE_BURST = 30, DODGE = 31, COUNT = 32;
+            HAMMER_SLAM = 27, PISTOL_SHOT = 28, CASTER_BOLT = 29, SPORE_BURST = 30, DODGE = 31,
+            // statuses, destructibles and the enemy roster (design phases 5 to 7)
+            BURN_TICK = 32, FROST_HIT = 33, ELECTRIFY_ZAP = 34, DECAY_HISS = 35, STUN_HIT = 36, BARREL_EXPLODE = 37,
+            CRATE_BREAK = 38, PYLON_USE = 39, DRONE_SHOT = 40, SERGEANT_BURST = 41, WELDER_CHARGE = 42,
+            CARRIER_BURST = 43, VIRE_BLINK = 44, COUNT = 45;
 
     /** File ids (audio/sfx/NAME.ogg and the manifest keys), indexed by event id. */
     public static final String[] NAMES = {"whip", "magic_missile", "knife", "axe", "cross", "bible", "fireball",
             "garlic", "holy_water", "lightning", "enemy_hit", "enemy_death", "player_hurt", "gem", "coin", "level_up",
             "chest_open", "evolution", "brazier_break", "food_heal", "boss_spawn", "game_over", "victory", "ui_move",
-            "ui_confirm", "ui_back", "hammer_swing", "hammer_slam", "pistol_shot", "caster_bolt", "spore_burst", "dodge"};
+            "ui_confirm", "ui_back", "hammer_swing", "hammer_slam", "pistol_shot", "caster_bolt", "spore_burst", "dodge",
+            "burn_tick", "frost_hit", "electrify_zap", "decay_hiss", "stun_hit", "barrel_explode", "crate_break",
+            "pylon_use", "drone_shot", "sergeant_burst", "welder_charge", "carrier_burst", "vire_blink"};
 
     public static final float WINDOW = 0.1f;
     /** Plays allowed per id inside one {@link #WINDOW}. */
     public static final int[] MAX_PER_WINDOW = {2, 3, 3, 2, 2, 1, 3, 1, 2, 3, 3, 4, 1, 3, 3, 1, 1, 1, 2, 1, 1, 1, 1, 2,
-            2, 2, 2, 1, 2, 2, 1, 1};
+            2, 2, 2, 1, 2, 2, 1, 1,
+            2, 2, 2, 1, 1, 2, 2, 1, 2, 1, 1, 2, 1};
     /** Minimum seconds between two plays of the same id (0 = none); garlic is quiet and heavily limited. */
     public static final float[] MIN_GAP = {0, 0, 0, 0, 0, 0, 0, 0.4f, 0, 0, 0.03f, 0.02f, 0.2f, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0.15f, 0.3f, 0.08f, 0.1f, 0.3f, 0.25f};
+            0, 0, 0, 0, 0, 0.15f, 0.3f, 0.08f, 0.1f, 0.3f, 0.25f,
+            0.15f, 0.1f, 0.12f, 0.5f, 0.2f, 0.05f, 0.05f, 1f, 0.1f, 0.3f, 0.25f, 0.1f, 0.3f};
     /** Voices of one id that may sound at once; the oldest is stolen for a new one. */
     public static final int[] VOICES = {2, 3, 3, 2, 2, 1, 3, 1, 2, 3, 3, 4, 1, 3, 3, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1,
-            2, 2, 1, 1};
+            2, 2, 1, 1,
+            1, 2, 2, 1, 1, 2, 2, 1, 2, 1, 1, 2, 1};
 
     public static final int CAPACITY = 128;
     /** Gem pickups within this many seconds of each other raise the pitch one scale step. */

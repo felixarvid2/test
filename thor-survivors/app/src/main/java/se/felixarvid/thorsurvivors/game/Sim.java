@@ -1,5 +1,6 @@
 package se.felixarvid.thorsurvivors.game;
 
+import se.felixarvid.thorsurvivors.data.EnemyDef;
 import se.felixarvid.thorsurvivors.data.GameData;
 import se.felixarvid.thorsurvivors.data.HeroDef;
 import se.felixarvid.thorsurvivors.data.MainWeaponDef;
@@ -21,6 +22,8 @@ import java.util.Random;
 public final class Sim {
     public static final int MAX_ENEMIES = 320, MAX_PROJ = 600, MAX_PICK = 1200, MAX_PART = 600, MAX_TEXT = 80,
             MAX_FX = 96;
+    /** Enemy projectiles alive at once (design section 4: at most 40), ground hazards, and ranged enemies alive. */
+    public static final int MAX_EPROJ = 40, MAX_HAZ = 32, RANGED_CAP = 24;
     /** World units visible vertically (the 16:9 view is VIEW_H * 16/9 wide); spawning and recycling derive from it. */
     public static final float VIEW_H = 560f;
     private static final float HALF_W = VIEW_H * 16f / 9f / 2f, HALF_H = VIEW_H / 2f;
@@ -105,6 +108,16 @@ public final class Sim {
     public static final float CORPSE_LIFE = 2.0f;
     public final Corpse[] corpses = new Corpse[MAX_CORPSES];
     private int corpseHead;
+    /** Projectiles of the enemies and the ground areas (slag pools, spore clouds); see {@link EnemyAi}. */
+    public final EProj[] eprojs = new EProj[MAX_EPROJ];
+    public int eprojN;
+    public final Hazard[] hazards = new Hazard[MAX_HAZ];
+    public int hazN;
+    final EnemyAi ai = new EnemyAi(this);
+    /** Hero statuses from enemy hazards (design section 7): seconds left of Burn, Slow and Decay. */
+    public float heroBurnT, heroSlowT, heroDecayT;
+    private float statusAcc;
+    private int statusTexts;
     /** Time of the latest weapon use; the renderer plays the player's attack clip for a moment after it. */
     public float lastAttack = -10f;
     private int partHead, textHead, fxHead, nextId = 1;
@@ -122,22 +135,32 @@ public final class Sim {
     private final int[] strikeSlot = new int[64];
     private int strikeN;
 
-    // destructibles: one braziers/candelabra per ~500 x 500 u cell, placed from the cell alone (see destPlace)
-    public static final int MAX_DEST = 32;
+    // destructibles: one per ~500 x 500 u cell, placed from the cell alone (see destPlace). Cinder Flats and Deep Mines
+    // mix explosive barrels (some in clusters, so they chain) and supply chests; Deep Mines adds rare stim pylons.
+    public static final int MAX_DEST = 48;
     /** What a broken destructible drops, with percent weights (sums to 100). */
     static final double[] DEST_WEIGHT = {50, 14, 22, 4, 4, 3, 3};
     static final int[] DEST_DROP = {Entities.K_COIN, Entities.K_COINBAG, Entities.K_ROAST, Entities.K_VACUUM,
             Entities.K_OROLOGION, Entities.K_ROSARY, Entities.K_CLOVER};
-    static final float DEST_CELL = 500f, DEST_R = 16f, DEST_CLEAR = 300f;
-    /** The braziers of the cells around the player that are still standing (swap-remove compacted). */
+    static final float DEST_CELL = 500f, DEST_R = 16f, DEST_CLEAR = 300f, PYLON_CELL = 2000f;
+    /** Destructible kinds: the old brazier / candelabra (drops only), explosive barrel, supply chest, stim pylon. */
+    public static final int DK_LEGACY = 0, DK_BARREL = 1, DK_CHEST = 2, DK_PYLON = 3;
+    /** Barrel blast (design 9.1): radius 80, 5P (50) to every enemy and to the hero if within range; the hero takes 15 (an approximation: 5P on the hero would be half its health). */
+    public static final float BARREL_R = 80f, BARREL_DMG = 50f, BARREL_HERO_DMG = 15f;
+    /** A stim pylon heals 30% of max HP when destroyed; it works again 60 s after its last use. */
+    public static final float PYLON_HEAL = 0.3f, PYLON_COOLDOWN = 60f;
+    /** The destructibles of the cells around the player that are still standing (swap-remove compacted). */
     public final float[] destX = new float[MAX_DEST], destY = new float[MAX_DEST];
+    public final byte[] destKind = new byte[MAX_DEST];
     private final long[] destKey = new long[MAX_DEST];
     public int destN;
     public int destsBroken;
+    public float pylonCd;
     private final long[] broken = new long[512];
     private int brokenN, brokenHead;
     private int destCx = Integer.MIN_VALUE, destCy;
     private float placeX, placeY;
+    private int placeKind;
     /** The stage layout (also what the renderer draws); destructibles keep off its trees, shelves and tables. */
     public final WorldGen map;
 
@@ -156,6 +179,16 @@ public final class Sim {
      * @param heroKey    hero key ("BASTION", ...) or null for the plain VS player without a main weapon
      */
     public Sim(GameData data, StageDef stage, String starterKey, Map<String, Double> meta, String heroKey) {
+        this(data, stage, starterKey, meta, heroKey, null);
+    }
+
+    /** Same, with the random generator seeded before the first spawns (headless runs and soaks are then reproducible). */
+    public Sim(GameData data, StageDef stage, String starterKey, Map<String, Double> meta, String heroKey, long seed) {
+        this(data, stage, starterKey, meta, heroKey, Long.valueOf(seed));
+    }
+
+    private Sim(GameData data, StageDef stage, String starterKey, Map<String, Double> meta, String heroKey, Long seed) {
+        if (seed != null) rng.setSeed(seed);
         this.data = data;
         this.stage = stage;
         this.meta = meta;
@@ -163,6 +196,7 @@ public final class Sim {
         MainWeaponDef mwd = hero == null ? null : data.mainWeapons.get(hero.main);
         this.main = mwd == null ? null : new MainWeapon(this, hero, mwd);
         this.map = WorldGen.of(stage.key);
+        java.util.Arrays.fill(gridHead, -1); // an empty grid until the first buildGrid (tests query before they update)
         for (int i = 0; i < MAX_ENEMIES; i++) enemies[i] = new Enemy();
         for (int i = 0; i < MAX_PROJ; i++) projs[i] = new Projectile();
         for (int i = 0; i < MAX_PICK; i++) picks[i] = new Pickup();
@@ -170,6 +204,8 @@ public final class Sim {
         for (int i = 0; i < MAX_TEXT; i++) texts[i] = new DamageText();
         for (int i = 0; i < MAX_FX; i++) fx[i] = new Effect();
         for (int i = 0; i < MAX_CORPSES; i++) corpses[i] = new Corpse();
+        for (int i = 0; i < MAX_EPROJ; i++) eprojs[i] = new EProj();
+        for (int i = 0; i < MAX_HAZ; i++) hazards[i] = new Hazard();
         for (int i = 0; i < weapons.length; i++) weapons[i] = new WeaponState();
         if (starterKey != null) inv.add(data.weapons.get(starterKey));
         recomputeAll();
@@ -261,12 +297,20 @@ public final class Sim {
         movePlayer(dt);
         refreshDestructibles();
         updateWaves(dt);
+        statusAcc += dt;
+        if (statusAcc >= Status.PASS) { // one pass at 10 Hz: Burn, Frost, Electrify, Decay and the hero's statuses
+            statusAcc -= Status.PASS;
+            if (statusAcc > Status.PASS) statusAcc = 0f; // a long stall does not owe several passes
+            statusPass(Status.PASS);
+        }
         updateEnemies(dt);
         buildGrid();
         separate(dt);
+        ai.updateHazards(dt);
         updateWeapons(dt);
         if (main != null) main.update(dt);
         updateProjectiles(dt);
+        ai.updateProjectiles(dt);
         contactDamage();
         reap();
         condenseT += dt;
@@ -280,6 +324,7 @@ public final class Sim {
         if (invuln > 0) invuln -= dt;
         if (guardT > 0) guardT -= dt;
         if (hitShake > 0) hitShake -= dt;
+        if (pylonCd > 0) pylonCd -= dt;
         if (screenFlash > 0) screenFlash -= dt;
         if (stats.regen > 0 && hp < maxHp) hp = Math.min(maxHp, hp + (float) stats.regen * dt);
         if (time >= stage.timeLimit) ended = 2;
@@ -332,6 +377,7 @@ public final class Sim {
         float mx = mv[0], my = mv[1];
         float len = (float) Math.sqrt(mx * mx + my * my);
         float sp = PLAYER_SPEED_K * (float) stage.playerSpeed * (float) stats.moveSpeedMul;
+        if (heroSlowT > 0) sp *= 1f - Status.HERO_SLOW;
         px += mx * sp * dt;
         py += my * sp * dt;
         if (len > 0.05f) {
@@ -350,15 +396,19 @@ public final class Sim {
 
     // ------------------------------------------------------------------ destructibles
 
-    /** Type of the stage's destructible ("BRAZIER", "CANDELABRA") or "" for none; the renderer picks the sprite from it. */
+    /** Type of the stage's destructible ("BRAZIER", "CANDELABRA", "MIXED_FLATS", "MIXED_MINES") or "" for none. */
     public String destType() {
         return stage.destructible;
     }
 
+    private boolean mixedDest() {
+        return stage.destructible.startsWith("MIXED");
+    }
+
     /**
-     * The destructible of 500 u cell (cx, cy) goes to placeX/placeY; false when the cell has none. A pure function of
-     * the cell (and the stage layout): the same cell always gives the same spot, never within 300 u of the start and
-     * never on a tree, shelf or table.
+     * The destructible of 500 u cell (cx, cy) goes to placeX/placeY (its kind to placeKind); false when the cell has
+     * none. A pure function of the cell (and the stage layout): the same cell always gives the same spot, never within
+     * 300 u of the start and never on a tree, shelf or table.
      */
     boolean destPlace(int cx, int cy) {
         if (stage.destructible.isEmpty() || WorldGen.unit(WorldGen.hash(cx, cy, 699)) >= 0.9f) return false;
@@ -368,6 +418,7 @@ public final class Sim {
             if (x * x + y * y < DEST_CLEAR * DEST_CLEAR || map.blocked(x, y)) continue;
             placeX = x;
             placeY = y;
+            placeKind = !mixedDest() ? DK_LEGACY : WorldGen.unit(WorldGen.hash(cx, cy, 698)) < 0.58f ? DK_BARREL : DK_CHEST;
             return true;
         }
         return false;
@@ -381,6 +432,10 @@ public final class Sim {
         return placeY;
     }
 
+    int destPlaceKind() {
+        return placeKind;
+    }
+
     private static long cellKey(int cx, int cy) {
         return ((long) cx << 32) ^ (cy & 0xFFFFFFFFL);
     }
@@ -390,6 +445,14 @@ public final class Sim {
         return false;
     }
 
+    private void addDest(float x, float y, int kind, long key) {
+        if (destN >= MAX_DEST || isBroken(key)) return;
+        destX[destN] = x;
+        destY[destN] = y;
+        destKind[destN] = (byte) kind;
+        destKey[destN++] = key;
+    }
+
     /** Re-lists the standing destructibles of the 5 x 5 cells around the player when the player enters a new cell. */
     private void refreshDestructibles() {
         int cx = (int) Math.floor(px / DEST_CELL), cy = (int) Math.floor(py / DEST_CELL);
@@ -397,14 +460,36 @@ public final class Sim {
         destCx = cx;
         destCy = cy;
         destN = 0;
+        boolean mixed = mixedDest();
         for (int j = cy - 2; j <= cy + 2; j++) {
             for (int i = cx - 2; i <= cx + 2; i++) {
-                if (destN >= MAX_DEST || !destPlace(i, j)) continue;
-                long key = cellKey(i, j);
-                if (isBroken(key)) continue;
-                destX[destN] = placeX;
-                destY[destN] = placeY;
-                destKey[destN++] = key;
+                if (!destPlace(i, j)) continue;
+                float bx = placeX, by = placeY;
+                int kind = placeKind;
+                addDest(bx, by, kind, cellKey(i, j));
+                if (!mixed || kind != DK_BARREL || WorldGen.unit(WorldGen.hash(i, j, 720)) >= 0.4f) continue;
+                int extra = WorldGen.unit(WorldGen.hash(i, j, 721)) < 0.5f ? 2 : 1; // a cluster: barrels 36-66 u apart chain
+                for (int k = 0; k < extra; k++) {
+                    float a = WorldGen.unit(WorldGen.hash(i, j, 722 + k)) * 6.2831855f;
+                    float d = 36f + 30f * WorldGen.unit(WorldGen.hash(i, j, 730 + k));
+                    float x = bx + (float) Math.cos(a) * d, y = by + (float) Math.sin(a) * d;
+                    if (!map.blocked(x, y)) addDest(x, y, DK_BARREL, cellKey(i, j) ^ ((k + 1) * 0x9E3779B97F4A7C15L));
+                }
+            }
+        }
+        if (!stage.destructible.equals("MIXED_MINES")) return;
+        // stim pylons: rare, one per ~2000 x 2000 u
+        int p0x = (int) Math.floor((cx - 2) * DEST_CELL / PYLON_CELL), p1x = (int) Math.floor((cx + 3) * DEST_CELL / PYLON_CELL);
+        int p0y = (int) Math.floor((cy - 2) * DEST_CELL / PYLON_CELL), p1y = (int) Math.floor((cy + 3) * DEST_CELL / PYLON_CELL);
+        for (int pj = p0y; pj <= p1y; pj++) {
+            for (int pi = p0x; pi <= p1x; pi++) {
+                if (WorldGen.unit(WorldGen.hash(pi, pj, 740)) >= 0.75f) continue;
+                float x = pi * PYLON_CELL + 100f + WorldGen.unit(WorldGen.hash(pi, pj, 741)) * (PYLON_CELL - 200f);
+                float y = pj * PYLON_CELL + 100f + WorldGen.unit(WorldGen.hash(pi, pj, 742)) * (PYLON_CELL - 200f);
+                int ccx = (int) Math.floor(x / DEST_CELL), ccy = (int) Math.floor(y / DEST_CELL);
+                if (ccx < cx - 2 || ccx > cx + 2 || ccy < cy - 2 || ccy > cy + 2) continue;
+                if (x * x + y * y < DEST_CLEAR * DEST_CLEAR || map.blocked(x, y)) continue;
+                addDest(x, y, DK_PYLON, cellKey(pi, pj) ^ 0x7000000000000000L);
             }
         }
     }
@@ -412,6 +497,7 @@ public final class Sim {
     /** Breaks every destructible whose body touches the circle (x, y, r). */
     void hitDest(float x, float y, float r) {
         for (int i = destN - 1; i >= 0; i--) {
+            if (i >= destN) continue; // a barrel chain removed several
             float dx = destX[i] - x, dy = destY[i] - y, rr = r + DEST_R;
             if (dx * dx + dy * dy < rr * rr) breakDest(i);
         }
@@ -420,8 +506,18 @@ public final class Sim {
     /** Same for a box centred on (cx, cy), w x h (the whip). */
     private void hitDestBox(float cx, float cy, float w, float h) {
         for (int i = destN - 1; i >= 0; i--) {
+            if (i >= destN) continue;
             if (Math.abs(destX[i] - cx) < w / 2f + DEST_R && Math.abs(destY[i] - cy) < h / 2f + DEST_R) breakDest(i);
         }
+    }
+
+    /** True when a destructible touches the circle (x, y, r): a dashing welder runs into it. */
+    boolean destTouches(float x, float y, float r) {
+        for (int i = 0; i < destN; i++) {
+            float dx = destX[i] - x, dy = destY[i] - y, rr = r + DEST_R;
+            if (dx * dx + dy * dy < rr * rr) return true;
+        }
+        return false;
     }
 
     private void breakDest(int i) {
@@ -429,17 +525,108 @@ public final class Sim {
         brokenHead = (brokenHead + 1) % broken.length;
         brokenN = Math.min(broken.length, brokenN + 1);
         float x = destX[i], y = destY[i];
+        int kind = destKind[i];
         destN--;
         destX[i] = destX[destN];
         destY[i] = destY[destN];
         destKey[i] = destKey[destN];
+        destKind[i] = destKind[destN];
         destsBroken++;
-        sound.emit(SoundEvents.BRAZIER_BREAK);
-        addFx(Entities.FX_FLASH, x, y - 10f, 150f, 0f, 0.3f, 0, false);
-        spark(x, y - 10f, 0xFFFFA030, 9);
-        spark(x, y, 0xFF8A8070, 7);
-        // mostly gold, sometimes a roast, rarely one of the power pickups
-        dropFromDest(x, y);
+        switch (kind) {
+            case DK_BARREL:
+                explodeBarrel(x, y);
+                break;
+            case DK_CHEST:
+                sound.emit(SoundEvents.CRATE_BREAK);
+                addFx(Entities.FX_FLASH, x, y - 6f, 70f, 0f, 0.2f, 0, false);
+                spark(x, y - 8f, 0xFFB08850, 10);
+                spark(x, y, 0xFF8A8070, 5);
+                dropFromChest(x, y);
+                break;
+            case DK_PYLON:
+                usePylon(x, y);
+                break;
+            default: // the old brazier / candelabra
+                sound.emit(SoundEvents.BRAZIER_BREAK);
+                addFx(Entities.FX_FLASH, x, y - 10f, 150f, 0f, 0.3f, 0, false);
+                spark(x, y - 10f, 0xFFFFA030, 9);
+                spark(x, y, 0xFF8A8070, 7);
+                // mostly gold, sometimes a roast, rarely one of the power pickups
+                dropFromDest(x, y);
+        }
+    }
+
+    // barrel chain: a barrel that blows up inside another one's radius is queued and handled in order (no recursion)
+    private final float[] chainX = new float[MAX_DEST + 4], chainY = new float[MAX_DEST + 4];
+    private int chainN;
+    private boolean inChain;
+
+    /**
+     * An explosive barrel goes off at (x, y): BARREL_DMG to every enemy within BARREL_R, BARREL_HERO_DMG to the hero if
+     * within range (not while invulnerable, e.g. dodging), and every other destructible in range is broken too, so a
+     * barrel next to a barrel chains.
+     */
+    void explodeBarrel(float x, float y) {
+        if (chainN < chainX.length) {
+            chainX[chainN] = x;
+            chainY[chainN++] = y;
+        }
+        if (inChain) return;
+        inChain = true;
+        for (int q = 0; q < chainN; q++) {
+            float bx = chainX[q], by = chainY[q];
+            sound.emit(SoundEvents.BARREL_EXPLODE);
+            addFx(Entities.FX_FLASH, bx, by - 10f, 170f, 0f, 0.35f, 0, false);
+            addFx(Entities.FX_BLAST, bx, by, BARREL_R * 0.55f, 1f, 0.3f, 0, false);
+            spark(bx, by - 10f, 0xFFFFA030, 14);
+            spark(bx, by, 0xFF3A3028, 8);
+            screenShake(0.12f);
+            int n = query(bx, by, BARREL_R + 40f);
+            for (int k = 0; k < n; k++) {
+                Enemy e = enemies[qbuf[k]];
+                if (e.dead) continue;
+                float dx = e.x - bx, dy = e.y - by, rr = BARREL_R + e.radius * 0.5f;
+                float d2 = dx * dx + dy * dy;
+                if (d2 >= rr * rr) continue;
+                float d = (float) Math.sqrt(d2) + 0.01f;
+                hurt(e, BARREL_DMG, 0, 1, dx / d, dy / d, 1.2f);
+            }
+            float hx = px - bx, hy = py - by;
+            if (hx * hx + hy * hy < BARREL_R * BARREL_R && invuln <= 0f) {
+                hurtHero(Math.max(1f, BARREL_HERO_DMG - (float) stats.armor), 0.5f, true, DMG_BLAST);
+            }
+            hitDest(bx, by, BARREL_R - DEST_R); // other barrels, chests and pylons inside the blast break too (and chain)
+        }
+        chainN = 0;
+        inChain = false;
+    }
+
+    void screenShake(float t) {
+        hitShake = Math.max(hitShake, t);
+    }
+
+    /** A supply chest: gold (a bag, 60%) or a small pile of gems (never equipment). */
+    void dropFromChest(float x, float y) {
+        if (rng.nextFloat() < 0.6f) {
+            addPickup(Entities.K_COINBAG, x, y, 10);
+            addPickup(Entities.K_COIN, x + 10, y + 6, 1);
+            return;
+        }
+        float v = 2f + (float) (time / 60.0) * 0.4f;
+        for (int i = 0; i < 5; i++) {
+            float a = i * 1.2566371f;
+            addPickup(Entities.K_GEM, x + (float) Math.cos(a) * 14f, y + (float) Math.sin(a) * 10f, v);
+        }
+    }
+
+    /** A stim pylon is broken: heals 30% of max HP unless it was used less than a minute ago. */
+    private void usePylon(float x, float y) {
+        sound.emit(SoundEvents.PYLON_USE);
+        addFx(Entities.FX_FLASH, x, y - 20f, 120f, 0f, 0.3f, 0, false);
+        spark(x, y - 20f, 0xFF50FFC0, 14);
+        if (pylonCd > 0f) return;
+        pylonCd = PYLON_COOLDOWN;
+        heal(maxHp * PYLON_HEAL);
     }
 
     /** One pickup at (x, y): mostly gold, sometimes a roast, rarely Vacuum / Orologion / Rosary / Clover. */
@@ -455,7 +642,7 @@ public final class Sim {
 
     // ------------------------------------------------------------------ waves & enemies
 
-    private EnemyType type(String key) {
+    EnemyType type(String key) {
         EnemyType t = types.get(key);
         if (t == null) {
             if (!data.enemies.containsKey(key)) return null;
@@ -480,6 +667,32 @@ public final class Sim {
         noSpawns = true;
     }
 
+    /** Tests and screenshot tools (other packages): an enemy of the given type at an exact position, or null for an unknown key. */
+    public Enemy spawnAt(String typeKey, float x, float y, boolean boss) {
+        if (type(typeKey) == null || enemyN >= MAX_ENEMIES) return null;
+        return addEnemy(typeKey, x, y, boss);
+    }
+
+    /** Tests and screenshot tools: a hostile bolt (null when the 40-bolt pool is full). */
+    public EProj shootForTest(float x, float y, float vx, float vy, float dmg, float life) {
+        return ai.shoot(x, y, vx, vy, dmg, life);
+    }
+
+    /** Tests and screenshot tools: a ground hazard (Entities.HZ_*), {@code warn} seconds of warning first. */
+    public Hazard hazardForTest(int kind, float x, float y, float r, float life, float dps, float warn) {
+        return ai.addHazard(kind, x, y, r, life, dps, warn);
+    }
+
+    /** Tests and screenshot tools: breaks the destructibles touching a circle, as a weapon hit does. */
+    public void hitDestForTest(float x, float y, float r) {
+        hitDest(x, y, r);
+    }
+
+    /** Tests and screenshot tools: rebuilds the enemy grid (the Sim does it every step). */
+    public void rebuildGridForTest() {
+        buildGrid();
+    }
+
     /** Tests: adds one enemy of the given type at an exact position (stationary until its speed is set). */
     Enemy addEnemy(String typeKey, float x, float y, boolean boss) {
         Enemy e = enemies[enemyN++];
@@ -487,6 +700,41 @@ public final class Sim {
         e.x = x;
         e.y = y;
         return e;
+    }
+
+    /** Ash storms on Cinder Flats at 12:00 and 22:00 (design 9.1): 20 s long; light radius -40%, spawns +20%. */
+    public static final float STORM_LEN = 20f, STORM_FADE = 1.5f, STORM_LIGHT = 0.4f, STORM_SPAWNS = 0.2f;
+    static final float[] STORM_AT = {720f, 1320f};
+
+    /** 0..1: how strongly the ash storm blows now (ramps in and out over {@link #STORM_FADE}); 0 outside the storms and on Deep Mines. */
+    public float stormLevel() {
+        if (!stage.key.equals("FLATS")) return 0f;
+        for (float at : STORM_AT) {
+            float t = (float) time - at;
+            if (t < 0f || t > STORM_LEN) continue;
+            return Math.min(1f, Math.min(t, STORM_LEN - t) / STORM_FADE);
+        }
+        return 0f;
+    }
+
+    /** Seconds since the current ash storm began, or -1 outside the storms (the banner shows for the first seconds). */
+    public float stormElapsed() {
+        if (!stage.key.equals("FLATS")) return -1f;
+        for (float at : STORM_AT) {
+            float t = (float) time - at;
+            if (t >= 0f && t <= STORM_LEN) return t;
+        }
+        return -1f;
+    }
+
+    /** True while a storm blows (any strength). */
+    public boolean ashStorm() {
+        return stormLevel() > 0f;
+    }
+
+    /** Multiplier on the light radius: 1, or 0.6 at the height of an ash storm. */
+    public float lightRadiusMul() {
+        return 1f - STORM_LIGHT * stormLevel();
     }
 
     private void updateWaves(float dt) {
@@ -500,7 +748,7 @@ public final class Sim {
                 spawnAtRing(type(b), true, HALF_W + 100f);
             }
         }
-        spawnTimer += dt * 1000f;
+        spawnTimer += dt * 1000f * (ashStorm() ? 1f + STORM_SPAWNS : 1f);
         if (spawnTimer >= row.frequencyMs) {
             spawnTimer = 0;
             // Vampire Survivors: each tick one of EACH enemy type of the row, then top the field up to `minimum`
@@ -513,9 +761,25 @@ public final class Sim {
         }
     }
 
-    /** Spawn on a ring just outside the view (or left/right edges for horizontal stages); false if nothing spawned. */
-    private void spawnAtRing(EnemyType t, boolean boss, float dist) {
+    /** Ranged enemies alive (the cap of {@link #RANGED_CAP} keeps the enemy projectile budget). */
+    int rangedAlive() {
+        int n = 0;
+        for (int i = 0; i < enemyN; i++) if (enemies[i].type.ranged && !enemies[i].dead) n++;
+        return n;
+    }
+
+    /**
+     * Spawn on a ring just outside the view (or left/right edges for horizontal stages). Waves obey the 300 cap
+     * ({@link WaveDirector#ENEMY_CAP}); a ranged enemy beyond {@link #RANGED_CAP} alive spawns as a colonist; a spore
+     * hound comes with its pack (group size from the data, trimmed to the cap).
+     */
+    void spawnAtRing(EnemyType t, boolean boss, float dist) {
         if (t == null || enemyN >= MAX_ENEMIES) return;
+        if (!boss && enemyN >= WaveDirector.ENEMY_CAP) return;
+        if (!boss && t.ranged && rangedAlive() >= RANGED_CAP) {
+            EnemyType c = type("COLONIST");
+            if (c != null) t = c;
+        }
         Enemy e = enemies[enemyN++];
         place(e);
         if (dist > 0) {
@@ -525,6 +789,26 @@ public final class Sim {
         }
         initEnemy(e, t, boss);
         if (boss) sound.emit(SoundEvents.BOSS_SPAWN); // only once the boss really exists
+        if (t.arch == EnemyDef.ARCH_PACK && !boss) {
+            int group = Math.round(t.def.param("group", 4f));
+            for (int k = 1; k < group && enemyN < WaveDirector.ENEMY_CAP; k++) {
+                Enemy f = enemies[enemyN++];
+                f.x = e.x + (rng.nextFloat() - 0.5f) * 44f;
+                f.y = e.y + (rng.nextFloat() - 0.5f) * 44f;
+                initEnemy(f, t, false);
+            }
+        }
+    }
+
+    /** A summoned enemy near (x, y) (Vire raises colonists); false when the pool is full. */
+    boolean spawnMinion(String key, float x, float y) {
+        EnemyType t = type(key);
+        if (t == null || enemyN >= MAX_ENEMIES - 4) return false;
+        Enemy e = enemies[enemyN++];
+        e.x = x;
+        e.y = y;
+        initEnemy(e, t, false);
+        return true;
     }
 
     private void place(Enemy e) {
@@ -541,9 +825,19 @@ public final class Sim {
         }
     }
 
+    /**
+     * Ashfall bosses carry their final HP in the data (Z units, design 4.1), but the first one comes at 5:00 to a build
+     * of level 10: their HP ramps from 20% (at 0:00) to 100% at minute {@code rampMinutes} (data "hpRamp", 0 = no ramp).
+     */
+    static double bossHpRamp(float rampMinutes, double seconds) {
+        if (rampMinutes <= 0f) return 1.0;
+        return Math.min(1.0, 0.2 + 0.8 * (seconds / 60.0) / rampMinutes);
+    }
+
     private void initEnemy(Enemy e, EnemyType t, boolean boss) {
         e.type = t;
         e.boss = boss;
+        e.elite = false;
         e.dead = false;
         e.id = nextId++;
         e.kvx = e.kvy = 0;
@@ -556,13 +850,17 @@ public final class Sim {
         e.clearTicks();
         e.clearHits();
         e.clearStatus();
+        e.clearAi();
+        // Ashfall bosses carry their final HP in the data; the Vampire Survivors ones get the old x3
         double hp = t.def.maxHp * 10.0 * (t.def.hpTimesLevel ? t.def.level : 1) * stage.enemyHealth
-                * (1 + stats.curse) * (boss ? 3.0 : 1.0);
+                * (1 + stats.curse) * (boss && !t.def.ashfallBoss ? 3.0 : 1.0);
+        if (boss && t.def.ashfallBoss) hp *= bossHpRamp(t.def.param("hpRamp", 0f), time);
         e.hp = e.maxHp = (float) Math.max(1, hp);
         e.speed = (float) (t.def.speed * ENEMY_SPEED_K * stage.enemySpeed * (1 + stats.curse * 0.5));
         e.power = (float) t.def.power;
         e.radius = t.radius * (boss ? 1.8f : 1f);
         e.xp = (float) t.def.xp;
+        if (t.arch != EnemyDef.ARCH_CHASER) ai.init(e);
     }
 
     private void updateEnemies(float dt) {
@@ -572,24 +870,30 @@ public final class Sim {
             Enemy e = enemies[i];
             e.anim += dt;
             if (e.flash > 0) e.flash -= dt;
-            if (e.burn > 0 || e.decay > 0) statusTick(e, dt);
             float dx = px - e.x, dy = py - e.y;
             float d2 = dx * dx + dy * dy;
             if (d2 > RECYCLE_DIST * RECYCLE_DIST) { // far behind the player: recycle to the opposite edge
                 recycle(e, dx, dy, (float) Math.sqrt(d2));
                 continue;
             }
-            boolean held = e.stun > 0 || e.root > 0;
+            boolean stunned = e.stun > 0;
+            boolean held = stunned || e.root > 0;
             if (e.stun > 0) e.stun -= dt;
             if (e.root > 0) e.root -= dt;
+            boolean moving = false;
             if (e.stagger > 0) e.stagger -= dt;
-            else if (!frozen && !held) {
-                float d = (float) Math.sqrt(d2);
-                if (d > 1f) {
-                    float sp = e.blocked ? e.speed * BLOCKED_SPEED : e.speed;
-                    e.x += dx / d * sp * dt;
-                    e.y += dy / d * sp * dt;
+            else moving = !frozen && !held;
+            if (e.type.arch == EnemyDef.ARCH_CHASER) {
+                if (moving) {
+                    float d = (float) Math.sqrt(d2);
+                    if (d > 1f) {
+                        float sp = (e.blocked ? e.speed * BLOCKED_SPEED : e.speed) * e.slow;
+                        e.x += dx / d * sp * dt;
+                        e.y += dy / d * sp * dt;
+                    }
                 }
+            } else if (!frozen && !stunned) {
+                ai.update(e, dt, moving, dx, dy, d2);
             }
             e.x += e.kvx * dt;
             e.y += e.kvy * dt;
@@ -598,47 +902,167 @@ public final class Sim {
         }
     }
 
-    /** Burn and Decay placeholders (continuous damage per stack; the status phase replaces this with the 10 Hz pass). */
-    private void statusTick(Enemy e, float dt) {
-        if (e.dead) return;
-        if (e.burn > 0) {
-            e.hp -= e.burn * e.burnPer * dt;
-            if ((e.burnT -= dt) <= 0) {
-                e.burn = 0;
-                e.burnPer = 0;
+    // ------------------------------------------------------------------ statuses (design section 7)
+
+    /** Status damage numbers per pass, so 300 burning enemies cannot flood the 80-slot text ring. */
+    private static final int MAX_STATUS_TEXTS = 10;
+    private int statusPuffs;
+
+    /**
+     * The one status pass, every {@link Status#PASS} s: Burn ticks, Frost and Decay timers, Electrify ticks, the hero's
+     * statuses. Touches only fields of the enemies and the preallocated pools: no allocation.
+     */
+    private void statusPass(float dt) {
+        statusTexts = 0;
+        statusPuffs = 0;
+        for (int i = 0; i < enemyN; i++) {
+            Enemy e = enemies[i];
+            if (e.dead) continue;
+            if (e.freezeT > 0) e.freezeT -= dt;
+            if ((e.burn | e.frost | e.elec | e.decay) == 0) continue;
+            boolean near = Math.abs(e.x - px) < HALF_W + 40f && Math.abs(e.y - py) < HALF_H + 40f;
+            if (e.burn > 0) {
+                e.burnAcc += dt;
+                while (e.burnAcc >= Status.BURN_TICK) {
+                    e.burnAcc -= Status.BURN_TICK;
+                    statusDamage(e, Status.burnTick(e.burn, e.burnHit), Status.C_BURN, near);
+                    if (near) sound.emit(SoundEvents.BURN_TICK);
+                }
+                if ((e.burnT -= dt) <= 0f) {
+                    e.burn = 0;
+                    e.burnHit = e.burnAcc = 0f;
+                }
+                if (near && e.burn > 0) puff(e, 0xFFFF8A30, -46f, 0.55f);
+            }
+            if (e.frost > 0 && (e.frostT -= dt) <= 0f) {
+                e.frost = 0;
+                e.slow = 1f;
+            }
+            if (e.elec > 0 && !e.dead) {
+                e.elecT += dt;
+                float iv = Status.electrifyInterval(e.elec);
+                if (e.elecT >= iv) {
+                    e.elecT -= iv;
+                    float dmg = Status.electrifyTick(e.elec, e.elecHit);
+                    if (--e.elec <= 0) {
+                        e.elec = 0;
+                        e.elecHit = e.elecT = 0f;
+                    }
+                    statusDamage(e, dmg, Status.C_ELEC, near);
+                    if (near) {
+                        sound.emit(SoundEvents.ELECTRIFY_ZAP);
+                        puff(e, 0xFFFFF070, 0f, 1f);
+                    }
+                }
+            }
+            if (e.decay > 0 && !e.dead) {
+                statusDamage(e, Status.decayPerSecond(e.decay, e.decayHit) * dt, Status.C_DECAY, near);
+                if ((e.decayT -= dt) <= 0f) {
+                    e.decay = 0;
+                    e.decayHit = 0f;
+                    e.dmgMul = 1f;
+                } else if (near) {
+                    puff(e, 0xFF7CE04A, 38f, 0.45f);
+                }
             }
         }
-        if (e.decay > 0) {
-            e.hp -= e.decay * e.decayPer * dt;
-            if ((e.decayT -= dt) <= 0) {
-                e.decay = 0;
-                e.decayPer = 0;
-            }
+        // the hero's statuses from enemy hazards: fixed values, no stacking, damage ignores armor
+        float dot = 0f;
+        if (heroBurnT > 0f) {
+            heroBurnT -= dt;
+            dot += Status.HERO_BURN_DPS * dt;
+        }
+        if (heroDecayT > 0f) {
+            heroDecayT -= dt;
+            dot += Status.HERO_DECAY_DPS * dt;
+        }
+        if (heroSlowT > 0f) heroSlowT -= dt;
+        if (dot > 0f && ended == 0) {
+            hp -= dot;
+            dmgBy[DMG_AREA] += dot;
+            if (hp <= 0f) checkHeroDeath();
+        }
+    }
+
+    /** Status damage: no flash and no hit sound; the number is coloured and merged per enemy. Kills when it empties the enemy. */
+    void statusDamage(Enemy e, float amount, int color, boolean show) {
+        if (e.dead || amount <= 0f) return;
+        e.hp -= amount;
+        e.dotAcc += amount;
+        if (e.dotAcc >= 1f && show && statusTexts < MAX_STATUS_TEXTS) {
+            int whole = (int) e.dotAcc;
+            e.dotAcc -= whole;
+            statusTexts++;
+            addStatusText(e, whole, color);
         }
         if (e.hp <= 0) killNow(e);
     }
 
+    /** A few coloured motes per pass (embers rise, drips fall); the budget keeps the particle ring for the weapons. */
+    private void puff(Enemy e, int color, float vy, float chance) {
+        if (statusPuffs >= 8 || rng.nextFloat() > chance) return;
+        statusPuffs++;
+        Particle q = parts[partHead];
+        partHead = (partHead + 1) % MAX_PART;
+        q.x = e.x + (rng.nextFloat() - 0.5f) * e.radius;
+        q.y = e.y - e.radius * (0.4f + rng.nextFloat() * 0.8f);
+        q.vx = (rng.nextFloat() - 0.5f) * 30f;
+        q.vy = vy == 0f ? (rng.nextFloat() - 0.5f) * 60f : vy;
+        q.life = q.maxLife = 0.35f + rng.nextFloat() * 0.25f;
+        q.size = 3f + rng.nextFloat() * 2.5f;
+        q.color = color;
+    }
+
     /**
-     * Adds {@code n} Burn or Decay stacks (caps 8 and 10), refreshing the timer. {@code hit} is the damage of the hit
-     * that applied it: one Burn stack deals 0.08 x hit per 0.33 s, one Decay stack 0.06 x hit per second (design 7).
-     * TODO(status phase): replace the continuous damage by the 10 Hz status pass, with numbers and tints.
+     * Adds {@code n} stacks of a status (Entities.ST_*) to an enemy, up to the cap of the status, and refreshes its
+     * timer. {@code hit} is the damage of the hit that applied it: the ticks are a fraction of it (the strongest hit
+     * counts). {@code seconds} is ignored: durations are the status's own (see {@link Status}). Frost at its cap
+     * freezes the enemy for {@link Status#FREEZE_TIME} and the stacks start again.
      */
-    void applyStatus(Enemy e, int kind, int n, float hit, float seconds) {
+    public void applyStatus(Enemy e, int kind, int n, float hit, float seconds) {
         if (e.dead) return;
-        if (kind == Entities.ST_BURN) {
-            e.burn = Math.min(8, e.burn + n);
-            e.burnT = Math.max(e.burnT, seconds);
-            e.burnPer = Math.max(e.burnPer, hit * 0.08f / 0.33f);
-        } else if (kind == Entities.ST_DECAY) {
-            e.decay = Math.min(10, e.decay + n);
-            e.decayT = Math.max(e.decayT, seconds);
-            e.decayPer = Math.max(e.decayPer, hit * 0.06f);
+        switch (kind) {
+            case Entities.ST_BURN:
+                e.burn = (byte) Math.min(Status.BURN_CAP, e.burn + n);
+                e.burnT = Status.BURN_TIME;
+                e.burnHit = Math.max(e.burnHit, hit);
+                break;
+            case Entities.ST_FROST:
+                e.frost = (byte) Math.min(Status.FROST_CAP, e.frost + n);
+                e.frostT = Status.FROST_TIME;
+                if (e.frost >= Status.FROST_CAP) {
+                    e.frost = 0;
+                    e.slow = 1f;
+                    float t = Status.stunFor(Status.FREEZE_TIME, e.boss, e.elite);
+                    e.freezeT = t;
+                    e.stun = Math.max(e.stun, t);
+                    sound.emit(SoundEvents.FROST_HIT);
+                    spark(e.x, e.y - e.radius, 0xFF9FF0FF, 8);
+                } else {
+                    e.slow = Status.slowFactor(e.frost);
+                    if (n > 0 && e.frost == 1) sound.emit(SoundEvents.FROST_HIT);
+                }
+                break;
+            case Entities.ST_ELECTRIFY:
+                e.elec = (byte) Math.min(Status.ELEC_CAP, e.elec + n);
+                e.elecHit = Math.max(e.elecHit, hit);
+                break;
+            case Entities.ST_DECAY:
+                if (n > 0 && e.decay == 0) sound.emit(SoundEvents.DECAY_HISS);
+                e.decay = (byte) Math.min(Status.DECAY_CAP, e.decay + n);
+                e.decayT = Status.DECAY_TIME;
+                e.decayHit = Math.max(e.decayHit, hit);
+                e.dmgMul = Status.decayDamageMul(e.decay);
+                break;
+            default:
         }
     }
 
-    /** Stun (cannot move or attack); bosses take 25% of the duration. */
-    void stun(Enemy e, float seconds) {
-        e.stun = Math.max(e.stun, e.boss ? seconds * 0.25f : seconds);
+    /** Stun (cannot move or attack); bosses take 25% of the duration, elites 50%. */
+    public void stun(Enemy e, float seconds) {
+        float t = Status.stunFor(seconds, e.boss, e.elite);
+        if (t > 0.05f && e.stun <= 0f && seconds >= 0.3f) sound.emit(SoundEvents.STUN_HIT);
+        e.stun = Math.max(e.stun, t);
     }
 
     /** Root (cannot move); bosses take 25% of the duration. */
@@ -646,7 +1070,7 @@ public final class Sim {
         e.root = Math.max(e.root, e.boss ? seconds * 0.25f : seconds);
     }
 
-    /** Damage without a flash, number or sound (links, status ticks); kills when it empties the enemy. */
+    /** Damage without a flash, number or sound (links); kills when it empties the enemy. */
     void dot(Enemy e, float amount) {
         if (e.dead) return;
         e.hp -= amount;
@@ -664,7 +1088,7 @@ public final class Sim {
         e.stagger = 0;
     }
 
-    private void buildGrid() {
+    void buildGrid() {
         java.util.Arrays.fill(gridHead, -1);
         for (int i = 0; i < enemyN; i++) {
             Enemy e = enemies[i];
@@ -759,30 +1183,52 @@ public final class Sim {
             Enemy e = enemies[i];
             if (e.dead || e.stun > 0) continue; // a stunned enemy cannot attack
             float dx = e.x - px, dy = e.y - py, rr = e.radius * 0.8f + PLAYER_R * 0.8f;
-            if (dx * dx + dy * dy < rr * rr) best = Math.max(best, e.power);
+            if (dx * dx + dy * dy < rr * rr) best = Math.max(best, e.power * e.dmgMul); // Decay lowers what it deals
         }
         if (best <= 0) return;
         float taken = Math.max(1f, best - (float) stats.armor);
         if (guardT > 0) taken = Math.max(1f, taken * (1f - guardDR)); // Riot Guard
+        hurtHero(taken, 0.5f, true);
+    }
+
+    /**
+     * The hero takes {@code taken} damage (armor and guard already applied by the caller): hurt sound, invulnerability
+     * for {@code inv} seconds, shake; a revival or the end of the run when it empties the health.
+     */
+    void hurtHero(float taken, float inv, boolean shake) {
+        hurtHero(taken, inv, shake, DMG_CONTACT);
+    }
+
+    /** Hero damage taken this run by source (DMG_*): contact, enemy bolts, areas and statuses, barrel blasts. For balance runs and the result screen. */
+    public static final int DMG_CONTACT = 0, DMG_BOLT = 1, DMG_AREA = 2, DMG_BLAST = 3;
+    public final float[] dmgBy = new float[4];
+
+    void hurtHero(float taken, float inv, boolean shake, int source) {
+        dmgBy[source] += taken;
         hp -= taken;
         sound.emit(SoundEvents.PLAYER_HURT);
-        invuln = 0.5f;
-        hitShake = 0.15f;
-        if (hp <= 0) {
-            if (revivalsUsed < stats.revivals) {
-                revivalsUsed++;
-                hp = maxHp * 0.5f;
-                invuln = 2f;
-                screenFlash = 0.4f;
-                for (int i = 0; i < enemyN; i++) {
-                    Enemy e = enemies[i];
-                    float dx = e.x - px, dy = e.y - py;
-                    if (dx * dx + dy * dy < 300f * 300f && !e.boss) killNow(e);
-                }
-            } else {
-                hp = 0;
-                ended = 1;
+        invuln = Math.max(invuln, inv);
+        if (shake) hitShake = 0.15f;
+        if (hp <= 0) checkHeroDeath();
+    }
+
+    /** Called when hp <= 0: spends a revival (and clears the screen around the hero) or ends the run. */
+    void checkHeroDeath() {
+        if (hp > 0f || ended != 0) return;
+        if (revivalsUsed < stats.revivals) {
+            revivalsUsed++;
+            hp = maxHp * 0.5f;
+            invuln = 2f;
+            screenFlash = 0.4f;
+            heroBurnT = heroDecayT = heroSlowT = 0f;
+            for (int i = 0; i < enemyN; i++) {
+                Enemy e = enemies[i];
+                float dx = e.x - px, dy = e.y - py;
+                if (dx * dx + dy * dy < 300f * 300f && !e.boss) killNow(e);
             }
+        } else {
+            hp = 0;
+            ended = 1;
         }
     }
 
@@ -814,7 +1260,7 @@ public final class Sim {
         else sound.emit(SoundEvents.ENEMY_HIT);
     }
 
-    private void killNow(Enemy e) {
+    void killNow(Enemy e) {
         if (e.dead) return;
         e.dead = true;
         e.hp = 0;
@@ -826,6 +1272,7 @@ public final class Sim {
             if (!e.dead) continue;
             kills++;
             sound.emit(SoundEvents.ENEMY_DEATH);
+            if (e.type.arch == EnemyDef.ARCH_EXPLODER) ai.carrierBurst(e); // a spore carrier bursts when it dies
             spark(e.x, e.y, e.type.gore, e.boss ? 24 : 7);
             addCorpse(e);
             drops(e);
@@ -1547,6 +1994,7 @@ public final class Sim {
                 softHit = true;
                 hurt(e, w.dmg, w.critChance, w.critMul, 0, 0, 0);
                 softHit = false;
+                applyStatus(e, Entities.ST_ELECTRIFY, w.evo ? 2 : 1, w.dmg, 0f); // Arc Coil: Electrify
             }
         }
     }
@@ -1569,6 +2017,7 @@ public final class Sim {
             if (d2 < rr * rr) {
                 float d = (float) Math.sqrt(d2) + 0.01f;
                 hurt(e, w.dmg, 0, 1, dx / d, dy / d, Math.max(0.15f, w.knock));
+                applyStatus(e, Entities.ST_DECAY, w.evo ? 2 : 1, w.dmg, 0f); // Toxic Vent: Decay
                 e.kbMul = Math.min(3f, e.kbMul + 0.1f); // every tick lowers its knockback resistance
                 hits++;
             }
@@ -1692,6 +2141,11 @@ public final class Sim {
                     e.markHit(p.stamp);
                 }
                 hurt(e, p.dmg, p.critChance, p.critMul, dx / d, dy / d, p.knock);
+                if (p.kind == Entities.P_FIRE) applyStatus(e, Entities.ST_BURN, p.evo ? 2 : 1, p.dmg, 0f); // Slag Cannon / Furnace Burst
+                else if (p.kind == Entities.P_PUDDLE) { // Corrosive Flask: Decay, and a one-stack slow
+                    applyStatus(e, Entities.ST_DECAY, 1, p.dmg, 0f);
+                    applyStatus(e, Entities.ST_FROST, e.frost < 1 ? 1 : 0, p.dmg, 0f);
+                }
                 if (main != null && (p.kind == Entities.P_MAIN || p.sub != Entities.SUB_NONE)) main.onHit(p, e);
                 if (p.kind == Entities.P_FIRE || p.kind == Entities.P_AXE) { // a small burst where it hits
                     addFx(Entities.FX_BLAST, e.x, e.y, p.kind == Entities.P_FIRE ? 34f : 24f, p.kind == Entities.P_FIRE ? 1f : 0f, 0.28f, 0, p.evo);
@@ -1766,6 +2220,23 @@ public final class Sim {
         t.owner = e.id;
     }
 
+    /** Small coloured number for a status tick: further ticks of the same colour add into it while it is alive. */
+    private void addStatusText(Enemy e, int value, int color) {
+        int slot = e.statusTextSlot;
+        if (slot >= 0) {
+            DamageText t = texts[slot];
+            if (t.owner == e.id && t.life > 0f && t.color == color) {
+                t.total = Math.min(9999999, t.total + Math.max(0, value));
+                setDigits(t, t.total);
+                return;
+            }
+        }
+        e.statusTextSlot = textHead;
+        DamageText t = addText(e.x + 6f, e.y - e.radius - 6f, value, false, false);
+        t.owner = e.id;
+        t.color = color;
+    }
+
     private DamageText addText(float x, float y, int value, boolean crit, boolean heal) {
         DamageText t = texts[textHead];
         textHead = (textHead + 1) % MAX_TEXT;
@@ -1775,6 +2246,7 @@ public final class Sim {
         t.crit = crit;
         t.heal = heal;
         t.owner = 0;
+        t.color = 0;
         t.total = Math.max(0, Math.min(9999999, value));
         setDigits(t, t.total);
         return t;

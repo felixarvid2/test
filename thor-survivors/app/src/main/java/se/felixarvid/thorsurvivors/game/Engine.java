@@ -67,7 +67,8 @@ public final class Engine {
         if (data != null) return;
         data = d;
         meta = m;
-        stageKeys.addAll(d.stages.keySet());
+        for (String k : GameData.STAGE_ORDER) if (d.stages.containsKey(k)) stageKeys.add(k);
+        if (stageKeys.isEmpty()) stageKeys.addAll(d.stages.keySet()); // data without the Ashfall stages (tests of the base data)
         starters = d.starterWeapons();
         shopKeys.addAll(d.powerUps.keySet());
     }
@@ -76,8 +77,22 @@ public final class Engine {
         return data != null;
     }
 
+    /** Debug / test hook: a stage that is not in the menu (the Vampire Survivors FOREST and LIBRARY), until the menu changes the stage. */
+    public volatile String stageOverride;
+
     public StageDef stage() {
-        return data.stages.get(stageKeys.get(stageIdx));
+        String o = stageOverride;
+        return data.stages.get(o != null ? o : stageKeys.get(stageIdx));
+    }
+
+    /**
+     * Picks the stage of the next run. The menu stages (Cinder Flats, Deep Mines) set the menu row; any other key of
+     * the data (FOREST, LIBRARY) is only reachable through here, for tests and balance runs.
+     */
+    public void selectStage(String key) {
+        int i = stageKeys.indexOf(key);
+        stageOverride = i >= 0 ? null : (data.stages.containsKey(key) ? key : null);
+        if (i >= 0) stageIdx = i;
     }
 
     public boolean gameActive() {
@@ -246,7 +261,10 @@ public final class Engine {
     /** Step a menu row's value; true if it changed (a one-entry list or a clamped setting does not). */
     private boolean cycle(int item, int delta) {
         int before = cycleValue(item);
-        if (item == MENU_STAGE) stageIdx = (stageIdx + delta + stageKeys.size()) % stageKeys.size();
+        if (item == MENU_STAGE) {
+            stageOverride = null;
+            stageIdx = (stageIdx + delta + stageKeys.size()) % stageKeys.size();
+        }
         else if (item == MENU_HERO) meta.stepHero(delta);
         else if (item == MENU_MUSIC) meta.stepMusic(delta);
         else if (item == MENU_SFX) meta.stepSfx(delta);

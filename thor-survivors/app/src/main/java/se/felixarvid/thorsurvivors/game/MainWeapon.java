@@ -22,9 +22,9 @@ import java.util.Map;
  * effective numbers are recomputed by {@link #sync} on picks and stat changes, never per frame. Everything here runs on
  * the pools of {@link Sim}: nothing is allocated while updating.
  *
- * Approximations until later phases: Burn and Decay are the simple per-enemy DoT stacks of {@link Sim#applyStatus}
- * (continuous damage, no 10 Hz status pass, no numbers); Riot Guard II's projectile reflection has no effect because
- * enemies have no projectiles yet; Parasite Link damages both ends instead of sharing damage.
+ * Burn, Decay and Stun go through {@link Sim#applyStatus} (see {@link Status}); Riot Guard II reflects enemy projectiles
+ * that a swing or slam reaches ({@link EnemyAi#reflectCone}). Approximation left: Parasite Link damages both ends
+ * instead of sharing damage.
  */
 public final class MainWeapon {
     public static final int MAX_LINKS = 6;
@@ -49,7 +49,7 @@ public final class MainWeapon {
     private float arc, radius, slamDmg, slamRadius, slamStun, lineDmg, lineLen, thrustArc, thrustRange, thrustDmg,
             thrustCrit, waveLen, waveDmg, guard, guardTime;
     private int slamEvery, burnN;
-    private boolean thrustOn, thrustDecay, slamHeal;
+    private boolean thrustOn, thrustDecay, slamHeal, reflect;
     // pistols
     private float spread, bulletSpeed, range, slugDmg, explodeR, explodeDmg, critRefund, grenadeDmg, grenadeR,
             grenadeRange, bombletDmg, bombletR, firePatch;
@@ -160,6 +160,7 @@ public final class MainWeapon {
         waveDmg = v("wavePower") * dmg;
         guard = v("guard");
         guardTime = v("guardTime");
+        reflect = v("reflect") > 0;
         // pistols
         bullets = Math.max(1, Math.round(v("bullets") + v("bulletsAdd")));
         spread = v("spread") * DEG;
@@ -281,6 +282,7 @@ public final class MainWeapon {
                 float ang = a + k * TAU / n;
                 cone(ang, arc, radius * area, dmg, critChance, burnN, false);
                 swingFx(ang, radius * area, arc);
+                if (reflect) s.ai.reflectCone(ang, arc, radius * area, dmg);
             }
             s.sound.emit(SoundEvents.HAMMER_SWING);
             attacked((count & 1) == 0 ? Sim.AC_ATTACK2 : Sim.AC_ATTACK);
@@ -291,6 +293,7 @@ public final class MainWeapon {
             f.a = a;
         }
         if (waveLen > 0f) wave(a);
+        if (reflect && slam) s.ai.reflectRing(slamRadius * area, dmg);
         if (guard > 0f) {
             s.guardT = guardTime;
             s.guardDR = guard;

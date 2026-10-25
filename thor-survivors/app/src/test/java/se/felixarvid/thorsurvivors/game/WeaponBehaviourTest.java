@@ -209,7 +209,7 @@ public class WeaponBehaviourTest {
         float t0 = (float) s.time;
         for (int i = 0; i < 120; i++) {
             step(s, DT);
-            if (e.hp < last) hits.add((float) s.time - t0);
+            if (e.hp < last - 2.5f) hits.add((float) s.time - t0); // the flask's hit, not the Decay it leaves (a fraction of a point every 0.1 s)
             last = e.hp;
         }
         assertFalse(hits.isEmpty());
