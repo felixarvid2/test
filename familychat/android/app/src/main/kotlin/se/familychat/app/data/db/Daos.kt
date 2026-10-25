@@ -75,7 +75,7 @@ interface StoreDao {
 
     @Query(
         "SELECT COUNT(*) FROM messages m WHERE m.conversationId = :id AND m.outgoing = 0 AND m.deleted = 0 " +
-            "AND m.systemType IS NULL AND COALESCE(m.seq, 0) > COALESCE((SELECT myReadSeq FROM conversations WHERE id = :id), 0)",
+            "AND m.systemType IS NULL AND m.imported = 0 AND COALESCE(m.seq, 0) > COALESCE((SELECT myReadSeq FROM conversations WHERE id = :id), 0)",
     )
     suspend fun unreadCount(id: String): Int
 
@@ -115,6 +115,29 @@ interface StoreDao {
             "ORDER BY COALESCE(seq, $MAX_LONG), clientTs, id",
     )
     suspend fun messagesWithAttachments(conversationId: String?): List<MessageEntity>
+
+    // --- reactions, timers and expiry -------------------------------------------------------------------------------
+    @Query("SELECT * FROM reactions WHERE messageId = :messageId AND userId = :userId")
+    suspend fun reaction(messageId: String, userId: String): ReactionEntity?
+    @Query("SELECT * FROM reactions WHERE messageId = :messageId AND emoji IS NOT NULL ORDER BY at, userId")
+    suspend fun reactions(messageId: String): List<ReactionEntity>
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putReaction(r: ReactionEntity)
+    @Query("DELETE FROM reactions WHERE messageId = :messageId AND userId = :userId")
+    suspend fun deleteReaction(messageId: String, userId: String)
+    @Query("DELETE FROM reactions WHERE messageId = :messageId") suspend fun deleteReactionsOfMessage(messageId: String)
+    @Query("DELETE FROM reactions WHERE conversationId = :id") suspend fun deleteReactionsOf(id: String)
+
+    @Query("SELECT * FROM conversation_timers WHERE conversationId = :id") suspend fun timer(id: String): ConversationTimerEntity?
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putTimer(t: ConversationTimerEntity)
+    @Query("DELETE FROM conversation_timers WHERE conversationId = :id") suspend fun deleteTimer(id: String)
+
+    @Query(
+        "SELECT * FROM messages WHERE expireAt IS NOT NULL AND expireAt <= :now AND status != 'PENDING' " +
+            "ORDER BY expireAt, id LIMIT :limit",
+    )
+    suspend fun expired(now: Long, limit: Int): List<MessageEntity>
+
+    @Query("SELECT MIN(expireAt) FROM messages WHERE expireAt IS NOT NULL") suspend fun nextExpiry(): Long?
 
     // --- receipt times and local deletions --------------------------------------------------------------------------
     @Query("SELECT * FROM message_receipts WHERE messageId = :messageId AND userId = :userId")
@@ -244,7 +267,7 @@ interface UiDao {
         "SELECT c.id AS id, c.type AS type, c.name AS name, c.avatarAttachmentId AS avatarAttachmentId, " +
             "c.lastMessageAt AS lastMessageAt, c.updatedAt AS updatedAt, " +
             "(SELECT COUNT(*) FROM messages m WHERE m.conversationId = c.id AND m.outgoing = 0 AND m.deleted = 0 " +
-            "AND m.systemType IS NULL AND COALESCE(m.seq, 0) > c.myReadSeq) AS unread, " +
+            "AND m.systemType IS NULL AND m.imported = 0 AND COALESCE(m.seq, 0) > c.myReadSeq) AS unread, " +
             "s.pinnedAt AS pinnedAt, COALESCE(s.mutedUntil, 0) AS mutedUntil, COALESCE(s.archived, 0) AS archived " +
             "FROM conversations c LEFT JOIN conversation_settings s ON s.conversationId = c.id " +
             "ORDER BY COALESCE(c.lastMessageAt, c.updatedAt) DESC, c.id",
@@ -258,6 +281,13 @@ interface UiDao {
     @Query("SELECT * FROM account WHERE id = 1") fun observeAccount(): Flow<AccountEntity?>
 
     @Query("SELECT * FROM messages WHERE id = :id") fun observeMessage(id: String): Flow<MessageEntity?>
+
+    /** The reactions that stand in a conversation (not taken back), for the bubbles. */
+    @Query("SELECT * FROM reactions WHERE conversationId = :conversationId AND emoji IS NOT NULL ORDER BY at, userId")
+    fun observeReactions(conversationId: String): Flow<List<ReactionEntity>>
+
+    @Query("SELECT * FROM conversation_timers WHERE conversationId = :conversationId")
+    fun observeTimer(conversationId: String): Flow<ConversationTimerEntity?>
 
     @Query("SELECT * FROM message_receipts WHERE messageId = :messageId ORDER BY userId")
     fun observeReceipts(messageId: String): Flow<List<MessageReceiptEntity>>
@@ -281,13 +311,13 @@ interface UiDao {
     fun pagedMessages(conversationId: String): PagingSource<Int, MessageEntity>
 
     @Query(
-        "SELECT id, outgoing FROM messages WHERE conversationId = :conversationId " +
+        "SELECT id, outgoing FROM messages WHERE conversationId = :conversationId AND imported = 0 " +
             "ORDER BY COALESCE(seq, $MAX_LONG) DESC, clientTs DESC, id DESC LIMIT 1",
     )
     fun observeLatest(conversationId: String): Flow<LatestMessageRow?>
 
-    /** The highest server sequence number among the messages from others; the conversation is read up to there. */
-    @Query("SELECT MAX(seq) FROM messages WHERE conversationId = :conversationId AND outgoing = 0")
+    /** The highest server sequence number among the messages from others; the conversation is read up to there. Imported rows do not count. */
+    @Query("SELECT MAX(seq) FROM messages WHERE conversationId = :conversationId AND outgoing = 0 AND imported = 0")
     fun observeNewestIncomingSeq(conversationId: String): Flow<Long?>
 
     @Query("SELECT COALESCE(MAX(seq), 0) FROM messages WHERE conversationId = :conversationId")
@@ -296,14 +326,14 @@ interface UiDao {
     /** Incoming messages with a server sequence above [afterSeq] (what arrived while the user read further up). */
     @Query(
         "SELECT COUNT(*) FROM messages WHERE conversationId = :conversationId AND outgoing = 0 AND deleted = 0 " +
-            "AND systemType IS NULL AND COALESCE(seq, 0) > :afterSeq",
+            "AND systemType IS NULL AND imported = 0 AND COALESCE(seq, 0) > :afterSeq",
     )
     fun observeIncomingAfter(conversationId: String, afterSeq: Long): Flow<Int>
 
     /** The oldest unread incoming message (same notion of "unread" as the list's counter). */
     @Query(
         "SELECT id FROM messages WHERE conversationId = :conversationId AND outgoing = 0 AND deleted = 0 " +
-            "AND systemType IS NULL AND COALESCE(seq, 0) > :readSeq ORDER BY seq, clientTs, id LIMIT 1",
+            "AND systemType IS NULL AND imported = 0 AND COALESCE(seq, 0) > :readSeq ORDER BY seq, clientTs, id LIMIT 1",
     )
     suspend fun firstUnreadId(conversationId: String, readSeq: Long): String?
 
@@ -350,7 +380,7 @@ interface UiDao {
     @Query(
         "SELECT * FROM (SELECT m.* FROM messages m JOIN conversations c ON c.id = m.conversationId " +
             "WHERE m.conversationId = :conversationId AND m.outgoing = 0 AND m.deleted = 0 AND m.systemType IS NULL " +
-            "AND COALESCE(m.seq, 0) > c.myReadSeq ORDER BY COALESCE(m.seq, 0) DESC LIMIT :limit) ORDER BY COALESCE(seq, 0)",
+            "AND m.imported = 0 AND COALESCE(m.seq, 0) > c.myReadSeq ORDER BY COALESCE(m.seq, 0) DESC LIMIT :limit) ORDER BY COALESCE(seq, 0)",
     )
     suspend fun unreadMessages(conversationId: String, limit: Int): List<MessageEntity>
 

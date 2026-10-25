@@ -154,7 +154,7 @@ adb install -r app/build/outputs/apk/release/app-release.apk
 **Updating a phone that already has the app:** install the new APK over the old one (same signing key) and do not
 uninstall first: uninstalling deletes the keys and the whole local history (see section 7). The app's local database
 carries a schema version and upgrades itself on the first start of the new build, with a tested migration, without
-losing messages, keys or sessions. Version 2 added the table for unsent drafts; version 3 (app 0.2.0) added the full-text search index of the messages (built from the existing messages during the upgrade) and the local pin/mute/archive settings; version 4 added the receipt times (message info) and the "delete for me" tombstones, two new tables; the history is in
+losing messages, keys or sessions. Version 2 added the table for unsent drafts; version 3 (app 0.2.0) added the full-text search index of the messages (built from the existing messages during the upgrade) and the local pin/mute/archive settings; version 4 added the receipt times (message info) and the "delete for me" tombstones, two new tables; version 5 (app 0.4.0) added the reactions and per-conversation timer tables and the columns for expiry and "forwarded" (all additive, defaults for old rows); the history is in
 `AppDatabase.MIGRATIONS` and `app/schemas/`. Whoever raises `AppDatabase.VERSION` must add a `Migration` and a case in
 `MigrationTest` in the same change (a build that cannot open the old file would otherwise leave the phone without its
 data).
@@ -322,3 +322,39 @@ the notification arrives (ntfy) and that the conversation opens with the message
   server has them) or the cache. *Automatisk nedladdning* sets Alltid / Endast Wi-Fi / Aldrig for photos, voice messages,
   video and files (defaults: photos and voice always, video and files Wi-Fi only; "Wi-Fi only" means "not a metered
   network"). Tapping an attachment always downloads it; very large files are never fetched automatically.
+
+## App 0.4.0: reactions, disappearing messages, several images, sharing, forwarding, history file (what to know when testing)
+
+- **Reactions**: long-press a message for a bar of six emojis and a *+* picker; one reaction per person and message, tap the same
+  one again to remove it. Chips under the bubble show counts; tapping one lists who reacted. Reactions are encrypted content,
+  do not count as unread and make no notification. An older app (0.1 to 0.3) shows a reaction as *could not decrypt*.
+- **Försvinnande meddelanden**: *Av*, 5 min, 1 timme, 1 dag, 1 vecka or 4 veckor (conversation header; in groups only
+  administrators). The change travels as an encrypted message from a member, and the server is told as well. Each new message
+  carries its time; the clock starts when the receiver first sees it, then the text, files and search entries are removed from
+  that phone (also after a restart). The server's own timer never deletes anything on the phone without that encrypted message.
+- **Several images**: up to 10 in one message with a caption; preview strip with remove; grid in the chat; swipe in the viewer.
+- **Dela till FamilyChat**: other apps can share text, photos, video, audio, PDF and files (`content://` only) to FamilyChat. Pick
+  the conversation, the composer is filled in and nothing is sent until you press send. With the app lock on, unlock first.
+- **Vidarebefordra**: up to 5 conversations; the copy is encrypted again with new keys and marked *Vidarebefordrat*, and uses the
+  target conversation's timer.
+- **Historik (Inställningar)**: *Exportera* writes a `.fchx` file, *Importera* merges one back (messages marked *Importerad*,
+  never re-sent, only into conversations that already exist on this account). Format: header `FCHX`, version 1, Argon2id
+  (64 MiB, 3 passes, 1 lane, random 16-byte salt) from a passphrase of at least 12 characters that is never stored, then Tink
+  AES256_GCM_HKDF_1MB streaming encryption of a ZIP with the full header as associated data. No keys, tokens or sessions are
+  included. Messages that are about to expire are left out. Losing the passphrase means losing the file.
+  What an import accepts from a file (it is authentic, but not trusted): a header asks for at most 128 MiB and 6 passes (an
+  export uses 64 MiB and 3; a phone that cannot give the memory refuses the file); what the archive *inflates* to is counted,
+  per entry and in total (a ZIP bomb is stopped at the limit, not by its stored size), with at most 200,000 message lines and
+  1 GiB of validated messages. A message is taken only if its sender is a member of that conversation on this phone, its
+  sequence number is clamped to the conversation's last known one (so it can never mark later real messages as read or sort
+  after them), and only this account's own reactions come along. Imported messages are left out of unread counts, read marks
+  and notifications, and always show *Importerad*, also when they say they were forwarded. *Rensa all nedladdad media* skips
+  imported media (it cannot be downloaded again); the storage screen lists it as *Importerad media*.
+- **Security rules added after review**: a disappearing-messages change in a *group* is only applied when its sender is an
+  administrator in the member list on this phone; an inline reply from a notification is dropped when the app lock or
+  "no information" notifications were switched on after the notification was posted, and changing either setting reposts or
+  removes the notifications that are up; the share target refuses `content://<user>@<own authority>/...` too; after
+  disappearing messages are removed the search index is merged (`optimize`) and the database overwrites deleted pages
+  (`secure_delete`), so the removed words do not stay in the file.
+- Instrumented tests: `HistoryAndContentInstrumentedTest` runs the production Argon2id/Tink parameters on the device; its R8
+  keep rules are in `app/proguard-test-rules.pro`.

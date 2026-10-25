@@ -130,7 +130,8 @@ Risks of libsignal that we accept and mitigate:
   lock-screen (public) version of a notification never shows message text.
 - **Inline reply:** sent through the normal outbox. Its broadcast receiver is not exported, and its PendingIntent
   is the only mutable one (explicit component). The reply action is hidden when notifications show
-  "Ingen information" and while the app lock is on.
+  "Ingen information" and while the app lock is on. A reply that arrives after either was switched on is dropped,
+  and changing the settings reposts or removes notifications already shown.
 - **App lock and screenshot blocking** (`FLAG_SECURE`) are UI gates only. The database key does not depend on the
   lock, so they protect against someone holding the unlocked phone, not against a forensic attacker.
 
@@ -139,13 +140,40 @@ Risks of libsignal that we accept and mitigate:
 - **QR codes are untrusted input.** An invitation QR (`familychat://invite?v=1&server=…&code=…`) is parsed
   strictly. It may only pre-fill the invitation form and shows the server host prominently, with a warning for
   punycode hosts. It never submits, never touches the login form or the saved server address, and accepts https
-  only in release builds. No system intent filter is registered, so no other app or web page can open FamilyChat
-  with an invitation. Safety-number QR codes carry the libsignal scannable fingerprint and are compared with
+  only in release builds. No intent filter is registered for invitation links, so no other app or web page can open
+  FamilyChat with an invitation. Safety-number QR codes carry the libsignal scannable fingerprint and are compared with
   `matchesScanned`.
 - **"Radera för mig"** deletes the message, its receipts and its downloaded files on this phone only, and writes a
   local tombstone so a later sync, edit or receipt cannot bring it back. Nothing is sent. "Radera för alla" is the
   authenticated, encrypted delete described above.
-- **Unknown content:** clients ignore unknown JSON fields. Content with an unknown type or version is not applied.
+- **Unknown content:** clients ignore unknown JSON fields. Well-formed, bound content of a type this version does
+  not know is decrypted (so the ratchet stays in step), not shown, and leads to a single "Uppdatera appen" notice
+  per conversation. Malformed or unbound content is rejected. Versions 0.1–0.3 still show such messages as "could
+  not decrypt".
+- **Reactions and disappearing-message timers** are encrypted, bound content like edits. A reaction is bound to
+  its target and its author. A timer change applies only when it arrives as encrypted `timer` content from a
+  member. In groups the receiving phone also requires that the sender is an admin in its local member list. The server's `disappearing_seconds` and `expires_at` only drive server-side pruning:
+  a client never deletes local history because the server says so. Expiry starts when the message is first shown
+  on the device and removes the text, files and search index rows. The search index is then merged and the
+  database overwrites deleted pages (`secure_delete`), so purged words do not linger.
+- **Share target:** FamilyChat accepts `ACTION_SEND`/`ACTION_SEND_MULTIPLE` from other apps. Shared items are
+  untrusted: only `content://` URIs are read (never `file://` or the app's own provider, also with a `0@` user prefix), copies are size-limited
+  and never read past the limit, names are sanitised, and the app lock must be unlocked before conversations are
+  shown.
+- **Forwarding** re-encrypts the content for the target conversation and re-uploads attachments under fresh keys.
+- **History export/import** (moving to a new phone): one file, format `FCHX` version 1. The header holds the KDF
+  id and parameters: Argon2id (BouncyCastle) with 64 MiB memory, t=3, p=1 and a 16-byte random salt. The payload is
+  a ZIP encrypted with Tink streaming AEAD `AES256_GCM_HKDF_1MB`, with the whole header as associated data.
+  Passphrases have at least 12 characters and are never stored. The file never contains keys, sessions, tokens or
+  identity material (tested). Imports are verified completely before anything is merged. Imported messages are
+  marked "Importerad", are never re-sent and only go into existing conversations of the same account. Expiring
+  messages are not exported. The file is as strong as its passphrase, so use a long one.
+- **Import trusts nothing in the file.** A message is taken only if its sender is a member of that conversation on
+  this phone, and its `seq` is clamped to the conversation's last known one. Imported rows never count for unread
+  counts, read marks, notifications or "latest message". "Importerad" is always shown. Only this account's own
+  reactions are imported. Limits count decompressed bytes per entry and in total, with at most 200,000 message
+  lines. The header may ask for at most 128 MiB and 6 passes, and running out of memory is a refusal, not a crash.
+  Imported media is never removed by "clear downloaded media".
 
 ## Keys on the phone
 
@@ -228,8 +256,10 @@ Risks of libsignal that we accept and mitigate:
   audited); a stolen unlocked phone with a valid session therefore cannot erase the account without the password.
   The effect is that of an administrator's removal, plus the avatar being unlinked and the account's
   unreferenced attachments being garbage-collected at the next hourly run.
+- **Re-authentication and lockout:** the password prompts of `DELETE /users/me` and `PUT /users/me/password` count wrong passwords toward the same persistent per-username lockout as `/auth/login` (`429` while locked, surviving restarts); `PUT /users/me/password` audits `password_change_failed` (no passwords are stored).
+- **Admin races:** every mutating `/admin` route re-reads the caller inside its write transaction (writers are serialised by the database) and refuses with `403`/`401` when the caller was suspended, removed or demoted since the token was checked; suspending or demoting the last active administrator is `409 last_admin`. Two administrators suspending each other can never both succeed.
 - **Metrics:** `GET /metrics` exposes counts and histograms by route template and status, gauges for sockets,
-  queues, database size and free disk, and nothing per user (no ids, names or addresses in labels). It answers
+  queues, database size and free disk, and nothing per user (no ids, names or addresses in labels). The `method` label is one of GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS or `OTHER`, and a request that matches no route has the route `unmatched`, so an unauthenticated client cannot create unbounded series. It answers
   only a request that comes from this machine without being forwarded by a proxy (so Caddy or `tailscale serve`,
   which forward remote clients from `127.0.0.1` with `X-Forwarded-For`, do not open it) or an administrator's
   bearer token; everybody else gets `404`, as if it did not exist.
@@ -242,7 +272,7 @@ Risks of libsignal that we accept and mitigate:
   `action`, target user, target id, `ip`, small `details`). Actions: `invitation_created`, `invitation_revoked`,
   `invitation_redeemed` (once per use of a multi-use code, with the new user as target and `details.use`/`max_uses`),
   `admin_granted` (`via` = `invitation` or `admin`) and `admin_revoked` (role changes through `PATCH /admin/users/{id}`),
-  `user_suspended`, `user_unsuspended`, `login_blocked` (right password, suspended account), `self_delete_failed`,
+  `user_suspended`, `user_unsuspended`, `login_blocked` (right password, suspended account), `self_delete_failed`, `password_change_failed`,
   `presence_setting_changed` (`share_presence` true/false), `login_success`, `login_failure`, `password_changed`, `refresh_token_reuse`,
   `device_revoked` (`details.by`: `self`, `admin` or `logout`), `user_removed` (API or CLI; `details.via` = `self` for self-deletion), `password_reset_issued`
   (`details.via`: `admin` or `cli`) and `password_reset_used` (`details.revoked_devices`). It is written in the
