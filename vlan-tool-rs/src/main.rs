@@ -52,6 +52,33 @@ enum RulesFormat {
 }
 
 #[derive(Subcommand)]
+#[derive(Clone, Copy, clap::ValueEnum)]
+enum TopologyFormat {
+    Text,
+    Dot,
+    Mermaid,
+}
+
+#[derive(Subcommand)]
+enum BaselineAction {
+    /// Sparar nuvarande fynd som baslinje
+    Save {
+        paths: Vec<PathBuf>,
+        #[arg(long, default_value = "reports/baseline.json")]
+        file: PathBuf,
+    },
+    /// Visar nya och åtgärdade fynd sedan baslinjen sparades
+    Compare {
+        paths: Vec<PathBuf>,
+        #[arg(long, default_value = "reports/baseline.json")]
+        file: PathBuf,
+        /// Avsluta med felkod 2 om något nytt fynd har minst denna nivå
+        #[arg(long, value_enum)]
+        fail_on: Option<Severity>,
+    },
+}
+
+#[derive(Subcommand)]
 enum Command {
     /// Bygger konfigfiler från CSV-filerna
     Generate {
@@ -150,7 +177,13 @@ enum Command {
         min: Severity,
     },
     /// Visar skillnaden mellan två konfigfiler
-    Diff { old: PathBuf, new: PathBuf },
+    Diff {
+        old: PathBuf,
+        new: PathBuf,
+        /// Jämför block för block utan hänsyn till ordningen
+        #[arg(long)]
+        semantic: bool,
+    },
     /// Jämför sparade konfigar med vad CSV-filerna säger att de borde vara
     Drift {
         #[arg(long, default_value = "samples")]
@@ -159,7 +192,16 @@ enum Command {
         configs: PathBuf,
     },
     /// Ritar nätets topologi från portbeskrivningarna
-    Topology { paths: Vec<PathBuf> },
+    Topology {
+        paths: Vec<PathBuf>,
+        #[arg(long, short, value_enum, default_value = "text")]
+        format: TopologyFormat,
+    },
+    /// Sparar fynden som baslinje eller jämför mot en sparad baslinje
+    Baseline {
+        #[command(subcommand)]
+        action: BaselineAction,
+    },
     /// Listar alla granskningsregler
     Rules {
         #[arg(long, short, value_enum, default_value = "text")]
@@ -354,10 +396,11 @@ fn run(cli: Cli, color: bool) -> Result<i32> {
                 }
             }
         }
-        Command::Diff { old, new } => {
+        Command::Diff { old, new, semantic } => {
             let a = std::fs::read_to_string(&old).with_context(|| format!("kunde inte läsa {}", old.display()))?;
             let b = std::fs::read_to_string(&new).with_context(|| format!("kunde inte läsa {}", new.display()))?;
-            let (text, stats) = diff::diff(&old.display().to_string(), &a, &new.display().to_string(), &b, p);
+            let diff_fn = if semantic { diff::diff_semantic } else { diff::diff };
+            let (text, stats) = diff_fn(&old.display().to_string(), &a, &new.display().to_string(), &b, p);
             if stats.added + stats.removed == 0 {
                 info!(q, "{} Inga skillnader", p.ok("✔"));
             } else {
@@ -367,14 +410,38 @@ fn run(cli: Cli, color: bool) -> Result<i32> {
             }
         }
         Command::Drift { samples, configs } => return drift(&samples, &configs, &settings, p),
-        Command::Topology { paths } => {
+        Command::Topology { paths, format } => {
             let configs = audit::load_configs(&default_paths(&paths))?;
             if configs.is_empty() {
                 bail!("hittade inga konfigar – kör `vlantool generate` först");
             }
-            println!();
-            print!("{}", topology::render(&configs, p));
-            println!();
+            match format {
+                TopologyFormat::Text => {
+                    println!();
+                    print!("{}", topology::render(&configs, p));
+                    println!();
+                }
+                TopologyFormat::Dot => print!("{}", topology::dot(&configs)),
+                TopologyFormat::Mermaid => print!("{}", topology::mermaid(&configs)),
+            }
+        }
+        Command::Baseline { action: BaselineAction::Save { paths, file } } => {
+            let fleet = load_and_audit(&paths, &[])?;
+            let base = vlantool::baseline::Baseline::from_fleet(&fleet);
+            if let Some(dir) = file.parent().filter(|d| !d.as_os_str().is_empty()) {
+                std::fs::create_dir_all(dir)?;
+            }
+            base.save(&file)?;
+            println!("{} Sparade {} fynd i {}", p.ok("✔"), base.findings.len(), file.display());
+        }
+        Command::Baseline { action: BaselineAction::Compare { paths, file, fail_on } } => {
+            let base = vlantool::baseline::Baseline::load(&file).with_context(|| format!("ingen baslinje i {} – kör `vlantool baseline save` först", file.display()))?;
+            let fleet = load_and_audit(&paths, &[])?;
+            let cmp = base.compare(&fleet);
+            print!("{}", cmp.render());
+            if fail_on.is_some_and(|level| cmp.has_new_at_least(level)) {
+                return Ok(2);
+            }
         }
         Command::Rules { format: RulesFormat::Markdown } => print!("{}", rules_markdown()),
         Command::Rules { format: RulesFormat::Text } => {
@@ -695,11 +762,8 @@ fn format_from_ext(path: &Path) -> Format {
         "json" => Format::Json,
         "csv" => Format::Csv,
         "html" | "htm" => Format::Html,
-        // TODO(sarif): aktivera när report::Format har varianterna Sarif och Junit:
-        //   ta bort raden nedan och ta bort kommentarstecknen på de två raderna under den.
-        // "sarif" => Format::Sarif,
-        // "xml" => Format::Junit,
-        "sarif" | "xml" => Format::Text,
+        "sarif" => Format::Sarif,
+        "xml" => Format::Junit,
         _ => Format::Text,
     }
 }
