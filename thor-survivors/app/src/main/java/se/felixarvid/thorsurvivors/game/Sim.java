@@ -75,7 +75,7 @@ public final class Sim {
     public final Particle[] parts = new Particle[MAX_PART];
     public final DamageText[] texts = new DamageText[MAX_TEXT];
     public final Effect[] fx = new Effect[MAX_FX];
-    private int partHead, textHead, fxHead, nextId = 1;
+    private int partHead, textHead, fxHead, nextId = 1, nextStamp = 1;
     public final WeaponState[] weapons = new WeaponState[Inventory.MAX_WEAPONS];
 
     private final HashMap<String, EnemyType> types = new HashMap<>();
@@ -396,7 +396,6 @@ public final class Sim {
             for (String b : row.bosses) {
                 if (b.equals("BOSS_XLDEATH")) continue; // the reaper: the run is won at the time limit instead
                 spawnAtRing(type(b), true, HALF_W + 100f);
-                sound.emit(SoundEvents.BOSS_SPAWN);
             }
         }
         spawnTimer += dt * 1000f;
@@ -409,7 +408,7 @@ public final class Sim {
         }
     }
 
-    /** Spawn on a ring just outside the view (or left/right edges for horizontal stages). */
+    /** Spawn on a ring just outside the view (or left/right edges for horizontal stages); false if nothing spawned. */
     private void spawnAtRing(EnemyType t, boolean boss, float dist) {
         if (t == null || enemyN >= MAX_ENEMIES) return;
         Enemy e = enemies[enemyN++];
@@ -420,6 +419,7 @@ public final class Sim {
             e.y = py + (float) Math.sin(a) * dist;
         }
         initEnemy(e, t, boss);
+        if (boss) sound.emit(SoundEvents.BOSS_SPAWN); // only once the boss really exists
     }
 
     private void place(Enemy e) {
@@ -449,6 +449,7 @@ public final class Sim {
         e.textSlot = -1;
         e.anim = rng.nextFloat() * 6f;
         java.util.Arrays.fill(e.hitUntil, 0f);
+        e.clearHits();
         double hp = t.def.maxHp * 10.0 * (t.def.hpTimesLevel ? t.def.level : 1) * stage.enemyHealth
                 * (1 + stats.curse) * (boss ? 3.0 : 1.0);
         e.hp = e.maxHp = (float) Math.max(1, hp);
@@ -982,7 +983,7 @@ public final class Sim {
         p.critChance = w.critChance;
         p.critMul = w.critMul;
         p.hitsLeft = w.pierce;
-        p.hitN = 0;
+        p.stamp = nextStamp++;
         p.returning = false;
         p.targetId = 0;
         p.blast = 0;
@@ -992,16 +993,7 @@ public final class Sim {
         return p;
     }
 
-    private static final int[] FIRE_SOUND = {SoundEvents.WHIP, SoundEvents.MAGIC_MISSILE, SoundEvents.KNIFE,
-            SoundEvents.AXE, SoundEvents.CROSS, SoundEvents.BIBLE, SoundEvents.FIREBALL, SoundEvents.GARLIC,
-            SoundEvents.HOLY_WATER, SoundEvents.LIGHTNING};
-
     private void fire(WeaponState w, int slot) {
-        // whip/garlic/water/lightning/book sound where they act; the projectile weapons at the muzzle
-        if (w.behavior == B_MISSILE || w.behavior == B_KNIFE || w.behavior == B_AXE || w.behavior == B_CROSS
-                || w.behavior == B_FIRE) {
-            sound.emit(FIRE_SOUND[w.behavior]);
-        }
         switch (w.behavior) {
             case B_WHIP: whip(w); break;
             case B_MISSILE: {
@@ -1009,6 +1001,7 @@ public final class Sim {
                 Enemy t = nearest(1000f);
                 Projectile p = newProj(Entities.P_MISSILE, slot, w);
                 if (p == null) return;
+                sound.emit(SoundEvents.MAGIC_MISSILE);
                 float a = t != null ? (float) Math.atan2(t.y - py, t.x - px) : rng.nextFloat() * 6.2831853f;
                 float sp = 400f * w.speed;
                 p.vx = (float) Math.cos(a) * sp; p.vy = (float) Math.sin(a) * sp;
@@ -1021,6 +1014,7 @@ public final class Sim {
             case B_KNIFE: {
                 Projectile p = newProj(Entities.P_KNIFE, slot, w);
                 if (p == null) return;
+                sound.emit(SoundEvents.KNIFE);
                 float a = (float) Math.atan2(faceY, faceX) + (rng.nextFloat() - 0.5f) * 0.08f;
                 float off = ((w.shotIndex % 3) - 1) * 9f; // successive knives sit side by side
                 p.x = px - (float) Math.sin(a) * off; p.y = py + (float) Math.cos(a) * off;
@@ -1034,6 +1028,7 @@ public final class Sim {
             case B_AXE: {
                 Projectile p = newProj(Entities.P_AXE, slot, w);
                 if (p == null) return;
+                sound.emit(SoundEvents.AXE);
                 p.radius = 17f * w.area;
                 p.hitsLeft = w.pierce;
                 if (w.evo) {
@@ -1059,6 +1054,7 @@ public final class Sim {
             case B_CROSS: {
                 Projectile p = newProj(Entities.P_CROSS, slot, w);
                 if (p == null) return;
+                sound.emit(SoundEvents.CROSS);
                 Enemy t = nearest(1000f);
                 float ax = faceX, ay = faceY;
                 if (t != null) { ax = t.x - px; ay = t.y - py; }
@@ -1078,6 +1074,7 @@ public final class Sim {
             case B_FIRE: {
                 Projectile p = newProj(Entities.P_FIRE, slot, w);
                 if (p == null) return;
+                sound.emit(SoundEvents.FIREBALL);
                 Enemy t = randomOnScreen();
                 float a = t != null ? (float) Math.atan2(t.y - py, t.x - px) : rng.nextFloat() * 6.2831853f;
                 if (w.shotIndex > 0) a += (rng.nextFloat() - 0.5f) * 0.2f;
@@ -1268,7 +1265,7 @@ public final class Sim {
                     // decelerate along the launch line, reverse and keep accelerating back past the player
                     p.angle += p.spin * dt;
                     p.speedAlong -= p.accel * dt;
-                    if (!p.returning && p.speedAlong < 0) { p.returning = true; p.hitN = 0; } // each enemy once per leg
+                    if (!p.returning && p.speedAlong < 0) { p.returning = true; p.stamp = nextStamp++; } // each enemy once per leg
                     p.x += p.vx * p.speedAlong * dt;
                     p.y += p.vy * p.speedAlong * dt;
                     break;
@@ -1310,8 +1307,8 @@ public final class Sim {
                     if (tNow < e.hitUntil[p.slot]) continue;
                     e.hitUntil[p.slot] = tNow + p.hitDelay;
                 } else {
-                    if (p.alreadyHit(e.id)) continue;
-                    p.remember(e.id);
+                    if (e.hitBy(p.stamp)) continue;
+                    e.markHit(p.stamp);
                 }
                 hurt(e, p.dmg, p.critChance, p.critMul, dx / d, dy / d, p.knock);
                 if (--p.hitsLeft <= 0) { remove = true; break; }

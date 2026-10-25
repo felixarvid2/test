@@ -136,4 +136,20 @@ public class SoundEventsTest {
         assertEquals("ui_back", SoundEvents.NAMES[SoundEvents.UI_BACK]);
         assertEquals("gem", SoundEvents.NAMES[SoundEvents.GEM]);
     }
+
+    @Test
+    public void theRateLimitStillWorksAfterDaysOfPlay() {
+        SoundEvents q = new SoundEvents();
+        q.advance(3_000_000f); // ~35 days: a float clock stops moving by 1/60 s long before this
+        double t0 = q.now();
+        for (int i = 0; i < 600; i++) q.advance(1f / 60f);
+        assertTrue("clock advanced " + (q.now() - t0), q.now() - t0 > 9.9);
+        int played = 0;
+        for (int i = 0; i < 60; i++) {
+            for (int k = 0; k < 10; k++) q.emit(SoundEvents.KNIFE);
+            q.advance(1f / 60f);
+            while (q.poll() >= 0) played++;
+        }
+        assertTrue("played " + played, played >= 20);
+    }
 }

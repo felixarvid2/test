@@ -497,4 +497,29 @@ public class WeaponBehaviourTest {
                     Math.abs(e.x - s.px) < halfW * 1.7f && Math.abs(e.y - s.py) < halfH * 2.6f);
         }
     }
+
+    @Test
+    public void aScytheHitsEachEnemyOnceEvenThroughACrowdOfSixty() throws Exception {
+        Sim s = sim("SCYTHE", 1);
+        for (int i = 0; i < 80 && count(s, Entities.P_AXE) < 9; i++) step(s, DT); // let the whole volley out
+        Projectile p = first(s, Entities.P_AXE);
+        assertTrue(p != null);
+        for (int i = 0; i < s.projN; i++) { // keep only this spoke, in slot 0
+            if (s.projs[i] == p) {
+                s.projs[i] = s.projs[0];
+                s.projs[0] = p;
+            }
+        }
+        s.projN = 1;
+        p.critChance = 0f;
+        s.weapons[0].cd = 1e9f; // no further volleys
+        p.radius = 150f; // wide enough to cover the whole crowd on every step of the pass
+        List<Enemy> crowd = new ArrayList<>();
+        for (int i = 0; i < 60; i++) crowd.add(dummy(s, p.x + (i % 10 - 4.5f) * 18f, p.y + (i / 10 - 2.5f) * 18f));
+        step(s, 2.5f);
+        int i = 0;
+        for (Enemy e : crowd) {
+            assertEquals("enemy " + i++ + " hit exactly once", p.dmg, e.maxHp - e.hp, 1e-2f);
+        }
+    }
 }
