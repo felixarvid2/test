@@ -1,6 +1,8 @@
 package se.felixarvid.thorsurvivors.game;
 
 import se.felixarvid.thorsurvivors.data.GameData;
+import se.felixarvid.thorsurvivors.data.HeroDef;
+import se.felixarvid.thorsurvivors.data.MainWeaponDef;
 import se.felixarvid.thorsurvivors.data.StageDef;
 import se.felixarvid.thorsurvivors.data.Treasure;
 import se.felixarvid.thorsurvivors.data.WaveRow;
@@ -51,8 +53,30 @@ public final class Sim {
     private float lastGemT = -10f;
     private int gemChain;
     public PlayerStats stats;
+    private int statsLevel;
     private final Map<String, Double> meta;
     private double extraLuck;
+
+    // hero and main weapon (null without a hero: the plain Vampire Survivors rules used by the legacy tests)
+    public final HeroDef hero;
+    public final MainWeapon main;
+    /** Aim direction of the main weapon (unit vector): the aim input if any, else the facing direction. */
+    public float aimX = 1, aimY = 0;
+    /** True while there is aim input (right stick, touch aim area, arrow keys); false = aiming where the hero faces. */
+    public boolean aimActive;
+    /** Clip the player sprite should play for the main weapon (AC_*) and when the latest main attack happened. */
+    public static final int AC_NONE = -1, AC_ATTACK = 0, AC_ATTACK2 = 1, AC_SLAM = 2, AC_SHOOT = 3, AC_THROW = 4,
+            AC_CAST = 5, AC_CAST2 = 6;
+    public int mainClip = AC_NONE;
+    public float lastMainAttack = -10f;
+    /** Riot Guard: seconds of reduced contact damage left and the reduction (0.15 = -15%). */
+    public float guardT, guardDR;
+    /** Dodge (design section 2): a 90-unit dash with 0.25 s invulnerability, 4 s cooldown scaled by the Cooldown stat. */
+    public static final float DODGE_TIME = 0.25f, DODGE_DIST = 90f, DODGE_COOLDOWN = 4f;
+    public float dodgeT, dodgeCd, dodgeCdMax = DODGE_COOLDOWN, dodgeDx, dodgeDy;
+    /** True when the latest {@link #hurt} was a crit (read by Quick Shot III). */
+    boolean lastCrit;
+    private final float[] aimv = new float[2];
 
     // player
     public float px, py, hp, maxHp, faceX = 1, faceY = 0, invuln, walk;
@@ -83,13 +107,14 @@ public final class Sim {
     private int corpseHead;
     /** Time of the latest weapon use; the renderer plays the player's attack clip for a moment after it. */
     public float lastAttack = -10f;
-    private int partHead, textHead, fxHead, nextId = 1, nextStamp = 1;
+    private int partHead, textHead, fxHead, nextId = 1;
+    int nextStamp = 1;
     public final WeaponState[] weapons = new WeaponState[Inventory.MAX_WEAPONS];
 
     private final HashMap<String, EnemyType> types = new HashMap<>();
     private final int[] gridHead = new int[GRID * GRID];
     private final int[] gridNext = new int[MAX_ENEMIES];
-    private final int[] qbuf = new int[MAX_ENEMIES];
+    final int[] qbuf = new int[MAX_ENEMIES];
     private final float[] mv = new float[2];
     private final int[] pickBuf = new int[MAX_ENEMIES];
     // delayed lightning strikes (Thunder Loop's second strike)
@@ -123,9 +148,20 @@ public final class Sim {
     private float regenAcc;
 
     public Sim(GameData data, StageDef stage, String starterKey, Map<String, Double> meta) {
+        this(data, stage, starterKey, meta, null);
+    }
+
+    /**
+     * @param starterKey the auto weapon the run starts with (null: none, only the main weapon)
+     * @param heroKey    hero key ("BASTION", ...) or null for the plain VS player without a main weapon
+     */
+    public Sim(GameData data, StageDef stage, String starterKey, Map<String, Double> meta, String heroKey) {
         this.data = data;
         this.stage = stage;
         this.meta = meta;
+        this.hero = heroKey == null ? null : data.heroes.get(heroKey);
+        MainWeaponDef mwd = hero == null ? null : data.mainWeapons.get(hero.main);
+        this.main = mwd == null ? null : new MainWeapon(this, hero, mwd);
         this.map = WorldGen.of(stage.key);
         for (int i = 0; i < MAX_ENEMIES; i++) enemies[i] = new Enemy();
         for (int i = 0; i < MAX_PROJ; i++) projs[i] = new Projectile();
@@ -135,7 +171,7 @@ public final class Sim {
         for (int i = 0; i < MAX_FX; i++) fx[i] = new Effect();
         for (int i = 0; i < MAX_CORPSES; i++) corpses[i] = new Corpse();
         for (int i = 0; i < weapons.length; i++) weapons[i] = new WeaponState();
-        inv.add(data.weapons.get(starterKey));
+        if (starterKey != null) inv.add(data.weapons.get(starterKey));
         recomputeAll();
         hp = maxHp;
         spawnInitial();
@@ -150,11 +186,13 @@ public final class Sim {
 
     public void recomputeAll() {
         PlayerStats old = stats;
-        stats = PlayerStats.compute(inv, meta, extraLuck);
-        float nm = 100f * (float) stats.maxHpMul;
+        statsLevel = level;
+        stats = PlayerStats.compute(inv, meta, extraLuck, hero, level);
+        float nm = (float) stats.baseHp * (float) stats.maxHpMul;
         if (old != null) hp += Math.max(0, nm - maxHp);
         maxHp = nm;
         for (int i = 0; i < inv.weaponCount; i++) syncWeapon(i);
+        if (main != null) main.sync();
     }
 
     private static int behaviorOf(String key) {
@@ -218,6 +256,8 @@ public final class Sim {
         time += dt;
         tNow = (float) time;
         input.move(mv);
+        updateAim(input);
+        updateDodge(input, dt);
         movePlayer(dt);
         refreshDestructibles();
         updateWaves(dt);
@@ -225,6 +265,7 @@ public final class Sim {
         buildGrid();
         separate(dt);
         updateWeapons(dt);
+        if (main != null) main.update(dt);
         updateProjectiles(dt);
         contactDamage();
         reap();
@@ -237,13 +278,57 @@ public final class Sim {
         updateVisuals(dt);
         if (freezeTimer > 0) freezeTimer -= dt;
         if (invuln > 0) invuln -= dt;
+        if (guardT > 0) guardT -= dt;
         if (hitShake > 0) hitShake -= dt;
         if (screenFlash > 0) screenFlash -= dt;
         if (stats.regen > 0 && hp < maxHp) hp = Math.min(maxHp, hp + (float) stats.regen * dt);
         if (time >= stage.timeLimit) ended = 2;
     }
 
+    /** Aim = the aim input when there is any, otherwise the (8-way) facing direction. */
+    private void updateAim(Input input) {
+        aimActive = input.aim(aimv);
+        if (aimActive) {
+            aimX = aimv[0];
+            aimY = aimv[1];
+        } else {
+            float m = (float) Math.sqrt(faceX * faceX + faceY * faceY);
+            if (m > 0.01f) {
+                aimX = faceX / m;
+                aimY = faceY / m;
+            }
+        }
+    }
+
+    /** Starts a dodge on request when off cooldown: a dash in the move direction (else the facing) and brief invulnerability. */
+    private void updateDodge(Input input, float dt) {
+        if (dodgeCd > 0) dodgeCd -= dt;
+        if (!input.takeDodge() || dodgeCd > 0 || dodgeT > 0) return;
+        float len = (float) Math.sqrt(mv[0] * mv[0] + mv[1] * mv[1]);
+        if (len > 0.05f) {
+            dodgeDx = mv[0] / len;
+            dodgeDy = mv[1] / len;
+        } else {
+            float m = (float) Math.sqrt(faceX * faceX + faceY * faceY);
+            dodgeDx = m > 0.01f ? faceX / m : 1f;
+            dodgeDy = m > 0.01f ? faceY / m : 0f;
+        }
+        dodgeT = DODGE_TIME;
+        dodgeCdMax = DODGE_COOLDOWN * (float) stats.cooldownMul;
+        dodgeCd = dodgeCdMax;
+        invuln = Math.max(invuln, DODGE_TIME);
+        sound.emit(SoundEvents.DODGE);
+    }
+
     private void movePlayer(float dt) {
+        if (dodgeT > 0) { // the dash replaces walking: DODGE_DIST units over DODGE_TIME
+            float step = Math.min(dt, dodgeT);
+            px += dodgeDx * (DODGE_DIST / DODGE_TIME) * step;
+            py += dodgeDy * (DODGE_DIST / DODGE_TIME) * step;
+            dodgeT -= dt;
+            if (Math.abs(dodgeDx) > 0.1f) facingRight = dodgeDx > 0;
+            return;
+        }
         float mx = mv[0], my = mv[1];
         float len = (float) Math.sqrt(mx * mx + my * my);
         float sp = PLAYER_SPEED_K * (float) stage.playerSpeed * (float) stats.moveSpeedMul;
@@ -325,7 +410,7 @@ public final class Sim {
     }
 
     /** Breaks every destructible whose body touches the circle (x, y, r). */
-    private void hitDest(float x, float y, float r) {
+    void hitDest(float x, float y, float r) {
         for (int i = destN - 1; i >= 0; i--) {
             float dx = destX[i] - x, dy = destY[i] - y, rr = r + DEST_R;
             if (dx * dx + dy * dy < rr * rr) breakDest(i);
@@ -470,6 +555,7 @@ public final class Sim {
         e.anim = rng.nextFloat() * 6f;
         e.clearTicks();
         e.clearHits();
+        e.clearStatus();
         double hp = t.def.maxHp * 10.0 * (t.def.hpTimesLevel ? t.def.level : 1) * stage.enemyHealth
                 * (1 + stats.curse) * (boss ? 3.0 : 1.0);
         e.hp = e.maxHp = (float) Math.max(1, hp);
@@ -486,14 +572,18 @@ public final class Sim {
             Enemy e = enemies[i];
             e.anim += dt;
             if (e.flash > 0) e.flash -= dt;
+            if (e.burn > 0 || e.decay > 0) statusTick(e, dt);
             float dx = px - e.x, dy = py - e.y;
             float d2 = dx * dx + dy * dy;
             if (d2 > RECYCLE_DIST * RECYCLE_DIST) { // far behind the player: recycle to the opposite edge
                 recycle(e, dx, dy, (float) Math.sqrt(d2));
                 continue;
             }
+            boolean held = e.stun > 0 || e.root > 0;
+            if (e.stun > 0) e.stun -= dt;
+            if (e.root > 0) e.root -= dt;
             if (e.stagger > 0) e.stagger -= dt;
-            else if (!frozen) {
+            else if (!frozen && !held) {
                 float d = (float) Math.sqrt(d2);
                 if (d > 1f) {
                     float sp = e.blocked ? e.speed * BLOCKED_SPEED : e.speed;
@@ -506,6 +596,61 @@ public final class Sim {
             e.kvx *= decay;
             e.kvy *= decay;
         }
+    }
+
+    /** Burn and Decay placeholders (continuous damage per stack; the status phase replaces this with the 10 Hz pass). */
+    private void statusTick(Enemy e, float dt) {
+        if (e.dead) return;
+        if (e.burn > 0) {
+            e.hp -= e.burn * e.burnPer * dt;
+            if ((e.burnT -= dt) <= 0) {
+                e.burn = 0;
+                e.burnPer = 0;
+            }
+        }
+        if (e.decay > 0) {
+            e.hp -= e.decay * e.decayPer * dt;
+            if ((e.decayT -= dt) <= 0) {
+                e.decay = 0;
+                e.decayPer = 0;
+            }
+        }
+        if (e.hp <= 0) killNow(e);
+    }
+
+    /**
+     * Adds {@code n} Burn or Decay stacks (caps 8 and 10), refreshing the timer. {@code hit} is the damage of the hit
+     * that applied it: one Burn stack deals 0.08 x hit per 0.33 s, one Decay stack 0.06 x hit per second (design 7).
+     * TODO(status phase): replace the continuous damage by the 10 Hz status pass, with numbers and tints.
+     */
+    void applyStatus(Enemy e, int kind, int n, float hit, float seconds) {
+        if (e.dead) return;
+        if (kind == Entities.ST_BURN) {
+            e.burn = Math.min(8, e.burn + n);
+            e.burnT = Math.max(e.burnT, seconds);
+            e.burnPer = Math.max(e.burnPer, hit * 0.08f / 0.33f);
+        } else if (kind == Entities.ST_DECAY) {
+            e.decay = Math.min(10, e.decay + n);
+            e.decayT = Math.max(e.decayT, seconds);
+            e.decayPer = Math.max(e.decayPer, hit * 0.06f);
+        }
+    }
+
+    /** Stun (cannot move or attack); bosses take 25% of the duration. */
+    void stun(Enemy e, float seconds) {
+        e.stun = Math.max(e.stun, e.boss ? seconds * 0.25f : seconds);
+    }
+
+    /** Root (cannot move); bosses take 25% of the duration. */
+    void root(Enemy e, float seconds) {
+        e.root = Math.max(e.root, e.boss ? seconds * 0.25f : seconds);
+    }
+
+    /** Damage without a flash, number or sound (links, status ticks); kills when it empties the enemy. */
+    void dot(Enemy e, float amount) {
+        if (e.dead) return;
+        e.hp -= amount;
+        if (e.hp <= 0) killNow(e);
     }
 
     /** Moves an enemy that fell far behind to the opposite screen edge, ahead of the player (VS recycling). */
@@ -535,7 +680,7 @@ public final class Sim {
     }
 
     /** Enemy indices within r of (x,y) (cell-level candidates, caller does the exact test). */
-    private int query(float x, float y, float r) {
+    int query(float x, float y, float r) {
         int n = 0;
         int x0 = (int) Math.floor((x - r) / CELL), x1 = (int) Math.floor((x + r) / CELL);
         int y0 = (int) Math.floor((y - r) / CELL), y1 = (int) Math.floor((y + r) / CELL);
@@ -612,12 +757,14 @@ public final class Sim {
         float best = 0;
         for (int i = 0; i < enemyN; i++) {
             Enemy e = enemies[i];
-            if (e.dead) continue;
+            if (e.dead || e.stun > 0) continue; // a stunned enemy cannot attack
             float dx = e.x - px, dy = e.y - py, rr = e.radius * 0.8f + PLAYER_R * 0.8f;
             if (dx * dx + dy * dy < rr * rr) best = Math.max(best, e.power);
         }
         if (best <= 0) return;
-        hp -= Math.max(1f, best - (float) stats.armor);
+        float taken = Math.max(1f, best - (float) stats.armor);
+        if (guardT > 0) taken = Math.max(1f, taken * (1f - guardDR)); // Riot Guard
+        hp -= taken;
         sound.emit(SoundEvents.PLAYER_HURT);
         invuln = 0.5f;
         hitShake = 0.15f;
@@ -647,6 +794,7 @@ public final class Sim {
     public void hurt(Enemy e, float dmg, float chance, float critMul, float kx, float ky, float knock) {
         if (e.dead) return;
         boolean crit = chance > 0 && rng.nextFloat() < chance;
+        lastCrit = crit;
         if (crit) dmg *= critMul;
         e.hp -= dmg;
         e.flash = 0.1f;
@@ -966,6 +1114,7 @@ public final class Sim {
             sound.emit(SoundEvents.LEVEL_UP);
             xpNeed = Progression.xpToNext(level);
         }
+        if (hero != null && level != statsLevel) recomputeAll(); // per-level hero growth
     }
 
     // ------------------------------------------------------------------ level-up / chest application
@@ -982,6 +1131,9 @@ public final class Sim {
                 break;
             case Offer.HEAL:
                 heal(30f);
+                break;
+            case Offer.BRANCH:
+                if (main != null) main.pick(o.branchIdx, o.newLevel);
                 break;
             default:
                 gold += 25;
@@ -1174,6 +1326,39 @@ public final class Sim {
         p.gravity = 0;
         p.flight = 0;
         p.grow = p.drift = 0;
+        p.sub = Entities.SUB_NONE;
+        p.status = Entities.ST_NONE;
+        p.statusN = 0;
+        p.inert = false;
+        p.blastDmg = 0;
+        return p;
+    }
+
+    /** A fresh projectile of the main weapon (P_MAIN, slot 255) with the given SUB_* kind, or null when the pool is full. */
+    Projectile newMainProj(int sub) {
+        if (projN >= MAX_PROJ) return null;
+        Projectile p = projs[projN++];
+        p.kind = Entities.P_MAIN;
+        p.sub = sub;
+        p.slot = 255;
+        p.evo = false;
+        p.x = px; p.y = py; p.vx = p.vy = 0; p.angle = 0; p.spin = 0;
+        p.life = p.maxLife = 1f;
+        p.radius = 8f;
+        p.dmg = 0; p.knock = 0; p.critChance = 0; p.critMul = 2;
+        p.hitsLeft = 1;
+        p.stamp = nextStamp++;
+        p.returning = false;
+        p.targetId = 0;
+        p.blast = 0;
+        p.blastDmg = 0;
+        p.gravity = 0;
+        p.flight = 0;
+        p.grow = p.drift = 0;
+        p.status = Entities.ST_NONE;
+        p.statusN = 0;
+        p.inert = false;
+        p.hitDelay = 0;
         return p;
     }
 
@@ -1434,12 +1619,21 @@ public final class Sim {
         for (int i = projN - 1; i >= 0; i--) {
             Projectile p = projs[i];
             p.life -= dt;
-            if (p.life <= 0) { removeProj(i); continue; }
+            if (p.life <= 0) {
+                if (p.blast > 0f && main != null) main.explode(p); // grenades, bomblets, the slug's end of range
+                removeProj(i);
+                continue;
+            }
             boolean remove = false;
             switch (p.kind) {
                 case Entities.P_MISSILE:
                 case Entities.P_KNIFE:
                 case Entities.P_FIRE:
+                    p.x += p.vx * dt; p.y += p.vy * dt;
+                    p.angle = (float) Math.atan2(p.vy, p.vx);
+                    break;
+                case Entities.P_MAIN:
+                    if (p.sub == Entities.SUB_DART && main != null) main.homing(p, dt);
                     p.x += p.vx * dt; p.y += p.vy * dt;
                     p.angle = (float) Math.atan2(p.vy, p.vx);
                     break;
@@ -1464,7 +1658,7 @@ public final class Sim {
                     break;
                 case Entities.P_PUDDLE:
                     if (p.maxLife - p.life < p.flight) continue; // flask still in the air
-                    if (p.maxLife - p.life - dt < p.flight) sound.emit(SoundEvents.HOLY_WATER); // it just landed
+                    if (p.sub == Entities.SUB_NONE && p.maxLife - p.life - dt < p.flight) sound.emit(SoundEvents.HOLY_WATER); // it just landed
                     if (p.grow > 0) p.radius += p.grow * dt;
                     if (p.drift > 0) {
                         float dx = px - p.x, dy = py - p.y, d = (float) Math.sqrt(dx * dx + dy * dy);
@@ -1481,6 +1675,7 @@ public final class Sim {
                 else if (p.kind == Entities.P_AXE && p.gravity > 0 && p.vy > 0 && dy > HALF_H + 60f) remove = true;
             }
             if (remove) { removeProj(i); continue; }
+            if (p.inert) continue; // a lobbed grenade only explodes when its time is up
             // collisions
             if (destN > 0) hitDest(p.x, p.y, p.radius);
             int n = query(p.x, p.y, p.radius + 34f);
@@ -1497,6 +1692,7 @@ public final class Sim {
                     e.markHit(p.stamp);
                 }
                 hurt(e, p.dmg, p.critChance, p.critMul, dx / d, dy / d, p.knock);
+                if (main != null && (p.kind == Entities.P_MAIN || p.sub != Entities.SUB_NONE)) main.onHit(p, e);
                 if (p.kind == Entities.P_FIRE || p.kind == Entities.P_AXE) { // a small burst where it hits
                     addFx(Entities.FX_BLAST, e.x, e.y, p.kind == Entities.P_FIRE ? 34f : 24f, p.kind == Entities.P_FIRE ? 1f : 0f, 0.28f, 0, p.evo);
                 }
@@ -1529,7 +1725,7 @@ public final class Sim {
         }
     }
 
-    private void spark(float x, float y, int color, int count) {
+    void spark(float x, float y, int color, int count) {
         for (int i = 0; i < count; i++) {
             Particle q = parts[partHead];
             partHead = (partHead + 1) % MAX_PART;
@@ -1542,10 +1738,12 @@ public final class Sim {
         }
     }
 
-    private void addFx(int kind, float x, float y, float w, float h, float life, int side, boolean evo) {
+    Effect addFx(int kind, float x, float y, float w, float h, float life, int side, boolean evo) {
         Effect f = fx[fxHead];
         fxHead = (fxHead + 1) % MAX_FX;
         f.kind = kind; f.x = x; f.y = y; f.w = w; f.h = h; f.life = f.maxLife = life; f.side = side; f.evo = evo;
+        f.a = 0f;
+        return f;
     }
 
     /** Seconds a damage number lives, and the window after its creation in which more hits on the enemy add into it. */

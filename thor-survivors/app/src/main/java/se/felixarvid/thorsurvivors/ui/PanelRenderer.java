@@ -13,6 +13,7 @@ import se.felixarvid.thorsurvivors.game.Engine;
 import se.felixarvid.thorsurvivors.game.Entities;
 import se.felixarvid.thorsurvivors.game.Input;
 import se.felixarvid.thorsurvivors.game.Inventory;
+import se.felixarvid.thorsurvivors.game.MainWeapon;
 import se.felixarvid.thorsurvivors.game.Offer;
 import se.felixarvid.thorsurvivors.game.Sim;
 import se.felixarvid.thorsurvivors.render.SpriteAtlas;
@@ -48,10 +49,13 @@ public final class PanelRenderer {
     private final int[] hIdx = new int[MAX_HITS], hSub = new int[MAX_HITS];
     private int hitN, hitPhase;
 
-    // joystick
-    private int joyPointer = -1;
+    // move joystick and aim stick (the second touch area, only without a gamepad)
+    private int joyPointer = -1, aimPointer = -1;
     private float joyOx, joyOy, joyCx, joyCy, joyR = 100;
+    private float aimOx, aimOy, aimCx, aimCy;
     private float zl, zt, zr, zb; // joystick capture zone (panel mode)
+    private float al, at, ar, ab; // aim capture zone (empty when ar <= al)
+    private float dl, dt, dr, db; // DODGE button (empty when dr <= dl)
     private int lastPhase = -1;
     private int width, height;
 
@@ -74,11 +78,22 @@ public final class PanelRenderer {
             case MotionEvent.ACTION_DOWN:
             case MotionEvent.ACTION_POINTER_DOWN: {
                 float x = ev.getX(idx), y = ev.getY(idx);
+                if (hitPhase == Engine.PH_PLAYING && dr > dl && x >= dl && x <= dr && y >= dt && y <= db) {
+                    in.dodgeReq = true;
+                    return true;
+                }
                 for (int i = 0; i < hitN; i++) {
                     if (x >= hl[i] && x <= hr[i] && y >= ht[i] && y <= hb[i]) {
                         in.post(Input.CMD_TAP, hitPhase, hIdx[i], hSub[i]);
                         return true;
                     }
+                }
+                if (hitPhase == Engine.PH_PLAYING && aimPointer < 0 && ar > al && x >= al && x <= ar && y >= at && y <= ab) {
+                    aimPointer = ev.getPointerId(idx);
+                    aimOx = aimCx = x;
+                    aimOy = aimCy = y;
+                    in.aimTouchX = in.aimTouchY = 0;
+                    return true;
                 }
                 if (hitPhase == Engine.PH_PLAYING && joyPointer < 0
                         && (compact || (x >= zl && x <= zr && y >= zt && y <= zb))) {
@@ -91,6 +106,23 @@ public final class PanelRenderer {
                 return true;
             }
             case MotionEvent.ACTION_MOVE:
+                if (aimPointer >= 0) {
+                    int pi = ev.findPointerIndex(aimPointer);
+                    if (pi >= 0) {
+                        aimCx = ev.getX(pi);
+                        aimCy = ev.getY(pi);
+                        float dx = (aimCx - aimOx) / joyR, dy = (aimCy - aimOy) / joyR;
+                        float m = (float) Math.sqrt(dx * dx + dy * dy);
+                        if (m > 1f) {
+                            dx /= m;
+                            dy /= m;
+                            aimOx = aimCx - dx * joyR;
+                            aimOy = aimCy - dy * joyR;
+                        }
+                        in.aimTouchX = Input.deadZone(dx, dy);
+                        in.aimTouchY = Input.deadZone(dy, dx);
+                    }
+                }
                 if (joyPointer >= 0) {
                     int pi = ev.findPointerIndex(joyPointer);
                     if (pi >= 0) {
@@ -116,6 +148,10 @@ public final class PanelRenderer {
                 if (joyPointer >= 0 && (act == MotionEvent.ACTION_CANCEL || ev.getPointerId(idx) == joyPointer)) {
                     joyPointer = -1;
                     in.touchX = in.touchY = 0;
+                }
+                if (aimPointer >= 0 && (act == MotionEvent.ACTION_CANCEL || ev.getPointerId(idx) == aimPointer)) {
+                    aimPointer = -1;
+                    in.aimTouchX = in.aimTouchY = 0;
                 }
                 return true;
             default:
@@ -143,15 +179,17 @@ public final class PanelRenderer {
         int ph = eng.phase;
         hitPhase = ph;
         if (ph != lastPhase) {
-            if (joyPointer >= 0 || lastPhase == Engine.PH_PLAYING) {
-                joyPointer = -1;
+            if (joyPointer >= 0 || aimPointer >= 0 || lastPhase == Engine.PH_PLAYING) {
+                joyPointer = aimPointer = -1;
                 eng.input.touchX = eng.input.touchY = 0;
+                eng.input.aimTouchX = eng.input.aimTouchY = 0;
             }
             lastPhase = ph;
         }
         if (!compact) c.drawColor(BG);
         float u = h / 1080f;
         joyR = 110f * u;
+        dl = dr = al = ar = 0f; // the HUD sets the touch areas again when it is drawn
         switch (ph) {
             case Engine.PH_PLAYING:
                 if (compact) hudStrip(c, w, h);
@@ -438,35 +476,118 @@ public final class PanelRenderer {
         text(c, cs(4, "", (int) Math.ceil(s.hp), " / ", (int) s.maxHp, ""), w / 2f, 160 * u, 30 * u, TEXT, Paint.Align.CENTER);
         bar(c, m, 182 * u, w - m, 212 * u, s.xp / s.xpNeed, 0xFF3AA0F0, 0xFF12263A);
         text(c, cs(5, "XP ", (int) s.xp, " / ", s.xpNeed, ""), w / 2f, 206 * u, 22 * u, TEXT, Paint.Align.CENTER);
+        // main weapon row: the hero's weapon and its four branches (3 pips each)
+        float rowY = 226 * u;
+        if (s.main != null) mainRow(c, s, m, rowY, w - m, u);
         // slots
-        float slot = Math.min(150 * u, (w - 2 * m - 5 * 12 * u) / 6f);
-        text(c, "WEAPONS", m, 248 * u, 24 * u, DIM, Paint.Align.LEFT);
-        slotRow(c, s, true, m, 258 * u, slot, 12 * u, u);
-        text(c, "PASSIVES", m, 258 * u + slot + 62 * u, 24 * u, DIM, Paint.Align.LEFT);
-        slotRow(c, s, false, m, 258 * u + slot + 72 * u, slot, 12 * u, u);
-        // minimap bottom-left, pause + joystick bottom-right
-        float top = 258 * u + slot * 2 + 150 * u;
+        float slot = Math.min(118 * u, (w - 2 * m - 5 * 12 * u) / 6f);
+        float wy = 342 * u;
+        text(c, "WEAPONS", m, wy - 10 * u, 24 * u, DIM, Paint.Align.LEFT);
+        slotRow(c, s, true, m, wy, slot, 12 * u, u);
+        text(c, "PASSIVES", m, wy + slot + 62 * u, 24 * u, DIM, Paint.Align.LEFT);
+        slotRow(c, s, false, m, wy + slot + 72 * u, slot, 12 * u, u);
+        // minimap bottom-left; pause, dodge and the touch areas bottom-right
+        float top = wy + slot * 2 + 150 * u;
         float side = Math.min(h - top - m, (w - 3 * m) * 0.5f);
         minimap(c, s, m, h - m - side, side);
-        float rx = m * 2 + side;
-        button(c, rx, h - m - side, w - m, h - m - side + 90 * u, "PAUSE", false);
-        hit(rx, h - m - side, w - m, h - m - side + 90 * u, 0, 0);
-        zl = rx; zt = h - m - side + 110 * u; zr = w - m; zb = h - m;
-        if (joyPointer < 0) {
-            r.set(zl, zt, zr, zb);
-            fill.setColor(0xFF141A28);
-            c.drawRoundRect(r, 24, 24, fill);
-            stroke.setColor(0xFF2A3350);
-            stroke.setStrokeWidth(2f);
-            c.drawRoundRect(r, 24, 24, stroke);
-            float cx = (zl + zr) / 2, cy = (zt + zb) / 2;
-            stroke.setColor(0xFF3A4566);
-            stroke.setStrokeWidth(4f);
-            c.drawCircle(cx, cy, joyR, stroke);
-            fill.setColor(0xFF2A3350);
-            c.drawCircle(cx, cy, joyR * 0.4f, fill);
-            text(c, eng.input.gamepadSeen ? "gamepad active" : "drag to move", cx, zb - 14 * u, 24 * u, DIM, Paint.Align.CENTER);
+        float rx = m * 2 + side, ry = h - m - side, rw = w - m - rx;
+        float pw = rw * 0.28f, bh = 84 * u;
+        button(c, rx, ry, rx + pw, ry + bh, "PAUSE", false);
+        hit(rx, ry, rx + pw, ry + bh, 0, 0);
+        dodgeButton(c, s, rx + pw + 12 * u, ry, w - m, ry + bh, u);
+        zt = at = ry + bh + 16 * u;
+        zb = ab = h - m;
+        boolean pad = eng.input.gamepadSeen;
+        zl = rx;
+        zr = pad ? w - m : rx + rw / 2f - 6 * u;
+        al = pad ? 0f : rx + rw / 2f + 6 * u;
+        ar = pad ? 0f : w - m;
+        touchArea(c, zl, zt, zr, zb, joyPointer < 0, pad ? "gamepad: left stick moves, right stick aims, A dodges" : "MOVE", u);
+        if (ar > al) touchArea(c, al, at, ar, ab, aimPointer < 0, "AIM", u);
+    }
+
+    /** An idle touch area: a dark pad with a ring and its label (hidden while a finger drives it). */
+    private void touchArea(Canvas c, float l, float t, float rr, float b, boolean idle, String label, float u) {
+        if (!idle) return;
+        r.set(l, t, rr, b);
+        fill.setColor(0xFF141A28);
+        c.drawRoundRect(r, 24, 24, fill);
+        stroke.setColor(0xFF2A3350);
+        stroke.setStrokeWidth(2f);
+        c.drawRoundRect(r, 24, 24, stroke);
+        float cx = (l + rr) / 2, cy = (t + b) / 2;
+        float ring = Math.min(joyR, Math.min(rr - l, b - t) * 0.42f);
+        stroke.setColor(0xFF3A4566);
+        stroke.setStrokeWidth(4f);
+        c.drawCircle(cx, cy, ring, stroke);
+        fill.setColor(0xFF2A3350);
+        c.drawCircle(cx, cy, ring * 0.4f, fill);
+        text(c, label, cx, b - 14 * u, label.length() > 8 ? 20 * u : 26 * u, DIM, Paint.Align.CENTER);
+    }
+
+    private static final String[] ROMAN = {"I", "II", "III"};
+
+    /** The hero's main weapon icon and name, then each branch as an icon with 3 pips (filled = tier taken). */
+    private void mainRow(Canvas c, Sim s, float x0, float y0, float x1, float u) {
+        MainWeapon mw = s.main;
+        float is = 64 * u;
+        iconKey(c, mw.def.key, x0, y0 + 4 * u, is, GOLD, true);
+        text(c, mw.def.name, x0 + is + 14 * u, y0 + 30 * u, 28 * u, TEXT, Paint.Align.LEFT);
+        text(c, s.hero.name, x0 + is + 14 * u, y0 + 62 * u, 22 * u, DIM, Paint.Align.LEFT);
+        text(c, cs(41, "Lv ", s.level, ""), x0 + is + 150 * u, y0 + 62 * u, 22 * u, GOLD, Paint.Align.LEFT);
+        int nb = mw.def.branches.size();
+        float cx0 = x0 + 360 * u, cw = (x1 - cx0) / Math.max(1, nb), bs = 52 * u;
+        for (int b = 0; b < nb; b++) {
+            float bx = cx0 + b * cw;
+            int t = mw.tier[b];
+            iconKey(c, mw.def.branches.get(b).id, bx, y0 + 4 * u, bs, t > 0 ? GOLD : 0xFF4A5678, t > 0);
+            for (int k = 0; k < 3; k++) {
+                float px = bx + bs + 10 * u + k * 20 * u, py = y0 + 24 * u;
+                r.set(px, py, px + 14 * u, py + 14 * u);
+                fill.setColor(k < t ? GOLD : 0xFF2A3350);
+                c.drawRoundRect(r, 3 * u, 3 * u, fill);
+            }
+            if (t > 0) text(c, ROMAN[t - 1], bx + bs + 10 * u, y0 + 58 * u, 20 * u, GOLD, Paint.Align.LEFT);
         }
+    }
+
+    /** Icon tile for a main weapon or branch id; dimmed unless {@code lit}. */
+    private void iconKey(Canvas c, String key, float x, float y, float s, int border, boolean lit) {
+        r.set(x, y, x + s, y + s);
+        fill.setColor(0xFF1D2438);
+        c.drawRoundRect(r, s * 0.18f, s * 0.18f, fill);
+        atlas.drawIcon(c, null, key, x + s / 2, y + s / 2, s * 0.86f);
+        if (!lit) {
+            fill.setColor(0x99141A28);
+            c.drawRoundRect(r, s * 0.18f, s * 0.18f, fill);
+        }
+        stroke.setColor(border);
+        stroke.setStrokeWidth(lit ? 4f : 2f);
+        c.drawRoundRect(r, s * 0.18f, s * 0.18f, stroke);
+    }
+
+    /** DODGE button: a cooldown fill that drains and the seconds left; also the touch rectangle for the dodge. */
+    private void dodgeButton(Canvas c, Sim s, float l, float t, float rr, float b, float u) {
+        dl = l;
+        dt = t;
+        dr = rr;
+        db = b;
+        boolean ready = s.dodgeCd <= 0f;
+        r.set(l, t, rr, b);
+        fill.setColor(ready ? CARD_FOCUS : CARD);
+        c.drawRoundRect(r, 18, 18, fill);
+        if (!ready) { // lit part grows from the left as the cooldown runs out
+            float f = 1f - Math.min(1f, s.dodgeCd / Math.max(0.01f, s.dodgeCdMax));
+            r.set(l, t, l + (rr - l) * f, b);
+            fill.setColor(0xFF2A4A3A);
+            c.drawRoundRect(r, 18, 18, fill);
+        }
+        r.set(l, t, rr, b);
+        stroke.setColor(ready ? 0xFF39FF88 : 0xFF3A4566);
+        stroke.setStrokeWidth(ready ? 4f : 2f);
+        c.drawRoundRect(r, 18, 18, stroke);
+        String label = ready ? "DODGE" : cs(40, "DODGE  ", (int) Math.ceil(s.dodgeCd), "s");
+        text(c, label, (l + rr) / 2f, (t + b) / 2f + 12 * u, 36 * u, ready ? TEXT : DIM, Paint.Align.CENTER);
     }
 
     private void slotRow(Canvas c, Sim s, boolean weapons, float x, float y, float slot, float gap, float u) {
@@ -587,9 +708,20 @@ public final class PanelRenderer {
         text(c, "K " + s.kills, rx - 190 * u, 40 * u, 32 * u, 0xFFFF7070, Paint.Align.RIGHT);
         text(c, "LV " + s.level, rx - 380 * u, 40 * u, 32 * u, GOLD, Paint.Align.RIGHT);
         text(c, timeStr((int) s.time), w / 2f + 200 * u, 50 * u, 46 * u, TEXT, Paint.Align.CENTER);
+        // the whole screen is the move stick, so the dodge button sits in the bottom-right corner
+        dodgeButton(c, s, w - m - 250 * u, h - m - 110 * u, w - m, h - m, u);
     }
 
     private void drawJoystick(Canvas c) {
+        if (aimPointer >= 0) {
+            stroke.setColor(0x66FFB060);
+            stroke.setStrokeWidth(4f);
+            c.drawCircle(aimOx, aimOy, joyR, stroke);
+            fill.setColor(0x55FFB060);
+            float dx = aimCx - aimOx, dy = aimCy - aimOy, m = (float) Math.sqrt(dx * dx + dy * dy);
+            if (m > joyR) { dx = dx / m * joyR; dy = dy / m * joyR; }
+            c.drawCircle(aimOx + dx, aimOy + dy, joyR * 0.4f, fill);
+        }
         if (joyPointer < 0) return;
         stroke.setColor(0x66FFFFFF);
         stroke.setStrokeWidth(4f);
@@ -623,15 +755,22 @@ public final class PanelRenderer {
             Offer o = offers.get(i);
             float y = top + i * (ch + gap);
             boolean f = i == eng.focus;
+            boolean branch = o.kind == Offer.BRANCH; // the Main card: gold frame and the hero's portrait
             r.set(x, y, x + cw, y + ch);
-            fill.setColor(f ? CARD_FOCUS : CARD);
+            fill.setColor(f ? CARD_FOCUS : branch ? 0xFF2A2616 : CARD);
             c.drawRoundRect(r, 20, 20, fill);
-            stroke.setColor(f ? GOLD : 0xFF3A4566);
-            stroke.setStrokeWidth(f ? 5f : 2f);
+            stroke.setColor(f || branch ? GOLD : 0xFF3A4566);
+            stroke.setStrokeWidth(f ? 6f : branch ? 4f : 2f);
             c.drawRoundRect(r, 20, 20, stroke);
             hit(x, y, x + cw, y + ch, i, 0);
             float is = ch - 36 * u;
-            if (o.def != null) icon(c, o.def, x + 18 * u, y + 18 * u, is, false);
+            if (branch) {
+                iconKey(c, o.key(), x + 18 * u, y + 18 * u, is, GOLD, true);
+                if (s != null && s.hero != null) {
+                    float ps = Math.min(is * 0.6f, 110 * u);
+                    atlas.drawIcon(c, null, "HERO_" + s.hero.key, x + cw - 24 * u - ps / 2, y + ch - 18 * u - ps / 2, ps);
+                }
+            } else if (o.def != null) icon(c, o.def, x + 18 * u, y + 18 * u, is, false);
             else {
                 fill.setColor(o.kind == Offer.HEAL ? 0xFFC8742C : 0xFFFFD23C);
                 c.drawCircle(x + 18 * u + is / 2, y + ch / 2, is * 0.35f, fill);
@@ -644,6 +783,7 @@ public final class PanelRenderer {
             switch (o.kind) {
                 case Offer.NEW_WEAPON: case Offer.NEW_PASSIVE: tag = "NEW"; tagCol = 0xFF70E080; break;
                 case Offer.HEAL: case Offer.GOLD: tag = ""; break;
+                case Offer.BRANCH: tag = "MAIN  TIER " + ROMAN[o.newLevel - 1]; break;
                 default: tag = o.newLevel >= o.def.maxLevel() ? "Lv " + o.newLevel + "  MAX" : "Lv " + o.newLevel;
             }
             text(c, tag, x + cw - 24 * u, y + 20 * u + titleSize, titleSize * 0.8f, tagCol, Paint.Align.RIGHT);
@@ -683,6 +823,7 @@ public final class PanelRenderer {
         String[] labels = {
                 "START RUN",
                 "STAGE   <  " + eng.stage().name + "  >",
+                "HERO   <  " + heroName() + "  >",
                 "WEAPON   <  " + eng.data.weapons.get(eng.starters.get(eng.weaponIdx)).name + "  >",
                 "POWER-UPS",
                 "MUSIC   <  " + VOLUME[eng.meta.musicVol] + "  >",
@@ -691,7 +832,11 @@ public final class PanelRenderer {
         for (int i = 0; i < Engine.MENU_COUNT; i++) {
             float by = y + i * (bh + gap);
             button(c, x, by, x + cw, by + bh, labels[i], eng.focus == i);
-            if (i == Engine.MENU_STAGE || i == Engine.MENU_WEAPON || i == Engine.MENU_MUSIC || i == Engine.MENU_SFX || i == Engine.MENU_LIGHT) {
+            if (i == Engine.MENU_HERO) { // the portrait sits at the left end of the row
+                String hk = eng.meta.heroKey();
+                if (hk != null) atlas.drawIcon(c, null, "HERO_" + hk, x + bh * 0.62f, by + bh / 2f, bh * 0.9f);
+            }
+            if (Engine.isCycleRow(i)) {
                 hit(x, by, x + cw * 0.3f, by + bh, i, -1);
                 hit(x + cw * 0.3f, by, x + cw, by + bh, i, 1);
             } else {
@@ -699,6 +844,11 @@ public final class PanelRenderer {
             }
         }
         if (!compact) text(c, "A / tap: select      d-pad: navigate", w / 2f, h - 30 * u, 26 * u, DIM, Paint.Align.CENTER);
+    }
+
+    private String heroName() {
+        String hk = eng.meta.heroKey();
+        return hk == null ? "-" : eng.data.heroes.get(hk).name;
     }
 
     private void shop(Canvas c, int w, int h) {

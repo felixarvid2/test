@@ -16,6 +16,8 @@ public final class Describe {
                 return "Restores 30 HP.";
             case Offer.GOLD:
                 return "Adds 25 gold.";
+            case Offer.BRANCH:
+                return o.branch.tiers[o.newLevel - 1].description;
             case Offer.NEW_WEAPON:
             case Offer.NEW_PASSIVE:
             case Offer.PASSIVE_LEVEL:

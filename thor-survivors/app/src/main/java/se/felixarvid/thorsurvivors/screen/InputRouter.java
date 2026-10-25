@@ -32,28 +32,40 @@ public final class InputRouter {
                 && code != KeyEvent.KEYCODE_BACK) {
             in.gamepadSeen = true;
         }
+        boolean pad = isPad(e.getSource());
         switch (code) {
             case KeyEvent.KEYCODE_DPAD_LEFT:
             case KeyEvent.KEYCODE_A:
-                in.kLeft = down;
+                if (code == KeyEvent.KEYCODE_DPAD_LEFT && !pad) in.aLeft = down; // keyboard arrows aim, WASD moves
+                else in.kLeft = down;
                 return nav(down, Input.LEFT, code == KeyEvent.KEYCODE_DPAD_LEFT);
             case KeyEvent.KEYCODE_DPAD_RIGHT:
             case KeyEvent.KEYCODE_D:
-                in.kRight = down;
+                if (code == KeyEvent.KEYCODE_DPAD_RIGHT && !pad) in.aRight = down;
+                else in.kRight = down;
                 return nav(down, Input.RIGHT, code == KeyEvent.KEYCODE_DPAD_RIGHT);
             case KeyEvent.KEYCODE_DPAD_UP:
             case KeyEvent.KEYCODE_W:
-                in.kUp = down;
+                if (code == KeyEvent.KEYCODE_DPAD_UP && !pad) in.aUp = down;
+                else in.kUp = down;
                 return nav(down, Input.UP, code == KeyEvent.KEYCODE_DPAD_UP);
             case KeyEvent.KEYCODE_DPAD_DOWN:
             case KeyEvent.KEYCODE_S:
-                in.kDown = down;
+                if (code == KeyEvent.KEYCODE_DPAD_DOWN && !pad) in.aDown = down;
+                else in.kDown = down;
                 return nav(down, Input.DOWN, code == KeyEvent.KEYCODE_DPAD_DOWN);
             case KeyEvent.KEYCODE_BUTTON_A:
+            case KeyEvent.KEYCODE_SPACE:
+                // while playing, the gamepad A button (and space) dodges; in menus it confirms
+                if (eng.phase == Engine.PH_PLAYING) {
+                    if (down && e.getRepeatCount() == 0) in.dodgeReq = true;
+                    return true;
+                }
+                if (down && e.getRepeatCount() == 0) in.post(Input.CMD_CONFIRM, 0, 0, 0);
+                return true;
             case KeyEvent.KEYCODE_DPAD_CENTER:
             case KeyEvent.KEYCODE_ENTER:
             case KeyEvent.KEYCODE_NUMPAD_ENTER:
-            case KeyEvent.KEYCODE_SPACE:
                 if (down && e.getRepeatCount() == 0) in.post(Input.CMD_CONFIRM, 0, 0, 0);
                 return true;
             case KeyEvent.KEYCODE_BUTTON_B:
@@ -79,6 +91,13 @@ public final class InputRouter {
         }
     }
 
+    /** True for gamepad and joystick sources, whose d-pad moves; any other source is a keyboard (arrows aim). */
+    static boolean isPad(int source) {
+        return (source & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD
+                || (source & InputDevice.SOURCE_DPAD) == InputDevice.SOURCE_DPAD
+                || (source & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK;
+    }
+
     private static boolean nav(boolean down, int dir, boolean dpad) {
         if (dpad) lastDpadKeyMs = System.currentTimeMillis();
         if (down) Engine.get().input.post(Input.CMD_NAV, dir, 0, 0);
@@ -100,6 +119,16 @@ public final class InputRouter {
         in.stickY = sy;
         in.hatX = Math.abs(hx) > 0.5f ? Math.signum(hx) : 0f;
         in.hatY = Math.abs(hy) > 0.5f ? Math.signum(hy) : 0f;
+
+        // right stick: aim (Z / RZ on most pads, RX / RY on others)
+        float rx = axis(e, MotionEvent.AXIS_Z), ry = axis(e, MotionEvent.AXIS_RZ);
+        if (Math.abs(rx) < 0.01f && Math.abs(ry) < 0.01f) {
+            rx = axis(e, MotionEvent.AXIS_RX);
+            ry = axis(e, MotionEvent.AXIS_RY);
+        }
+        in.aimStickX = Input.deadZone(rx, ry);
+        in.aimStickY = Input.deadZone(ry, rx);
+        if (in.aimStickX != 0 || in.aimStickY != 0) in.gamepadSeen = true;
 
         // stick -> menu navigation on threshold crossings
         int dir = -1;

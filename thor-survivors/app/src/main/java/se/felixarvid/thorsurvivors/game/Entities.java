@@ -23,6 +23,17 @@ public final class Entities {
         /** Knockback multiplier, 1 by default; Garlic raises it (lowers the enemy's knockback resistance). */
         public float kbMul = 1f;
         /**
+         * Status placeholders until the status phase (design section 7): seconds stunned (cannot move or attack) and
+         * rooted (cannot move), and Burn / Decay stacks with their time left and the damage per second of one stack.
+         */
+        public float stun, root, burnT, decayT, burnPer, decayPer;
+        public int burn, decay;
+
+        public void clearStatus() {
+            stun = root = burnT = decayT = burnPer = decayPer = 0f;
+            burn = decay = 0;
+        }
+        /**
          * Re-hit cooldowns of orbiting books and puddles: a ring of (projectile stamp, absolute time before which that
          * projectile cannot hit this enemy again), so every book and every puddle ticks on its own.
          */
@@ -79,7 +90,12 @@ public final class Entities {
     public static final int COOLDOWNS = 12;
 
     public static final int P_WHIP = 0, P_MISSILE = 1, P_KNIFE = 2, P_AXE = 3, P_CROSS = 4, P_BOOK = 5,
-            P_FIRE = 6, P_PUDDLE = 7;
+            P_FIRE = 6, P_PUDDLE = 7, P_MAIN = 8;
+    /** {@link Projectile#sub} of P_MAIN projectiles (the main weapons, see {@code MainWeapon}) and of ground patches. */
+    public static final int SUB_NONE = 0, SUB_BULLET = 1, SUB_SLUG = 2, SUB_BOLT = 3, SUB_BURST = 4, SUB_DART = 5,
+            SUB_GRENADE = 6, SUB_BOMBLET = 7, SUB_WAVE = 8, SUB_PATCH_FIRE = 9, SUB_PATCH_DECAY = 10;
+    /** {@link Projectile#status}: what a hit applies besides damage (placeholders for the status phase). */
+    public static final int ST_NONE = 0, ST_BURN = 1, ST_DECAY = 2;
 
     public static final class Projectile {
         public int kind, slot;
@@ -98,6 +114,12 @@ public final class Entities {
         public float grow, drift;
         /** Unique per projectile and per leg (a returning cross gets a fresh one); matched against Enemy.hitStamp. */
         public int stamp;
+        /** P_MAIN / patch kind (SUB_*), the status a hit applies (ST_*, statusN stacks), and homing/inert flags. */
+        public int sub, status, statusN;
+        /** Inert projectiles (lobbed grenades) never collide; they only explode when their life ends. */
+        public boolean inert;
+        /** Explosion at the end of life: radius {@code blast} (existing field) and damage {@code blastDmg}. */
+        public float blastDmg;
     }
 
     public static final int K_GEM = 0, K_COIN = 1, K_COINBAG = 2, K_ROAST = 3, K_VACUUM = 4, K_OROLOGION = 5,
@@ -123,7 +145,8 @@ public final class Entities {
         public boolean crit, heal;
     }
 
-    public static final int FX_WHIP = 0, FX_BOLT = 1, FX_RING = 2, FX_FLASH = 3, FX_BLAST = 4;
+    public static final int FX_WHIP = 0, FX_BOLT = 1, FX_RING = 2, FX_FLASH = 3, FX_BLAST = 4, FX_SWING = 5,
+            FX_SLAM = 6, FX_MUZZLE = 7, FX_BURST = 8, FX_THRUST = 9, FX_LINE = 10, FX_TENDRIL = 11;
 
     /**
      * A dead enemy that is still playing its death animation and fading out. Purely visual: the Sim keeps a small ring
@@ -140,6 +163,8 @@ public final class Entities {
         public int kind;
         public boolean evo;
         public float x, y, w, h, life, maxLife;
+        /** Direction in radians for the aimed effects (swing, muzzle flash, thrust, line). */
+        public float a;
         public int side;
     }
 }

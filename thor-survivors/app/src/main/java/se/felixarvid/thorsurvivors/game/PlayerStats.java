@@ -1,5 +1,7 @@
 package se.felixarvid.thorsurvivors.game;
 
+import se.felixarvid.thorsurvivors.data.HeroDef;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -21,9 +23,29 @@ public final class PlayerStats {
     public double greedMul;    // gold
     public double curse;
     public int revivals;
+    /** Hero base HP before the max-HP multiplier (VS player: 100). */
+    public double baseHp = 100;
+    /** Crit chance and multiplier of the main weapon (hero base + per-level growth); 0 and 2 without a hero. */
+    public double critChance;
+    public double critMul = 2;
 
     public static PlayerStats compute(Inventory inv, Map<String, Double> meta, double extraLuck) {
+        return compute(inv, meta, extraLuck, null, 1);
+    }
+
+    /**
+     * With a hero: its base HP, armor, regen, move speed and crit replace the VS defaults, and each level above 1 adds
+     * the hero's {@code perLevel} stats (design section 2).
+     */
+    public static PlayerStats compute(Inventory inv, Map<String, Double> meta, double extraLuck, HeroDef hero, int level) {
         Map<String, Double> sum = new HashMap<>(meta);
+        if (hero != null) {
+            for (Map.Entry<String, Double> e : hero.perLevel.entrySet()) {
+                Double p = sum.get(e.getKey());
+                double add = e.getValue() * Math.max(0, level - 1);
+                sum.put(e.getKey(), p == null ? add : p + add);
+            }
+        }
         for (int i = 0; i < inv.passiveCount; i++) {
             Inventory.Slot s = inv.passives[i];
             for (Map.Entry<String, Double> e : s.def.statsAt(s.level).entrySet()) {
@@ -48,6 +70,15 @@ public final class PlayerStats {
         p.greedMul = 1 + g(sum, "greed");
         p.curse = g(sum, "curse");
         p.revivals = (int) Math.round(g(sum, "revivals"));
+        p.critChance = g(sum, "critChance");
+        if (hero != null) {
+            p.baseHp = hero.hp;
+            p.armor += hero.armor;
+            p.regen += hero.regen;
+            p.moveSpeedMul *= hero.moveSpeed;
+            p.critChance += hero.crit;
+            p.critMul = hero.critMul;
+        }
         return p;
     }
 

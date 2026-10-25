@@ -492,7 +492,8 @@ public final class WorldRenderer {
             drawCreature(c, m, d.type, d.boss, px, py, 0, t + i, (float) i, 60f, false, false, false);
             bmp.setColorFilter(null);
         }
-        Model pm = atlas.model("bastion");
+        String hk = e.meta == null ? null : e.meta.heroKey();
+        Model pm = atlas.model(hk == null ? "bastion" : e.data.heroes.get(hk).model);
         if (pm != null) {
             int px = sx(camX), py = sy(camY + 20f);
             drawShadow(c, px, py, Math.round(22 * ks));
@@ -671,7 +672,7 @@ public final class WorldRenderer {
             sIdx[n++] = i;
             if (en.boss && nb < bossIdx.length) bossIdx[nb++] = i;
         }
-        Model pm = atlas.model("bastion");
+        Model pm = atlas.model(s.hero == null ? "bastion" : s.hero.model);
         int ppx = sx(s.px), ppy = sy(s.py);
         int pi = s.enemyN; // the player rides as one extra entry after the enemies (id 0)
         sKey[n] = bias(ppy) << 32;
@@ -695,6 +696,8 @@ public final class WorldRenderer {
             if (i == pi) drawShadow(c, ppx, ppy, Math.round(24 * ks));
             else drawShadow(c, entSx[i], entSy[i], Math.round(s.enemies[i].radius * sc * 0.95f));
         }
+
+        if (s.hero != null && s.ended == 0) drawAim(c, s, ppx, ppy);
 
         // 4. creatures in order
         orderN = 0;
@@ -868,29 +871,59 @@ public final class WorldRenderer {
         bar(c, px, py - headPx - 22, Math.max(120, headPx), 10, en.hp / en.maxHp, 0xFF2A0808, 0xFFE02828);
     }
 
+    /** Clip slot of the main weapon's attack animation (Sim.AC_*); falls back to the plain attack clip. */
+    private static int attackSlot(int ac) {
+        switch (ac) {
+            case Sim.AC_ATTACK2: return SpriteAtlas.C_ATTACK2;
+            case Sim.AC_SLAM: return SpriteAtlas.C_SLAM;
+            case Sim.AC_SHOOT: return SpriteAtlas.C_SHOOT;
+            case Sim.AC_THROW: return SpriteAtlas.C_THROW;
+            case Sim.AC_CAST: return SpriteAtlas.C_CAST;
+            case Sim.AC_CAST2: return SpriteAtlas.C_CAST2;
+            default: return SpriteAtlas.C_ATTACK;
+        }
+    }
+
     private void drawPlayer(Canvas c, Sim s, Model m, int px, int py) {
         if (m == null) {
             fill.setColor(0xFF3A6FD0);
             c.drawCircle(px, py - 30, 24, fill);
             return;
         }
-        int dir = dirOf(s.faceX, s.faceY);
-        if (s.faceX != 0f || s.faceY != 0f) playerDir = dir;
+        boolean dodging = s.dodgeT > 0f;
+        // a hero faces its aim (which is the facing direction without aim input), a dodge faces the dash
+        float dvx = dodging ? s.dodgeDx : s.hero != null ? s.aimX : s.faceX;
+        float dvy = dodging ? s.dodgeDy : s.hero != null ? s.aimY : s.faceY;
+        int dir = dirOf(dvx, dvy);
+        if (dvx != 0f || dvy != 0f) playerDir = dir;
         else dir = playerDir;
         ColorFilter cf = now < redUntil ? fRed : shadeAt(px, py - 30f * ks, FLOOR_PLAYER);
         bmp.setColorFilter(cf);
         bmp.setAlpha(255);
-        float sinceHit = (float) (now - hitAt), sinceAtk = (float) (now - s.lastAttack);
+        float atk = s.hero != null ? s.lastMainAttack : s.lastAttack;
+        float sinceHit = (float) (now - hitAt), sinceAtk = (float) (now - atk);
+        Clip dc = m.clip(SpriteAtlas.C_DODGE);
+        int slot = s.hero != null ? attackSlot(s.mainClip) : SpriteAtlas.C_ATTACK;
+        if (m.clip(slot) == null) slot = SpriteAtlas.C_ATTACK;
+        Clip ac = m.clip(slot);
         if (s.ended == 1) {
             Clip d = m.clip(SpriteAtlas.C_DEATH);
             int fi = Math.min(d.count - 1, (int) (deathT / 1.1f * d.count));
             drawFrameAt(c, m, SpriteAtlas.C_DEATH, dir, fi, px, py, ks, 1f, 1f, 0, bmp);
+        } else if (dodging && dc != null) {
+            // afterimages along the dash, then the dodge clip squeezed into the dash time
+            for (int g = 2; g >= 1; g--) {
+                bmp.setAlpha(g == 2 ? 50 : 100);
+                int gx = px - Math.round(dvx * 24f * g * sc), gy = py - Math.round(dvy * 24f * g * sc);
+                drawFrameAt(c, m, SpriteAtlas.C_DODGE, dir, (int) ((Sim.DODGE_TIME - s.dodgeT) / Sim.DODGE_TIME * dc.count), gx, gy, ks, 1f, 1f, 0, bmp);
+            }
+            bmp.setAlpha(255);
+            drawFrameAt(c, m, SpriteAtlas.C_DODGE, dir, (int) ((Sim.DODGE_TIME - s.dodgeT) / Sim.DODGE_TIME * dc.count), px, py, ks, 1f, 1f, 0, bmp);
         } else if (sinceHit >= 0 && sinceHit < HIT_CLIP && m.clip(SpriteAtlas.C_HIT) != null) {
             Clip hc = m.clip(SpriteAtlas.C_HIT);
             drawFrameAt(c, m, SpriteAtlas.C_HIT, dir, (int) (sinceHit / HIT_CLIP * hc.count), px, py, ks, 1f, 1f, 0, bmp);
-        } else if (sinceAtk >= 0 && sinceAtk < ATTACK_CLIP && m.clip(SpriteAtlas.C_ATTACK) != null) {
-            Clip a = m.clip(SpriteAtlas.C_ATTACK);
-            drawFrameAt(c, m, SpriteAtlas.C_ATTACK, dir, (int) (sinceAtk / ATTACK_CLIP * a.count), px, py, ks, 1f, 1f, 0, bmp);
+        } else if (sinceAtk >= 0 && sinceAtk < ATTACK_CLIP && ac != null) {
+            drawFrameAt(c, m, slot, dir, (int) (sinceAtk / ATTACK_CLIP * ac.count), px, py, ks, 1f, 1f, 0, bmp);
         } else if (moving) {
             Clip r = m.clip(SpriteAtlas.C_WALK);
             int fi = (int) (s.walk * 1.3f / (2f * (float) Math.PI) * r.count);
@@ -899,6 +932,19 @@ public final class WorldRenderer {
             drawFrameAt(c, m, SpriteAtlas.C_IDLE, dir, SpriteAtlas.frameAt(m.clip(SpriteAtlas.C_IDLE), (float) now, 1.5f), px, py, ks, 1f, 1f, 0, bmp);
         }
         bmp.setColorFilter(null);
+    }
+
+    /** Aim indicator at the player's feet: a short tick and a chevron pointing where the main weapon fires. */
+    private void drawAim(Canvas c, Sim s, int px, int py) {
+        float ax = s.aimX, ay = s.aimY, nx = -ay, ny = ax;
+        float r0 = 30f * ks, r1 = 52f * ks, wing = 9f * ks;
+        int alpha = s.aimActive ? 200 : 110;
+        stroke.setColor((alpha << 24) | 0xD8FFF8);
+        stroke.setStrokeWidth(2.5f * ks);
+        float tx = px + ax * r1, ty = py + ay * r1;
+        c.drawLine(px + ax * r0, py + ay * r0, tx, ty, stroke);
+        c.drawLine(tx, ty, tx - ax * wing * 1.4f + nx * wing, ty - ay * wing * 1.4f + ny * wing, stroke);
+        c.drawLine(tx, ty, tx - ax * wing * 1.4f - nx * wing, ty - ay * wing * 1.4f - ny * wing, stroke);
     }
 
     private void drawPlayerBar(Canvas c, Sim s, int px, int py) {

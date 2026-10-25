@@ -23,6 +23,8 @@ public final class GameData {
             "POWER", "ARMOR", "MAXHEALTH", "REGEN", "COOLDOWN", "AREA", "SPEED", "DURATION",
             "AMOUNT", "MOVESPEED", "MAGNET", "LUCK", "GROWTH", "GREED", "CURSE", "REVIVAL"};
     public static final String[] STAGE_ORDER = {"FOREST", "LIBRARY"};
+    /** Hero select order (the JSON object order is not reliable). */
+    public static final String[] HERO_ORDER = {"BASTION", "SPECTRE", "XENOMANT"};
 
     public final Map<String, WeaponDef> weapons = new LinkedHashMap<>();
     public final Map<String, StageDef> stages = new LinkedHashMap<>();
@@ -31,6 +33,9 @@ public final class GameData {
     public final Map<String, PowerUpDef> powerUps = new LinkedHashMap<>();
     /** Per stage: {ambient darkness 0..1, player light radius in world units} (ashfall_data.json "lighting"). */
     public final Map<String, float[]> lighting = new HashMap<>();
+    /** Heroes and their main weapons (ashfall_data.json "heroes", "mainWeapons"); empty without the overlay. */
+    public final Map<String, HeroDef> heroes = new LinkedHashMap<>();
+    public final Map<String, MainWeaponDef> mainWeapons = new HashMap<>();
 
     public static GameData load(InputStream in) throws IOException, JSONException {
         return parse(IO.readUtf8(in));
@@ -45,7 +50,8 @@ public final class GameData {
 
     /**
      * Merges assets/ashfall_data.json by id (design section 13): display names and descriptions of weapons, evolutions
-     * and passives, stage names and the lighting parameters. Ids, balance and everything not listed stay untouched.
+     * and passives, stage names, the lighting parameters, and the heroes with their main weapons and branches.
+     * Ids, balance and everything not listed stay untouched.
      */
     public void applyOverlay(String json) throws JSONException {
         JSONObject root = new JSONObject(json);
@@ -77,6 +83,59 @@ public final class GameData {
                 lighting.put(key, new float[]{(float) o.optDouble("ambient", 0.65), (float) o.optDouble("radius", 240)});
             }
         }
+        JSONObject mw = root.optJSONObject("mainWeapons");
+        if (mw != null) {
+            Iterator<String> it = mw.keys();
+            while (it.hasNext()) {
+                String key = it.next();
+                mainWeapons.put(key, parseMainWeapon(key, mw.getJSONObject(key)));
+            }
+        }
+        JSONObject he = root.optJSONObject("heroes");
+        if (he != null) {
+            for (String key : HERO_ORDER) {
+                JSONObject o = he.optJSONObject(key);
+                if (o != null) heroes.put(key, parseHero(key, o));
+            }
+        }
+    }
+
+    private static Map<String, Double> numbers(JSONObject o) {
+        Map<String, Double> m = new LinkedHashMap<>();
+        if (o == null) return m;
+        Iterator<String> it = o.keys();
+        while (it.hasNext()) {
+            String k = it.next();
+            Object v = o.opt(k);
+            if (v instanceof Number) m.put(k, ((Number) v).doubleValue());
+        }
+        return m;
+    }
+
+    private static HeroDef parseHero(String key, JSONObject o) {
+        return new HeroDef(key, o.optString("name", key), o.optString("role", ""), o.optString("description", ""),
+                o.optString("main", ""), o.optString("model", key.toLowerCase(java.util.Locale.ROOT)),
+                o.optDouble("hp", 100), o.optDouble("armor", 0), o.optDouble("regen", 0), o.optDouble("moveSpeed", 1),
+                o.optDouble("crit", 0), o.optDouble("critMul", 2), numbers(o.optJSONObject("perLevel")));
+    }
+
+    private static MainWeaponDef parseMainWeapon(String key, JSONObject o) throws JSONException {
+        String kind = o.optString("kind", "CONE");
+        int k = "VOLLEY".equals(kind) ? MainWeaponDef.VOLLEY : "BOLT".equals(kind) ? MainWeaponDef.BOLT : MainWeaponDef.CONE;
+        List<BranchDef> branches = new ArrayList<>();
+        JSONArray bs = o.optJSONArray("branches");
+        for (int i = 0; bs != null && i < bs.length(); i++) {
+            JSONObject b = bs.getJSONObject(i);
+            JSONArray ts = b.getJSONArray("tiers");
+            BranchDef.Tier[] tiers = new BranchDef.Tier[ts.length()];
+            for (int j = 0; j < tiers.length; j++) {
+                JSONObject t = ts.getJSONObject(j);
+                tiers[j] = new BranchDef.Tier(t.optString("name", ""), t.optString("desc", ""), numbers(t.optJSONObject("mods")));
+            }
+            branches.add(new BranchDef(b.getString("id"), b.optString("name", b.getString("id")), tiers));
+        }
+        return new MainWeaponDef(key, o.optString("name", key), o.optString("description", ""), k, o.optDouble("power", 1),
+                o.optDouble("interval", 1000), o.optDouble("knockback", 1), numbers(o.optJSONObject("params")), branches);
     }
 
     /** Ambient darkness and player light radius of a stage (defaults when the overlay has none). */
@@ -194,6 +253,11 @@ public final class GameData {
             powerUps.put(key, new PowerUpDef(key, r0.optString("name", key), r0.optString("description", ""),
                     r0.optInt("price", 100), numericRows(arr)));
         }
+    }
+
+    /** Hero keys in select order that the data actually defines. */
+    public List<String> heroKeys() {
+        return new ArrayList<>(heroes.keySet());
     }
 
     /** Base weapons that can be picked as a starting weapon (unlocked in the source data). */

@@ -6,6 +6,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import org.json.JSONObject;
 import org.junit.Test;
 
 import se.felixarvid.thorsurvivors.game.Engine;
@@ -16,12 +17,18 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 
 /** Manifest parsing (missing files are silent, not fatal), the shipped assets, and the spec document. */
 public class AudioManifestTest {
     private static final String[] IDS = {"whip", "gem", "coin"};
+
+    /** Music tracks the manifest ships; {@code final} (The First) is silent until the code asks for it. */
+    private static final String[] TRACKS = {"menu", "forest", "library", "boss", "final", "gameover", "victory"};
 
     private static AudioManifest.FileCheck has(String... files) {
         final Set<String> s = new HashSet<>(Arrays.asList(files));
@@ -85,7 +92,7 @@ public class AudioManifestTest {
         AudioManifest m = AudioManifest.parse(json, SoundEvents.NAMES, f -> Files.exists(audioDir().resolve(f)));
         assertTrue("missing " + m.missing, m.missing.isEmpty());
         assertEquals(SoundEvents.COUNT, m.sfx.size());
-        for (String t : new String[]{"menu", "forest", "library", "boss", "gameover", "victory"}) {
+        for (String t : TRACKS) {
             assertNotNull(t, m.music.get(t));
         }
         assertFalse(m.music.get("menu").file.isEmpty());
@@ -97,7 +104,7 @@ public class AudioManifestTest {
         try (java.util.stream.Stream<Path> w = Files.walk(audioDir())) {
             for (Path p : (Iterable<Path>) w::iterator) if (Files.isRegularFile(p)) total += Files.size(p);
         }
-        assertTrue("audio is " + total + " bytes", total < 3_000_000);
+        assertTrue("audio is " + total + " bytes", total < 5_000_000);
     }
 
     @Test
@@ -107,10 +114,42 @@ public class AudioManifestTest {
             assertTrue(f + " is an Ogg file", startsWithOggS(f));
             assertTrue(id + " is " + Files.size(f) + " bytes", Files.size(f) < 60_000);
         }
-        for (String t : new String[]{"menu", "forest", "library", "boss", "gameover", "victory"}) {
+        for (String id : pendingIds()) {
+            Path f = audioDir().resolve("sfx/" + id + ".ogg");
+            assertTrue(f + " is an Ogg file", startsWithOggS(f));
+            assertTrue(id + " is " + Files.size(f) + " bytes", Files.size(f) < 60_000);
+        }
+        for (String t : TRACKS) {
             Path f = audioDir().resolve("music/" + t + ".ogg");
             assertTrue(f + " is an Ogg file", startsWithOggS(f));
             assertTrue(t + " is " + Files.size(f) + " bytes", Files.size(f) < 450_000);
+        }
+    }
+
+    /**
+     * Ids in the manifest's "pending" section: sounds for the design section 12 events that SoundEvents does not have
+     * yet. The files are shipped and ready; move an id to "sfx" in manifest.json when the code starts playing it.
+     */
+    private static List<String> pendingIds() throws Exception {
+        String json = new String(Files.readAllBytes(audioDir().resolve("manifest.json")), StandardCharsets.UTF_8);
+        JSONObject pending = new JSONObject(json).optJSONObject("pending");
+        List<String> ids = new ArrayList<>();
+        if (pending != null) for (Iterator<String> it = pending.keys(); it.hasNext(); ) ids.add(it.next());
+        return ids;
+    }
+
+    @Test
+    public void pendingSoundsAreShippedDocumentedAndNotYetWired() throws Exception {
+        String json = new String(Files.readAllBytes(audioDir().resolve("manifest.json")), StandardCharsets.UTF_8);
+        JSONObject pending = new JSONObject(json).getJSONObject("pending");
+        JSONObject sfx = new JSONObject(json).getJSONObject("sfx");
+        String spec = new String(Files.readAllBytes(Paths.get("../tools/AUDIO_SPEC.md")), StandardCharsets.UTF_8);
+        assertTrue("design section 12 lists about 36 new ids", pending.length() >= 33);
+        for (String id : pendingIds()) {
+            String file = pending.getJSONObject(id).getString("file");
+            assertTrue(id + " file " + file, Files.exists(audioDir().resolve(file)));
+            assertFalse(id + " is listed twice (sfx and pending)", sfx.has(id));
+            assertTrue(id + " is in the spec", spec.contains("| `" + id + "` |"));
         }
     }
 
@@ -124,7 +163,8 @@ public class AudioManifestTest {
         String c = new String(Files.readAllBytes(audioDir().resolve("CREDITS.txt")), StandardCharsets.UTF_8);
         assertTrue("CC0 sources only", c.contains("CC0"));
         assertFalse("the placeholders are gone", c.contains("placeholders generated procedurally"));
-        for (String s : new String[]{"MYSTERIOUS TRAVELER", "MonsterVania", "heavy_dungeon", "No Hope", "fanfare1"}) {
+        for (String s : new String[]{"nuclear_cave", "pulse_0", "dark_forces", "dark_cavern", "heavy_boss_battle_2",
+                "victory_4", "Creepy Incoherent Chanting", "Heartbeat sounds"}) {
             assertTrue(s, c.contains(s));
         }
     }
@@ -133,7 +173,7 @@ public class AudioManifestTest {
     public void specDocumentNamesEverySoundId() throws Exception {
         String spec = new String(Files.readAllBytes(Paths.get("../tools/AUDIO_SPEC.md")), StandardCharsets.UTF_8);
         for (String id : SoundEvents.NAMES) assertTrue(id, spec.contains("| `" + id + "` |"));
-        for (String t : new String[]{"menu", "forest", "library", "boss", "gameover", "victory"}) {
+        for (String t : TRACKS) {
             assertTrue(t, spec.contains("| `" + t + "` |"));
         }
     }
