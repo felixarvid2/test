@@ -314,7 +314,8 @@ mod tests {
             .collect();
         let fleet = audit_fleet(configs, &[]);
         for d in &fleet.devices {
-            let left: Vec<String> = d.findings().map(|f| format!("{}: {}", f.rule, f.message)).collect();
+            // Info-fynd (t.ex. port-security, dhcp-snooping) är förslag och får finnas kvar.
+            let left: Vec<String> = d.findings().filter(|f| f.severity > Severity::Info).map(|f| format!("{}: {}", f.rule, f.message)).collect();
             assert!(left.is_empty(), "{} har fynd: {left:?}", d.name);
         }
         assert!(fleet.cross.is_empty(), "{:?}", fleet.cross);
