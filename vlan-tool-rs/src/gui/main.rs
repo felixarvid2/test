@@ -6,7 +6,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod app;
+mod files;
 mod folder;
+mod history;
+mod palette;
 mod theme;
 mod views;
 
