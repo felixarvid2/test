@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Builds app/src/main/assets/sprites/{atlas.json,*.png,CREDITS.txt} from art-src/ and renders a preview.
+"""LEGACY (the game no longer loads these sprites, see tools/build_ashfall_assets.py; kept for reference).
+Builds app/src/main/assets/sprites/{atlas.json,*.png,CREDITS.txt} from art-src/ and renders a preview.
 
 Usage: python3 tools/build_atlas.py [PREVIEW_PNG]
 Sheets: D = Kenney Tiny Dungeon, T = Kenney Tiny Town (12 cols), C = Tiny Creatures (10 cols); 16px, 1px spacing.

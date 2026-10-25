@@ -2,10 +2,13 @@ package se.felixarvid.thorsurvivors.render;
 
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.LightingColorFilter;
+import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.graphics.Rect;
 
 import se.felixarvid.thorsurvivors.game.WorldGen;
-import se.felixarvid.thorsurvivors.render.SpriteAtlas.Sprite;
+import se.felixarvid.thorsurvivors.render.SpriteAtlas.Img;
 
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
@@ -14,19 +17,18 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * The ground of the stage as a small LRU of pre-rendered chunk bitmaps ({@link WorldGen#CHUNK} x CHUNK tiles each,
- * 640 px square at 1080p). A chunk is baked from the pure functions in {@link WorldGen}: floor, dirt autotile, flowers,
- * flat objects, and the dense forest clumps painted back to front. Trees reach over a chunk border, so a chunk also
- * paints the trees (and flat objects) of its neighbours that overlap it; that is what makes the borders seamless.
+ * 640 px square at 1080p). A chunk is the mine-rock texture tiled by world pixel position (so every chunk border is
+ * seamless), tinted per stage, a second flipped copy blended on top to hide the repeat, and the decals of the area
+ * ({@link WorldGen#decals}): oil, blood, scorch, rubble, grates, bones, moss. Decals that reach over a border are painted
+ * by both chunks.
  *
  * Chunks in view are baked on the spot if missing (start, stage change, a teleport); the ring of half a chunk around the
  * view is prefetched on one background thread, one chunk at a time, so walking onto new ground never costs a frame.
- * Evicted bitmaps are reused, so steady state allocates nothing per frame.
- *
- * The scattered single trees and bushes are not baked: each chunk only lists them, and the renderer y-sorts them
- * with the creatures.
+ * Evicted bitmaps are reused, so steady state allocates nothing per frame. Props are not baked: the renderer lists
+ * them from {@link WorldGen#props} and y-sorts them with the creatures.
  */
 final class GroundCache {
-    static final int CAP = 24, MAX_PROPS = 48;
+    static final int CAP = 24, MAX_DECALS = 160;
     private static final int FREE = 0, BUILDING = 1, READY = 2;
 
     static final class Chunk implements Runnable {
@@ -35,9 +37,6 @@ final class GroundCache {
         long stamp;
         Bitmap bm;
         Canvas canvas;
-        int propN;
-        final float[] px = new float[MAX_PROPS], py = new float[MAX_PROPS];
-        final int[] pk = new int[MAX_PROPS];
         GroundCache owner;
 
         /** Worker-thread entry: bakes this chunk with the worker's own scratch. */
@@ -49,15 +48,12 @@ final class GroundCache {
 
     /** One baking context (paint and scratch lists), so the render thread and the worker never share state. */
     private static final class Baker {
-        final Paint paint = new Paint();
-        final float[] tx = new float[WorldGen.MAX_LIST], ty = new float[WorldGen.MAX_LIST];
-        final int[] tk = new int[WorldGen.MAX_LIST];
-
-        Baker() {
-            paint.setAntiAlias(false);
-            paint.setFilterBitmap(false);
-            paint.setDither(false);
-        }
+        final Paint paint = new Paint(Paint.FILTER_BITMAP_FLAG), decalPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
+        final float[] dx = new float[MAX_DECALS], dy = new float[MAX_DECALS];
+        final int[] dk = new int[MAX_DECALS];
+        final Rect src = new Rect(), dst = new Rect();
+        LightingColorFilter tintFilter;
+        int tintFor;
     }
 
     private final SpriteAtlas atlas = SpriteAtlas.get();
@@ -66,8 +62,9 @@ final class GroundCache {
     private final Object lock = new Object();
     private ThreadPoolExecutor worker;
     private volatile WorldGen gen;
-    private volatile Sprite tile;
-    private volatile int k, size, chunkPx;
+    private volatile Bitmap rock, rockFlip;
+    private volatile int tint, size, chunkPx;
+    private volatile String stageKey = "";
     private volatile int generation;
     private long frame;
     private volatile boolean busy; // a chunk is being baked on the worker
@@ -75,9 +72,6 @@ final class GroundCache {
     /** Tests: bake prefetched chunks on the calling thread instead, for deterministic counts. */
     boolean async = true;
 
-    /** Chunks wanted this frame (view plus margin) that are baked: the renderer reads their props. */
-    final Chunk[] wanted = new Chunk[CAP + 8];
-    int wantedN;
 
     // stats for tests and the perf notes
     int builds;
@@ -90,16 +84,26 @@ final class GroundCache {
         }
     }
 
-    /** Tile size in px (16 * k); chunks are dropped when the stage or the scale changes. */
-    void setup(WorldGen g, Sprite t, int scale) {
-        if (g == gen && t == tile && scale == k) return;
+    /** Tile size in px (80 at 1080p) and the multiply tint of the rock; chunks are dropped when any of it changes. */
+    void setup(WorldGen g, String stage, int tilePx, int tintColor) {
+        if (g == gen && tilePx == size && tintColor == tint && stage.equals(stageKey)) return;
         synchronized (lock) {
             generation++; // a build in flight finishes into the old generation and is discarded
             gen = g;
-            tile = t;
-            k = scale;
-            size = 16 * scale;
+            stageKey = stage;
+            tint = tintColor;
+            size = tilePx;
             chunkPx = size * WorldGen.CHUNK;
+            Bitmap r = atlas.groundTexture();
+            if (r != rock) {
+                rock = r;
+                rockFlip = null;
+                if (r != null) {
+                    Matrix m = new Matrix();
+                    m.setScale(-1f, -1f);
+                    rockFlip = Bitmap.createBitmap(r, 0, 0, r.getWidth(), r.getHeight(), m, false);
+                }
+            }
             for (Chunk c : pool) if (c.state != BUILDING) c.state = FREE;
         }
     }
@@ -126,7 +130,6 @@ final class GroundCache {
     /** Draws everything in view; ox/oy is the screen position of tile (0,0), cam* the camera in px. */
     void draw(Canvas c, Paint p, int ox, int oy, int camPx, int camPy, int w, int h) {
         frame++;
-        wantedN = 0;
         int chunkPx = this.chunkPx;
         int marginPx = chunkPx / 2;
         int cx0 = Math.floorDiv(camPx - w / 2 - marginPx, chunkPx), cx1 = Math.floorDiv(camPx + w / 2 + marginPx, chunkPx);
@@ -157,7 +160,6 @@ final class GroundCache {
                     await(ch);
                 }
                 ch.stamp = frame;
-                if (wantedN < wanted.length) wanted[wantedN++] = ch;
                 if (visible) c.drawBitmap(ch.bm, cx * chunkPx + ox, cy * chunkPx + oy, p);
             }
         }
@@ -225,7 +227,6 @@ final class GroundCache {
         if (!async) {
             finish(v, mainBaker);
             v.stamp = frame;
-            if (wantedN < wanted.length) wanted[wantedN++] = v;
             return;
         }
         busy = true;
@@ -247,15 +248,17 @@ final class GroundCache {
     /** Bakes a claimed chunk and publishes it (or drops it when the stage changed meanwhile). */
     private void finish(Chunk v, Baker b) {
         long t0 = System.nanoTime();
-        int cp = chunkPx, myGen;
+        int cp, myGen;
         WorldGen g;
-        Sprite t;
-        int scale;
+        Bitmap r, rf;
+        int tn, tp;
         synchronized (lock) {
             myGen = v.gen;
             g = gen;
-            t = tile;
-            scale = k;
+            r = rock;
+            rf = rockFlip;
+            tn = tint;
+            tp = size;
             cp = chunkPx;
         }
         boolean current = myGen == generation;
@@ -264,8 +267,7 @@ final class GroundCache {
                 v.bm = Bitmap.createBitmap(cp, cp, Bitmap.Config.ARGB_8888);
                 v.canvas = new Canvas(v.bm);
             }
-            bake(b, v.canvas, g, t, scale, v.cx * WorldGen.CHUNK, v.cy * WorldGen.CHUNK, WorldGen.CHUNK, WorldGen.CHUNK);
-            v.propN = g.props(v.cx, v.cy, v.px, v.py, v.pk);
+            bake(b, v.canvas, g, r, rf, tn, tp, v.cx * WorldGen.CHUNK, v.cy * WorldGen.CHUNK, WorldGen.CHUNK, WorldGen.CHUNK);
         }
         double ms = (System.nanoTime() - t0) / 1e6;
         synchronized (lock) {
@@ -287,36 +289,67 @@ final class GroundCache {
 
     /** Test hook: bakes a window of tiles (w x h starting at tile x0,y0) onto the canvas, origin at its top-left. */
     void bake(Canvas c, int x0, int y0, int w, int h) {
-        bake(mainBaker, c, gen, tile, k, x0, y0, w, h);
+        bake(mainBaker, c, gen, rock, rockFlip, tint, size, x0, y0, w, h);
     }
 
-    private void bake(Baker b, Canvas c, WorldGen gen, Sprite tile, int k, int x0, int y0, int w, int h) {
-        final int T = 16 * k;
-        final Paint paint = b.paint;
-        for (int j = 0; j < h; j++) {
-            for (int i = 0; i < w; i++) {
-                int code = gen.ground(x0 + i, y0 + j);
-                Bitmap bm;
-                if (code >= WorldGen.G_DIRT) bm = atlas.ground(tile, code - WorldGen.G_DIRT, k);
-                else if (code == WorldGen.G_PEBBLE) bm = atlas.ground(tile, WorldGen.PEBBLE_PIECE, k);
-                else bm = atlas.bitmap(tile, Math.min(code, tile.base.length - 1), k, SpriteAtlas.T_NORMAL, false);
-                c.drawBitmap(bm, i * T, j * T, paint);
+    private void bake(Baker b, Canvas c, WorldGen gen, Bitmap rock, Bitmap flip, int tint, int T, int x0, int y0, int w, int h) {
+        final float f = T / 80f;
+        final int tex = Math.round(512 * f);
+        final int wx = x0 * T, wy = y0 * T, pw = w * T, ph = h * T; // the window in world pixels
+        if (rock == null) {
+            c.drawColor(tint | 0xFF000000);
+        } else {
+            if (b.tintFilter == null || b.tintFor != tint) {
+                b.tintFilter = new LightingColorFilter(tint | 0xFF000000, 0);
+                b.tintFor = tint;
             }
+            b.paint.setColorFilter(b.tintFilter);
+            tile(c, b, rock, tex, wx, wy, pw, ph, 0, 0, 255);
+            tile(c, b, flip, tex, wx, wy, pw, ph, 211, 137, 105); // breaks the 512 px repeat
+            b.paint.setColorFilter(null);
         }
-        for (int j = -1; j <= h; j++) { // one tile of margin: a jittered object of the next chunk can reach over the border
-            for (int i = -1; i <= w; i++) {
-                int o = gen.object(x0 + i, y0 + j);
-                if (o < 0 || o >= tile.decor.length) continue;
-                int jx = Math.round(gen.jitterX(x0 + i, y0 + j) * 16f) * k, jy = Math.round(gen.jitterY(x0 + i, y0 + j) * 16f) * k;
-                c.drawBitmap(atlas.decor(tile, o, k), i * T + jx, j * T + jy, paint);
-            }
-        }
-        int n = gen.clumpTrees(x0, y0, x0 + w - 1, y0 + h - 1, b.tx, b.ty, b.tk);
+        int n = gen.decals(x0 - 2, y0 - 2, x0 + w + 1, y0 + h + 1, b.dx, b.dy, b.dk);
+        b.decalPaint.setColorFilter(DECAL_TONE);
         for (int i = 0; i < n; i++) {
-            if (b.tk[i] >= tile.decor.length) continue;
-            // snapped to the art pixel grid so every tree is an exact integer-scaled copy
-            int left = Math.round((b.tx[i] - x0) * 16f - 8f) * k, top = Math.round((b.ty[i] - y0) * 16f - 8f) * k;
-            c.drawBitmap(atlas.decor(tile, b.tk[i], k), left, top, paint);
+            Img im = decalImg(b.dk[i] & 255);
+            if (im == null) continue;
+            int cx = Math.round(b.dx[i] * T) - wx, cy = Math.round(b.dy[i] * T) - wy; // whole pixels: identical in every window
+            int rot = (b.dk[i] >> 8) & 3;
+            c.save();
+            c.translate(cx, cy);
+            c.rotate(rot * 90f);
+            if ((b.dk[i] & 1024) != 0) c.scale(-1f, 1f);
+            int iw = Math.round(im.w() * f), ih = Math.round(im.h() * f);
+            b.dst.set(-iw / 2, -ih / 2, iw - iw / 2, ih - ih / 2);
+            b.decalPaint.setAlpha((b.dk[i] & 255) == WorldGen.DC_HAZARD ? 130 : 235);
+            c.drawBitmap(im.sheet, im.src, b.dst, b.decalPaint);
+            c.restore();
         }
+    }
+
+    private static final LightingColorFilter DECAL_TONE = new LightingColorFilter(0xFFA0A0A0, 0);
+    private final Img[] decalImgs = new Img[WorldGen.DECAL.length];
+    private boolean decalsResolved;
+
+    private Img decalImg(int kind) {
+        if (!decalsResolved) {
+            for (int i = 0; i < decalImgs.length; i++) decalImgs[i] = atlas.img("decal." + WorldGen.DECAL[i]);
+            decalsResolved = true;
+        }
+        return kind < decalImgs.length ? decalImgs[kind] : null;
+    }
+
+    /** Paints the texture over the window, aligned to absolute world pixels (plus an offset) so chunk borders match. */
+    private static void tile(Canvas c, Baker b, Bitmap tex, int texPx, int wx, int wy, int pw, int ph, int offX, int offY, int alpha) {
+        b.paint.setAlpha(alpha);
+        int startX = -Math.floorMod(wx + offX, texPx), startY = -Math.floorMod(wy + offY, texPx);
+        b.src.set(0, 0, tex.getWidth(), tex.getHeight());
+        for (int y = startY; y < ph; y += texPx) {
+            for (int x = startX; x < pw; x += texPx) {
+                b.dst.set(x, y, x + texPx, y + texPx);
+                c.drawBitmap(tex, b.src, b.dst, b.paint);
+            }
+        }
+        b.paint.setAlpha(255);
     }
 }

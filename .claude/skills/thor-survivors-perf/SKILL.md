@@ -20,7 +20,8 @@ Never optimise without a measurement, and never report headroom against a budget
 | Allocation in the loop | 0 bytes per `Sim.update` and per world draw | `Sim` header comment |
 | Pools | `Sim.MAX_ENEMIES` 320, `MAX_PROJ` 600, `MAX_PICK` 1200, `MAX_PART` 600 never exceeded | `Sim.java` |
 | Ground chunk bake | background thread `ground-chunks`, never on the frame path except start/teleport | `render/GroundCache.java` (CAP 24 chunks, 640 px each at 1080p) |
-| Bitmap memory | ground LRU 24 x 640x640x4 B ~ 39 MB plus atlas; total heap under ~150 MB | compute from `GroundCache.CAP` |
+| Bitmap memory | ground LRU 24 x 640x640x4 B ~ 39 MB, model sheets ~41 MB, world/vfx/icons atlases ~15 MB; total heap under ~150 MB | `GroundCache.CAP`, `tools/build_ashfall_assets.py` prints the model RAM |
+| Lighting | `Lighting` map 320x180 A8 plus <= 12 blobs per frame; LIGHTING FULL/LOW/OFF row in the menu. Device cost UNMEASURED (software proxy: FULL ~4x OFF) | `render/Lighting.java`, `RenderCostTest` |
 
 ## Measure headless
 
@@ -31,7 +32,7 @@ Never optimise without a measurement, and never report headroom against a budget
 2. Allocation: `com.sun.management.ThreadMXBean.getThreadAllocatedBytes(Thread.currentThread().getId())` before and
    after the measured steps; expect 0 after warm-up. A non-zero value: bisect by calling the sub-steps (they are
    private; use the whole `update` with weapons removed, or `noSpawnsForTest()`) to find the allocating one.
-3. Render proxy: `render/ScreenshotTest` and `StageShotsTest` rasterise real Canvas via Robolectric (see skill
+3. Render proxy (`render/RenderCostTest` already does steps 3 and the zero-allocation check for FULL/LOW/OFF at 300 enemies; its output lines start with `PERF`): `render/ScreenshotTest` and `StageShotsTest` rasterise real Canvas via Robolectric (see skill
    `thor-survivors-screenshots`). Time `WorldRenderer.draw` for 50 frames of a full crowd. Software raster on x86 is
    only an order-of-magnitude proxy: use it to compare before/after, never as an absolute fps claim.
 4. Chunk bake: `GroundCacheTest` has `bake`/test hooks; time one chunk bake on the calling thread.

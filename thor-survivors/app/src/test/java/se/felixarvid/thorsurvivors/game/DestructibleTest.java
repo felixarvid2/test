@@ -82,12 +82,13 @@ public class DestructibleTest {
     @Test
     public void aWeaponHitBreaksOneAndItDropsAPickup() throws Exception {
         Sim s = sim("FOREST");
-        int n0 = s.destN;
         float bx = s.destX[0], by = s.destY[0];
         s.px = bx - 70;
         s.py = by;
         s.facingRight = true;
         Input in = new Input();
+        s.update(0f, in); // enter the new cell: the 5 x 5 window around it is what counts
+        int n0 = s.destN;
         for (int i = 0; i < 120 && s.destsBroken == 0; i++) s.update(DT, in);
         assertEquals(1, s.destsBroken);
         assertEquals(n0 - 1, s.destN);

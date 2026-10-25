@@ -12,8 +12,13 @@ public final class EnemyType {
     public final int color;
     public final float radius;
     public final float alpha;
-    /** Cached SpriteAtlas keys (avoids string building per frame). */
-    public final String spriteKey, bossSpriteKey;
+    /**
+     * Baked Ashfall model (render.SpriteAtlas.model) used for this key, and the one used when it spawns as a boss. A
+     * temporary mapping from the current Vampire Survivors roster until the Ashfall roster lands (README, "Fiender").
+     */
+    public final String model, bossModel;
+    /** Colour of the sparks and gore this enemy sheds when hit (ARGB). */
+    public final int gore;
 
     public EnemyType(EnemyDef def) {
         this.def = def;
@@ -82,8 +87,42 @@ public final class EnemyType {
         this.color = col;
         this.radius = (float) (r * Math.max(1.0, def.scale));
         this.alpha = (float) (def.alpha > 0 ? def.alpha : 1);
-        this.spriteKey = "enemy." + def.key;
-        this.bossSpriteKey = "boss." + def.key;
+        this.model = modelFor(k);
+        this.bossModel = bossModelFor(k);
+        this.gore = goreOf(model);
+    }
+
+    /** Normal enemies: the Ashfall model that stands in for each Vampire Survivors key. */
+    static String modelFor(String k) {
+        if (k.startsWith("BOSS_")) return bossModelFor(k);
+        if (k.contains("BAT")) return "spore_hound";
+        if (k.contains("SKELETON") || k.contains("SKULL") || k.contains("DULL")) return "sergeant";
+        if (k.contains("GHOST") || k.contains("ECTO")) return "security_drone";
+        if (k.contains("WEREWOLF")) return "welder";
+        if (k.contains("MUMMY")) return "smelter";
+        if (k.contains("FLOWER")) return "lumen_tentacle";
+        if (k.contains("MEDUSA") || k.contains("WITCH") || k.contains("COUNT") || k.contains("DEATH")) return "vire";
+        if (k.contains("MANTIS") || k.contains("BUER")) return "spore_carrier";
+        return "infected_colonist"; // ZOMBIE, MUD, MUDMAN*
+    }
+
+    /** Bosses by size: the Final Boss for the two biggest, Slagborn for the other XL ones, Cargo Loader for the rest. */
+    static String bossModelFor(String k) {
+        if (k.equals("BOSS_XLDEATH") || k.equals("BOSS_XLMEDUSA")) return "the_first";
+        if (k.contains("XL")) return "slagborn";
+        return "cargo_loader";
+    }
+
+    private static int goreOf(String model) {
+        switch (model) {
+            case "spore_hound": return 0xFF58E070;
+            case "security_drone": return 0xFFFFC060;
+            case "smelter": case "slagborn": case "cargo_loader": case "the_first": return 0xFFFF8A30;
+            case "lumen_tentacle": return 0xFF30FFA0;
+            case "vire": return 0xFFB070FF;
+            case "spore_carrier": return 0xFF90E040;
+            default: return 0xFFC02818; // colonist, sergeant, welder: blood
+        }
     }
 
     private static int pick(String k, String[] keys, int[] cols, int def) {

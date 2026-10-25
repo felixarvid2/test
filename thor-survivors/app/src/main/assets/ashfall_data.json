@@ -1,0 +1,167 @@
+{
+ "_comment": "Ashfall display overlay. Merged by id over game_data.json (GameData.applyOverlay); ids and balance stay as they are. Design: docs/ASHFALL_DESIGN.md section 3, 3.2, 10, 13.",
+ "names": {
+  "WHIP": {
+   "name": "Vibro Lash",
+   "description": "Horizontal vibro-blade slash that cuts through every enemy in line."
+  },
+  "VAMPIRICA": {
+   "name": "Leech Scythe",
+   "description": "Evolved Vibro Lash. Can crit and drains the wounded to heal you."
+  },
+  "MAGIC_MISSILE": {
+   "name": "Spore Dart",
+   "description": "Launches a spore dart at the nearest enemy."
+  },
+  "HOLY_MISSILE": {
+   "name": "Lumen Volley",
+   "description": "Evolved Spore Dart. Fires with no delay."
+  },
+  "KNIFE": {
+   "name": "Scalpel Throw",
+   "description": "Throws scalpels fast in the direction you face."
+  },
+  "THOUSAND": {
+   "name": "Scalpel Storm",
+   "description": "Evolved Scalpel Throw. Fires with no delay."
+  },
+  "AXE": {
+   "name": "Cluster Grenade",
+   "description": "Lobs a grenade in an arc. High damage, scales strongly with area."
+  },
+  "SCYTHE": {
+   "name": "Shrapnel Spiral",
+   "description": "Evolved Cluster Grenade. Spinning shrapnel passes through enemies."
+  },
+  "CROSS": {
+   "name": "Ricochet Drone",
+   "description": "A drone that hunts the nearest enemy and boomerangs back."
+  },
+  "HEAVENSWORD": {
+   "name": "Strike Wing",
+   "description": "Evolved Ricochet Drone. Can deal critical damage."
+  },
+  "HOLYBOOK": {
+   "name": "Ward Drones",
+   "description": "Drones orbit you, shielding and striking whatever they touch."
+  },
+  "VESPERS": {
+   "name": "Sentinel Ring",
+   "description": "Evolved Ward Drones. The ring never ends."
+  },
+  "FIREBALL": {
+   "name": "Slag Cannon",
+   "description": "Fires molten slag at a random enemy for heavy damage."
+  },
+  "HELLFIRE": {
+   "name": "Furnace Burst",
+   "description": "Evolved Slag Cannon. Passes through enemies."
+  },
+  "GARLIC": {
+   "name": "Toxic Vent",
+   "description": "Vents a toxic cloud that damages nearby enemies and weakens their knockback resistance."
+  },
+  "VORTEX": {
+   "name": "Lumen Devourer",
+   "description": "Evolved Toxic Vent. Feeds on the dying; power grows when you recover HP."
+  },
+  "HOLYWATER": {
+   "name": "Corrosive Flask",
+   "description": "Throws flasks that leave damaging pools."
+  },
+  "BORA": {
+   "name": "Corrosive Wake",
+   "description": "Evolved Corrosive Flask. The pools follow you and grow as they move."
+  },
+  "LIGHTNING": {
+   "name": "Arc Coil",
+   "description": "Arcs of lightning strike random enemies."
+  },
+  "LOOP": {
+   "name": "Tesla Loop",
+   "description": "Evolved Arc Coil. Every strike hits twice."
+  },
+  "POWER": {
+   "name": "Servo Amplifier",
+   "description": "Raises inflicted damage by 10%."
+  },
+  "ARMOR": {
+   "name": "Plate Weave",
+   "description": "Reduces incoming damage by 1. Increases retaliatory damage by 10%."
+  },
+  "MAXHEALTH": {
+   "name": "Bio-Gel Pack",
+   "description": "Augments max health by 20%."
+  },
+  "REGEN": {
+   "name": "Medi-Foam",
+   "description": "You recover 0.2 HP per second."
+  },
+  "COOLDOWN": {
+   "name": "Overclock Chip",
+   "description": "Reduces weapon cooldown by 8%."
+  },
+  "AREA": {
+   "name": "Wide-Beam Lens",
+   "description": "Augments the area of attacks by 10%."
+  },
+  "SPEED": {
+   "name": "Rail Accelerator",
+   "description": "Increases projectile speed by 10%."
+  },
+  "DURATION": {
+   "name": "Stabilizer Coil",
+   "description": "Increases the duration of weapon effects by 10%."
+  },
+  "AMOUNT": {
+   "name": "Multiplexer",
+   "description": "Weapons fire more projectiles."
+  },
+  "MOVESPEED": {
+   "name": "Mag Boots",
+   "description": "You move 10% faster."
+  },
+  "MAGNET": {
+   "name": "Gravity Collar",
+   "description": "You pick up items from further away."
+  },
+  "LUCK": {
+   "name": "Lumen Charm",
+   "description": "You get 10% luckier."
+  },
+  "GROWTH": {
+   "name": "Neural Tap",
+   "description": "You gain 8% more experience."
+  },
+  "GREED": {
+   "name": "Salvage License",
+   "description": "Gains more gold."
+  },
+  "CURSE": {
+   "name": "Spore Taint",
+   "description": "Increases enemy speed, health and quantity."
+  },
+  "REVIVAL": {
+   "name": "Defibrillator",
+   "description": "Revives you once with 50% health."
+  }
+ },
+ "stages": {
+  "FOREST": {
+   "name": "Cinder Flats"
+  },
+  "LIBRARY": {
+   "name": "Deep Mines"
+  }
+ },
+ "lighting": {
+  "FOREST": {
+   "ambient": 0.65,
+   "radius": 240
+  },
+  "LIBRARY": {
+   "ambient": 0.78,
+   "radius": 200
+  }
+ }
+}

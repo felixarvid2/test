@@ -1,56 +1,56 @@
 ---
 name: thor-survivors-sprites
-description: Add or change Thor Survivors sprites - pick CC0 art from thor-survivors/art-src/, read sheet indices from a numbered contact sheet, map them in tools/build_atlas.py, regenerate atlas.json and CREDITS.txt, and check the result. Use when adding an enemy, boss, pickup, projectile, icon or ground tile, or when a sprite looks wrong on screen.
+description: Add or change Thor Survivors art (ASHFALL look) - baked 8-direction models, props, decals, effects, icons; map them in tools/build_ashfall_assets.py, rebuild assets/ashfall/, and check the result. Use when adding an enemy model, prop, decal, effect or icon, changing which model an enemy key uses, or when a sprite looks wrong on screen.
 ---
 
-# Sprites for Thor Survivors
+# Art for Thor Survivors (ASHFALL: Lumen Tide)
 
-Art is CC0 only. Each pack in `thor-survivors/art-src/` has `LICENSE.txt` (or `License.txt`) and `SOURCE.md`.
-Record source URL, author and licence in the pack's `SOURCE.md` before using it. Credits are generated into
-`app/src/main/assets/sprites/CREDITS.txt`, never edited by hand.
+All art is the owner's own (Meshy 3D models, FLUX 2D images), so there is no third-party licence to record. The game no longer
+uses the Kenney / Tiny Creatures sheets (they stay in `art-src/`; `tools/build_atlas.py` is the legacy builder).
 
-## Sheets
+## Sources
 
-| Key | Pack in art-src | Sheet | Columns |
-|---|---|---|---|
-| D | `kenney-tiny-dungeon` | `Tilemap/tilemap.png` | 12 |
-| T | `kenney-tiny-town` | `Tilemap/tilemap.png` | 12 |
-| C | `clint-bellanger-tiny-creatures` | `Tilemap/tilemap.png` | 10 |
+| What | Where |
+|---|---|
+| Baked models (8 directions, clips) | `thor-survivors/art-src/ashfall-baked/<characters\|enemies\|props\|environment>/<name>.png + .json` (made by `tools/bake/`, see `tools/bake/README.md`) |
+| Effects (black background, additive), decals, ground texture, stat icons | `/home/user/test/assets/ashfall-ai/flux/{vfx,decals,textures,stats}` |
+| Skill / item / crystal icons | `/home/user/test/assets/ashfall-ai/meshy/icons/` |
 
-All are 16 px tiles with 1 px spacing and no outer margin. Tile `i` is at `x=(i%cols)*17`, `y=(i//cols)*17`.
-Sizes: D and T 203x186, C 170x306.
+## Pipeline
 
-## Steps
+`cd thor-survivors && python3 tools/build_ashfall_assets.py` (Pillow + numpy, about 2 minutes: lossless WebP) writes
+`app/src/main/assets/ashfall/`: `m_<model>.webp` per animated model, `world.webp` (props, environment, decals), `vfx.webp`,
+`icons.webp`, `ground/mine_rock.webp`, `manifest.json`, `CREDITS.txt`. Never edit these by hand.
 
-1. Render a numbered contact sheet of the sheet before choosing an index. Read indices by eye have been wrong:
-   C:105 is a griffin, the mummy is C:95, C:14 is a bare-chested man, the hooded reaper is C:4.
-2. Map it in `thor-survivors/tools/build_atlas.py`. Keys: `player`, `enemy.<KEY>`, `boss.<KEY>`, `pickup.*`,
-   `proj.<WEAPON>`, `icon.<KEY>`, `tile.FOREST`, `tile.LIBRARY`. Entries are `S(sheet, index, k=..., tint=..., alpha=..., rot=...)`.
-3. Regenerate and preview: `cd thor-survivors && python3 tools/build_atlas.py <scratch>/preview.png`, with
-   `<scratch>` the session scratchpad. It rewrites `atlas.json`, the PNG copies and `CREDITS.txt`, then reads
-   `atlas.json` back for the preview.
-4. Check the preview with the Read tool.
-5. Run the tests: `./gradlew testDebugUnitTest --tests '*AtlasJsonTest*' --tests '*AtlasBitmapTest*'`, then the
-   screenshot tests (see `thor-survivors-screenshots`).
+Tables at the top of the script: `MODELS` (clips kept per model; enemies keep walk/attack/death only to save memory),
+`PROPS`, `DECALS` (longest side in px), `VFX` (stored size), `ICONS` (key -> source file), `GEMS`. `SCALE` = 0.78 turns the
+64 px/m bake into a ~75 px human at 1080p. A frame is re-cut, Lanczos-scaled and shelf-packed with a 1 px gap, so no bleeding.
+The script prints the file sizes and how much RAM every model sheet needs once decoded (target: all sheets together
+under ~40 MB, APK under ~30 MB).
 
-## Scales (integer, nearest-neighbour, at 1080p)
+## Keys the game reads (render/SpriteAtlas.java)
 
-- Player 5x, enemies 4x (XL 5x, some 6x), bosses 10x, chest 4x, coins 3x, projectiles 3-5x, ground tile 5x.
-- Keep the 16 px chunky-outline style. Tints are multiply colour filters baked into the frames.
-- Missing key: a procedural fallback is drawn. Hand-drawn pixel art lives in `render/PixelSprites.java`
-  (gems, roast, King Bible, cross, Mad Forest brazier, library candelabra). Use it when no sheet sprite fits.
+- Models by name: `bastion`, `infected_colonist`, ... Clip slots: idle, walk (a character's `run` is stored as walk), attack, hit, death, static.
+- Images: `prop.NAME`, `decal.NAME`, `vfx.NAME`, `icon.KEY` (weapon base id or passive id), `gem.crystal_*`, `pix.NAME` (hand-drawn in
+  `render/PixelSprites.java`: coin, bag, roast, vacuum, orologion, rosary, clover, grenade, flask).
+- Enemy key -> model: `game/EnemyType.modelFor` / `bossModelFor` (temporary VS-to-Ashfall mapping; test `AshfallAssetsTest`).
+- Stage props and decals: `game/WorldGen` (`PROP` and `DECAL` name arrays; a name there must exist in the manifest).
 
-## Tiny Town traps
+## Adding things
 
-- 3/4 and 27/28 are tree halves. Never use them alone.
-- The 3x3 forest blocks 6-11, 18-23 and 30-35 do not tile cleanly (stray half-tree arcs). Build clumps from
-  whole trees 15 and 16 and bushes (D 5) instead.
-- Dirt autotile: 12-14, 24-26, 36-38, with inner corners 39-42 (the `tile.FOREST` list also includes 43).
-- Library: shelves 63 and 75, table 72, barrel 82, stool 73. The pack has no real bookshelves or candles.
-- Stage ground lists are in `tools/build_atlas.py` (`tile.FOREST`, `tile.LIBRARY`); `WorldGen` indexes them.
+1. New enemy model: bake it (`tools/bake`), add a line to `MODELS`, map keys in `EnemyType.modelFor`, add its gore colour in `goreOf`.
+   Unrigged models (one `static` frame per direction) get procedural bob/sway in `WorldRenderer.drawCreature`: add a case there.
+2. New prop or decal: add to `PROPS` / `DECALS`, then to the `WorldGen` arrays and its placement rules (it is a pure function of the cell;
+   keep the start area clear; `WorldGenTest` checks ownership, density and the clear start).
+3. New effect: add to `VFX`, draw it with `WorldRenderer.glow(...)` (additive, tinted by a colour filter).
+4. Rebuild, then run `./gradlew testDebugUnitTest --tests '*AtlasBitmapTest*' --tests '*AshfallAssetsTest*'` and look at the screenshots
+   (skill `thor-survivors-screenshots`: `bestiary.png` shows every model in all 8 directions at game size).
 
-## Done means
+## Traps
 
-- `atlas.json` and the PNGs in `app/src/main/assets/sprites/` are regenerated, not hand-edited.
-- The preview shows every new sprite with its label and it looks right at the in-game size.
-- `CREDITS.txt` lists the new pack. No non-CC0 art is added.
+- Death frames can reach outside `frameSize`: always draw relative to the feet anchor (`drawFrameAt` does).
+- Baked walk clips are slow (~2.9 fps): the renderer sets fps from the movement speed.
+- Effect pictures are RGB on black: the build turns brightness into alpha (alpha = max(r,g,b)), so draw them additively.
+- Models are baked dark. Creatures are drawn with a brightening colour matrix (`ENEMY_GAIN`) so they stay readable on dark ground;
+  bosses skip the gain.
+- Icon sources have white or black corner pixels: the build clips them to a rounded square.

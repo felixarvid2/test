@@ -89,19 +89,19 @@ public class CrowdOrderTest {
         s.recomputeAll();
         h.eng.input.clearMovement();
         s.enemyN = 0;
-        s.time = 1;
+        s.time = 0.1; // the idle clip stays on one frame for the whole second
         h.eng.advance(1f / 60f);
         s.enemyN = 0;
         Bitmap ref = h.renderTop();
         int cx = Shots.TOP_W / 2, cy = Shots.TOP_H / 2;
-        int normal = ref.getPixel(cx, cy - 6);
+        int normal = ref.getPixel(cx, cy - 45);
         s.hp -= 10;
         s.invuln = 0.5f; // i-frames as the Sim gives after a hit
         int[] px = new int[30];
         for (int f = 0; f < 30; f++) {
             s.enemyN = 0;
             h.eng.advance(1f / 60f);
-            px[f] = h.renderTop().getPixel(cx, cy - 6);
+            px[f] = h.renderTop().getPixel(cx, cy - 45);
         }
         assertTrue("red tint right after the hit", px[0] != normal);
         for (int f = 12; f < 30; f++) assertEquals("blink at frame " + f, normal, px[f]);

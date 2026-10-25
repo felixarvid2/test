@@ -29,14 +29,15 @@ public final class MainActivity extends Activity {
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
         Engine eng = Engine.get();
         if (!eng.isReady()) {
-            try (InputStream in = getAssets().open("game_data.json")) {
-                GameData data = GameData.load(in);
+            try (InputStream in = getAssets().open("game_data.json");
+                 InputStream over = getAssets().open("ashfall_data.json")) {
+                GameData data = GameData.load(in, over); // Ashfall names merged over the Vampire Survivors data
                 eng.init(data, new MetaProgress(data, new PrefsStore(this)));
             } catch (Exception e) {
                 throw new RuntimeException("Cannot load game_data.json", e);
             }
         }
-        SpriteAtlas.get().load(getAssets());
+        if (!SpriteAtlas.get().isLoaded()) SpriteAtlas.get().load(getAssets()); // decodes ~50 MB of sheets once
         setVolumeControlStream(AudioManager.STREAM_MUSIC); // the hardware volume keys control the game's audio
         audio = new AudioEngine(this, eng);
         FrameLayout root = new FrameLayout(this);

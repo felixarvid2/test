@@ -284,16 +284,15 @@ public final class PanelRenderer {
 
     private void icon(Canvas c, WeaponDef d, float x, float y, float s, boolean evo) {
         String k = baseKey(d.key);
-        String ik = "icon." + k;
-        if (atlas.has(ik)) {
-            // dark tile + whole-multiple nearest-neighbour sprite; evolutions reuse the base icon with a gold border
+        if (atlas.has("icon." + k)) {
+            // dark tile + the Ashfall icon scaled to fit; evolutions reuse the base icon with a gold border
             r.set(x, y, x + s, y + s);
             fill.setColor(d.powerUp ? 0xFF2A2F45 : 0xFF1D2438);
             c.drawRoundRect(r, s * 0.18f, s * 0.18f, fill);
             stroke.setColor(evo ? GOLD : 0xFF4A5678);
             stroke.setStrokeWidth(evo ? 5f : 2f);
             c.drawRoundRect(r, s * 0.18f, s * 0.18f, stroke);
-            atlas.drawCentered(c, bmp, ik, x + s / 2, y + s / 2, Math.max(1, (int) (s * 0.8f / 16f)));
+            atlas.drawIcon(c, null, k, x + s / 2, y + s / 2, s * 0.86f);
             return;
         }
         int hue = Math.abs(k.hashCode()) % 360;
@@ -657,6 +656,7 @@ public final class PanelRenderer {
     // ---- menus
 
     private static final String[] VOLUME = {"OFF", "LOW", "MEDIUM", "HIGH"};
+    private static final String[] LIGHTING = {"OFF", "LOW", "FULL"};
 
     private void mainMenu(Canvas c, int w, int h) {
         float u = h / 1080f;
@@ -672,7 +672,7 @@ public final class PanelRenderer {
         float x = (w - cw) / 2f;
         float y = top;
         if (!compact) {
-            text(c, "THOR SURVIVORS", w / 2f, 150 * u, 84 * u, GOLD, Paint.Align.CENTER);
+            text(c, "ASHFALL: LUMEN TIDE", w / 2f, 150 * u, 74 * u, GOLD, Paint.Align.CENTER);
             text(c, "Gold " + eng.meta.gold + "    Best " + timeStr(eng.meta.bestTimeSec) + "    Kills " + eng.meta.bestKills,
                     w / 2f, 215 * u, 34 * u, DIM, Paint.Align.CENTER);
             y = 290 * u;
@@ -686,11 +686,12 @@ public final class PanelRenderer {
                 "WEAPON   <  " + eng.data.weapons.get(eng.starters.get(eng.weaponIdx)).name + "  >",
                 "POWER-UPS",
                 "MUSIC   <  " + VOLUME[eng.meta.musicVol] + "  >",
-                "SOUND EFFECTS   <  " + VOLUME[eng.meta.sfxVol] + "  >"};
+                "SOUND EFFECTS   <  " + VOLUME[eng.meta.sfxVol] + "  >",
+                "LIGHTING   <  " + LIGHTING[eng.meta.lighting] + "  >"};
         for (int i = 0; i < Engine.MENU_COUNT; i++) {
             float by = y + i * (bh + gap);
             button(c, x, by, x + cw, by + bh, labels[i], eng.focus == i);
-            if (i == Engine.MENU_STAGE || i == Engine.MENU_WEAPON || i == Engine.MENU_MUSIC || i == Engine.MENU_SFX) {
+            if (i == Engine.MENU_STAGE || i == Engine.MENU_WEAPON || i == Engine.MENU_MUSIC || i == Engine.MENU_SFX || i == Engine.MENU_LIGHT) {
                 hit(x, by, x + cw * 0.3f, by + bh, i, -1);
                 hit(x + cw * 0.3f, by, x + cw, by + bh, i, 1);
             } else {

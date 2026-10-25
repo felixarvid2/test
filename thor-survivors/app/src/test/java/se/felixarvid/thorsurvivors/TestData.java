@@ -13,8 +13,9 @@ public final class TestData {
 
     public static synchronized GameData load() throws Exception {
         if (cached == null) {
-            try (InputStream in = new FileInputStream("src/main/assets/game_data.json")) {
-                cached = GameData.load(in);
+            try (InputStream in = new FileInputStream("src/main/assets/game_data.json");
+                 InputStream over = new FileInputStream("src/main/assets/ashfall_data.json")) {
+                cached = GameData.load(in, over);
             }
         }
         return cached;

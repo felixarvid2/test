@@ -12,9 +12,11 @@ No KVM in the cloud, so no emulator. Robolectric 4.14.1 with `@GraphicsMode(Grap
 
 - Files in `thor-survivors/app/src/test/java/se/felixarvid/thorsurvivors/render/`:
   `ScreenshotTest.java` (menu, fight, level-up, weapons, movement), `StageShotsTest.java` (forest and library stages,
-  brazier before/after), `CrowdOrderTest.java` (6 movement frames, `seq_N.png`), `Shots.java` (helper, sizes).
+  brazier before/after), `CrowdOrderTest.java` (6 movement frames, `seq_N.png`), `Shots.java` (helper, sizes), `AshfallShotsTest.java` (lighting FULL/LOW/OFF with the enemy contrast check, the three boss
+  models, the death sequence, the player in 8 directions and 5 states, `bestiary.png`), `RenderCostTest.java` (crowd draw time per
+  lighting mode and the zero-allocation check).
 - Top screen: 1920x1080 (`Shots.TOP_W/TOP_H`, WorldRenderer). Bottom panel: 1240x1080 (`Shots.BOT_W/BOT_H`, `ui/PanelRenderer`).
-  World view is 560 units high (`Sim.VIEW_H`).
+  World view is 560 units high (`Sim.VIEW_H`), 1.93 px per unit, one tile (`WorldGen.TILE`) = 80 px.
 - Output dir: env `SHOT_DIR`, default `app/build/screenshots`.
 - Run one class: `SHOT_DIR=<scratch>/frames ./gradlew testDebugUnitTest --tests '*ScreenshotTest*' --rerun`,
   with `<scratch>` the session scratchpad.
@@ -30,17 +32,19 @@ No KVM in the cloud, so no emulator. Robolectric 4.14.1 with `@GraphicsMode(Grap
 ## What to look for (bugs already seen)
 
 - Z-order flicker from swap-remove pools. Fixed by y-sort. `CrowdOrderTest` asserts no order flips across frames.
-- Atlas bleeding and shimmer. Frames are pre-sliced into their own 16x16 bitmaps and integer-scaled at load
-  (`render/SpriteAtlas.java`), drawn on whole screen pixels.
-- Blinking or shake on hit. Replaced by a red tint and a white silhouette.
+- Ground seams at chunk borders. `GroundCacheTest` checks pixel identity across borders (`render/GroundCache.java`): decal centres are
+  rounded to whole pixels, or two windows differ in the last bit.
+- `Shots.renderTop()` returns one shared bitmap: `copy()` it before rendering a second frame you want to compare.
+- Blinking or shake on hit: a red filter and a white filter (`PorterDuffColorFilter`), no extra bitmaps.
+- Too dark: judge FULL and LOW frames with the Read tool, then check `lightingFullLowOff` prints enemy contrast (WCAG ratio, design
+  target 2.0; the test asserts >= 1.6 for FULL and LOW). Enemies must never go below 64 % brightness (`FLOOR_ENEMY`).
+- A level-up pauses the sim: loops that kill enemies must confirm the level-up (see `deathAnimationBeforeTheCorpseFades`).
 - Cluttered damage numbers.
-- Multi-tile tree halves drawn alone (Tiny Town 3/4, 27/28). Use whole trees.
-- Ground seams at chunk borders. `GroundCacheTest` checks pixel identity across borders (`render/GroundCache.java`).
 
 ## Tests that cover the renders
 
 - `./gradlew testDebugUnitTest --tests '*render*'` runs `CrowdOrderTest`, `GroundCacheTest`, `AtlasBitmapTest`,
-  `ScreenshotTest`, `StageShotsTest`. Run `AtlasJsonTest` too after any sprite change.
+  `ScreenshotTest`, `StageShotsTest`, `AshfallShotsTest`, `RenderCostTest`. Run `AshfallAssetsTest` (data package) too after any art change.
 
 ## Not verifiable here: check on the real device
 

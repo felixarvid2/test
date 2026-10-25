@@ -29,9 +29,60 @@ public final class GameData {
     public final Map<String, EnemyDef> enemies = new HashMap<>();
     public final Map<String, ItemDef> items = new HashMap<>();
     public final Map<String, PowerUpDef> powerUps = new LinkedHashMap<>();
+    /** Per stage: {ambient darkness 0..1, player light radius in world units} (ashfall_data.json "lighting"). */
+    public final Map<String, float[]> lighting = new HashMap<>();
 
     public static GameData load(InputStream in) throws IOException, JSONException {
         return parse(IO.readUtf8(in));
+    }
+
+    /** Base data plus the Ashfall names overlay (null overlay = base only). */
+    public static GameData load(InputStream base, InputStream overlay) throws IOException, JSONException {
+        GameData d = parse(IO.readUtf8(base));
+        if (overlay != null) d.applyOverlay(IO.readUtf8(overlay));
+        return d;
+    }
+
+    /**
+     * Merges assets/ashfall_data.json by id (design section 13): display names and descriptions of weapons, evolutions
+     * and passives, stage names and the lighting parameters. Ids, balance and everything not listed stay untouched.
+     */
+    public void applyOverlay(String json) throws JSONException {
+        JSONObject root = new JSONObject(json);
+        JSONObject names = root.optJSONObject("names");
+        if (names != null) {
+            Iterator<String> it = names.keys();
+            while (it.hasNext()) {
+                String id = it.next();
+                JSONObject o = names.getJSONObject(id);
+                WeaponDef w = weapons.get(id);
+                if (w != null) weapons.put(id, w.withText(o.optString("name", w.name), o.optString("description", w.description)));
+                PowerUpDef p = powerUps.get(id);
+                if (p != null) powerUps.put(id, p.withName(o.optString("name", p.name)));
+            }
+        }
+        JSONObject st = root.optJSONObject("stages");
+        if (st != null) {
+            for (String key : new ArrayList<>(stages.keySet())) {
+                JSONObject o = st.optJSONObject(key);
+                if (o != null) stages.put(key, stages.get(key).withName(o.optString("name", stages.get(key).name)));
+            }
+        }
+        JSONObject li = root.optJSONObject("lighting");
+        if (li != null) {
+            Iterator<String> it = li.keys();
+            while (it.hasNext()) {
+                String key = it.next();
+                JSONObject o = li.getJSONObject(key);
+                lighting.put(key, new float[]{(float) o.optDouble("ambient", 0.65), (float) o.optDouble("radius", 240)});
+            }
+        }
+    }
+
+    /** Ambient darkness and player light radius of a stage (defaults when the overlay has none). */
+    public float[] lightingOf(String stageKey) {
+        float[] l = lighting.get(stageKey);
+        return l != null ? l : new float[]{0.65f, 240f};
     }
 
     public static GameData parse(String json) throws JSONException {

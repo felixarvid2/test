@@ -18,7 +18,7 @@ public final class Engine {
     public static final int PH_MENU = 0, PH_SHOP = 1, PH_PLAYING = 2, PH_LEVELUP = 3, PH_PAUSED = 4, PH_CHEST = 5,
             PH_RESULT = 6;
     public static final int MENU_START = 0, MENU_STAGE = 1, MENU_WEAPON = 2, MENU_SHOP = 3, MENU_MUSIC = 4,
-            MENU_SFX = 5, MENU_COUNT = 6;
+            MENU_SFX = 5, MENU_LIGHT = 6, MENU_COUNT = 7;
 
     private static final Engine INSTANCE = new Engine();
 
@@ -210,7 +210,7 @@ public final class Engine {
             case PH_MENU:
                 if (dir == Input.UP) f = (f + n - 1) % n;
                 else if (dir == Input.DOWN) f = (f + 1) % n;
-                else if (f == MENU_STAGE || f == MENU_WEAPON || f == MENU_MUSIC || f == MENU_SFX) {
+                else if (f == MENU_STAGE || f == MENU_WEAPON || f == MENU_MUSIC || f == MENU_SFX || f == MENU_LIGHT) {
                     changed = cycle(f, dir == Input.RIGHT ? 1 : -1);
                 }
                 break;
@@ -240,6 +240,7 @@ public final class Engine {
         if (item == MENU_STAGE) stageIdx = (stageIdx + delta + stageKeys.size()) % stageKeys.size();
         else if (item == MENU_MUSIC) meta.stepMusic(delta);
         else if (item == MENU_SFX) meta.stepSfx(delta);
+        else if (item == MENU_LIGHT) meta.stepLighting(delta);
         else weaponIdx = (weaponIdx + delta + starters.size()) % starters.size();
         return cycleValue(item) != before;
     }
@@ -248,6 +249,7 @@ public final class Engine {
         if (item == MENU_STAGE) return stageIdx;
         if (item == MENU_MUSIC) return meta.musicVol;
         if (item == MENU_SFX) return meta.sfxVol;
+        if (item == MENU_LIGHT) return meta.lighting;
         return weaponIdx;
     }
 
@@ -258,7 +260,7 @@ public final class Engine {
         switch (phase) {
             case PH_MENU:
                 if (f == MENU_START) startRun();
-                else if (f == MENU_STAGE || f == MENU_WEAPON || f == MENU_MUSIC || f == MENU_SFX) {
+                else if (f == MENU_STAGE || f == MENU_WEAPON || f == MENU_MUSIC || f == MENU_SFX || f == MENU_LIGHT) {
                     cycle(f, sub == 0 ? 1 : sub);
                 }
                 else if (f == MENU_SHOP) {

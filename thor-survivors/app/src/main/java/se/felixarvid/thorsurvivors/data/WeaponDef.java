@@ -43,6 +43,11 @@ public final class WeaponDef {
         }
     }
 
+    /** A copy with another display name and description (the Ashfall overlay); stats and ids are shared. */
+    public WeaponDef withText(String newName, String newDescription) {
+        return new WeaponDef(key, newName, newDescription, evoInto, evoSynergy, powerUp, evolution, rarity, rows);
+    }
+
     public int maxLevel() {
         return rows.size();
     }
