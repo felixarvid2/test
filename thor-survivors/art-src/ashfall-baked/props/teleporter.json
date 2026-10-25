@@ -1,0 +1,32 @@
+{
+ "name": "teleporter",
+ "category": "props",
+ "source": "assets/ashfall-ai/meshy/models/props/teleporter.glb",
+ "atlas": "teleporter.png",
+ "atlasSize": [512,294],
+ "frameSize": [512,512],
+ "anchor": [256,264],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [7.04,1.2,7.04],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,454,292,29,110]
+    ]
+   ]
+  }
+ }
+}

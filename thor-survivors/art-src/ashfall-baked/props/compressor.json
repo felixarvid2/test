@@ -1,0 +1,32 @@
+{
+ "name": "compressor",
+ "category": "props",
+ "source": "assets/ashfall-ai/meshy/models/props/compressor.glb",
+ "atlas": "compressor.png",
+ "atlasSize": [256,172],
+ "frameSize": [256,256],
+ "anchor": [128,183],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [3.32,2.2,2.01],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,216,170,20,43]
+    ]
+   ]
+  }
+ }
+}

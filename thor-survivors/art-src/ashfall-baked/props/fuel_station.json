@@ -1,0 +1,32 @@
+{
+ "name": "fuel_station",
+ "category": "props",
+ "source": "assets/ashfall-ai/meshy/models/props/fuel_station.glb",
+ "atlas": "fuel_station.png",
+ "atlasSize": [512,384],
+ "frameSize": [512,512],
+ "anchor": [256,359],
+ "pxPerMetre": 40.44,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [12.29,6,8.19],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,500,382,6,65]
+    ]
+   ]
+  }
+ }
+}

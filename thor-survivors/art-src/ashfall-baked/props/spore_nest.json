@@ -1,0 +1,32 @@
+{
+ "name": "spore_nest",
+ "category": "props",
+ "source": "assets/ashfall-ai/meshy/models/props/spore_nest.glb",
+ "atlas": "spore_nest.png",
+ "atlasSize": [256,142],
+ "frameSize": [192,192],
+ "anchor": [96,116],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [2.6,1.6,2.57],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,169,140,12,26]
+    ]
+   ]
+  }
+ }
+}

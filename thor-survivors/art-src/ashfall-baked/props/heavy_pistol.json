@@ -1,0 +1,32 @@
+{
+ "name": "heavy_pistol",
+ "category": "props",
+ "source": "assets/ashfall-ai/meshy/models/props/heavy_pistol.glb",
+ "atlas": "heavy_pistol.png",
+ "atlasSize": [256,18],
+ "frameSize": [32,32],
+ "anchor": [16,22],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [0.35,0.22,0.07],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,25,16,4,9]
+    ]
+   ]
+  }
+ }
+}

@@ -1,0 +1,32 @@
+{
+ "name": "slag_rock",
+ "category": "environment",
+ "source": "assets/ashfall-ai/meshy/models/environment/slag_rock.glb",
+ "atlas": "slag_rock.png",
+ "atlasSize": [256,177],
+ "frameSize": [256,256],
+ "anchor": [128,165],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [3.02,2.2,2.95],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,196,175,30,40]
+    ]
+   ]
+  }
+ }
+}

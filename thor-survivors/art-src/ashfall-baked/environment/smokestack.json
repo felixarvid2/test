@@ -1,0 +1,32 @@
+{
+ "name": "smokestack",
+ "category": "environment",
+ "source": "assets/ashfall-ai/meshy/models/environment/smokestack.glb",
+ "atlas": "smokestack.png",
+ "atlasSize": [256,502],
+ "frameSize": [512,512],
+ "anchor": [256,480],
+ "pxPerMetre": 35.68,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [2.79,16,2.96],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,102,500,205,6]
+    ]
+   ]
+  }
+ }
+}

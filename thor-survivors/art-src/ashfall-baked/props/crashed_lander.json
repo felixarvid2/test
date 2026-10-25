@@ -1,0 +1,32 @@
+{
+ "name": "crashed_lander",
+ "category": "props",
+ "source": "assets/ashfall-ai/meshy/models/props/crashed_lander.glb",
+ "atlas": "crashed_lander.png",
+ "atlasSize": [512,177],
+ "frameSize": [384,384],
+ "anchor": [192,254],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [5.84,3,2],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,376,175,4,107]
+    ]
+   ]
+  }
+ }
+}

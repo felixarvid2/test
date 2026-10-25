@@ -1,0 +1,32 @@
+{
+ "name": "industrial_wall",
+ "category": "environment",
+ "source": "assets/ashfall-ai/meshy/models/environment/industrial_wall.glb",
+ "atlas": "industrial_wall.png",
+ "atlasSize": [512,339],
+ "frameSize": [384,384],
+ "anchor": [192,293],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [5.72,4,3.39],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,370,337,7,24]
+    ]
+   ]
+  }
+ }
+}

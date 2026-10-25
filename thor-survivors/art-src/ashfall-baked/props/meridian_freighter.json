@@ -1,0 +1,32 @@
+{
+ "name": "meridian_freighter",
+ "category": "props",
+ "source": "assets/ashfall-ai/meshy/models/props/meridian_freighter.glb",
+ "atlas": "meridian_freighter.png",
+ "atlasSize": [512,264],
+ "frameSize": [512,512],
+ "anchor": [256,346],
+ "pxPerMetre": 16.36,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [30.44,16,16.31],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,502,262,5,125]
+    ]
+   ]
+  }
+ }
+}

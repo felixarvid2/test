@@ -1,0 +1,32 @@
+{
+ "name": "water_tanker",
+ "category": "props",
+ "source": "assets/ashfall-ai/meshy/models/props/water_tanker.glb",
+ "atlas": "water_tanker.png",
+ "atlasSize": [512,231],
+ "frameSize": [384,384],
+ "anchor": [192,258],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [5.63,3.4,2.65],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,364,229,10,77]
+    ]
+   ]
+  }
+ }
+}

@@ -1,0 +1,60 @@
+{
+ "name": "the_first",
+ "category": "enemies",
+ "source": "assets/ashfall-ai/meshy/models/enemies/the_first.glb",
+ "atlas": "the_first.png",
+ "atlasSize": [512,1523],
+ "frameSize": [448,448],
+ "anchor": [224,358],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [4.11,6,3.04],
+ "directions": [
+  "S",
+  "SE",
+  "E",
+  "NE",
+  "N",
+  "NW",
+  "W",
+  "SW"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [243,783,266,368,91,28]
+    ],
+    [
+     [268,1157,241,363,108,41]
+    ],
+    [
+     [1,1,198,396,125,27]
+    ],
+    [
+     [233,398,231,380,111,34]
+    ],
+    [
+     [1,1157,266,365,91,38]
+    ],
+    [
+     [1,783,241,373,99,37]
+    ],
+    [
+     [200,1,198,388,125,28]
+    ],
+    [
+     [1,398,231,384,106,39]
+    ]
+   ]
+  }
+ }
+}

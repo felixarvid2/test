@@ -1,0 +1,32 @@
+{
+ "name": "spore_feeder",
+ "category": "props",
+ "source": "assets/ashfall-ai/meshy/models/props/spore_feeder.glb",
+ "atlas": "spore_feeder.png",
+ "atlasSize": [256,193],
+ "frameSize": [256,256],
+ "anchor": [128,160],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [3.26,2.4,3.18],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,211,191,23,32]
+    ]
+   ]
+  }
+ }
+}

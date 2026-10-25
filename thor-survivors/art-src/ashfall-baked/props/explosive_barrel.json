@@ -1,0 +1,32 @@
+{
+ "name": "explosive_barrel",
+ "category": "props",
+ "source": "assets/ashfall-ai/meshy/models/props/explosive_barrel.glb",
+ "atlas": "explosive_barrel.png",
+ "atlasSize": [256,100],
+ "frameSize": [128,128],
+ "anchor": [64,86],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [1.42,1.1,1.37],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,94,98,17,15]
+    ]
+   ]
+  }
+ }
+}

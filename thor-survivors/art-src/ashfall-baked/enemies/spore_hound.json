@@ -1,0 +1,60 @@
+{
+ "name": "spore_hound",
+ "category": "enemies",
+ "source": "assets/ashfall-ai/meshy/models/enemies/spore_hound.glb",
+ "atlas": "spore_hound.png",
+ "atlasSize": [256,219],
+ "frameSize": [128,128],
+ "anchor": [64,88],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [0.4,0.95,1.54],
+ "directions": [
+  "S",
+  "SE",
+  "E",
+  "NE",
+  "N",
+  "NW",
+  "W",
+  "SW"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [178,1,28,69,50,39]
+    ],
+    [
+     [71,93,77,62,28,41]
+    ],
+    [
+     [149,93,101,62,14,35]
+    ],
+    [
+     [107,1,70,81,27,23]
+    ],
+    [
+     [1,1,28,91,50,19]
+    ],
+    [
+     [30,1,76,86,24,23]
+    ],
+    [
+     [1,158,101,60,13,37]
+    ],
+    [
+     [1,93,69,64,31,42]
+    ]
+   ]
+  }
+ }
+}

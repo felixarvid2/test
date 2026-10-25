@@ -1,0 +1,32 @@
+{
+ "name": "motorbike",
+ "category": "props",
+ "source": "assets/ashfall-ai/meshy/models/props/motorbike.glb",
+ "atlas": "motorbike.png",
+ "atlasSize": [256,73],
+ "frameSize": [160,160],
+ "anchor": [80,113],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [2.16,1.1,0.75],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,142,71,9,44]
+    ]
+   ]
+  }
+ }
+}

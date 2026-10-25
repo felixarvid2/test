@@ -1,0 +1,32 @@
+{
+ "name": "catwalk",
+ "category": "environment",
+ "source": "assets/ashfall-ai/meshy/models/environment/catwalk.glb",
+ "atlas": "catwalk.png",
+ "atlasSize": [512,294],
+ "frameSize": [384,384],
+ "anchor": [192,298],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [5.35,4,2.72],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,346,292,19,46]
+    ]
+   ]
+  }
+ }
+}

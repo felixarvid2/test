@@ -1,0 +1,32 @@
+{
+ "name": "scalpel_blade",
+ "category": "props",
+ "source": "assets/ashfall-ai/meshy/models/props/scalpel_blade.glb",
+ "atlas": "scalpel_blade.png",
+ "atlasSize": [256,47],
+ "frameSize": [48,48],
+ "anchor": [24,45],
+ "pxPerMetre": 64,
+ "camera": {
+  "type": "orthographic",
+  "elevationDeg": 38,
+  "supersample": 2
+ },
+ "modelSizeM": [0.05,0.85,0.04],
+ "directions": [
+  "S"
+ ],
+ "clips": {
+  "static": {
+   "fps": 0,
+   "count": 1,
+   "loop": false,
+   "duration": 0,
+   "frames": [
+    [
+     [1,1,6,45,21,1]
+    ]
+   ]
+  }
+ }
+}

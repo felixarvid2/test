@@ -4,8 +4,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 const canvas = document.getElementById('c');
-let renderer, scene, camera, pivot, inner, mixer, clips = [], mats = [];
-const cfg = { elevation: 38, env: 0.22, ambient: 0.35, key: 2.4, rim: 2.0, fill: 0.25, exposure: 1.0 };
+let rootBone = null, refXZ = [0, 0], base = new THREE.Vector3(), renderer, scene, camera, pivot, inner, mixer, clips = [], mats = [];
+const cfg = { elevation: 38, env: 0.4, ambient: 0.6, key: 3.4, rim: 3.0, fill: 0.3, exposure: 1.15 };
 
 function setupLights() {
   scene.add(new THREE.AmbientLight(0x2a2c3a, cfg.ambient * Math.PI));
@@ -55,7 +55,13 @@ window.baker = {
     pivot.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(gltf.scene, true);
     const c = box.getCenter(new THREE.Vector3());
-    inner.position.set(-c.x, -box.min.y, -c.z);
+    base.set(-c.x, -box.min.y, -c.z); inner.position.copy(base);
+    rootBone = null; gltf.scene.traverse(o => { if (!rootBone && o.isBone && !(o.parent && o.parent.isBone)) rootBone = o; });
+    if (rootBone && clips.length) { // reference = root position at t=0 of idle (or the first clip)
+      const ref = clips.find(c => c.name === 'idle') || clips[0];
+      mixer.clipAction(ref).play(); mixer.setTime(0);
+      const h = this._hips(); refXZ = [h.x, h.z]; mixer.stopAllAction();
+    }
     return {
       clips: clips.map(a => ({ name: a.name, duration: a.duration })),
       size: box.getSize(new THREE.Vector3()).toArray(),
@@ -65,23 +71,63 @@ window.baker = {
 
   // Bounding box (metres, centred on feet) of the model at a given pose.
   poseBox(clipName, t) {
-    this._pose(clipName, t); pivot.rotation.y = 0; pivot.updateMatrixWorld(true);
+    this._pose(clipName, t, 'lock'); pivot.rotation.y = 0; pivot.updateMatrixWorld(true);
     const b = new THREE.Box3().setFromObject(pivot, true);
     return { min: b.min.toArray(), max: b.max.toArray() };
   },
 
-  _pose(clipName, t) {
+  // Pose difference (sum of bone-position distances, metres) between t=0 and each of dur/k, k=1..12.
+  periodErrors(clipName) {
+    const clip = clips.find(c => c.name === clipName);
+    const bones = []; pivot.traverse(o => { if (o.isBone) bones.push(o); });
+    const snap = t => { this._pose(clipName, t, 'lock'); return bones.map(b => b.getWorldPosition(new THREE.Vector3())); };
+    const a = snap(0), out = [];
+    for (let k = 1; k <= 12; k++) {
+      const b = snap(clip.duration / k);
+      out.push(+(b.reduce((s, v, i) => s + v.distanceTo(a[i]), 0) / bones.length).toFixed(3));
+    }
+    return out;
+  },
+  _dbg() {
+    const out = [];
+    for (const c of clips) for (const tr of c.tracks) {
+      if (!tr.name.endsWith('.position')) continue;
+      const v = tr.values, n = tr.times.length;
+      const d = [v[(n-1)*3]-v[0], v[(n-1)*3+1]-v[1], v[(n-1)*3+2]-v[2]].map(x => +x.toFixed(2));
+      if (Math.hypot(...d) > 0.3 || tr.name.startsWith('Hips') || tr.name.includes('root')) out.push(c.name + ' ' + tr.name + ' delta ' + d + ' start ' + [v[0],v[1],v[2]].map(x=>+x.toFixed(2)));
+    }
+    const bones = []; pivot.traverse(o => { if (o.isBone && o.parent && !o.parent.isBone) bones.push(o.name); });
+    return { out, rootBones: bones };
+  },
+  // Hips (first bone under the scene root) position in model space, ignoring the pivot yaw.
+  _hips() {
+    if (!rootBone) return null;
+    pivot.rotation.y = 0; inner.position.set(base.x, base.y, base.z); pivot.updateMatrixWorld(true);
+    return rootBone.getWorldPosition(new THREE.Vector3());
+  },
+
+  // mode: 'lock' = cancel the root's horizontal travel (sprites stay on the spot, the game moves them),
+  //       'start' = only cancel the offset at t=0 so e.g. a death fall starts where idle stands.
+  _pose(clipName, t, mode) {
     if (!mixer) return;
     mixer.stopAllAction();
+    let shift = null;
     if (clipName) {
       const clip = clips.find(c => c.name === clipName);
-      const a = mixer.clipAction(clip); a.play(); mixer.setTime(t);
+      const a = mixer.clipAction(clip); a.play();
+      if (rootBone && mode && mode !== 'none') {
+        mixer.setTime(mode === 'start' ? 0 : t);
+        const h = this._hips();
+        shift = [refXZ[0] - h.x, refXZ[1] - h.z];
+      }
+      mixer.setTime(t);
     }
+    inner.position.set(base.x + (shift ? shift[0] : 0), base.y, base.z + (shift ? shift[1] : 0));
     pivot.updateMatrixWorld(true);
   },
 
-  _draw({ clip, t, yawDeg, size, ppm, anchorY, anchorX, ss }) {
-    this._pose(clip, t);
+  _draw({ clip, t, rootMode, yawDeg, size, ppm, anchorY, anchorX, ss }) {
+    this._pose(clip, t, rootMode);
     pivot.rotation.y = yawDeg * Math.PI / 180;
     const W = size * ss;
     renderer.setSize(W, W, false);
