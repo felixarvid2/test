@@ -44,9 +44,7 @@ impl Project {
     /// Ser mappen ut som ett projekt (har CSV-filer eller konfigar)?
     pub fn looks_valid(dir: &Path) -> bool {
         let has = |sub: &str, ext: &str| {
-            std::fs::read_dir(dir.join(sub))
-                .map(|d| d.flatten().any(|e| e.path().extension().is_some_and(|x| x == ext)))
-                .unwrap_or(false)
+            std::fs::read_dir(dir.join(sub)).map(|d| d.flatten().any(|e| e.path().extension().is_some_and(|x| x == ext))).unwrap_or(false)
         };
         has("samples", "csv") || has("configs", "cfg")
     }

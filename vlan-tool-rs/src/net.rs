@@ -19,11 +19,7 @@ pub fn mask_to_prefix(mask: Ipv4Addr) -> Option<u8> {
 }
 
 pub fn prefix_to_mask(prefix: u8) -> Ipv4Addr {
-    if prefix == 0 {
-        Ipv4Addr::new(0, 0, 0, 0)
-    } else {
-        Ipv4Addr::from(u32::MAX << (32 - u32::from(prefix)))
-    }
+    if prefix == 0 { Ipv4Addr::new(0, 0, 0, 0) } else { Ipv4Addr::from(u32::MAX << (32 - u32::from(prefix))) }
 }
 
 /// Ett IPv4-nät, t.ex. 192.168.1.0/26.
@@ -98,6 +94,19 @@ impl Subnet {
 
     pub fn overlaps(&self, other: &Subnet) -> bool {
         self.contains(other.network) || other.contains(self.network)
+    }
+
+    /// Är hela nätet privat enligt RFC 1918 (10/8, 172.16/12, 192.168/16)?
+    pub fn is_private(&self) -> bool {
+        ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+            .iter()
+            .filter_map(|p| Subnet::parse(p))
+            .any(|p| p.prefix <= self.prefix && p.contains(self.network))
+    }
+
+    /// Alla adresser som går att ge till enheter, i ordning (som `first_host..=last_host`).
+    pub fn hosts(&self) -> impl Iterator<Item = Ipv4Addr> + use<> {
+        (u32::from(self.first_host())..=u32::from(self.last_host())).map(Ipv4Addr::from)
     }
 
     /// Delar nätet i lika stora delnät med prefixet `new_prefix`.
@@ -205,6 +214,22 @@ mod tests {
         assert_eq!(prefix_for_hosts(50), Some(26));
         assert_eq!(prefix_for_hosts(62), Some(26));
         assert_eq!(prefix_for_hosts(63), Some(25));
+    }
+
+    #[test]
+    fn private_and_hosts() {
+        assert!(Subnet::parse("192.168.1.0/26").unwrap().is_private());
+        assert!(Subnet::parse("10.1.2.0/24").unwrap().is_private());
+        assert!(Subnet::parse("172.16.0.0/12").unwrap().is_private());
+        assert!(Subnet::parse("172.31.255.0/24").unwrap().is_private());
+        assert!(!Subnet::parse("172.32.0.0/24").unwrap().is_private());
+        assert!(!Subnet::parse("192.168.0.0/15").unwrap().is_private(), "större än 192.168/16");
+        assert!(!Subnet::parse("203.0.113.0/24").unwrap().is_private());
+        let hosts: Vec<Ipv4Addr> = Subnet::parse("192.168.1.0/30").unwrap().hosts().collect();
+        assert_eq!(hosts, vec![Ipv4Addr::new(192, 168, 1, 1), Ipv4Addr::new(192, 168, 1, 2)]);
+        assert_eq!(Subnet::parse("192.168.1.0/26").unwrap().hosts().count(), 62);
+        assert_eq!(Subnet::parse("10.0.0.0/31").unwrap().hosts().count(), 2);
+        assert_eq!(Subnet::parse("10.0.0.7/32").unwrap().hosts().collect::<Vec<_>>(), vec![Ipv4Addr::new(10, 0, 0, 7)]);
     }
 
     #[test]

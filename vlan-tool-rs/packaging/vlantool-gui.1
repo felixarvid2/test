@@ -1,0 +1,58 @@
+.TH VLANTOOL\-GUI 1 "oktober 2026" "vlantool 0.3.0" "Användarkommandon"
+.SH NAMN
+vlantool\-gui \- skrivbordsprogram för att generera och granska Cisco IOS\-konfigar
+.SH SYNOPSIS
+.B vlantool\-gui
+.RI [ PROJEKTMAPP ]
+.SH BESKRIVNING
+.B vlantool\-gui
+är skrivbordsprogrammet för
+.BR vlantool (1).
+Det visar betyg, fynd, portar, VLAN\-matris, topologi, konfigar, drift mot CSV\-filerna,
+subnätskalkylator och inställningar i ett fönster.
+.PP
+Ett projekt är en vanlig mapp med \fIsamples/\fP (CSV), \fIconfigs/\fP (konfigar),
+\fIreports/\fP (rapporter) och \fInordvik.toml\fP (inställningar), så samma mapp fungerar
+med kommandoradsverktyget.
+Anges ingen mapp visas en välkomstsida som kan skapa ett exempelprojekt.
+.SH KORTKOMMANDON
+.TP
+.B Ctrl+G
+Generera konfigar från CSV\-filerna.
+.TP
+.B F5
+Läs om.
+.TP
+.B Ctrl+O
+Öppna mapp.
+.TP
+.B Ctrl+1 \fR...\fB Ctrl+9
+Byt flik.
+.TP
+.B Ctrl+Upp/Ner
+Byt enhet.
+.TP
+.B Ctrl+T
+Byt tema (ljust eller mörkt).
+.PP
+Kortkommandona beskriver den här versionen och fler kan tillkomma.
+.SH MILJÖVARIABLER
+.TP
+.B VLANTOOL_TAB
+Startflik, till exempel \fBTopologi\fR.
+.TP
+.B VLANTOOL_DEVICE
+Vilken enhet som är vald från start (nummer).
+.TP
+.B VLANTOOL_THEME
+\fBlight\fR eller \fBdark\fR.
+.TP
+.B LIBGL_ALWAYS_SOFTWARE
+Sätt till \fB1\fR om grafikdrivrutinen saknar OpenGL.
+.TP
+.B WAYLAND_DISPLAY
+Om den är satt används Wayland, annars X11.
+.SH FELSÖKNING
+Se avsnittet Felsökning i \fI/usr/share/doc/vlantool/README.md\fP.
+.SH SE ÄVEN
+.BR vlantool (1)

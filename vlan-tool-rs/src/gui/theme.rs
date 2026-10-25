@@ -5,6 +5,7 @@ use eframe::egui::{
     Shadow, Stroke, Ui, Vec2,
 };
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use vlantool::finding::Severity;
 use vlantool::report;
 
@@ -21,6 +22,8 @@ pub struct Palette {
     pub violet: Color32,
     pub good: Color32,
     pub code_bg: Color32,
+    /// Textfärg på knappar fyllda med accentfärgen.
+    pub on_accent: Color32,
 }
 
 pub const DARK: Palette = Palette {
@@ -35,6 +38,7 @@ pub const DARK: Palette = Palette {
     violet: Color32::from_rgb(184, 150, 255),
     good: Color32::from_rgb(96, 205, 135),
     code_bg: Color32::from_rgb(18, 21, 30),
+    on_accent: Color32::WHITE,
 };
 
 pub const LIGHT: Palette = Palette {
@@ -49,10 +53,41 @@ pub const LIGHT: Palette = Palette {
     violet: Color32::from_rgb(124, 82, 220),
     good: Color32::from_rgb(34, 150, 90),
     code_bg: Color32::from_rgb(246, 247, 251),
+    on_accent: Color32::WHITE,
 };
 
+/// Högkontrast: svart botten, vit text och skarpa linjer (bygger på det mörka temat).
+pub const CONTRAST: Palette = Palette {
+    bg: Color32::from_rgb(0, 0, 0),
+    panel: Color32::from_rgb(8, 8, 8),
+    card: Color32::from_rgb(14, 14, 14),
+    raised: Color32::from_rgb(44, 44, 44),
+    line: Color32::from_rgb(190, 190, 190),
+    text: Color32::from_rgb(255, 255, 255),
+    muted: Color32::from_rgb(210, 210, 210),
+    accent: Color32::from_rgb(255, 214, 10),
+    violet: Color32::from_rgb(230, 190, 255),
+    good: Color32::from_rgb(90, 255, 140),
+    code_bg: Color32::from_rgb(0, 0, 0),
+    on_accent: Color32::from_rgb(0, 0, 0),
+};
+
+/// Högkontrast är ett läge av det mörka temat, så `palette(true)` ger rätt färger
+/// även i vyer som bara känner till ljust/mörkt.
+static HIGH_CONTRAST: AtomicBool = AtomicBool::new(false);
+
+pub fn set_high_contrast(on: bool) {
+    HIGH_CONTRAST.store(on, Ordering::Relaxed);
+}
+
 pub fn palette(dark: bool) -> Palette {
-    if dark { DARK } else { LIGHT }
+    if !dark {
+        LIGHT
+    } else if HIGH_CONTRAST.load(Ordering::Relaxed) {
+        CONTRAST
+    } else {
+        DARK
+    }
 }
 
 fn rgb((r, g, b): (u8, u8, u8)) -> Color32 {
@@ -164,17 +199,20 @@ pub fn apply(ctx: &egui::Context, dark: bool) {
         w.active.fg_stroke = Stroke::new(1.5, p.text);
         w.active.corner_radius = r;
         w.open = w.active;
+        if p.line == CONTRAST.line {
+            for ws in [&mut w.noninteractive, &mut w.inactive] {
+                ws.bg_stroke = Stroke::new(1.5, p.line);
+            }
+            v.selection.bg_fill = alpha(p.accent, 0.5);
+            v.window_stroke = Stroke::new(2.0, p.line);
+        }
     });
 }
 
 /// Ett kort med rundade hörn.
 pub fn card(dark: bool) -> egui::Frame {
     let p = palette(dark);
-    egui::Frame::new()
-        .fill(p.card)
-        .stroke(Stroke::new(1.0, p.line))
-        .corner_radius(CornerRadius::same(14))
-        .inner_margin(Margin::same(16))
+    egui::Frame::new().fill(p.card).stroke(Stroke::new(1.0, p.line)).corner_radius(CornerRadius::same(14)).inner_margin(Margin::same(16))
 }
 
 pub fn section_title(ui: &mut Ui, text: &str, dark: bool) {
@@ -241,7 +279,7 @@ pub fn stat_tile(ui: &mut Ui, value: &str, label: &str, color: Color32, dark: bo
 pub fn primary_button(ui: &mut Ui, text: &str, dark: bool) -> Response {
     let p = palette(dark);
     ui.add(
-        egui::Button::new(RichText::new(text).strong().color(Color32::WHITE))
+        egui::Button::new(RichText::new(text).strong().color(p.on_accent))
             .fill(p.accent)
             .stroke(Stroke::NONE)
             .corner_radius(CornerRadius::same(8)),

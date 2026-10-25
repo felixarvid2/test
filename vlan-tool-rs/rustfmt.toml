@@ -1,0 +1,4 @@
+# Koden skrivs med långa rader; 140 tecken matchar resten av projektet.
+edition = "2024"
+max_width = 140
+use_small_heuristics = "Max"

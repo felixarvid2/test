@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>se.nordvik.vlantool</id>
+  <launchable type="desktop-id">se.nordvik.vlantool.desktop</launchable>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LicenseRef-proprietary</project_license>
+  <name>vlantool</name>
+  <summary>Generate and audit Cisco IOS configs from CSV files</summary>
+  <summary xml:lang="sv">Generera och granska Cisco IOS-konfigar från CSV-filer</summary>
+  <description>
+    <p>vlantool builds switch and router configs for the Nordvik network from CSV files and audits them with 28 rules, checks between devices, grades, fix scripts, a topology view and a subnet calculator.</p>
+    <p>The package contains the desktop program vlantool-gui and the command-line tool vlantool, which also has a terminal interface.</p>
+    <ul>
+      <li>Generate IOS configs for switches and routers from CSV files</li>
+      <li>Audit configs with explanations and ready-to-paste fixes</li>
+      <li>Compare saved configs with what the CSV files say they should be</li>
+      <li>Subnet calculator, equal-size splitting and VLSM planning</li>
+    </ul>
+  </description>
+  <description xml:lang="sv">
+    <p>vlantool bygger switch- och routerkonfigar för Nordvik-nätet från CSV-filer och granskar dem med 28 regler, kontroller mellan enheter, betyg, rättningsskript, topologi och subnätskalkylator.</p>
+    <p>Paketet innehåller skrivbordsprogrammet vlantool-gui och kommandoradsverktyget vlantool, som också har ett terminalgränssnitt.</p>
+    <ul>
+      <li>Generera IOS-konfigar för switchar och routrar från CSV-filer</li>
+      <li>Granska konfigar med förklaringar och rättningar att klistra in</li>
+      <li>Jämför sparade konfigar med vad CSV-filerna säger att de borde vara</li>
+      <li>Subnätskalkylator, uppdelning i lika delar och VLSM-planering</li>
+    </ul>
+  </description>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Overview of the whole network</caption>
+      <caption xml:lang="sv">Översikt över hela nätet</caption>
+      <image type="source" width="1360" height="860">https://raw.githubusercontent.com/felixarvid2/test/main/vlan-tool-rs/docs/gui-oversikt.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Network topology</caption>
+      <caption xml:lang="sv">Nätets topologi</caption>
+      <image type="source" width="1360" height="860">https://raw.githubusercontent.com/felixarvid2/test/main/vlan-tool-rs/docs/gui-topologi.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Rule status per device, light theme</caption>
+      <caption xml:lang="sv">Regelstatus per enhet, ljust tema</caption>
+      <image type="source" width="1360" height="860">https://raw.githubusercontent.com/felixarvid2/test/main/vlan-tool-rs/docs/gui-regler-ljust.png</image>
+    </screenshot>
+  </screenshots>
+  <categories>
+    <category>Network</category>
+    <category>Development</category>
+    <category>Education</category>
+  </categories>
+  <keywords>
+    <keyword>cisco</keyword>
+    <keyword>vlan</keyword>
+    <keyword>switch</keyword>
+    <keyword>router</keyword>
+    <keyword>ios</keyword>
+  </keywords>
+  <url type="homepage">https://github.com/felixarvid2/test/tree/main/vlan-tool-rs</url>
+  <url type="bugtracker">https://github.com/felixarvid2/test/issues</url>
+  <content_rating type="oars-1.1"/>
+  <provides>
+    <binary>vlantool</binary>
+    <binary>vlantool-gui</binary>
+  </provides>
+  <releases>
+    <release version="0.3.0" date="2026-10-25"/>
+    <release version="0.2.0" date="2026-10-23"/>
+  </releases>
+</component>

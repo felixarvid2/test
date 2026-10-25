@@ -1,0 +1,99 @@
+name: vlantool
+
+on:
+  push:
+    paths:
+      - "vlan-tool-rs/**"
+      - ".github/workflows/vlan-tool-rs.yml"
+  pull_request:
+    paths:
+      - "vlan-tool-rs/**"
+      - ".github/workflows/vlan-tool-rs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vlan-tool-rs-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: vlan-tool-rs
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            vlan-tool-rs/target
+          key: vlantool-test-${{ runner.os }}-${{ hashFiles('vlan-tool-rs/Cargo.lock') }}
+          restore-keys: vlantool-test-${{ runner.os }}-
+
+      - name: Formatering
+        run: cargo fmt --check
+
+      - name: Tests
+        run: cargo test --locked
+
+      - name: Clippy
+        run: cargo clippy --locked --all-targets -- -D warnings
+
+  deb:
+    needs: test
+    # Bara på push till main och när någon startar workflowen för hand.
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: vlan-tool-rs
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            vlan-tool-rs/target
+          key: vlantool-deb-${{ runner.os }}-${{ hashFiles('vlan-tool-rs/Cargo.lock') }}
+          restore-keys: vlantool-deb-${{ runner.os }}-
+
+      # egui ritar med OpenGL och laddar X11/Wayland vid körning, så inga
+      # utvecklingspaket behövs för att länka.
+      - name: Build .deb
+        run: sh packaging/build-deb.sh
+
+      - name: Check package
+        run: |
+          dpkg-deb -I target/debian/vlantool_*.deb
+          dpkg-deb -c target/debian/vlantool_*.deb
+          (cd target/debian && sha256sum -c vlantool_*.deb.sha256)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vlantool-deb
+          path: |
+            vlan-tool-rs/target/debian/vlantool_*.deb
+            vlan-tool-rs/target/debian/vlantool_*.deb.sha256
+          if-no-files-found: error
+          retention-days: 30

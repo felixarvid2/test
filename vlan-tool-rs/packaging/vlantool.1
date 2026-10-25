@@ -1,0 +1,158 @@
+.TH VLANTOOL 1 "oktober 2026" "vlantool 0.3.0" "Användarkommandon"
+.SH NAMN
+vlantool \- generera och granska Cisco IOS\-konfigar från CSV\-filer
+.SH SYNOPSIS
+.B vlantool
+.RI [ FLAGGOR ]
+.RI [ KOMMANDO ]
+.SH BESKRIVNING
+.B vlantool
+bygger switch\- och routerkonfigar för Nordvik\-nätet från CSV\-filer
+(\fIsamples/devices.csv\fP, \fIsamples/ports.csv\fP och \fIsamples/dhcp.csv\fP)
+och granskar dem med ett antal regler, kontroller mellan enheterna och betyg.
+.PP
+Utan kommando öppnas ett interaktivt terminalgränssnitt (TUI).
+Skrivbordsprogrammet heter
+.BR vlantool\-gui (1).
+.PP
+Listan över kommandon nedan beskriver verktyget som det ser ut i den här versionen.
+Fler kommandon kan tillkomma; kör
+.B vlantool \-\-help
+för den aktuella listan.
+.SH FLAGGOR
+Gäller alla kommandon.
+.TP
+.BI \-\-settings " FIL"
+Inställningsfil. Standard är \fInordvik.toml\fP (skapas med \fBvlantool init\fP).
+.TP
+.BI \-\-project " MAPP"
+Byt till projektmappen innan något annat görs. Standard är miljövariabeln \fBVLANTOOL_PROJECT\fP.
+.TP
+.BR \-q ", " \-\-quiet
+Skriv bara ut fel och det som efterfrågas.
+.TP
+.B \-\-no\-color
+Stäng av färger. Färger stängs också av när miljövariabeln \fBNO_COLOR\fP är satt eller utdata inte är en terminal.
+.TP
+.BR \-h ", " \-\-help
+Visa hjälp.
+.TP
+.BR \-V ", " \-\-version
+Visa version.
+.SH KOMMANDON
+.TP
+.BR tui
+Interaktiv översikt med flikar. Standard om inget kommando anges.
+.TP
+.B generate \fR[\fB\-\-samples\fR \fIMAPP\fR] [\fB\-o\fR \fIMAPP\fR] [\fB\-\-dry\-run\fR] [\fB\-\-force\fR]
+Bygger en konfig per enhet från CSV\-filerna i \fIsamples/\fP (standard) och sparar dem i \fIconfigs/\fP.
+.B \-\-dry\-run
+skriver bara ut konfigarna.
+.B \-\-force
+bygger även om CSV\-valideringen hittar allvarliga fel.
+.TP
+.B validate \fR[\fB\-\-samples\fR \fIMAPP\fR]
+Kontrollerar CSV\-filerna: dubbla portar, överlappande nät, gateway utanför nätet, IP\-krockar med mera.
+.TP
+.B audit \fR[\fIFIL\fR|\fIMAPP\fR...]
+Granskar konfigar (standard: alla i \fIconfigs/\fP).
+.RS
+.TP
+.BR \-f ", " \-\-format " \fIFORMAT\fR"
+\fBterminal\fR (standard), \fBtext\fR, \fBmarkdown\fR, \fBjson\fR, \fBcsv\fR, \fBhtml\fR, \fBsarif\fR eller \fBjunit\fR.
+.TP
+.BR \-o ", " \-\-output " \fIFIL\fR"
+Spara rapporten i en fil. Formatet gissas från ändelsen.
+.TP
+.BI \-\-min " NIVÅ"
+Visa bara fynd med minst denna nivå: info, low, medium, high eller critical.
+.TP
+.BR \-r ", " \-\-rule " \fIREGEL\fR"
+Kör bara denna regel. Kan anges flera gånger.
+.TP
+.BR \-v ", " \-\-verbose
+Visa även godkända regler.
+.TP
+.B \-\-no\-fix
+Dölj rättningsförslagen.
+.TP
+.BI \-\-fail\-on " NIVÅ"
+Avsluta med felkod 2 om något fynd har minst denna nivå (för CI).
+.RE
+.TP
+.B fix \fR[\fIFIL\fR|\fIMAPP\fR...] [\fB\-o\fR \fIMAPP\fR] [\fB\-\-min\fR \fINIVÅ\fR]
+Skriver ett rättningsskript per enhet till \fIreports/<enhet>_fix.txt\fP (standard), färdigt att klistra in i CLI:t. Standardnivå är low.
+.TP
+.B drift \fR[\fB\-\-samples\fR \fIMAPP\fR] [\fB\-\-configs\fR \fIMAPP\fR]
+Jämför sparade konfigar med vad CSV\-filerna säger att de borde vara.
+.TP
+.B diff \fIGAMMAL\fR \fINY\fR
+Visar skillnaden mellan två konfigfiler. Kommentarer räknas inte.
+.TP
+.B topology \fR[\fIFIL\fR|\fIMAPP\fR...]
+Ritar nätet som ett träd utifrån portbeskrivningarna (\fIPort mot X\fR).
+.TP
+.B rules
+Listar alla granskningsregler med förklaring.
+.TP
+.B subnet \fINÄT\fR [\fB\-\-split\fR \fIPREFIX\fR] [\fB\-\-plan\fR \fINAMN:värdar,...\fR]
+Subnätskalkylator. \fINÄT\fR skrivs som \fI192.168.1.0/24\fP eller \fI"192.168.1.0 255.255.255.0"\fP.
+.B \-\-split
+delar nätet i lika stora delar och
+.B \-\-plan
+gör en VLSM\-plan, till exempel \fBKONTOR:50,EKONOMI:20,GAST:20\fR.
+.TP
+.B init \fR[\fB\-\-force\fR] [\fB\-\-example\fR]
+Skapar \fInordvik.toml\fP med standardinställningarna. Med \fB\-\-example\fR skapas ett helt exempelprojekt.
+.TP
+.B explain \fIREGEL\fR
+Förklarar en regel och visar ett exempel på fynd och rättning.
+.TP
+.B watch \fR[\fIFIL\fR|\fIMAPP\fR...]
+Granskar om varje gång en konfig\- eller CSV\-fil ändras (Ctrl+C avslutar).
+.TP
+.B baseline save\fR|\fBcompare \fR[\fB\-\-file\fR \fIFIL\fR] [\fB\-\-fail\-on\fR \fINIVÅ\fR]
+Sparar fynden som baslinje (standard \fIreports/baseline.json\fP) eller visar nya och åtgärdade fynd sedan dess.
+.TP
+.B inventory\fR, \fBstats \fR[\fB\-\-format text\fR|\fBjson\fR]
+Tabeller över CSV\-datan, portar per VLAN och beläggning i DHCP\-poolerna.
+.TP
+.B completions \fISKAL\fR
+Skriver skalkomplettering för bash, zsh, fish, elvish eller powershell.
+.TP
+.B run \fR[\fB\-\-samples\fR \fIMAPP\fR] [\fB\-\-configs\fR \fIMAPP\fR] [\fB\-\-reports\fR \fIMAPP\fR]
+Allt i ett: validerar CSV, genererar, granskar och skriver en HTML\-rapport.
+.SH AVSLUTSKOD
+.TP
+.B 0
+Allt gick bra.
+.TP
+.B 1
+Ett fel inträffade, eller (för \fBdrift\fR och \fBdiff\fR) att det finns skillnader.
+.TP
+.B 2
+\fBvalidate\fR hittade allvarliga fel, eller \fBaudit \-\-fail\-on\fR hittade fynd på eller över den angivna nivån.
+.SH FILER
+.TP
+.I samples/
+CSV\-filerna som konfigarna byggs från.
+.TP
+.I configs/
+Genererade konfigar.
+.TP
+.I reports/
+Rapporter och rättningsskript.
+.TP
+.I nordvik.toml
+Inställningar: domän, servrar, lösenord, VLAN, WAN med mera.
+.SH EXEMPEL
+.nf
+vlantool generate
+vlantool audit \-\-fail\-on high
+vlantool audit \-f html \-o rapport.html
+vlantool subnet 192.168.1.0/24 \-\-plan KONTOR:50,GAST:20
+.fi
+.SH SE ÄVEN
+.BR vlantool\-gui (1)
+.PP
+Mer information: \fI/usr/share/doc/vlantool/README.md\fP
