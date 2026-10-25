@@ -16,7 +16,7 @@ import java.util.Random;
  */
 public final class Engine {
     public static final int PH_MENU = 0, PH_SHOP = 1, PH_PLAYING = 2, PH_LEVELUP = 3, PH_PAUSED = 4, PH_CHEST = 5,
-            PH_RESULT = 6;
+            PH_RESULT = 6, PH_EQUIP = 7;
     public static final int MENU_START = 0, MENU_STAGE = 1, MENU_HERO = 2, MENU_WEAPON = 3, MENU_SHOP = 4,
             MENU_MUSIC = 5, MENU_SFX = 6, MENU_LIGHT = 7, MENU_COUNT = 8;
 
@@ -55,6 +55,13 @@ public final class Engine {
     public volatile String[] chestLines = new String[0];
     public volatile boolean resultWin;
     public volatile int resultTime, resultKills, resultGold, resultLevel;
+    /** The equipment choice on the bottom screen (PH_EQUIP): the item offered, its rarity, and the stat lines of the offer. */
+    public volatile se.felixarvid.thorsurvivors.data.EquipDef equipNew, equipOld;
+    public volatile int equipNewRar, equipOldRar;
+    public volatile String[] equipNewLines = new String[0], equipOldLines = new String[0];
+    /** The run ended with The First dead: the gold on the result screen counts twice. */
+    public volatile boolean resultFirst;
+    public volatile Equipment.Diff[] equipDiff = new Equipment.Diff[0];
     public volatile boolean resultNewBest;
 
     private final Random rng = new Random();
@@ -138,7 +145,7 @@ public final class Engine {
                 chestLines = s.openChest();
                 phase = PH_CHEST;
                 focus = 0;
-            }
+            } else if (s.equipN > 0) openEquip();
         }
     }
 
@@ -150,6 +157,28 @@ public final class Engine {
                 s.main == null ? null : s.main.def, s.main == null ? null : s.main.tier, offerLevel);
         phase = PH_LEVELUP;
         focus = 0;
+    }
+
+    /** A better item than the worn one was picked up: the choice screen (Keep or Replace) pauses the run like a level-up. */
+    private void openEquip() {
+        Sim s = sim;
+        equipNew = s.equipQueuedDef();
+        equipNewRar = s.equipQueuedRar();
+        equipOld = s.equip.def[equipNew.slot];
+        equipOldRar = s.equip.rar[equipNew.slot];
+        equipNewLines = Equipment.lines(data, equipNew, equipNewRar);
+        equipOldLines = equipOld == null ? new String[0] : Equipment.lines(data, equipOld, equipOldRar);
+        equipDiff = Equipment.diff(data, equipOld, equipOldRar, equipNew, equipNewRar);
+        phase = PH_EQUIP;
+        focus = 1; // Replace is the better item: it starts selected
+    }
+
+    /** Answers the choice: replace = wear the new item, else keep the old one; then the next choice or back to the run. */
+    private void answerEquip(boolean replace) {
+        Sim s = sim;
+        s.resolveEquip(replace);
+        if (s.equipN > 0) openEquip();
+        else resume();
     }
 
     private void startRun() {
@@ -165,10 +194,11 @@ public final class Engine {
         resultWin = win;
         resultTime = (int) s.time;
         resultKills = s.kills;
-        resultGold = s.gold;
+        resultGold = s.endGold();
+        resultFirst = s.firstKilled;
         resultLevel = s.level;
         resultNewBest = resultTime > meta.bestTimeSec;
-        meta.addGold(s.gold);
+        meta.addGold(resultGold);
         meta.recordRun(resultTime, s.kills);
         phase = PH_RESULT;
         focus = 0;
@@ -214,6 +244,7 @@ public final class Engine {
             case PH_MENU: return MENU_COUNT;
             case PH_SHOP: return shopKeys.size() + 1;
             case PH_LEVELUP: return offers.size();
+            case PH_EQUIP: return 2;
             case PH_PAUSED: return 2;
             default: return 1;
         }
@@ -241,6 +272,7 @@ public final class Engine {
                 break;
             case PH_LEVELUP:
             case PH_PAUSED:
+            case PH_EQUIP:
                 if (dir == Input.UP || dir == Input.LEFT) f = (f + n - 1) % n;
                 else f = (f + 1) % n;
                 break;
@@ -328,6 +360,9 @@ public final class Engine {
                 if (f == 0) resume();
                 else quitRun();
                 break;
+            case PH_EQUIP:
+                answerEquip(f == 1); // card 0 = Keep, card 1 = Replace
+                break;
             case PH_CHEST:
                 resume();
                 break;
@@ -366,6 +401,7 @@ public final class Engine {
             case PH_SHOP: phase = PH_MENU; focus = MENU_SHOP; break;
             case PH_PLAYING: phase = PH_PAUSED; focus = 0; break;
             case PH_PAUSED: resume(); break;
+            case PH_EQUIP: answerEquip(false); break; // B = keep what you wear
             case PH_RESULT: phase = PH_MENU; focus = 0; break;
             default:
         }

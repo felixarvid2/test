@@ -8,6 +8,7 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 
 import se.felixarvid.thorsurvivors.TestData;
+import se.felixarvid.thorsurvivors.data.EnemyDef;
 import se.felixarvid.thorsurvivors.data.GameData;
 import se.felixarvid.thorsurvivors.data.StageDef;
 import se.felixarvid.thorsurvivors.data.WaveRow;
@@ -107,9 +108,14 @@ public class AshfallStageTest {
                 s.hp = s.maxHp;
                 s.update(DT, in);
                 int bosses = 0;
-                for (int k = 0; k < s.enemyN; k++) if (s.enemies[k].boss) bosses++;
+                for (int k = 0; k < s.enemyN; k++) {
+                    Enemy en = s.enemies[k];
+                    if (en.boss || en.elite || en.type.arch == EnemyDef.ARCH_TENTACLE) bosses++; // flagged slots stand above the wave cap
+                }
                 peak = Math.max(peak, s.enemyN);
-                assertTrue(key + " enemies " + s.enemyN + " bosses " + bosses, s.enemyN <= WaveDirector.ENEMY_CAP + bosses);
+                // the waves stop at 300; bosses, elites, tentacles and what they summon (elite adds, Vire's colonists) come on top
+                assertTrue(key + " enemies " + s.enemyN + " bosses " + bosses, s.enemyN <= WaveDirector.ENEMY_CAP + bosses + 30);
+                assertTrue(s.enemyN < Sim.MAX_ENEMIES);
                 assertTrue(s.rangedAlive() <= Sim.RANGED_CAP);
                 assertTrue(s.eprojN <= Sim.MAX_EPROJ && s.hazN <= Sim.MAX_HAZ);
                 if (s.ended != 0) break;

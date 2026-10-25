@@ -8,7 +8,10 @@ import android.view.MotionEvent;
 
 import se.felixarvid.thorsurvivors.data.PowerUpDef;
 import se.felixarvid.thorsurvivors.data.WeaponDef;
+import se.felixarvid.thorsurvivors.data.EquipDef;
 import se.felixarvid.thorsurvivors.game.Describe;
+import se.felixarvid.thorsurvivors.game.Elites;
+import se.felixarvid.thorsurvivors.game.Equipment;
 import se.felixarvid.thorsurvivors.game.Engine;
 import se.felixarvid.thorsurvivors.game.Entities;
 import se.felixarvid.thorsurvivors.game.Input;
@@ -207,6 +210,10 @@ public final class PanelRenderer {
             case Engine.PH_CHEST:
                 if (compact) dimOverlay(c, w, h, 0x66000000);
                 chest(c, w, h);
+                break;
+            case Engine.PH_EQUIP:
+                if (compact) dimOverlay(c, w, h, 0x88000000);
+                equipChoice(c, w, h);
                 break;
             case Engine.PH_RESULT:
                 if (compact) dimOverlay(c, w, h, 0x77000000);
@@ -480,14 +487,19 @@ public final class PanelRenderer {
         float rowY = 226 * u;
         if (s.main != null) mainRow(c, s, m, rowY, w - m, u);
         // slots
-        float slot = Math.min(118 * u, (w - 2 * m - 5 * 12 * u) / 6f);
+        float slot = Math.min(104 * u, (w - 2 * m - 5 * 12 * u) / 6f);
         float wy = 342 * u;
         text(c, "WEAPONS", m, wy - 10 * u, 24 * u, DIM, Paint.Align.LEFT);
         slotRow(c, s, true, m, wy, slot, 12 * u, u);
         text(c, "PASSIVES", m, wy + slot + 62 * u, 24 * u, DIM, Paint.Align.LEFT);
         slotRow(c, s, false, m, wy + slot + 72 * u, slot, 12 * u, u);
+        // equipment: 6 slots in rarity frames, and next to them the boss / elite readout
+        float ey = wy + slot * 2 + 126 * u, es = 76 * u;
+        text(c, "EQUIPMENT", m, ey - 10 * u, 24 * u, DIM, Paint.Align.LEFT);
+        equipStrip(c, s, m, ey, es, 10 * u, u);
+        alertZone(c, s, m + 6 * (es + 10 * u) + 14 * u, ey - 6 * u, w - m, ey + es, u);
         // minimap bottom-left; pause, dodge and the touch areas bottom-right
-        float top = wy + slot * 2 + 150 * u;
+        float top = ey + es + 24 * u;
         float side = Math.min(h - top - m, (w - 3 * m) * 0.5f);
         minimap(c, s, m, h - m - side, side);
         float rx = m * 2 + side, ry = h - m - side, rw = w - m - rx;
@@ -504,6 +516,97 @@ public final class PanelRenderer {
         ar = pad ? 0f : w - m;
         touchArea(c, zl, zt, zr, zb, joyPointer < 0, pad ? "gamepad: left stick moves, right stick aims, A dodges" : "MOVE", u);
         if (ar > al) touchArea(c, al, at, ar, ab, aimPointer < 0, "AIM", u);
+        bossBanner(c, s, w, h, u);
+    }
+
+    // ---- equipment strip, boss and elite readout, boss banner
+
+    private final String[] eliteLabel = new String[64];
+    private static final String[] SLOT_LETTER = {"HEAD", "BODY", "GLOVE", "FEET", "RING", "NECK"};
+    private static final String[] FRAME_KEYS = {"frame_common", "frame_magic", "frame_rare", "frame_unique"};
+
+    /** One item in a rarity frame at (x, y), size s: its icon under the frame; an empty slot is a dark tile with the slot name. */
+    private void itemTile(Canvas c, EquipDef d, int rar, float x, float y, float sz, String emptyLabel, float u) {
+        r.set(x, y, x + sz, y + sz);
+        fill.setColor(0xFF141A28);
+        c.drawRoundRect(r, sz * 0.14f, sz * 0.14f, fill);
+        if (d == null) {
+            stroke.setColor(0xFF232B42);
+            stroke.setStrokeWidth(2f);
+            c.drawRoundRect(r, sz * 0.14f, sz * 0.14f, stroke);
+            if (emptyLabel != null) text(c, emptyLabel, x + sz / 2, y + sz / 2 + 7 * u, 18 * u, 0xFF3A4566, Paint.Align.CENTER);
+            return;
+        }
+        int rr = Math.max(0, Math.min(3, rar));
+        atlas.drawIcon(c, null, d.icon, x + sz / 2, y + sz / 2, sz * 0.8f);
+        atlas.drawIcon(c, null, FRAME_KEYS[rr], x + sz / 2, y + sz / 2, sz);
+        if (!atlas.has("icon." + FRAME_KEYS[rr])) {
+            stroke.setColor(Equipment.RARITY_COLORS[rr]);
+            stroke.setStrokeWidth(4f);
+            c.drawRoundRect(r, sz * 0.14f, sz * 0.14f, stroke);
+        }
+    }
+
+    private void equipStrip(Canvas c, Sim s, float x, float y, float es, float gap, float u) {
+        for (int i = 0; i < EquipDef.SLOTS; i++) {
+            itemTile(c, s.equip.def[i], s.equip.rar[i], x + i * (es + gap), y, es, SLOT_LETTER[i], u);
+        }
+    }
+
+    /** The boss (name, phase, health) and the live elite (tag with its modifiers) next to the equipment strip. */
+    private void alertZone(Canvas c, Sim s, float x0, float y0, float x1, float y1, float u) {
+        Entities.Enemy b = s.bossNow, el = s.eliteNow;
+        float y = y0;
+        if (b != null && !b.dead) {
+            text(c, b.type.nameUpper, x0, y + 24 * u, 26 * u, 0xFFFF9A7A, Paint.Align.LEFT);
+            if (b.type.pattern == 5) text(c, cs(50, "PHASE ", b.phase + 1, ""), x1, y + 24 * u, 22 * u, 0xFFFF9A7A, Paint.Align.RIGHT);
+            else text(c, cs(51, "", Math.round(100f * b.hp / b.maxHp), "%"), x1, y + 24 * u, 22 * u, DIM, Paint.Align.RIGHT);
+            bar(c, x0, y + 32 * u, x1, y + 52 * u, b.hp / b.maxHp, b.phase >= 2 && b.type.pattern == 5 ? 0xFFFF3B1F : 0xFFD83A3A, 0xFF3A1414);
+            if (b.type.pattern == 5) { // the phase marks of The First
+                fill.setColor(0xFF000000);
+                c.drawRect(x0 + (x1 - x0) * 0.66f - 1.5f * u, y + 32 * u, x0 + (x1 - x0) * 0.66f + 1.5f * u, y + 52 * u, fill);
+                c.drawRect(x0 + (x1 - x0) * 0.33f - 1.5f * u, y + 32 * u, x0 + (x1 - x0) * 0.33f + 1.5f * u, y + 52 * u, fill);
+            }
+            y += 58 * u;
+        }
+        if (el != null && !el.dead && el.elite) {
+            float dx = x0;
+            for (int n = 0; n < Elites.bits(el.mods); n++) { // a dot per modifier in its colour
+                fill.setColor(Elites.colorOf(el.mods, n));
+                c.drawCircle(dx + 8 * u, y + 14 * u, 8 * u, fill);
+                dx += 22 * u;
+            }
+            int mask = el.mods & 63;
+            if (eliteLabel[mask] == null) eliteLabel[mask] = "ELITE  " + Elites.label(mask);
+            text(c, eliteLabel[mask], dx + 4 * u, y + 22 * u, 22 * u, TEXT, Paint.Align.LEFT);
+            if (b == null) bar(c, x0, y + 32 * u, x1, y + 46 * u, el.hp / el.maxHp, Elites.colorOf(el.mods, 0), 0xFF2A1508);
+        }
+    }
+
+    /** The 2 s banner when a boss appears: its portrait, its name in capitals and a red warning line. */
+    private void bossBanner(Canvas c, Sim s, int w, int h, float u) {
+        if (s.bannerT <= 0f || s.bannerKey.isEmpty()) return;
+        float t = Sim.BANNER_LIFE - s.bannerT, a = Math.max(0f, Math.min(1f, Math.min(t / 0.2f, s.bannerT / 0.35f)));
+        float top = h * 0.30f, bot = h * 0.62f;
+        fill.setColor(((int) (235 * a) << 24) | 0x100606);
+        c.drawRect(0, top, w, bot, fill);
+        float pulse = 0.5f + 0.5f * (float) Math.sin(t * 14f);
+        fill.setColor(((int) (255 * a) << 24) | (pulse > 0.5f ? 0xFF3B1F : 0xC02810));
+        c.drawRect(0, top, w, top + 6 * u, fill);
+        c.drawRect(0, bot - 6 * u, w, bot, fill);
+        float ps = bot - top - 40 * u;
+        atlas.drawIcon(c, null, "boss_" + s.bannerKey, 40 * u + ps / 2, (top + bot) / 2, ps);
+        stroke.setColor(((int) (255 * a) << 24) | 0xFF3B1F);
+        stroke.setStrokeWidth(4f);
+        r.set(40 * u, top + 20 * u, 40 * u + ps, bot - 20 * u);
+        c.drawRoundRect(r, 12, 12, stroke);
+        float tx = 40 * u + ps + 36 * u;
+        text(c, "BOSS", tx, top + 100 * u, 36 * u, ((int) (255 * a) << 24) | 0xFF7A5A, Paint.Align.LEFT);
+        String nm = s.bannerName;
+        float size = Math.min(76 * u, (w - tx - 30 * u) / Math.max(4f, nm.length()) * 1.9f);
+        text(c, nm, tx, top + 100 * u + size + 6 * u, size, ((int) (255 * a) << 24) | 0xFFF0E0, Paint.Align.LEFT);
+        fill.setColor(((int) (200 * a) << 24) | 0xFF3B1F);
+        c.drawRect(tx, bot - 60 * u, tx + (w - tx - 40 * u) * Math.min(1f, t / 0.6f), bot - 54 * u, fill);
     }
 
     /** An idle touch area: a dark pad with a ring and its label (hidden while a finger drives it). */
@@ -669,10 +772,10 @@ public final class PanelRenderer {
             if (p.kind == Entities.K_GEM) continue;
             float dx = (p.x - s.px) * k, dy = (p.y - s.py) * k;
             float lim = side / 2 - 8;
-            if (p.kind == Entities.K_CHEST) { // chests are clamped to the edge so they can be found
+            if (p.kind == Entities.K_CHEST || p.kind == Entities.K_EQUIP) { // chests and crates are clamped to the edge so they can be found
                 dx = Math.max(-lim, Math.min(lim, dx));
                 dy = Math.max(-lim, Math.min(lim, dy));
-                fill.setColor(GOLD);
+                fill.setColor(p.kind == Entities.K_EQUIP ? 0xFF4FA8FF : GOLD);
                 c.drawRect(cx + dx - 7, cy + dy - 7, cx + dx + 7, cy + dy + 7, fill);
             } else if (Math.abs(dx) < lim && Math.abs(dy) < lim) {
                 fill.setColor(p.kind <= Entities.K_COINBAG ? 0xFFFFD23C : 0xFF50E070);
@@ -703,6 +806,13 @@ public final class PanelRenderer {
         for (int i = 0; i < s.inv.weaponCount; i++, ix += is + 3 * u) icon(c, s.inv.weapons[i].def, ix, 58 * u, is, s.inv.weapons[i].def.evolution);
         ix += 10 * u;
         for (int i = 0; i < s.inv.passiveCount; i++, ix += is + 3 * u) icon(c, s.inv.passives[i].def, ix, 58 * u, is, false);
+        ix += 10 * u;
+        for (int i = 0; i < EquipDef.SLOTS; i++) { // the worn equipment, small
+            if (s.equip.def[i] == null) continue;
+            itemTile(c, s.equip.def[i], s.equip.rar[i], ix, 58 * u, is, null, u);
+            ix += is + 3 * u;
+        }
+        alertZone(c, s, w * 0.3f, sh + 6 * u, w * 0.7f, sh + 70 * u, u); // boss and elite under the strip
         float rx = w - m;
         text(c, "G " + s.gold, rx, 40 * u, 32 * u, 0xFFFFD23C, Paint.Align.RIGHT);
         text(c, "K " + s.kills, rx - 190 * u, 40 * u, 32 * u, 0xFFFF7070, Paint.Align.RIGHT);
@@ -710,6 +820,7 @@ public final class PanelRenderer {
         text(c, timeStr((int) s.time), w / 2f + 200 * u, 50 * u, 46 * u, TEXT, Paint.Align.CENTER);
         // the whole screen is the move stick, so the dodge button sits in the bottom-right corner
         dodgeButton(c, s, w - m - 250 * u, h - m - 110 * u, w - m, h - m, u);
+        bossBanner(c, s, w, h, u);
     }
 
     private void drawJoystick(Canvas c) {
@@ -791,6 +902,62 @@ public final class PanelRenderer {
                     Math.min(30 * u, ch * 0.16f), 0xFFB8C0DA);
         }
         text(c, "Tap a card   |   d-pad / stick + A", w / 2f, h - 30 * u, 26 * u, DIM, Paint.Align.CENTER);
+    }
+
+    // ---- equipment choice (design section 6): the item in the slot against the one just found
+
+    private void equipChoice(Canvas c, int w, int h) {
+        float u = h / 1080f;
+        float[] col = column(w, h, 1500f * u);
+        float x = col[0], cw = col[1];
+        EquipDef nd = eng.equipNew, od = eng.equipOld;
+        if (nd == null) return;
+        text(c, "NEW EQUIPMENT", w / 2f, 84 * u, 66 * u, GOLD, Paint.Align.CENTER);
+        text(c, EquipDef.SLOT_NAMES[nd.slot] + " slot  -  keep what you wear or replace it", w / 2f, 132 * u, 30 * u, DIM, Paint.Align.CENTER);
+        float gap = 20 * u, ch = Math.min(760 * u, h - 330 * u), top = 170 * u;
+        float cardW = (cw - gap) / 2f;
+        for (int i = 0; i < 2; i++) {
+            boolean replace = i == 1, f = eng.focus == i;
+            EquipDef d = replace ? nd : od;
+            int rar = replace ? eng.equipNewRar : eng.equipOldRar;
+            float cx = x + i * (cardW + gap);
+            r.set(cx, top, cx + cardW, top + ch);
+            fill.setColor(f ? CARD_FOCUS : CARD);
+            c.drawRoundRect(r, 20, 20, fill);
+            stroke.setColor(f ? GOLD : 0xFF3A4566);
+            stroke.setStrokeWidth(f ? 6f : 2f);
+            c.drawRoundRect(r, 20, 20, stroke);
+            hit(cx, top, cx + cardW, top + ch, i, 0);
+            text(c, replace ? "REPLACE" : "KEEP", cx + cardW / 2, top + 50 * u, 38 * u, f ? GOLD : DIM, Paint.Align.CENTER);
+            if (d == null) continue;
+            float is = Math.min(180 * u, cardW * 0.4f);
+            itemTile(c, d, rar, cx + cardW / 2 - is / 2, top + 70 * u, is, null, u);
+            int rc = Equipment.RARITY_COLORS[Math.max(0, Math.min(3, rar))];
+            text(c, d.name, cx + cardW / 2, top + 70 * u + is + 44 * u, 36 * u, TEXT, Paint.Align.CENTER);
+            text(c, Equipment.RARITY_NAMES[Math.max(0, Math.min(3, rar))].toUpperCase(java.util.Locale.ROOT), cx + cardW / 2, top + 70 * u + is + 80 * u, 26 * u, rc, Paint.Align.CENTER);
+            String[] lines = replace ? eng.equipNewLines : eng.equipOldLines;
+            float ly = top + 70 * u + is + 130 * u;
+            for (String line : lines) {
+                text(c, line, cx + cardW / 2, ly, 28 * u, 0xFFD0D8F0, Paint.Align.CENTER);
+                ly += 38 * u;
+            }
+            if (replace) { // what changes: green is better, red is worse
+                ly += 14 * u;
+                text(c, "CHANGES", cx + cardW / 2, ly, 22 * u, DIM, Paint.Align.CENTER);
+                ly += 34 * u;
+                for (Equipment.Diff df : eng.equipDiff) {
+                    text(c, df.line, cx + cardW / 2, ly, 28 * u, df.good ? 0xFF70E080 : 0xFFE06060, Paint.Align.CENTER);
+                    ly += 36 * u;
+                }
+            }
+            Sim s = eng.sim;
+            if (s != null) {
+                int g = Equipment.salvage(eng.data, rar);
+                text(c, replace ? "the old item is salvaged for gold" : "the new item is salvaged: +" + g + " gold",
+                        cx + cardW / 2, top + ch - 26 * u, 22 * u, DIM, Paint.Align.CENTER);
+            }
+        }
+        text(c, "Tap a card   |   left / right + A   |   B = keep", w / 2f, h - 30 * u, 26 * u, DIM, Paint.Align.CENTER);
     }
 
     // ---- menus
@@ -923,7 +1090,8 @@ public final class PanelRenderer {
         float x = (w - cw) / 2f;
         text(c, eng.resultWin ? "VICTORY" : "YOU DIED", w / 2f, h * 0.18f, 88 * u, eng.resultWin ? 0xFF70E080 : 0xFFE04848, Paint.Align.CENTER);
         String[] l = {"Time  " + timeStr(eng.resultTime), "Kills  " + eng.resultKills, "Level  " + eng.resultLevel,
-                "Gold earned  " + eng.resultGold, eng.resultNewBest ? "NEW BEST TIME!" : "Best  " + timeStr(eng.meta.bestTimeSec)};
+                eng.resultFirst ? "Gold earned  " + eng.resultGold + "  (The First: x2)" : "Gold earned  " + eng.resultGold,
+                eng.resultNewBest ? "NEW BEST TIME!" : "Best  " + timeStr(eng.meta.bestTimeSec)};
         for (int i = 0; i < l.length; i++) {
             text(c, l[i], w / 2f, h * 0.30f + i * 66 * u, 44 * u, i == 4 && eng.resultNewBest ? GOLD : TEXT, Paint.Align.CENTER);
         }

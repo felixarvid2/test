@@ -26,9 +26,9 @@ public final class EnemyDef {
     public final boolean ashfallBoss;
 
     public static final int ARCH_CHASER = 0, ARCH_PACK = 1, ARCH_RANGED = 2, ARCH_FLIER = 3, ARCH_CHARGER = 4,
-            ARCH_EXPLODER = 5, ARCH_TANK = 6, ARCH_SUMMONER = 7;
+            ARCH_EXPLODER = 5, ARCH_TANK = 6, ARCH_SUMMONER = 7, ARCH_BOSS = 8, ARCH_TENTACLE = 9;
     public static final String[] ARCH_NAMES = {"CHASER", "FAST_PACK", "RANGED", "FLIER", "CHARGER", "EXPLODER", "TANK",
-            "SUMMONER"};
+            "SUMMONER", "BOSS", "TENTACLE"};
 
     public static int archOf(String name) {
         for (int i = 0; i < ARCH_NAMES.length; i++) if (ARCH_NAMES[i].equals(name)) return i;

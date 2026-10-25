@@ -41,6 +41,17 @@ suite; with `SOAK=1` it also runs 30 minutes per hero and the mid-build survival
 areas and statuses, barrel blasts) to see what kills the bot. A pickup pool at 1200 for a minute or two in a 60 000-kill run is the designed
 merge behaviour, not a leak; flag it only when it stays at the cap for a large share of the run.
 
+Phase 9 and 10 additions to `StageSoak`: the bot walks to an equipment crate when the crowd is thin, answers the choice screen
+(`s.resolveEquip(true)` while `s.equipN > 0`, the headless Sim never pauses by itself), aims at the boss when it is within 420 units, and
+logs `Result.eliteAt` (spawn times), `eliteKilled`, `bossLog` / `bossTtk` (boss key and seconds from first sight to death), `worn`,
+`firstKilled`, `peakExtra`. The 300 cap check is `enemyN <= 300 + flagged + StageSoak.SUMMON_SLACK` (flagged = bosses, elites and
+tentacles; the slack is the elite adds, Vire's colonists and the hounds). Run one cell and see the elite and boss lines:
+`java -cp ... StageSoak MINES BASTION mid 2 1800` prints a second line `elites at [...] bosses [...] ttk [...]`.
+`EliteTest`, `EquipmentTest` and `BossTest` are the fast headless tests (seeded `Sim(..., seed)`, hero `null` so the hammer does not clear the scene);
+`StageSoakTest.thirtyMinutesPerStageImmortalAndMortal` runs 30 minutes per stage with the immortal and the mortal mid bot in the normal suite (a few
+seconds each), `aMidBuildKillsEveryBossInUnderNinetySeconds` the boss acceptance. What to look for after a change to bosses or elites: eliteAt gaps equal
+`Elites.interval`, every boss dies (a boss that never dies is a stuck state), `peakHaz <= 32`, no NaN in the lanes and pulses.
+
 Lessons from earlier soaks:
 - `Sim.rng` is unseeded: call `s.rng.setSeed(seed)` right after construction or no run is reproducible.
 - System properties (`-Dsoak=1`) do not reach the forked test JVM. Gate long runs on an env var (`SOAK=1`, read with

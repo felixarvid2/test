@@ -39,6 +39,16 @@ public final class GameData {
     /** Heroes and their main weapons (ashfall_data.json "heroes", "mainWeapons"); empty without the overlay. */
     public final Map<String, HeroDef> heroes = new LinkedHashMap<>();
     public final Map<String, MainWeaponDef> mainWeapons = new HashMap<>();
+    /** Equipment (ashfall_data.json "equipment", design section 6): all items by key, in file order (18 base items then the uniques). */
+    public final Map<String, EquipDef> equipment = new LinkedHashMap<>();
+    public final List<EquipDef> equipList = new ArrayList<>();
+    /** The base items (not unique) and the unique dropped by each boss key (null when none). */
+    public final List<EquipDef> baseItems = new ArrayList<>();
+    public final Map<String, EquipDef> uniqueBySource = new HashMap<>();
+    /** Elite numbers ("elites") and the equipment rules ("equipmentRules": rarity values, salvage, the rarity roll). */
+    public final Map<String, Double> elites = new LinkedHashMap<>();
+    public final Map<String, Double> equipRules = new LinkedHashMap<>();
+    public double[] equipMult = {1.0, 1.6, 2.4};
 
     public static GameData load(InputStream in) throws IOException, JSONException {
         return parse(IO.readUtf8(in));
@@ -108,6 +118,30 @@ public final class GameData {
                 mainWeapons.put(key, parseMainWeapon(key, mw.getJSONObject(key)));
             }
         }
+        JSONObject el = root.optJSONObject("elites");
+        if (el != null) elites.putAll(numbers(el));
+        JSONObject er = root.optJSONObject("equipmentRules");
+        if (er != null) {
+            equipRules.putAll(numbers(er));
+            JSONArray m = er.optJSONArray("mult");
+            if (m != null && m.length() >= 3) equipMult = new double[]{m.optDouble(0, 1), m.optDouble(1, 1.6), m.optDouble(2, 2.4)};
+        }
+        JSONObject eq = root.optJSONObject("equipment");
+        if (eq != null) {
+            Iterator<String> it = eq.keys();
+            while (it.hasNext()) {
+                String key = it.next();
+                JSONObject o = eq.getJSONObject(key);
+                boolean unique = o.optBoolean("unique", false);
+                EquipDef d = new EquipDef(key, o.optString("name", key), EquipDef.slotOf(o.optString("slot", "HEAD")),
+                        o.optString("icon", ""), unique, o.optString("source", ""), numbers(o.optJSONObject("values")),
+                        equipList.size());
+                equipment.put(key, d);
+                equipList.add(d);
+                if (unique) uniqueBySource.put(d.source, d);
+                else baseItems.add(d);
+            }
+        }
         JSONObject he = root.optJSONObject("heroes");
         if (he != null) {
             for (String key : HERO_ORDER) {
@@ -136,11 +170,22 @@ public final class GameData {
                     strings(r.optJSONArray("enemies")).toArray(new String[0]),
                     strings(r.optJSONArray("bosses")).toArray(new String[0]), treasure(r.optJSONObject("treasure"))));
         }
-        return new StageDef(key, o.optString("name", key), mods.optDouble("TimeLimit", 1800),
+        StageDef sd = new StageDef(key, o.optString("name", key), mods.optDouble("TimeLimit", 1800),
                 mods.optDouble("PlayerPxSpeed", 1), mods.optDouble("EnemySpeed", 1),
                 mods.optDouble("EnemyHealthMultiplier", 1), mods.optDouble("GoldMultiplier", 1),
                 mods.optDouble("XPBonus", 1), o.optInt("startingSpawns", 10),
                 "HORIZONTAL".equals(o.optString("spawnType")), o.optString("destructibleType", ""), rows);
+        JSONObject tn = o.optJSONObject("tentacles");
+        if (tn != null) {
+            JSONArray mins = tn.optJSONArray("minutes");
+            sd.tentacleMinutes = new int[mins == null ? 0 : mins.length()];
+            for (int i = 0; i < sd.tentacleMinutes.length; i++) sd.tentacleMinutes[i] = mins.optInt(i);
+            sd.tentacleLen = (float) tn.optDouble("length", 20);
+            sd.tentacleEvery = (float) tn.optDouble("every", 4);
+            sd.tentacleCount = tn.optInt("count", 3);
+            sd.tentacleRadius = (float) tn.optDouble("radius", 400);
+        }
+        return sd;
     }
 
     private static Map<String, Double> numbers(JSONObject o) {
@@ -296,6 +341,18 @@ public final class GameData {
             powerUps.put(key, new PowerUpDef(key, r0.optString("name", key), r0.optString("description", ""),
                     r0.optInt("price", 100), numericRows(arr)));
         }
+    }
+
+    /** An elite number (ashfall_data.json "elites"), or {@code d} without the overlay. */
+    public double elite(String k, double d) {
+        Double v = elites.get(k);
+        return v == null ? d : v;
+    }
+
+    /** An equipment rule number ("equipmentRules"), or {@code d}. */
+    public double rule(String k, double d) {
+        Double v = equipRules.get(k);
+        return v == null ? d : v;
     }
 
     /** Hero keys in select order that the data actually defines. */

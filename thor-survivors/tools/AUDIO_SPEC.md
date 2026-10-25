@@ -56,7 +56,7 @@ correlating the source with itself). Test by looping the file in an editor: no c
   have yet (files are shipped and ready). When the code adds an id to `SoundEvents.NAMES`, move its entry from
   `pending` to `sfx` in `manifest.json` (and in `SFX_PENDING` to `SFX` in `tools/import_audio.py`). The manifest test
   requires `sfx` to hold exactly the ids of `SoundEvents`, so a wired id must not stay in `pending`.
-* `final` (music) is in `music` already and is silent until the code plays it.
+* `final` (music) plays while The First is alive (`MusicDirector.trackFor` with `finalAlive`, the boss track if the file is missing).
 
 ## Sound effect ids
 
@@ -96,7 +96,7 @@ names (whip, magic_missile, ...) are kept as ids; the sounds follow the ASHFALL 
 
 ### New ids (design section 12, in `manifest.json` under `pending`)
 
-Built and shipped. The first six (hammer to dodge) and `burn_tick`, `frost_hit`, `electrify_zap`, `decay_hiss`, `stun_hit`, `barrel_explode`, `crate_break`, `pylon_use`, `drone_shot`, `sergeant_burst`, `welder_charge`, `carrier_burst` and `vire_blink` are wired now (they live under `sfx`); the rest wait in `pending`. "Limit" is a suggestion for the per-100 ms cap when the code wires them (events
+Built and shipped. The first six (hammer to dodge) and `burn_tick`, `frost_hit`, `electrify_zap`, `decay_hiss`, `stun_hit`, `barrel_explode`, `crate_break`, `pylon_use`, `drone_shot`, `sergeant_burst`, `welder_charge`, `carrier_burst`, `vire_blink`, `elite_spawn`, `elite_die`, `equip_drop`, `equip_pick`, `equip_swap`, `tentacle_emerge`, `boss_intro`, `boss_slam` and `the_first_roar` are wired now (they live under `sfx`); the rest wait in `pending`. "Limit" is a suggestion for the per-100 ms cap when the code wires them (events
 that can fire many times per second should be capped low and kept quiet).
 
 | id | When | Length | Style | Limit |
@@ -157,7 +157,7 @@ Mines (`mines`) and `final` is The First (`first`).
 | `forest` | Cinder Flats stage | 15-40 s | yes | Heavy distorted bass pulse and metallic hits, industrial, sparse |
 | `library` | Deep Mines stage | 15-40 s | yes | 60 BPM bass pulse, dark sci-fi, steady and tense |
 | `boss` | While a boss is alive (optional; the stage track plays if it is missing) | 12-30 s | yes | Dark driving 140 BPM, a slow heartbeat and a low distorted choir |
-| `final` | The First (final boss); silent until the code plays it | 15-30 s | yes | Heavy detuned boss track, fast heartbeat, two choir voices |
+| `final` | The First (final boss): plays while it lives | 15-30 s | yes | Heavy detuned boss track, fast heartbeat, two choir voices |
 | `gameover` | Result screen after dying | 3-6 s | no (stinger) | Sinking drone with a low choir, no transient (the sfx has the impact) |
 | `victory` | Result screen after winning | 4-7 s | no (stinger) | Dark pulsing swell that decays, resolved not triumphant |
 

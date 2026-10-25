@@ -113,6 +113,7 @@ public final class MainWeapon {
     /** Rebuilds the effective numbers from the data, the picked tiers and the player's stats. */
     void sync() {
         PlayerStats st = s.stats;
+        double mightMain = st.might * st.mainDamage; // equipment: main weapon damage (Hydraulic Knuckles, Fist of Kharos)
         eff.clear();
         eff.putAll(def.params);
         eff.put("critMul", hero.critMul);
@@ -131,10 +132,10 @@ public final class MainWeapon {
                 }
             }
         }
-        area = (float) st.areaMul;
+        area = (float) (st.areaMul * st.mainSize);
         spd = (float) st.speedMul;
         amountBonus = st.amountBonus;
-        dmg = (float) (def.power * 10.0 * st.might);
+        dmg = (float) (def.power * 10.0 * mightMain);
         interval = Math.max(0.2f, (float) (v("interval") / 1000.0 * (1.0 + v("intervalAdd")) * st.cooldownMul));
         critChance = (float) ((st.critChance + v("critAdd")) * (1.0 + st.luck));
         critMul = v("critMul");
@@ -143,17 +144,17 @@ public final class MainWeapon {
         arc = v("arc") * DEG;
         radius = v("radius");
         slamEvery = Math.max(1, Math.round(v("slamEvery")));
-        slamDmg = v("slamPower") * 10f * (float) st.might;
+        slamDmg = v("slamPower") * 10f * (float) mightMain;
         slamRadius = v("slamRadius") * (1f + v("slamRadiusMul"));
         slamStun = v("slamStun");
         slamHeal = v("slamHeal") > 0;
-        lineDmg = v("linePower") * 10f * (float) st.might;
+        lineDmg = v("linePower") * 10f * (float) mightMain;
         lineLen = v("lineLen");
         burnN = Math.round(v("burn"));
         thrustOn = v("thrust") > 0;
         thrustArc = v("thrustArc") * DEG;
         thrustRange = v("thrustRange");
-        thrustDmg = v("thrustPower") * 10f * (float) st.might;
+        thrustDmg = v("thrustPower") * 10f * (float) mightMain;
         thrustCrit = v("thrustCrit");
         thrustDecay = v("thrustDecay") > 0;
         waveLen = v("wave");
@@ -168,20 +169,20 @@ public final class MainWeapon {
         range = v("range");
         pierce = Math.round(v("pierce"));
         slugOn = v("slug") > 0;
-        slugDmg = v("slugPower") * 10f * (float) st.might;
+        slugDmg = v("slugPower") * 10f * (float) mightMain;
         slugExplode = v("slugExplode") > 0;
         explodeR = v("explodeRadius");
-        explodeDmg = v("explodePower") * 10f * (float) st.might;
+        explodeDmg = v("explodePower") * 10f * (float) mightMain;
         ringOn = v("ring") > 0;
         ringEvery = Math.max(1, Math.round(v("ringEvery")));
         ringCount = Math.max(1, Math.round(v("ringCount")));
         critRefund = v("critRefund");
         grenadeEvery = Math.round(v("grenadeEvery"));
-        grenadeDmg = v("grenadePower") * 10f * (float) st.might;
+        grenadeDmg = v("grenadePower") * 10f * (float) mightMain;
         grenadeR = v("grenadeRadius");
         grenadeRange = v("grenadeRange");
         bomblets = Math.round(v("bomblets"));
-        bombletDmg = v("bombletPower") * 10f * (float) st.might;
+        bombletDmg = v("bombletPower") * 10f * (float) mightMain;
         bombletR = v("bombletRadius");
         grenadeBurn = v("grenadeBurn") > 0;
         firePatch = v("firePatch");
@@ -192,28 +193,28 @@ public final class MainWeapon {
         decayN = Math.round(v("decay"));
         burstEvery = Math.max(1, Math.round(v("burstEvery")));
         burstCount = Math.max(1, Math.round(v("burstCount")));
-        burstDmg = v("burstPower") * 10f * (float) st.might;
+        burstDmg = v("burstPower") * 10f * (float) mightMain;
         burstSpeed = v("burstSpeed");
         burstRange = v("burstRange");
         darts = Math.round(v("darts"));
-        dartDmg = v("dartPower") * 10f * (float) st.might;
+        dartDmg = v("dartPower") * 10f * (float) mightMain;
         dartPierce = Math.round(v("dartPierce"));
         dartDecay = v("dartDecay") > 0;
         tendrilEvery = Math.round(v("tendrilEvery"));
         tendrilRadius = v("tendrilRadius");
         tendrilRoot = v("tendrilRoot");
-        tendrilDmg = v("tendrilPower") * 10f * (float) st.might;
+        tendrilDmg = v("tendrilPower") * 10f * (float) mightMain;
         tendrilPull = v("tendrilPull");
         link = v("link") > 0;
         linkTime = v("linkTime");
-        linkDmg = v("linkPower") * 10f * (float) st.might;
+        linkDmg = v("linkPower") * 10f * (float) mightMain;
         linkHeal = v("linkHeal");
         linkJump = v("linkJump") > 0;
         beam = v("beam") > 0;
         beamLen = v("beamLen");
         beamTime = v("beamTime");
         beamTick = Math.max(0.05f, v("beamTick"));
-        beamDmg = v("beamPower") * 10f * (float) st.might;
+        beamDmg = v("beamPower") * 10f * (float) mightMain;
         beamWidth = v("beamWidth");
         beamPierce = Math.round(v("beamPierce"));
         beamGround = v("beamGround");

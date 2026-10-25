@@ -7,7 +7,8 @@ Survivors stages FOREST and LIBRARY), so the XP and gold curves stay familiar. D
 x1.25 and speed x1.05 on top of the LIBRARY mods (it is the second stage).
 
 Run from thor-survivors/:  python3 tools/build_ashfall_stages.py
-Only the keys `enemies`, `stages` (FLATS, MINES) and `lighting` (FLATS, MINES) are touched; heroes, names and
+Only the keys `enemies`, `stages` (FLATS, MINES), `lighting` (FLATS, MINES), `elites`, `equipment` and `equipmentRules`
+are touched; heroes, names and
 mainWeapons stay as they are.
 """
 import json
@@ -43,28 +44,85 @@ ENEMIES = {
     "VIRE": dict(name="Vire", archetype="SUMMONER", maxHp=5.0, speed=90, power=14, xp=10, sprite="vire",
                  params=dict(radius=13, blinkMin=125, blinkMax=200, tele=0.2, wait=0.75, stopMin=2.5, stopMax=4,
                              raise_=3, ring=8, ringSpeed=220, ringDmg=10, castRange=180)),
-    # ---- bosses (design 4.1): HP in Z at wave time 0, no extra boss factor; simple behaviour from the archetype
-    "CARGO_LOADER": dict(name="Cargo Loader", archetype="CHARGER", boss=True, maxHp=400, speed=70, power=26, xp=60,
+    # ---- bosses (design 4.1): HP in Z at wave time 0, no extra boss factor; real patterns in game/BossAi (param `pattern`)
+    "CARGO_LOADER": dict(name="Cargo Loader", archetype="BOSS", boss=True, maxHp=400, speed=70, power=26, xp=60,
                          sprite="cargo_loader",
-                         params=dict(hpRamp=20, radius=20, runSpeed=320, minDist=80, maxDist=420, gapMin=1, gapMax=3.5,
-                                     windup=1.0, dash=0.8, recover=1.0)),
-    "SLAGBORN": dict(name="Slagborn", archetype="TANK", boss=True, maxHp=700, speed=60, power=35, xp=100,
+                         params=dict(pattern=1, hpRamp=20, radius=20, runSpeed=320, minDist=80, maxDist=420, gapMin=1,
+                                     gapMax=3.5, windup=1.0, dash=1.0, recover=1.0, lineW=60, stunHero=0.4,
+                                     stompR=120, stompWarn=0.9, stompDmg=22, crates=3, crateR=44, crateWarn=1.0,
+                                     crateDmg=16)),
+    "SLAGBORN": dict(name="Slagborn", archetype="BOSS", boss=True, maxHp=700, speed=60, power=35, xp=100,
                      sprite="slagborn",
-                     params=dict(hpRamp=20, radius=24, castEvery=8, castTime=0.8, poolR=70, poolT=3, poolDps=8, warn=0.8,
-                                 pools=3, trail=45, trailT=4, trailDps=6, enrageHp=0.5, enrageMul=1.3)),
-    "VIRE_AWAKENED": dict(name="Vire, Awakened", archetype="SUMMONER", boss=True, maxHp=600, speed=100, power=20,
+                     params=dict(pattern=2, hpRamp=20, radius=24, castEvery=8, castTime=0.8, bombs=3, bombsEnraged=5,
+                                 bombR=46, bombWarn=1.0, bombDmg=12, poolR=44, poolT=3, poolDps=7, trail=45, trailT=4,
+                                 trailDps=6, enrageHp=0.5, enrageMul=1.3, enrageCast=0.7)),
+    "VIRE_AWAKENED": dict(name="Vire, Awakened", archetype="BOSS", boss=True, maxHp=600, speed=100, power=20,
                           xp=100, sprite="vire",
-                          params=dict(hpRamp=20, radius=16, blinkMin=125, blinkMax=200, tele=0.2, wait=0.6, stopMin=2,
-                                      stopMax=3.5, raise_=6, ring=12, ringSpeed=220, ringDmg=10, castRange=200)),
-    "SMELTER_FOREMAN": dict(name="Smelter, Foreman", archetype="TANK", boss=True, maxHp=500, speed=65, power=30,
+                          params=dict(pattern=3, hpRamp=20, radius=16, blinkMin=125, blinkMax=200, tele=0.2, wait=0.6,
+                                      stopMin=2, stopMax=3.5, raise_=6, ring=12, ringSpeed=220, ringDmg=10,
+                                      ringGap=0.1, phase1Hp=0.66, phase2Hp=0.33, carriers=4)),
+    "SMELTER_FOREMAN": dict(name="Smelter, Foreman", archetype="BOSS", boss=True, maxHp=500, speed=65, power=30,
                             xp=100, sprite="smelter", scale=1.8,
-                            params=dict(hpRamp=20, radius=12, castEvery=6, castTime=0.8, poolR=60, poolT=3, poolDps=8, warn=0.8,
-                                        pools=5, carpet=1)),
-    "THE_FIRST": dict(name="The First", archetype="SUMMONER", boss=True, maxHp=2500, speed=80, power=40, xp=250,
+                            params=dict(pattern=4, hpRamp=20, radius=12, castEvery=6, castTime=0.8, poolR=60, poolT=3,
+                                        poolDps=8, warn=0.8, pools=5, pullHp=0.25, pullEvery=8, pullWarn=1.1,
+                                        pullRange=340, pullSpeed=300, pullTime=0.7, slamR=70, slamDmg=18)),
+    "THE_FIRST": dict(name="The First", archetype="BOSS", boss=True, maxHp=2500, speed=80, power=40, xp=250,
                       sprite="the_first",
-                      params=dict(hpRamp=29, radius=28, blinkMin=0, blinkMax=0, tele=0.2, wait=0.5, stopMin=2.5, stopMax=3.5,
-                                  raise_=4, ring=12, ringSpeed=200, ringDmg=12, castRange=260)),
+                      params=dict(pattern=5, hpRamp=29, radius=28, phase1Hp=0.66, phase2Hp=0.33, ring=12,
+                                  ringSpeed=200, ringDmg=12, ringEvery=3.5, ringEvery3=5, tentEvery=5, tentEvery3=8,
+                                  tentCount=3, tentRadius=300, lanes=2, laneLen=560, laneW=46, laneDps=22,
+                                  laneWarn=1.0, laneLife=3.2, laneSpin=0.85, laneGap=2.0, hounds=6, houndEvery=9,
+                                  pulseEvery=6, pulseWarn=1.5, pulseDmg=28)),
+    # a killable tentacle: bursts from the ground (warn ring, then up for `up` seconds), see BossAi.tentacle.
+    # Design 4.1 gives it 150 Z when exposed, which no build kills in the 1.2 s it is up: 8 Z here.
+    "LUMEN_TENTACLE": dict(name="Lumen Tentacle", archetype="TENTACLE", maxHp=8.0, speed=0, power=25, xp=5,
+                           knockback=0, sprite="lumen_tentacle", params=dict(radius=15, warn=0.8, up=1.2, hitR=34)),
 }
+
+
+# --------------------------------------------------------------------------- elites (design 5) and equipment (design 6)
+ELITES = dict(first=180, interval=150, min=100, shrinkPerMin=0.01, hpMul=6, damageMul=1.5, scale=1.4, speedMul=0.9,
+              xpMul=8, dist=400, adds=6, mods2At=720, mods3At=1440, xpPileGems=5, xpPileLevels=2.0)
+
+# slot, name, icon (atlas key icon.<icon>), values (PlayerStats keys; a base item's values are the Common ones)
+EQUIPMENT = {
+    "COMBAT_HELM": ("HEAD", "Combat Helm", "combat_helm", {"armor": 1}),
+    "HEADLAMP": ("HEAD", "Headlamp", "bio_focus", {"lightRadius": 0.10}),
+    "TARGETING_VISOR": ("HEAD", "Targeting Visor", "combat_helm_2", {"critChance": 0.04}),
+    "PLATED_VEST": ("BODY", "Plated Vest", "plated_vest", {"maxHp": 0.10}),
+    "RIOT_SHIELD": ("BODY", "Riot Shield", "riot_shield", {"damageTaken": -0.04}),
+    "INJECTOR_RIG": ("BODY", "Injector Rig", "injector_rig", {"regen": 0.2}),
+    "SERVO_GAUNTLETS": ("GLOVES", "Servo Gauntlets", "servo_gauntlets", {"power": 0.05}),
+    "HYDRAULIC_KNUCKLES": ("GLOVES", "Hydraulic Knuckles", "hydraulic_knuckles", {"mainDamage": 0.08}),
+    "TRIGGER_GLOVES": ("GLOVES", "Trigger Gloves", "servo_gauntlets_2", {"cooldown": -0.04}),
+    "MAG_BOOTS": ("FEET", "Mag Boots", "mag_boots", {"moveSpeed": 0.05}),
+    "ARMORED_GREAVES": ("FEET", "Armored Greaves", "armored_greaves", {"armor": 1, "knockbackTaken": -0.10}),
+    "QUICK_SOLES": ("FEET", "Quick Soles", "mag_boots_2", {"dodgeCooldown": -0.10}),
+    "CONDUIT_RING": ("RING", "Conduit Ring", "conduit_ring", {"statusChance_electrify": 0.06}),
+    "SIGNET_OF_ASH": ("RING", "Signet of Ash", "conduit_ring_2", {"statusChance_burn": 0.06}),
+    "FROST_BAND": ("RING", "Frost Band", "conduit_ring_3", {"statusChance_frost": 0.06}),
+    "SIGNAL_PENDANT": ("NECK", "Signal Pendant", "signal_pendant", {"magnet": 0.15}),
+    "ECHO_RELIC": ("NECK", "Echo Relic", "echo_relic", {"growth": 0.04}),
+    "LUMEN_PENDANT": ("NECK", "Lumen Pendant", "crystal_lumen", {"luck": 0.05}),
+}
+# uniques: fixed values (no rarity multiplier), dropped by the named boss (the Seed by a tentacle killed in a hazard burst)
+UNIQUES = {
+    "CROWN_OF_THE_HIVE": ("HEAD", "Crown of the Hive", "unique_crown_of_the_hive",
+                          {"amount": 1, "enemySpeed": 0.05}, "VIRE_AWAKENED"),
+    "ASHEN_HEARTWOOD": ("BODY", "Ashen Heartwood", "unique_ashen_heartwood",
+                        {"maxHp": 0.25, "burnImmune": 1}, "SLAGBORN"),
+    "FIST_OF_KHAROS": ("GLOVES", "Fist of Kharos", "unique_fist_of_kharos",
+                       {"mainDamage": 0.30, "mainSize": 0.10}, "CARGO_LOADER"),
+    "ASHWALKER_TREADS": ("FEET", "Ashwalker Treads", "unique_ashwalker_treads",
+                         {"moveSpeed": 0.15, "ashTrail": 1}, "SMELTER_FOREMAN"),
+    "HEART_OF_LUMEN": ("NECK", "Heart of Lumen", "unique_heart_of_lumen",
+                       {"revivals": 1, "lightRadius": 0.15}, "THE_FIRST"),
+    "SEED_OF_ACCORD": ("RING", "Seed of Accord", "unique_seed_of_accord", {"cloudHeal": 1}, "LUMEN_TENTACLE"),
+}
+# value multipliers Common / Uncommon / Rare, a unique counts as 3.0 when compared, salvage pays 5 gold per point,
+# the rarity roll starts at 60 / 32 / 8 at minute 3 and moves 1.2 points per minute from Common to Rare
+EQUIPMENT_RULES = dict(mult=[1.0, 1.6, 2.4], uniqueValue=3.0, salvage=5, common=60, uncommon=32, rare=8,
+                       shiftPerMin=1.2, fromMinute=3, commonMin=10, luckPoints=20)
 
 # --------------------------------------------------------------------------- wave tables (design 9.3)
 K = dict(COL="COLONIST", HND="SPORE_HOUND", SGT="SERGEANT", DRN="SECURITY_DRONE", WLD="WELDER", SPC="SPORE_CARRIER",
@@ -158,6 +216,15 @@ def main():
                             starting=10)
     stages["MINES"] = stage("Deep Mines", "LIBRARY", MINES_ROWS, MINES_TREASURE, "MIXED_MINES", mines_mods,
                             spawn_type="HORIZONTAL", starting=12)
+    stages["MINES"]["tentacles"] = dict(minutes=[8, 13, 18, 23, 27], length=20, every=4, count=3, radius=400)
+    data["elites"] = ELITES
+    eq = {}
+    for key, (slot, name, icon, values) in EQUIPMENT.items():
+        eq[key] = dict(name=name, slot=slot, icon=icon, values=values)
+    for key, (slot, name, icon, values, source) in UNIQUES.items():
+        eq[key] = dict(name=name, slot=slot, icon=icon, values=values, unique=True, source=source)
+    data["equipment"] = eq
+    data["equipmentRules"] = EQUIPMENT_RULES
     lighting = data.setdefault("lighting", {})
     lighting["FLATS"] = dict(ambient=0.65, radius=240)
     lighting["MINES"] = dict(ambient=0.78, radius=200)

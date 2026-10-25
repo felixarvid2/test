@@ -54,6 +54,20 @@ public final class Entities {
         public float trail;
         public boolean enraged;
 
+        // elites and bosses (design sections 4.1 and 5; see Elites and BossAi). One flagged slot of the normal pool.
+        /** Boss phase (0, 1, 2), elite modifier bit mask (Elites.M_*), a counter and the draw-pool bag of a boss pattern. */
+        public int phase, mods, cnt, bag;
+        /** Elite modifier timers (barrage, volcano, raiser), the distance since the last fire / frost patch, boss timers. */
+        public float mt0, mt1, mt2, etrail, t2, t3;
+        /** Flat damage taken off every hit (the Armored elite), the multiplier on this enemy's shots (elite damage x1.5). */
+        public float armor, shotMul = 1f;
+        /** Seconds left in which the hero's ash slows this enemy by 20% (Ashwalker Treads). */
+        public float ashLeft;
+        /** A tentacle still warning: it cannot be hit and does not hurt. A silent enemy leaves without a kill or drops. */
+        public boolean dormant, silent;
+        /** Width in world units of this enemy's charge telegraph (0 = from its radius). */
+        public float teleW;
+
         public void clearStatus() {
             burn = frost = elec = decay = 0;
             burnT = frostT = elecT = decayT = burnAcc = burnHit = elecHit = decayHit = 0f;
@@ -69,6 +83,10 @@ public final class Entities {
             weaveT = 0f;
             weave = 1;
             enraged = false;
+            phase = mods = cnt = bag = 0;
+            mt0 = mt1 = mt2 = etrail = t2 = t3 = armor = ashLeft = teleW = 0f;
+            shotMul = 1f;
+            dormant = silent = false;
         }
 
         /**
@@ -148,11 +166,18 @@ public final class Entities {
     }
 
     /** Ground areas of the enemies and the world: slag pools, spore clouds, frost patches (see {@link Sim#MAX_HAZ}). */
-    public static final int HZ_SLAG = 0, HZ_CLOUD = 1, HZ_FROST = 2;
+    public static final int HZ_SLAG = 0, HZ_CLOUD = 1, HZ_FROST = 2, HZ_BOMB = 3, HZ_LANE = 4, HZ_ASH = 5;
+    /** {@link Hazard#variant} of a HZ_BOMB: a slag bomb (leaves a pool), a falling crate, a stomp, a volcano bomb. */
+    public static final int BV_SLAG = 0, BV_CRATE = 1, BV_STOMP = 2, BV_VOLCANO = 3;
 
+    /**
+     * A ground area. HZ_BOMB: a ring that warns for {@code warn} s, then one blast of {@code dps} damage inside {@code r}
+     * and a short afterglow of {@code life} s. HZ_LANE (The First's tendril): a line of length {@code r} and width {@code w}
+     * from (x, y) at angle {@code ang} that turns {@code spin} rad/s and hurts {@code dps} per second.
+     */
     public static final class Hazard {
-        public int kind;
-        public float x, y, r, life, maxLife, warn, dps, acc;
+        public int kind, variant;
+        public float x, y, r, life, maxLife, warn, warnMax, dps, acc, ang, spin, w;
         public int n;
     }
 
@@ -182,7 +207,7 @@ public final class Entities {
     }
 
     public static final int K_GEM = 0, K_COIN = 1, K_COINBAG = 2, K_ROAST = 3, K_VACUUM = 4, K_OROLOGION = 5,
-            K_ROSARY = 6, K_CLOVER = 7, K_CHEST = 8;
+            K_ROSARY = 6, K_CLOVER = 7, K_CHEST = 8, K_EQUIP = 9;
 
     public static final class Pickup {
         public int kind;
@@ -216,7 +241,7 @@ public final class Entities {
      */
     public static final class Corpse {
         public EnemyType type;
-        public boolean boss, active;
+        public boolean boss, active, elite;
         public int id;
         public float x, y, age, radius;
     }

@@ -1,12 +1,14 @@
 package se.felixarvid.thorsurvivors.game;
 
 import se.felixarvid.thorsurvivors.data.EnemyDef;
+import se.felixarvid.thorsurvivors.data.EquipDef;
 import se.felixarvid.thorsurvivors.data.GameData;
 import se.felixarvid.thorsurvivors.data.HeroDef;
 import se.felixarvid.thorsurvivors.data.MainWeaponDef;
 import se.felixarvid.thorsurvivors.data.StageDef;
 import se.felixarvid.thorsurvivors.data.Treasure;
 import se.felixarvid.thorsurvivors.data.WaveRow;
+import se.felixarvid.thorsurvivors.data.WaveSelector;
 import se.felixarvid.thorsurvivors.data.WeaponDef;
 import se.felixarvid.thorsurvivors.game.Entities.*;
 
@@ -114,10 +116,44 @@ public final class Sim {
     public final Hazard[] hazards = new Hazard[MAX_HAZ];
     public int hazN;
     final EnemyAi ai = new EnemyAi(this);
+    final BossAi boss = new BossAi(this, ai);
+    final Elites elites = new Elites(this);
     /** Hero statuses from enemy hazards (design section 7): seconds left of Burn, Slow and Decay. */
     public float heroBurnT, heroSlowT, heroDecayT;
     private float statusAcc;
     private int statusTexts;
+    /** Seconds the hero cannot walk (the Cargo Loader's charge), fractional HP of a Seed of Accord cloud not yet paid out. */
+    public float heroStunT, healAcc;
+    // equipment (design section 6): what is worn, and the choices waiting for the player (an item that is better than
+    // the one in its slot; the Engine pauses on the bottom screen and calls resolveEquip). Run-only.
+    public final Equipment equip = new Equipment();
+    public static final int MAX_EQUIP_Q = 4;
+    private final int[] eqQDef = new int[MAX_EQUIP_Q], eqQRar = new int[MAX_EQUIP_Q];
+    public int equipN;
+    /** Toasts on the top screen (newest last): text, seconds left and colour. */
+    public static final int MAX_TOASTS = 3;
+    public static final float TOAST_LIFE = 3.2f;
+    public final String[] toastText = new String[MAX_TOASTS];
+    public final float[] toastT = new float[MAX_TOASTS];
+    public final int[] toastColor = new int[MAX_TOASTS];
+    /** Elites (design section 5): when the next one is due, how many came, how many were killed, the one alive (or null). */
+    public float nextEliteAt;
+    public int eliteSpawned, eliteKilled;
+    public Enemy eliteNow;
+    /** The boss shown in the HUD (the first alive; The First before the others), the 2 s spawn banner, and The First's end. */
+    public Enemy bossNow;
+    public float bannerT;
+    public String bannerKey = "", bannerName = ""; // the name is in capitals
+    public static final float BANNER_LIFE = 2.0f;
+    /** The First was killed: the run is won after a short delay and the gold counts twice. */
+    public boolean firstKilled;
+    private float winDelay;
+    /** Lumen tentacle hazard (Deep Mines): the end of the running burst, the time of the next wave, the bursts already started. */
+    private double tentUntil;
+    private float tentNext;
+    private int tentDone;
+    private boolean seedDropped;
+    private float ashDist;
     /** Time of the latest weapon use; the renderer plays the player's attack clip for a moment after it. */
     public float lastAttack = -10f;
     private int partHead, textHead, fxHead, nextId = 1;
@@ -207,6 +243,7 @@ public final class Sim {
         for (int i = 0; i < MAX_EPROJ; i++) eprojs[i] = new EProj();
         for (int i = 0; i < MAX_HAZ; i++) hazards[i] = new Hazard();
         for (int i = 0; i < weapons.length; i++) weapons[i] = new WeaponState();
+        nextEliteAt = (float) data.elite("first", 180);
         if (starterKey != null) inv.add(data.weapons.get(starterKey));
         recomputeAll();
         hp = maxHp;
@@ -223,7 +260,7 @@ public final class Sim {
     public void recomputeAll() {
         PlayerStats old = stats;
         statsLevel = level;
-        stats = PlayerStats.compute(inv, meta, extraLuck, hero, level);
+        stats = PlayerStats.compute(inv, meta, extraLuck, hero, level, equip, data);
         float nm = (float) stats.baseHp * (float) stats.maxHpMul;
         if (old != null) hp += Math.max(0, nm - maxHp);
         maxHp = nm;
@@ -267,7 +304,7 @@ public final class Sim {
         w.auraRadius = 50f * w.area;
         w.endless = s.def.key.equals("VESPERS");
         w.knock = g(m, "knockback", 0.3f);
-        w.critChance = g(m, "critChance", 0) * (1f + (float) stats.luck);
+        w.critChance = (g(m, "critChance", 0) + (float) stats.critBonus) * (1f + (float) stats.luck);
         w.critMul = g(m, "critMul", 2);
         w.amount = Math.max(1, Math.round(g(m, "amount", 1)) + stats.amountBonus);
         w.pierce = Math.max(1, Math.round(g(m, "penetrating", 1)));
@@ -326,6 +363,9 @@ public final class Sim {
         if (hitShake > 0) hitShake -= dt;
         if (pylonCd > 0) pylonCd -= dt;
         if (screenFlash > 0) screenFlash -= dt;
+        if (bannerT > 0) bannerT -= dt;
+        for (int i = 0; i < MAX_TOASTS; i++) if (toastT[i] > 0f) toastT[i] -= dt;
+        if (winDelay > 0f && (winDelay -= dt) <= 0f && ended == 0) ended = 2; // The First is dead: the run is won
         if (stats.regen > 0 && hp < maxHp) hp = Math.min(maxHp, hp + (float) stats.regen * dt);
         if (time >= stage.timeLimit) ended = 2;
     }
@@ -359,11 +399,18 @@ public final class Sim {
             dodgeDy = m > 0.01f ? faceY / m : 0f;
         }
         dodgeT = DODGE_TIME;
-        dodgeCdMax = DODGE_COOLDOWN * (float) stats.cooldownMul;
+        dodgeCdMax = DODGE_COOLDOWN * (float) stats.cooldownMul * (float) stats.dodgeCooldown;
         dodgeCd = dodgeCdMax;
         invuln = Math.max(invuln, DODGE_TIME);
         sound.emit(SoundEvents.DODGE);
     }
+
+    static final float ASH_EVERY = 50f;
+    /**
+     * Hazard slots kept free for telegraphs and boss attacks: the hero's ash trail stops filling the pool this many slots
+     * short of it, elite trails and Slagborn's trail fewer ({@link #HAZ_RESERVE_TRAIL}).
+     */
+    static final int HAZ_RESERVE_ASH = 12, HAZ_RESERVE_TRAIL = 6;
 
     private void movePlayer(float dt) {
         if (dodgeT > 0) { // the dash replaces walking: DODGE_DIST units over DODGE_TIME
@@ -375,11 +422,22 @@ public final class Sim {
             return;
         }
         float mx = mv[0], my = mv[1];
+        if (heroStunT > 0f) { // the Cargo Loader's charge: no walking for a moment
+            heroStunT -= dt;
+            mx = my = 0f;
+        }
         float len = (float) Math.sqrt(mx * mx + my * my);
         float sp = PLAYER_SPEED_K * (float) stage.playerSpeed * (float) stats.moveSpeedMul;
         if (heroSlowT > 0) sp *= 1f - Status.HERO_SLOW;
         px += mx * sp * dt;
         py += my * sp * dt;
+        if (stats.ashTrail && len > 0.05f) { // Ashwalker Treads: a patch of ash every 40 units, enemies in it move at 80%
+            ashDist += len * sp * dt;
+            if (ashDist >= ASH_EVERY) {
+                ashDist = 0f;
+                if (hazN < MAX_HAZ - HAZ_RESERVE_ASH) ai.addHazard(Entities.HZ_ASH, px, py + 6f, 28f, 1.6f, 0f, 0f); // leaves room for the telegraphs
+            }
+        }
         if (len > 0.05f) {
             // 8-way facing: snap the movement angle to the nearest 45 degrees; kept while standing still
             float snap = (float) (Math.PI / 4);
@@ -683,6 +741,16 @@ public final class Sim {
         return ai.addHazard(kind, x, y, r, life, dps, warn);
     }
 
+    /** Tests and screenshot tools (other packages): a pickup of any kind (Entities.K_*) at an exact position. */
+    public void addPickupForTest(int kind, float x, float y, float value) {
+        addPickup(kind, x, y, value);
+    }
+
+    /** Tests and screenshot tools (other packages): kills an enemy as a weapon would (it is reaped in the next step). */
+    public void killForTest(Enemy e) {
+        killNow(e);
+    }
+
     /** Tests and screenshot tools: breaks the destructibles touching a circle, as a weapon hit does. */
     public void hitDestForTest(float x, float y, float r) {
         hitDest(x, y, r);
@@ -748,6 +816,8 @@ public final class Sim {
                 spawnAtRing(type(b), true, HALF_W + 100f);
             }
         }
+        updateElites();
+        if (stage.tentacleMinutes.length > 0) updateTentacles(dt);
         spawnTimer += dt * 1000f * (ashStorm() ? 1f + STORM_SPAWNS : 1f);
         if (spawnTimer >= row.frequencyMs) {
             spawnTimer = 0;
@@ -788,7 +858,7 @@ public final class Sim {
             e.y = py + (float) Math.sin(a) * dist;
         }
         initEnemy(e, t, boss);
-        if (boss) sound.emit(SoundEvents.BOSS_SPAWN); // only once the boss really exists
+        if (boss) onBossSpawn(e); // only once the boss really exists
         if (t.arch == EnemyDef.ARCH_PACK && !boss) {
             int group = Math.round(t.def.param("group", 4f));
             for (int k = 1; k < group && enemyN < WaveDirector.ENEMY_CAP; k++) {
@@ -798,6 +868,19 @@ public final class Sim {
                 initEnemy(f, t, false);
             }
         }
+    }
+
+    /** A boss exists: the spawn sound and, for the Ashfall bosses, the 2 s banner of the bottom screen (name and portrait). */
+    private void onBossSpawn(Enemy e) {
+        EnemyDef d = e.type.def;
+        if (!d.ashfallBoss) {
+            sound.emit(SoundEvents.BOSS_SPAWN);
+            return;
+        }
+        sound.emit(e.type.pattern == 5 ? SoundEvents.THE_FIRST_ROAR : SoundEvents.BOSS_INTRO);
+        bannerT = BANNER_LIFE;
+        bannerKey = d.key;
+        bannerName = e.type.nameUpper;
     }
 
     /** A summoned enemy near (x, y) (Vire raises colonists); false when the pool is full. */
@@ -856,7 +939,7 @@ public final class Sim {
                 * (1 + stats.curse) * (boss && !t.def.ashfallBoss ? 3.0 : 1.0);
         if (boss && t.def.ashfallBoss) hp *= bossHpRamp(t.def.param("hpRamp", 0f), time);
         e.hp = e.maxHp = (float) Math.max(1, hp);
-        e.speed = (float) (t.def.speed * ENEMY_SPEED_K * stage.enemySpeed * (1 + stats.curse * 0.5));
+        e.speed = (float) (t.def.speed * ENEMY_SPEED_K * stage.enemySpeed * (1 + stats.curse * 0.5) * stats.enemySpeed);
         e.power = (float) t.def.power;
         e.radius = t.radius * (boss ? 1.8f : 1f);
         e.xp = (float) t.def.xp;
@@ -866,13 +949,21 @@ public final class Sim {
     private void updateEnemies(float dt) {
         boolean frozen = freezeTimer > 0;
         float decay = (float) Math.exp(-9f * dt);
+        Enemy bossFound = null, eliteFound = null;
         for (int i = 0; i < enemyN; i++) {
             Enemy e = enemies[i];
             e.anim += dt;
             if (e.flash > 0) e.flash -= dt;
+            if (e.ashLeft > 0f) e.ashLeft -= dt;
+            if (e.boss && !e.dead && (bossFound == null || e.type.pattern == 5)) bossFound = e;
+            if (e.elite && !e.dead) eliteFound = e;
             float dx = px - e.x, dy = py - e.y;
             float d2 = dx * dx + dy * dy;
-            if (d2 > RECYCLE_DIST * RECYCLE_DIST) { // far behind the player: recycle to the opposite edge
+            if (e.dormant) { // a tentacle that is still warning: it only counts its ring down
+                if (!frozen) boss.tentacle(e, dt);
+                continue;
+            }
+            if (d2 > RECYCLE_DIST * RECYCLE_DIST && e.type.arch != EnemyDef.ARCH_TENTACLE) { // far behind the player: recycle to the opposite edge
                 recycle(e, dx, dy, (float) Math.sqrt(d2));
                 continue;
             }
@@ -887,7 +978,7 @@ public final class Sim {
                 if (moving) {
                     float d = (float) Math.sqrt(d2);
                     if (d > 1f) {
-                        float sp = (e.blocked ? e.speed * BLOCKED_SPEED : e.speed) * e.slow;
+                        float sp = ai.speedOf(e);
                         e.x += dx / d * sp * dt;
                         e.y += dy / d * sp * dt;
                     }
@@ -895,11 +986,14 @@ public final class Sim {
             } else if (!frozen && !stunned) {
                 ai.update(e, dt, moving, dx, dy, d2);
             }
+            if (e.elite && !frozen && !stunned) elites.update(e, dt, (float) Math.sqrt(d2));
             e.x += e.kvx * dt;
             e.y += e.kvy * dt;
             e.kvx *= decay;
             e.kvy *= decay;
         }
+        bossNow = bossFound;
+        eliteNow = eliteFound;
     }
 
     // ------------------------------------------------------------------ statuses (design section 7)
@@ -977,11 +1071,7 @@ public final class Sim {
             dot += Status.HERO_DECAY_DPS * dt;
         }
         if (heroSlowT > 0f) heroSlowT -= dt;
-        if (dot > 0f && ended == 0) {
-            hp -= dot;
-            dmgBy[DMG_AREA] += dot;
-            if (hp <= 0f) checkHeroDeath();
-        }
+        if (dot > 0f && ended == 0) areaDamage(dot);
     }
 
     /** Status damage: no flash and no hit sound; the number is coloured and merged per enemy. Kills when it empties the enemy. */
@@ -1072,7 +1162,7 @@ public final class Sim {
 
     /** Damage without a flash, number or sound (links); kills when it empties the enemy. */
     void dot(Enemy e, float amount) {
-        if (e.dead) return;
+        if (e.dead || e.dormant) return;
         e.hp -= amount;
         if (e.hp <= 0) killNow(e);
     }
@@ -1181,7 +1271,7 @@ public final class Sim {
         float best = 0;
         for (int i = 0; i < enemyN; i++) {
             Enemy e = enemies[i];
-            if (e.dead || e.stun > 0) continue; // a stunned enemy cannot attack
+            if (e.dead || e.stun > 0 || e.dormant) continue; // a stunned enemy cannot attack, a tentacle that still warns does not hurt
             float dx = e.x - px, dy = e.y - py, rr = e.radius * 0.8f + PLAYER_R * 0.8f;
             if (dx * dx + dy * dy < rr * rr) best = Math.max(best, e.power * e.dmgMul); // Decay lowers what it deals
         }
@@ -1204,12 +1294,44 @@ public final class Sim {
     public final float[] dmgBy = new float[4];
 
     void hurtHero(float taken, float inv, boolean shake, int source) {
+        taken *= (float) stats.damageTaken; // Riot Shield
         dmgBy[source] += taken;
         hp -= taken;
         sound.emit(SoundEvents.PLAYER_HURT);
         invuln = Math.max(invuln, inv);
         if (shake) hitShake = 0.15f;
         if (hp <= 0) checkHeroDeath();
+    }
+
+    /** Damage over time from the floor (slag, clouds, lanes): no armor and no hit sound, the equipment's damage taken still counts. */
+    void areaDamage(float amount) {
+        amount *= (float) stats.damageTaken;
+        hp -= amount;
+        dmgBy[DMG_AREA] += amount;
+        if (hp <= 0f) checkHeroDeath();
+    }
+
+    /** The hero cannot walk for {@code seconds} (dodging still works). */
+    void stunHero(float seconds) {
+        heroStunT = Math.max(heroStunT, seconds);
+    }
+
+    /** Pushes the hero {@code dist} units along (dx, dy) (normalised here), less with Armored Greaves; not while dodging. */
+    void shoveHero(float dx, float dy, float dist) {
+        float m = (float) Math.sqrt(dx * dx + dy * dy);
+        if (m < 1e-3f || dodgeT > 0f || ended != 0) return;
+        float k = dist * (float) stats.knockbackTaken / m;
+        px += dx * k;
+        py += dy * k;
+    }
+
+    /** Drags the hero {@code dist} units toward (tx, ty), stopping 40 units short of it (the Foreman's pull). */
+    void pullHero(float tx, float ty, float dist) {
+        float dx = tx - px, dy = ty - py, d = (float) Math.sqrt(dx * dx + dy * dy);
+        if (d < 40f) return;
+        float k = Math.min(dist * (float) stats.knockbackTaken, d - 40f) / d;
+        px += dx * k;
+        py += dy * k;
     }
 
     /** Called when hp <= 0: spends a revival (and clears the screen around the hero) or ends the run. */
@@ -1224,7 +1346,7 @@ public final class Sim {
             for (int i = 0; i < enemyN; i++) {
                 Enemy e = enemies[i];
                 float dx = e.x - px, dy = e.y - py;
-                if (dx * dx + dy * dy < 300f * 300f && !e.boss) killNow(e);
+                if (dx * dx + dy * dy < 300f * 300f && !e.boss && !e.elite && !e.dormant) killNow(e);
             }
         } else {
             hp = 0;
@@ -1238,11 +1360,18 @@ public final class Sim {
     private boolean softHit;
 
     public void hurt(Enemy e, float dmg, float chance, float critMul, float kx, float ky, float knock) {
-        if (e.dead) return;
+        if (e.dead || e.dormant) return;
         boolean crit = chance > 0 && rng.nextFloat() < chance;
         lastCrit = crit;
         if (crit) dmg *= critMul;
+        if (e.armor > 0f) dmg = Math.max(dmg * 0.4f, dmg - e.armor); // the Armored elite: 3 off every hit
         e.hp -= dmg;
+        if (stats.statusChance[Entities.ST_BURN] > 0f || stats.statusChance[Entities.ST_FROST] > 0f
+                || stats.statusChance[Entities.ST_ELECTRIFY] > 0f) { // rings: a chance per hit to add a stack
+            for (int k = Entities.ST_BURN; k <= Entities.ST_ELECTRIFY; k++) {
+                if (stats.statusChance[k] > 0.0 && rng.nextFloat() < stats.statusChance[k] && !e.dead) applyStatus(e, k, 1, dmg, 0f);
+            }
+        }
         e.flash = 0.1f;
         e.softFlash = softHit;
         addEnemyText(e, (int) dmg, crit);
@@ -1270,6 +1399,13 @@ public final class Sim {
         for (int i = enemyN - 1; i >= 0; i--) {
             Enemy e = enemies[i];
             if (!e.dead) continue;
+            if (e.silent) { // a tentacle sinking away: no kill, no drops
+                Enemy lastS = enemies[enemyN - 1];
+                enemies[i] = lastS;
+                enemies[enemyN - 1] = e;
+                enemyN--;
+                continue;
+            }
             kills++;
             sound.emit(SoundEvents.ENEMY_DEATH);
             if (e.type.arch == EnemyDef.ARCH_EXPLODER) ai.carrierBurst(e); // a spore carrier bursts when it dies
@@ -1292,12 +1428,22 @@ public final class Sim {
         c.x = e.x;
         c.y = e.y;
         c.radius = e.radius;
+        c.elite = e.elite;
         c.age = 0f;
         c.active = true;
     }
 
     private void drops(Enemy e) {
         addPickup(Entities.K_GEM, e.x, e.y, e.xp);
+        if (e.elite) eliteRewards(e);
+        if (e.boss) bossRewards(e);
+        else if (e.type.arch == EnemyDef.ARCH_TENTACLE && e.cnt == 1 && !seedDropped && rng.nextFloat() < 0.25f) {
+            EquipDef seed = data.uniqueBySource.get(e.type.def.key); // Seed of Accord: a tentacle killed in a hazard burst
+            if (seed != null && equip.def[seed.slot] != seed) {
+                seedDropped = true;
+                dropEquipment(e.x, e.y, seed, Equipment.UNIQUE);
+            }
+        }
         if (e.boss) {
             addPickup(Entities.K_CHEST, e.x, e.y, 0);
             return;
@@ -1333,7 +1479,7 @@ public final class Sim {
         // gems stop growing the pool GEM_RESERVE slots early so coins, food and chests always find room
         if (pickN >= (kind == Entities.K_GEM ? MAX_PICK - GEM_RESERVE : MAX_PICK)) {
             if (kind == Entities.K_GEM && mergeNearby(x, y, value)) return;
-            if (!freeSlot() && pickN >= MAX_PICK) return; // only chests left: nothing to evict
+            if (!freeSlot() && pickN >= MAX_PICK) return; // only chests and crates left: nothing to evict
         }
         Pickup p = picks[pickN++];
         p.kind = kind;
@@ -1400,7 +1546,7 @@ public final class Sim {
         float bd = -1f;
         for (int i = 0; i < pickN; i++) {
             Pickup p = picks[i];
-            if (gems ? (p.kind != Entities.K_GEM || p.red) : (p.kind == Entities.K_GEM || p.kind == Entities.K_CHEST)) continue;
+            if (gems ? (p.kind != Entities.K_GEM || p.red) : (p.kind == Entities.K_GEM || p.kind == Entities.K_CHEST || p.kind == Entities.K_EQUIP)) continue;
             float dx = p.x - px, dy = p.y - py, d2 = dx * dx + dy * dy;
             if (d2 > bd) {
                 bd = d2;
@@ -1439,7 +1585,7 @@ public final class Sim {
                 red = p;
                 continue;
             }
-            if (p.kind == Entities.K_CHEST) continue;
+            if (p.kind == Entities.K_CHEST || p.kind == Entities.K_EQUIP) continue;
             float dx = p.x - px, dy = p.y - py;
             if (dx * dx + dy * dy <= lim2) continue;
             if (p.kind == Entities.K_GEM) sum += p.value;
@@ -1483,7 +1629,7 @@ public final class Sim {
                 dy = py - p.y;
                 d2 = dx * dx + dy * dy;
             }
-            float cr = p.kind == Entities.K_CHEST ? 30f : 20f;
+            float cr = p.kind == Entities.K_CHEST || p.kind == Entities.K_EQUIP ? 30f : 20f;
             if (d2 < cr * cr) {
                 collect(p);
                 Pickup last = picks[pickN - 1];
@@ -1530,8 +1676,8 @@ public final class Sim {
                 for (int i = 0; i < enemyN; i++) {
                     Enemy e = enemies[i];
                     if (Math.abs(e.x - px) < hw && Math.abs(e.y - py) < hh) {
-                        if (e.boss) hurt(e, e.maxHp * 0.1f, 0, 1, 0, 0, 0);
-                        else killNow(e);
+                        if (e.boss || e.elite) hurt(e, e.maxHp * 0.1f, 0, 1, 0, 0, 0);
+                        else if (!e.dormant) killNow(e);
                     }
                 }
                 break;
@@ -1543,6 +1689,11 @@ public final class Sim {
             case Entities.K_CHEST:
                 pendingChests++;
                 break;
+            case Entities.K_EQUIP: {
+                int code = (int) (p.value + 0.5f);
+                acquire(data.equipList.get(code >> 2), code & 3);
+                break;
+            }
         }
     }
 
@@ -1562,6 +1713,292 @@ public final class Sim {
             xpNeed = Progression.xpToNext(level);
         }
         if (hero != null && level != statsLevel) recomputeAll(); // per-level hero growth
+    }
+
+    // ------------------------------------------------------------------ equipment (design section 6)
+
+    /** A line on the top screen for a few seconds (the newest of {@link #MAX_TOASTS} stay). */
+    public void toast(String text, int color) {
+        for (int i = 0; i < MAX_TOASTS - 1; i++) {
+            toastText[i] = toastText[i + 1];
+            toastT[i] = toastT[i + 1];
+            toastColor[i] = toastColor[i + 1];
+        }
+        toastText[MAX_TOASTS - 1] = text;
+        toastT[MAX_TOASTS - 1] = TOAST_LIFE;
+        toastColor[MAX_TOASTS - 1] = color;
+    }
+
+    /** "Rare Combat Helm" (a unique: just its name). */
+    public static String itemName(EquipDef d, int rar) {
+        return rar >= Equipment.UNIQUE ? d.name : Equipment.RARITY_NAMES[rar] + " " + d.name;
+    }
+
+    /** A supply crate with an item lands where an elite or a boss died; the pickup carries the item index and rarity. */
+    void dropEquipment(float x, float y, EquipDef d, int rar) {
+        addPickup(Entities.K_EQUIP, x, y, d.index * 4 + rar);
+        sound.emit(SoundEvents.EQUIP_DROP);
+    }
+
+    /** Rarity of a dropped item: Common 60 / Uncommon 32 / Rare 8 at minute 3, 1.2 points a minute from Common to Rare, Luck helps the Rare roll. */
+    int rollRarity() {
+        double shift = Math.max(0.0, time / 60.0 - data.rule("fromMinute", 3)) * data.rule("shiftPerMin", 1.2);
+        double luckPts = stats.luck * data.rule("luckPoints", 20);
+        double rare = data.rule("rare", 8) + shift + luckPts;
+        double common = Math.max(data.rule("commonMin", 10), data.rule("common", 60) - shift - luckPts);
+        double unc = Math.max(0.0, data.rule("uncommon", 32));
+        double r = rng.nextDouble() * (common + unc + rare);
+        return r < common ? Equipment.COMMON : r < common + unc ? Equipment.UNCOMMON : Equipment.RARE;
+    }
+
+    /** Elite reward: one item (a crate) and a pile of gems worth {@code xpPileLevels} levels. */
+    private void eliteRewards(Enemy e) {
+        sound.emit(SoundEvents.ELITE_DIE);
+        eliteKilled++;
+        if (!data.baseItems.isEmpty()) {
+            dropEquipment(e.x, e.y, data.baseItems.get(rng.nextInt(data.baseItems.size())), rollRarity());
+        }
+        int gems = Math.max(1, (int) data.elite("xpPileGems", 5));
+        float each = (float) (xpNeed * data.elite("xpPileLevels", 2.0) / gems);
+        for (int k = 0; k < gems; k++) {
+            float a = k * 6.2831855f / gems;
+            addPickup(Entities.K_GEM, e.x + (float) Math.cos(a) * 22f, e.y + (float) Math.sin(a) * 16f, each);
+        }
+    }
+
+    /** Boss reward on top of the chest: the unique of a named boss; The First ends the run in victory with double gold. */
+    private void bossRewards(Enemy e) {
+        EquipDef u = e.type.def.ashfallBoss ? data.uniqueBySource.get(e.type.def.key) : null;
+        if (u != null && equip.def[u.slot] != u) dropEquipment(e.x + 34f, e.y + 6f, u, Equipment.UNIQUE);
+        if (e.type.pattern == 5 && !firstKilled) {
+            firstKilled = true;
+            winDelay = 2.2f;
+            invuln = Math.max(invuln, 3f);
+            screenFlash = Math.max(screenFlash, 0.5f);
+            toast("THE FIRST IS DEAD  -  GOLD x2", 0xFF39FF88);
+        }
+    }
+
+    /** Gold the run pays out: doubled when The First was killed. */
+    public int endGold() {
+        return firstKilled ? gold * 2 : gold;
+    }
+
+    /** The hero picks an item up: an empty slot equips it, a better one waits for a choice, anything else is salvaged. */
+    private void acquire(EquipDef d, int rar) {
+        int slot = d.slot;
+        EquipDef cur = equip.def[slot];
+        if (cur == null) {
+            equip.def[slot] = d;
+            equip.rar[slot] = rar;
+            recomputeAll();
+            sound.emit(SoundEvents.EQUIP_PICK);
+            toast("EQUIPPED  " + itemName(d, rar), Equipment.RARITY_COLORS[rar]);
+            return;
+        }
+        int oldRar = equip.rar[slot];
+        float vNew = Equipment.value(data, rar), vOld = Equipment.value(data, oldRar);
+        if (rar == Equipment.UNIQUE && oldRar < Equipment.RARE) { // a unique always replaces a Common or Uncommon item
+            salvageOld(cur, oldRar);
+            equip.def[slot] = d;
+            equip.rar[slot] = rar;
+            recomputeAll();
+            sound.emit(SoundEvents.EQUIP_SWAP);
+            toast("EQUIPPED  " + itemName(d, rar), Equipment.RARITY_COLORS[rar]);
+        } else if (vNew > vOld + 1e-6f && equipN < MAX_EQUIP_Q) {
+            eqQDef[equipN] = d.index;
+            eqQRar[equipN++] = rar;
+        } else {
+            salvageNew(d, rar);
+        }
+    }
+
+    private void salvageNew(EquipDef d, int rar) {
+        int g = Equipment.salvage(data, rar);
+        gold += g;
+        sound.emit(SoundEvents.COIN);
+        toast("SALVAGED  " + itemName(d, rar) + "  +" + g + " gold", 0xFFB8B0A4);
+    }
+
+    private void salvageOld(EquipDef d, int rar) {
+        int g = Equipment.salvage(data, rar);
+        gold += g;
+        toast("SALVAGED  " + itemName(d, rar) + "  +" + g + " gold", 0xFFB8B0A4);
+    }
+
+    /** The item waiting for a choice (null when none) and its rarity. */
+    public EquipDef equipQueuedDef() {
+        return equipN > 0 ? data.equipList.get(eqQDef[0]) : null;
+    }
+
+    public int equipQueuedRar() {
+        return equipN > 0 ? eqQRar[0] : 0;
+    }
+
+    /**
+     * The choice screen's answer for the first waiting item: Replace wears it (the old one is salvaged for gold), Keep
+     * salvages the new one. Items behind it that are no longer better than what is worn are salvaged without asking.
+     */
+    public void resolveEquip(boolean replace) {
+        if (equipN == 0) return;
+        EquipDef d = data.equipList.get(eqQDef[0]);
+        int rar = eqQRar[0];
+        popEquipQ();
+        EquipDef cur = equip.def[d.slot];
+        if (replace) {
+            if (cur != null) salvageOld(cur, equip.rar[d.slot]);
+            equip.def[d.slot] = d;
+            equip.rar[d.slot] = rar;
+            recomputeAll();
+            sound.emit(SoundEvents.EQUIP_SWAP);
+            toast("EQUIPPED  " + itemName(d, rar), Equipment.RARITY_COLORS[rar]);
+        } else {
+            salvageNew(d, rar);
+        }
+        while (equipN > 0) { // an older choice may have been settled by this one
+            EquipDef n = data.equipList.get(eqQDef[0]);
+            if (equip.def[n.slot] == null || Equipment.value(data, eqQRar[0]) > Equipment.value(data, equip.rar[n.slot]) + 1e-6f) break;
+            salvageNew(n, eqQRar[0]);
+            popEquipQ();
+        }
+    }
+
+    private void popEquipQ() {
+        for (int i = 0; i < equipN - 1; i++) {
+            eqQDef[i] = eqQDef[i + 1];
+            eqQRar[i] = eqQRar[i + 1];
+        }
+        equipN--;
+    }
+
+    /** Tests and screenshot tools: the hero wears (or is offered) an item as if the crate had been picked up. */
+    public void giveEquipment(String key, int rarity) {
+        EquipDef d = data.equipment.get(key);
+        if (d != null) acquire(d, rarity);
+    }
+
+    // ------------------------------------------------------------------ elites (design section 5) and tentacles (4.1)
+
+    /** True while an elite lives (the schedule allows one at a time). */
+    boolean eliteAlive() {
+        for (int i = 0; i < enemyN; i++) if (enemies[i].elite && !enemies[i].dead) return true;
+        return false;
+    }
+
+    /**
+     * An elite of {@code t} with the modifiers {@code mods} (bit mask, Elites.M_*) 400 units from the hero: HP x6, damage
+     * x1.5, size x1.4, speed x0.9, XP x8, six colonists with it. Null when the pool has no room. One flagged slot of the
+     * normal pool, no pool of its own.
+     */
+    Enemy spawnElite(EnemyType t, int mods) {
+        if (t == null || enemyN >= MAX_ENEMIES - 8) return null;
+        Enemy e = enemies[enemyN++];
+        float a = rng.nextFloat() * 6.2831853f, dist = (float) data.elite("dist", 400);
+        e.x = px + (float) Math.cos(a) * dist;
+        e.y = py + (float) Math.sin(a) * dist;
+        initEnemy(e, t, false);
+        e.elite = true;
+        e.mods = mods;
+        float dmgMul = (float) data.elite("damageMul", 1.5);
+        e.hp = e.maxHp = e.maxHp * (float) data.elite("hpMul", 6);
+        e.power *= dmgMul;
+        e.shotMul = dmgMul;
+        e.radius *= (float) data.elite("scale", 1.4);
+        e.speed *= (float) data.elite("speedMul", 0.9);
+        e.xp *= (float) data.elite("xpMul", 8);
+        if ((mods & Elites.M_ARMORED) != 0) {
+            e.armor = Elites.FLAT_ARMOR;
+            e.kbMul = 0f; // cannot be knocked back
+        }
+        e.mt0 = 1.5f;
+        e.mt1 = 2.5f;
+        e.mt2 = Elites.RAISE_EVERY * 0.5f;
+        int adds = (int) data.elite("adds", 6);
+        float a0 = rng.nextFloat() * 6.2831853f;
+        for (int k = 0; k < adds; k++) {
+            float b = a0 + k * 6.2831853f / adds;
+            spawnMinion("COLONIST", e.x + (float) Math.cos(b) * 50f, e.y + (float) Math.sin(b) * 42f);
+        }
+        eliteSpawned++;
+        eliteNow = e;
+        sound.emit(SoundEvents.ELITE_SPAWN);
+        return e;
+    }
+
+    /** Tests and screenshot tools: an elite of a type with chosen modifiers at the usual distance. */
+    public Enemy spawnEliteForTest(String typeKey, int mods) {
+        return spawnElite(type(typeKey), mods);
+    }
+
+    /** The scheduler: the first elite at 3:00, then one every 150 s less 1% per minute (floor 100 s), one alive at a time. */
+    private void updateElites() {
+        if (time < nextEliteAt || eliteAlive()) return;
+        WaveRow row = stage.rows.get(WaveSelector.indexAt(stage.rows, time));
+        if (row.enemies.length == 0) return;
+        EnemyType t = type(row.enemies[rng.nextInt(row.enemies.length)]);
+        Enemy e = spawnElite(t, Elites.roll(rng, Elites.modCount(data, time)));
+        if (e != null) nextEliteAt = (float) time + Elites.interval(data, time);
+    }
+
+    /** The Deep Mines hazard: bursts of tentacles at the stage's minutes, a wave of three every few seconds for a while. */
+    private void updateTentacles(float dt) {
+        int[] mins = stage.tentacleMinutes;
+        if (time >= tentUntil) {
+            for (int i = 0; i < mins.length; i++) {
+                if ((tentDone >> i & 1) != 0 || time < mins[i] * 60.0) continue;
+                tentDone |= 1 << i;
+                if (time >= mins[i] * 60.0 + stage.tentacleLen) continue; // that burst is over already (a run started late)
+                tentUntil = time + stage.tentacleLen - (time - mins[i] * 60.0);
+                tentNext = 0.8f;
+                toast("THE LUMEN RISES", 0xFF39FF88);
+                break;
+            }
+            return;
+        }
+        if ((tentNext -= dt) <= 0f) {
+            tentNext = stage.tentacleEvery;
+            tentacleWave(stage.tentacleCount, stage.tentacleRadius, true);
+        }
+    }
+
+    /** True while a tentacle burst of the stage hazard is running (tests). */
+    public boolean tentacleEventOn() {
+        return time < tentUntil;
+    }
+
+    /**
+     * A wave of {@code count} tentacles round the hero within {@code radius}: a warning ring (0.8 s), then up for 1.2 s.
+     * The first one lands on the hero when {@code onHero}. They may stand above the 300 wave cap (like bosses); a
+     * killed tentacle of the stage hazard (cnt = 1) can drop the Seed of Accord.
+     */
+    void tentacleWave(int count, float radius, boolean hazard) {
+        EnemyType t = type("LUMEN_TENTACLE");
+        if (t == null) return;
+        for (int k = 0; k < count && enemyN < MAX_ENEMIES - 6; k++) {
+            float x, y;
+            if (k == 0 && hazard) {
+                x = px + (rng.nextFloat() - 0.5f) * 30f;
+                y = py + (rng.nextFloat() - 0.5f) * 20f;
+            } else {
+                float a = rng.nextFloat() * 6.2831855f, r = 70f + rng.nextFloat() * (radius - 70f);
+                x = px + (float) Math.cos(a) * r;
+                y = py + (float) Math.sin(a) * r * 0.8f;
+            }
+            Enemy e = enemies[enemyN++];
+            initEnemy(e, t, false);
+            e.x = e.ax = x;
+            e.y = e.ay = y;
+            e.ai = BossAi.T_WARN;
+            float warn = t.def.param("warn", 0.8f);
+            e.aiT = e.tele = e.teleMax = warn;
+            e.dormant = true;
+            e.cnt = hazard ? 1 : 0;
+        }
+    }
+
+    /** Tests and screenshot tools: a tentacle wave as the hazard makes it. */
+    public void tentacleWaveForTest(int count, float radius, boolean hazard) {
+        tentacleWave(count, radius, hazard);
     }
 
     // ------------------------------------------------------------------ level-up / chest application

@@ -263,29 +263,7 @@ SFX = {
     "vire_blink": dict(layers=[L("rd-scifi", "teleport_01.ogg", 0, 0.17, 0, rate=0.8),
                                L("elec", "teleport_1.wav", 0, 0.63, -4, glide=(1.3, 0.8), af="lowpass=f=4000")],
                        max=0.5, fade=0.2, vol=0.7),
-}
-
-# Ids of design section 12 that SoundEvents does not have yet (elites, equipment, new weapons, boss patterns): built, listed under "pending" in manifest.json.
-SFX_PENDING = {
-    "chain_arc": dict(layers=[L("digital", "zapThreeToneDown.ogg", 0, 0.4, 0),
-                              L("elec", "teleport_1.wav", 0, 0.5, -5, af="highpass=f=1500")],
-                      max=0.45, fade=0.15, vol=0.8),
-    "kugelblitz_hum": dict(layers=[L("elec", "shieldloop.wav", 0, 1.1, 0, rate=1.8,
-                                     af="lowpass=f=900,tremolo=f=40:d=0.5,afade=t=in:d=0.1"),
-                                   L("elec", "crackleelectricityloop.wav", 0, 0.5, 20, af="highpass=f=3000")],
-                           max=0.55, fade=0.2, vol=0.4, pitchVar=0.02),
-    "orbital_warn": dict(layers=[L("ksci", "forceField_001.ogg", 0, 0.57, 0, glide=(0.8, 1.8)),
-                                 L("rd-scifi", "beep_02.ogg", 0, 0.23, -3, rate=0.6),
-                                 L("rd-scifi", "beep_02.ogg", 0, 0.23, -3, rate=0.6, at=0.3),
-                                 L("rd-scifi", "beep_02.ogg", 0, 0.23, -3, rate=0.6, at=0.6)],
-                         max=1.0, fade=0.2, vol=0.8),
-    "orbital_hit": dict(layers=[L("ksci", "explosionCrunch_004.ogg", 0, 1.2, 0, af="lowpass=f=3000"),
-                                L("ksci", "lowFrequency_explosion_000.ogg", 0, 0.95, 0)],
-                        max=1.3, fade=0.5, comp=3, sat=1.4, vol=1.0),
-    "nova_frost": dict(layers=[L("rd-breaking", "bfh1_glass_breaking_05.ogg", 0, 0.33, -1, rate=1.1),
-                               L("ksci", "forceField_002.ogg", 0, 0.57, -4, glide=(1.6, 0.8)),
-                               L("steam", "steam hisses - Marker #4.wav", 0, 0.5, -5, at=0.1, af="highpass=f=3000")],
-                       max=0.7, fade=0.25, vol=0.85),
+    # ---- elites, equipment, tentacles and the boss patterns (design phases 9 and 10)
     "elite_spawn": dict(layers=[L("rd-creature", "roar_02.ogg", 0, 0.62, 0, rate=0.6),
                                 L("impact", "impactMetal_heavy_003.ogg", 0, 0.4, -3, af="lowpass=f=800"),
                                 L("ksci", "spaceEngineLow_000.ogg", 0, 1.0, -6, af="afade=t=in:d=0.4,lowpass=f=600")],
@@ -321,6 +299,29 @@ SFX_PENDING = {
                                    L("ksci", "spaceEngineLow_001.ogg", 0, 2.2, -5, af="afade=t=in:d=0.5,lowpass=f=600"),
                                    L("ksci", "lowFrequency_explosion_000.ogg", 0, 0.95, -1, at=0.3)],
                            max=2.2, fade=0.7, comp=3, sat=1.3, vol=1.1),
+}
+
+# Ids of design section 12 that SoundEvents does not have yet (the new weapons): built, listed under "pending" in manifest.json.
+SFX_PENDING = {
+    "chain_arc": dict(layers=[L("digital", "zapThreeToneDown.ogg", 0, 0.4, 0),
+                              L("elec", "teleport_1.wav", 0, 0.5, -5, af="highpass=f=1500")],
+                      max=0.45, fade=0.15, vol=0.8),
+    "kugelblitz_hum": dict(layers=[L("elec", "shieldloop.wav", 0, 1.1, 0, rate=1.8,
+                                     af="lowpass=f=900,tremolo=f=40:d=0.5,afade=t=in:d=0.1"),
+                                   L("elec", "crackleelectricityloop.wav", 0, 0.5, 20, af="highpass=f=3000")],
+                           max=0.55, fade=0.2, vol=0.4, pitchVar=0.02),
+    "orbital_warn": dict(layers=[L("ksci", "forceField_001.ogg", 0, 0.57, 0, glide=(0.8, 1.8)),
+                                 L("rd-scifi", "beep_02.ogg", 0, 0.23, -3, rate=0.6),
+                                 L("rd-scifi", "beep_02.ogg", 0, 0.23, -3, rate=0.6, at=0.3),
+                                 L("rd-scifi", "beep_02.ogg", 0, 0.23, -3, rate=0.6, at=0.6)],
+                         max=1.0, fade=0.2, vol=0.8),
+    "orbital_hit": dict(layers=[L("ksci", "explosionCrunch_004.ogg", 0, 1.2, 0, af="lowpass=f=3000"),
+                                L("ksci", "lowFrequency_explosion_000.ogg", 0, 0.95, 0)],
+                        max=1.3, fade=0.5, comp=3, sat=1.4, vol=1.0),
+    "nova_frost": dict(layers=[L("rd-breaking", "bfh1_glass_breaking_05.ogg", 0, 0.33, -1, rate=1.1),
+                               L("ksci", "forceField_002.ogg", 0, 0.57, -4, glide=(1.6, 0.8)),
+                               L("steam", "steam hisses - Marker #4.wav", 0, 0.5, -5, at=0.1, af="highpass=f=3000")],
+                       max=0.7, fade=0.25, vol=0.85),
 }
 
 # Music. Every track is a loop except the two stingers. `start`/`len` are in source seconds (before `rate`), `xf` is

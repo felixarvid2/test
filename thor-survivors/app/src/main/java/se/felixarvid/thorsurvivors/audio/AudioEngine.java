@@ -43,7 +43,8 @@ public final class AudioEngine {
         for (int id : new int[]{SoundEvents.ENEMY_HIT, SoundEvents.ENEMY_DEATH, SoundEvents.GARLIC,
                 SoundEvents.GEM, SoundEvents.COIN}) PRIORITY[id] = 0;
         for (int id : new int[]{SoundEvents.PLAYER_HURT, SoundEvents.LEVEL_UP, SoundEvents.EVOLUTION,
-                SoundEvents.CHEST_OPEN, SoundEvents.BOSS_SPAWN, SoundEvents.GAME_OVER, SoundEvents.VICTORY}) {
+                SoundEvents.CHEST_OPEN, SoundEvents.BOSS_SPAWN, SoundEvents.GAME_OVER, SoundEvents.VICTORY,
+                SoundEvents.BOSS_INTRO, SoundEvents.THE_FIRST_ROAR, SoundEvents.ELITE_SPAWN}) {
             PRIORITY[id] = 2;
         }
     }
@@ -134,7 +135,7 @@ public final class AudioEngine {
     // ------------------------------------------------------------------ game thread
 
     private long bossCheckNs;
-    private boolean bossAlive;
+    private boolean bossAlive, finalAlive;
 
     /** Once per frame on the game thread: play the queued events and choose the music. */
     public void update() {
@@ -152,23 +153,26 @@ public final class AudioEngine {
         if (now - bossCheckNs > 400_000_000L) { // a 320-entry scan twice a second is plenty
             bossCheckNs = now;
             bossAlive = false;
+            finalAlive = false;
             Sim bs = eng.sim;
             if (bs != null && eng.phase != Engine.PH_RESULT && eng.phase != Engine.PH_MENU
                     && eng.phase != Engine.PH_SHOP) {
                 for (int i = 0; i < bs.enemyN; i++) {
                     if (bs.enemies[i].boss && !bs.enemies[i].dead) {
                         bossAlive = true;
-                        break;
+                        if (bs.enemies[i].type.pattern == 5) finalAlive = true; // The First: the final track
                     }
                 }
             }
         }
         Sim s = eng.sim;
         String stage = s == null ? "FLATS" : s.stage.key;
-        String t = MusicDirector.trackFor(eng.phase, stage, bossAlive, eng.resultWin);
+        String t = MusicDirector.trackFor(eng.phase, stage, bossAlive, finalAlive, eng.resultWin);
+        if (MusicDirector.FINAL.equals(t) && !manifest.music.containsKey(t)) t = MusicDirector.trackFor(eng.phase, stage, bossAlive, false, eng.resultWin);
         if (MusicDirector.BOSS.equals(t) && !manifest.music.containsKey(t)) t = MusicDirector.stageTrack(stage);
         wantTrack = t;
-        ducked = eng.phase == Engine.PH_PAUSED || eng.phase == Engine.PH_LEVELUP || eng.phase == Engine.PH_CHEST;
+        ducked = eng.phase == Engine.PH_PAUSED || eng.phase == Engine.PH_LEVELUP || eng.phase == Engine.PH_CHEST
+                || eng.phase == Engine.PH_EQUIP;
     }
 
     private float rnd() { // xorshift in [0, 1): no allocation, unlike a fresh Random per call

@@ -16,6 +16,13 @@ public final class StageDef {
     /** What breaks and drops pickups on this stage (game_data.json destructibleType): "BRAZIER", "CANDELABRA" or "". */
     public final String destructible;
     public final List<WaveRow> rows;
+    /**
+     * Lumen tentacle hazard (design 4.1, Deep Mines): the minutes it breaks out, how many seconds it lasts, the seconds
+     * between two waves of {@link #tentacleCount}, and the radius around the hero (empty = none).
+     */
+    public int[] tentacleMinutes = new int[0];
+    public float tentacleLen = 20f, tentacleEvery = 4f, tentacleRadius = 400f;
+    public int tentacleCount = 3;
 
     public StageDef(String key, String name, double timeLimit, double playerSpeed, double enemySpeed,
                     double enemyHealth, double goldMultiplier, double xpBonus, int startingSpawns,
@@ -36,8 +43,14 @@ public final class StageDef {
 
     /** A copy with another display name (the Ashfall overlay). */
     public StageDef withName(String newName) {
-        return new StageDef(key, newName, timeLimit, playerSpeed, enemySpeed, enemyHealth, goldMultiplier, xpBonus,
+        StageDef d = new StageDef(key, newName, timeLimit, playerSpeed, enemySpeed, enemyHealth, goldMultiplier, xpBonus,
                 startingSpawns, horizontalSpawns, destructible, rows);
+        d.tentacleMinutes = tentacleMinutes;
+        d.tentacleLen = tentacleLen;
+        d.tentacleEvery = tentacleEvery;
+        d.tentacleRadius = tentacleRadius;
+        d.tentacleCount = tentacleCount;
+        return d;
     }
 
     /** The row that governs the given run time: the last row whose minute is <= elapsed minutes. */

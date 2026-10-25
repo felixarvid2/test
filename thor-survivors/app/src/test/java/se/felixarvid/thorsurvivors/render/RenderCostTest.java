@@ -36,6 +36,14 @@ public class RenderCostTest {
         h.eng.advance(1f / 60f);
     }
 
+    /**
+     * A frame that allocates this much is not a steady-state cost: Robolectric binds each Android API call site with an invokedynamic
+     * on its first call and re-spins its method handle (14..45 KB) after a few dozen calls, so a call site that is reached only now
+     * and then (a weapon swing's drawArc) lands such a spike in the window at random. The game code allocates nothing there.
+     * Spikes are counted and capped, never averaged into the per-frame figure.
+     */
+    private static final long SPIKE = 8192;
+
     @Test
     public void crowdDrawCostAndAllocation() throws Exception {
         Object mx = Class.forName("java.lang.management.ManagementFactory").getMethod("getThreadMXBean").invoke(null);
@@ -58,17 +66,20 @@ public class RenderCostTest {
                 final int n = 120;
                 double[] ms = new double[n];
                 long bytes = 0;
+                int spikes = 0;
                 for (int i = 0; i < n; i++) {
                     stand(h);
                     long a0 = (Long) alloc.invoke(mx, tid);
                     long t0 = System.nanoTime();
                     h.world.draw(c, 1920, 1080, h.eng, true);
                     ms[i] = (System.nanoTime() - t0) / 1e6;
-                    bytes += (Long) alloc.invoke(mx, tid) - a0 - probe;
+                    long d = (Long) alloc.invoke(mx, tid) - a0 - probe;
+                    if (d >= SPIKE) spikes++; else bytes += d;
                 }
                 Arrays.sort(ms);
-                System.out.printf("PERF %s lighting=%s: enemies=%d draw median %.1f ms, p95 %.1f ms (software raster), allocation %d B/frame%n",
-                        stage, new String[]{"OFF", "LOW", "FULL"}[mode], h.eng.sim.enemyN, ms[n / 2], ms[(int) (n * 0.95)], bytes / n);
+                System.out.printf("PERF %s lighting=%s: enemies=%d draw median %.1f ms, p95 %.1f ms (software raster), allocation %d B/frame (+%d one-off spikes)%n",
+                        stage, new String[]{"OFF", "LOW", "FULL"}[mode], h.eng.sim.enemyN, ms[n / 2], ms[(int) (n * 0.95)], bytes / n, spikes);
+                assertTrue(stage + " mode " + mode + " has " + spikes + " allocation spikes in " + n + " frames", spikes <= 6);
                 assertTrue(stage + " mode " + mode + " allocates " + bytes / n + " B per frame", bytes / n < 256);
             }
         }

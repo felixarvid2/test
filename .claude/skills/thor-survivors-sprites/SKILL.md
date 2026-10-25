@@ -39,6 +39,12 @@ under ~70 MB now that the enemy action clips are in (68 MB), APK under ~30 MB).
   `render/PixelSprites.java`: coin, bag, roast, vacuum, orologion, rosary, clover, grenade, flask).
 - Enemy key -> model: the Ashfall roster names its model in the data (`ashfall_data.json` `enemies.<KEY>.sprite`, also for the bosses: `CARGO_LOADER`,
   `SLAGBORN`, `VIRE_AWAKENED`, `SMELTER_FOREMAN`, `THE_FIRST`); `game/EnemyType.modelFor` / `bossModelFor` is only the mapping of the old VS keys (test `AshfallAssetsTest`).
+- Equipment and boss art (phase 9 and 10): `ICONS` also holds the 24 item icons (`icon.<name>`, lowercase, the `icon` field of the item in `ashfall_data.json`
+  `equipment`: Meshy icons for the first item of a type, `flux/items/<name>_2|3` for the second and third and the six `unique_*`), `FRAMES` the four rarity frames
+  (`icon.frame_common`, `frame_magic` = Uncommon, `frame_rare`, `frame_unique`, drawn over the icon, never rounded) and `PORTRAITS` the boss banner pictures
+  (`icon.boss_<enemy key>`, 192 px, from `assets/ashfall-ai/flux/bosses`: Cargo Loader `drowned_engine`, Slagborn `pyre_warden`, Vire `vire`, Foreman `foreman_dray`,
+  The First `the_first`). `AshfallAssetsTest.equipmentIconsRarityFramesAndBossPortraitsAreInTheManifest` fails when one is missing. An equipment crate on the ground is the
+  `prop.supply_chest` image with a rarity-coloured glow (`WorldRenderer.drawEquipCrate`).
 - Stage props and decals: `game/WorldGen` (`PROP` and `DECAL` name arrays; a name there must exist in the manifest).
 
 ## Adding things

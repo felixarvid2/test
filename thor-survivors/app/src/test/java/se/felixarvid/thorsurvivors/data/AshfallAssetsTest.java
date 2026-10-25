@@ -137,4 +137,18 @@ public class AshfallAssetsTest {
         assertEquals(0.78f, ashfall.lightingOf("LIBRARY")[0], 1e-6);
         assertEquals(200f, ashfall.lightingOf("LIBRARY")[1], 1e-6);
     }
+
+    /** Design phases 9 and 10: an icon for each of the 24 items, the four rarity frames and a portrait for every Ashfall boss. */
+    @Test
+    public void equipmentIconsRarityFramesAndBossPortraitsAreInTheManifest() throws Exception {
+        JSONObject images = manifest().getJSONObject("images");
+        GameData d = TestData.load();
+        assertEquals(24, d.equipList.size());
+        for (EquipDef e : d.equipList) assertTrue(e.key + " icon " + e.icon, images.has("icon." + e.icon));
+        for (String f : new String[]{"frame_common", "frame_magic", "frame_rare", "frame_unique"}) assertTrue(f, images.has("icon." + f));
+        for (EnemyDef e : d.enemies.values()) {
+            if (e.ashfallBoss) assertTrue("portrait of " + e.key, images.has("icon.boss_" + e.key));
+        }
+        assertTrue("the supply chest art of the crates", images.has("prop.supply_chest"));
+    }
 }
