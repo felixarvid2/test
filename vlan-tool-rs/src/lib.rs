@@ -1,6 +1,7 @@
 //! Delad kärna för `vlantool` (kommandorad + TUI) och `vlantool-gui` (skrivbordsprogram).
 
 pub mod audit;
+pub mod baseline;
 pub mod diff;
 pub mod finding;
 pub mod generator;

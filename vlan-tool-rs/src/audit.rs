@@ -16,6 +16,8 @@ pub struct RuleResult {
     pub id: &'static str,
     pub title: &'static str,
     pub category: &'static str,
+    /// Regelns förklaring (varför den finns), så att JSON-resultatet är självförklarande.
+    pub why: &'static str,
     pub findings: Vec<Finding>,
 }
 
@@ -27,8 +29,15 @@ pub struct DeviceReport {
     pub score: u32,
     pub grade: &'static str,
     pub results: Vec<RuleResult>,
+    /// Antal fynd som togs bort med `! vlantool:ignore`.
+    #[serde(skip_serializing_if = "is_zero")]
+    pub ignored: usize,
     #[serde(skip)]
     pub config: Config,
+}
+
+fn is_zero(n: &usize) -> bool {
+    *n == 0
 }
 
 impl DeviceReport {
@@ -46,6 +55,19 @@ impl DeviceReport {
 
     pub fn worst(&self) -> Option<Severity> {
         self.findings().map(|f| f.severity).max()
+    }
+
+    /// Betyg 0–100 per kategori (Åtkomst, VLAN …), i den ordning kategorierna första gången
+    /// förekommer bland reglerna. Beräknas som enhetens betyg men bara på kategorins regler.
+    pub fn category_scores(&self) -> Vec<(&'static str, u32)> {
+        let mut out: Vec<(&'static str, Vec<Finding>)> = Vec::new();
+        for r in &self.results {
+            match out.iter_mut().find(|(c, _)| *c == r.category) {
+                Some((_, v)) => v.extend(r.findings.iter().cloned()),
+                None => out.push((r.category, r.findings.clone())),
+            }
+        }
+        out.into_iter().map(|(c, v)| (c, score(&v))).collect()
     }
 }
 
@@ -81,6 +103,89 @@ impl FleetReport {
     pub fn worst(&self) -> Option<Severity> {
         self.all_findings().map(|f| f.severity).max()
     }
+
+    /// Totaler per nivå och kategori för hela nätet. Fynd mellan enheterna räknas som
+    /// kategorin "Mellan enheter".
+    pub fn summary(&self) -> Summary {
+        let mut by_severity: BTreeMap<Severity, usize> = Severity::ALL.iter().map(|&s| (s, 0)).collect();
+        let mut by_category: BTreeMap<String, usize> = BTreeMap::new();
+        for d in &self.devices {
+            for r in &d.results {
+                for f in &r.findings {
+                    *by_severity.entry(f.severity).or_default() += 1;
+                    *by_category.entry(r.category.to_string()).or_default() += 1;
+                }
+            }
+        }
+        for f in &self.cross {
+            *by_severity.entry(f.severity).or_default() += 1;
+            *by_category.entry(CROSS_CATEGORY.to_string()).or_default() += 1;
+        }
+        Summary {
+            devices: self.devices.len(),
+            links: self.links.iter().filter(|l| l.b_port.is_some()).count(),
+            findings: by_severity.values().sum(),
+            ignored: self.devices.iter().map(|d| d.ignored).sum(),
+            by_severity,
+            by_category,
+        }
+    }
+}
+
+/// Kategorin som fynd mellan enheter hamnar under i [`Summary`].
+pub const CROSS_CATEGORY: &str = "Mellan enheter";
+
+/// Totaler för en körning, se [`FleetReport::summary`].
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Summary {
+    pub devices: usize,
+    pub links: usize,
+    pub findings: usize,
+    /// Fynd som dolts med `! vlantool:ignore`.
+    pub ignored: usize,
+    /// Alla nivåer finns med, även med 0.
+    pub by_severity: BTreeMap<Severity, usize>,
+    pub by_category: BTreeMap<String, usize>,
+}
+
+impl Summary {
+    pub fn count(&self, sev: Severity) -> usize {
+        self.by_severity.get(&sev).copied().unwrap_or(0)
+    }
+}
+
+/// En rad `! vlantool:ignore <regel> [text]` i en konfig.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Ignore {
+    pub rule: String,
+    /// Om satt hoppas bara fynd vars meddelande innehåller texten över.
+    pub text: Option<String>,
+}
+
+impl Ignore {
+    pub fn matches(&self, f: &Finding) -> bool {
+        f.rule == self.rule && self.text.as_ref().is_none_or(|t| f.message.contains(t.as_str()))
+    }
+}
+
+/// Läser `! vlantool:ignore`-kommentarerna ur konfigen.
+pub fn ignore_directives(config: &Config) -> Vec<Ignore> {
+    config
+        .lines
+        .iter()
+        .filter_map(|l| {
+            let rest = l.text.trim().strip_prefix('!')?.trim_start().strip_prefix("vlantool:ignore")?;
+            if !rest.is_empty() && !rest.starts_with(char::is_whitespace) {
+                return None;
+            }
+            let rest = rest.trim();
+            let (rule, text) = match rest.split_once(char::is_whitespace) {
+                Some((r, t)) => (r, t.trim()),
+                None => (rest, ""),
+            };
+            (!rule.is_empty()).then(|| Ignore { rule: rule.to_string(), text: (!text.is_empty()).then(|| text.to_string()) })
+        })
+        .collect()
 }
 
 pub fn audit_config(config: Config, only: &[String]) -> DeviceReport {
@@ -89,12 +194,17 @@ pub fn audit_config(config: Config, only: &[String]) -> DeviceReport {
         .filter(|r| r.applies_to(config.kind))
         .filter(|r| only.is_empty() || only.iter().any(|o| o == r.id))
         .collect();
+    let ignores = ignore_directives(&config);
+    let mut ignored = 0;
     let results: Vec<RuleResult> = rules
         .iter()
         .map(|r| {
             let mut findings = (r.check)(&config);
+            let before = findings.len();
+            findings.retain(|f| !ignores.iter().any(|i| i.matches(f)));
+            ignored += before - findings.len();
             findings.sort_by_key(|f| std::cmp::Reverse(f.severity));
-            RuleResult { id: r.id, title: r.title, category: r.category, findings }
+            RuleResult { id: r.id, title: r.title, category: r.category, why: r.why, findings }
         })
         .collect();
     let all: Vec<Finding> = results.iter().flat_map(|r| r.findings.clone()).collect();
@@ -106,6 +216,7 @@ pub fn audit_config(config: Config, only: &[String]) -> DeviceReport {
         score: s,
         grade: grade(s),
         results,
+        ignored,
         config,
     }
 }
@@ -232,6 +343,78 @@ pub fn cross_check(configs: &[Config]) -> (Vec<Finding>, Vec<Link>) {
         }
     }
 
+    // --- Samma hostname på två konfigar -------------------------------------------
+    let mut hostnames: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+    for c in configs {
+        hostnames.entry(c.display_name()).or_default().push(&c.path);
+    }
+    for (name, paths) in hostnames.iter().filter(|(_, p)| p.len() > 1) {
+        out.push(Finding::new("dup-hostname", Severity::High, format!("Hostname {name} används av {} konfigar: {}", paths.len(), paths.join(", "))));
+    }
+
+    // --- Switchens SVI-nät mot routerns subinterface för samma VLAN --------------
+    for sw in configs.iter().filter(|c| c.kind == Kind::Switch) {
+        for svi in sw.interfaces.iter().filter(|i| i.svi_vlan().is_some()) {
+            let (Some(vlan), Some(net)) = (svi.svi_vlan(), svi.subnet()) else { continue };
+            for r in configs.iter().filter(|c| c.kind == Kind::Router) {
+                for sub in r.interfaces.iter().filter(|i| i.name.contains('.') && i.dot1q == Some(vlan)) {
+                    if let Some(rnet) = sub.subnet()
+                        && rnet != net
+                    {
+                        out.push(Finding::new(
+                            "svi-subif",
+                            Severity::High,
+                            format!(
+                                "VLAN {vlan}: {} {} har nät {}/{} men {} {} har {}/{}",
+                                sw.display_name(), short_port(&svi.name), net.network, net.prefix,
+                                r.display_name(), short_port(&sub.name), rnet.network, rnet.prefix
+                            ),
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    // --- Olika native-VLAN på olika trunkar i nätet ---------------------------------
+    let mut natives: BTreeMap<u16, Vec<String>> = BTreeMap::new();
+    for c in configs.iter().filter(|c| c.kind != Kind::Router) {
+        for i in c.interfaces.iter().filter(|i| i.mode == IfMode::Trunk) {
+            natives.entry(i.native_vlan.unwrap_or(1)).or_default().push(format!("{} {}", c.display_name(), short_port(&i.name)));
+        }
+    }
+    if natives.len() > 1 {
+        let parts: Vec<String> = natives.iter().map(|(v, w)| format!("VLAN {v}: {}", w.join(", "))).collect();
+        out.push(Finding::new("native-mix", Severity::Low, format!("Trunkarna i nätet har olika native-VLAN ({})", parts.join("; "))));
+    }
+
+    // --- Samma nät i två olika VLAN --------------------------------------------------
+    let mut nets: BTreeMap<(Ipv4Addr, u8), BTreeMap<u16, Vec<String>>> = BTreeMap::new();
+    for c in configs {
+        for i in &c.interfaces {
+            let vlan = i.svi_vlan().or(if i.name.contains('.') { i.dot1q } else { None });
+            if let (Some(vlan), Some(n)) = (vlan, i.subnet()) {
+                nets.entry((n.network, n.prefix)).or_default().entry(vlan).or_default().push(format!("{} {}", c.display_name(), short_port(&i.name)));
+            }
+        }
+    }
+    for ((network, prefix), vlans) in nets.iter().filter(|(_, v)| v.len() > 1) {
+        let parts: Vec<String> = vlans.iter().map(|(v, w)| format!("VLAN {v} ({})", w.join(", "))).collect();
+        out.push(Finding::new("vlan-subnet", Severity::High, format!("Nätet {network}/{prefix} används i flera VLAN: {}", parts.join(", "))));
+    }
+
+    // --- Slingor (redundanta länkar) --------------------------------------------------
+    for e in crate::topology::loops(configs) {
+        out.push(Finding::new(
+            "loop",
+            Severity::Info,
+            format!(
+                "Slinga i nätet: {} {} – {} {} ger en andra väg mellan enheterna (kontrollera att spanning-tree är på)",
+                e.a, e.a_port, e.b, e.b_port.as_deref().unwrap_or("")
+            ),
+        ));
+    }
+
     out.sort_by_key(|f| std::cmp::Reverse(f.severity));
     (out, links)
 }
@@ -248,6 +431,21 @@ fn check_link(a: &Config, ai: &Interface, b: &Config, bi: &Interface, out: &mut 
                     Severity::High,
                     format!("Native-VLAN skiljer: {an} har {} men {bn} har {}", ai.native_vlan.unwrap_or(1), bi.native_vlan.unwrap_or(1)),
                 ));
+            }
+            // Trunken släpper igenom VLAN som inte finns på switchen i andra änden.
+            for (from, fi, to) in [(a, ai, b), (b, bi, a)] {
+                if let Some(allowed) = &fi.allowed
+                    && to.kind != Kind::Router
+                {
+                    let missing: Vec<u16> = allowed.iter().copied().filter(|v| *v != 1 && !to.vlans.contains_key(v)).collect();
+                    if !missing.is_empty() {
+                        out.push(Finding::new(
+                            "link",
+                            Severity::Medium,
+                            format!("{} {} släpper igenom VLAN {} som inte finns på {}", from.display_name(), short_port(&fi.name), join_vlans(&missing), to.display_name()),
+                        ));
+                    }
+                }
             }
             if ai.allowed != bi.allowed {
                 let show = |i: &Interface| i.allowed.as_ref().map_or("alla".into(), |v| join_vlans(v));
@@ -349,5 +547,170 @@ mod tests {
         assert_eq!(links.len(), 1);
         assert!(cross.iter().any(|f| f.message.contains("Native-VLAN")));
         assert!(cross.iter().any(|f| f.message.contains("Tillåtna VLAN")));
+    }
+
+    fn sw(name: &str, body: &str) -> Config {
+        Config::parse(name, &format!("{name}.cfg"), &format!("hostname {name}\n{body}"))
+    }
+
+    fn rules_of(cross: &[Finding], rule: &str) -> Vec<String> {
+        cross.iter().filter(|f| f.rule == rule).map(|f| f.message.clone()).collect()
+    }
+
+    #[test]
+    fn ignore_rule_for_whole_device() {
+        let base = "hostname SW1\nvlan 10\n name A\ninterface Fa0/1\n switchport mode access\n switchport access vlan 10\n!\n";
+        let plain = audit_config(Config::parse("sw1", "sw1.cfg", base), &[]);
+        assert!(plain.findings().any(|f| f.rule == "ssh"));
+        let ignored = audit_config(Config::parse("sw1", "sw1.cfg", &format!("{base}! vlantool:ignore ssh\n")), &[]);
+        assert!(!ignored.findings().any(|f| f.rule == "ssh"));
+        assert!(ignored.ignored >= 1);
+        assert!(ignored.score > plain.score, "betyget räknas efter att fynden tagits bort");
+        // Andra regler påverkas inte, och själva regeln finns kvar i listan (som godkänd).
+        assert!(ignored.results.iter().any(|r| r.id == "ssh" && r.findings.is_empty()));
+        assert_eq!(plain.findings().count() - ignored.findings().count(), ignored.ignored);
+    }
+
+    #[test]
+    fn ignore_with_text_only_hides_matching_findings() {
+        let base = "hostname SW1\ninterface Fa0/1\n switchport mode access\n switchport access vlan 10\n!\ninterface Fa0/2\n switchport mode access\n switchport access vlan 20\n!\n";
+        let before = audit_config(Config::parse("sw1", "x", base), &[]);
+        let vlan_findings: Vec<&Finding> = before.findings().filter(|f| f.rule == "vlans").collect();
+        assert!(vlan_findings.len() >= 2, "{vlan_findings:?}");
+        let text = format!("{base}!   vlantool:ignore vlans VLAN 10 \n");
+        let after = audit_config(Config::parse("sw1", "x", &text), &[]);
+        let left: Vec<&Finding> = after.findings().filter(|f| f.rule == "vlans").collect();
+        assert!(left.len() < vlan_findings.len() && !left.is_empty(), "{left:?}");
+        assert!(left.iter().all(|f| !f.message.contains("VLAN 10")));
+    }
+
+    #[test]
+    fn ignore_directive_parsing() {
+        let c = Config::parse("x", "x", "hostname X\n! vlantool:ignore ssh\n!vlantool:ignore vlans VLAN 10 finns inte\n! vlantool:ignored foo\n! vanlig kommentar\n ! vlantool:ignore\n");
+        assert_eq!(
+            ignore_directives(&c),
+            vec![
+                Ignore { rule: "ssh".into(), text: None },
+                Ignore { rule: "vlans".into(), text: Some("VLAN 10 finns inte".into()) },
+            ]
+        );
+        assert!(ignore_directives(&c)[1].matches(&Finding::new("vlans", Severity::High, "VLAN 10 finns inte")));
+        assert!(!ignore_directives(&c)[1].matches(&Finding::new("ssh", Severity::High, "VLAN 10 finns inte")));
+    }
+
+    #[test]
+    fn many_findings_in_one_rule_do_not_zero_the_device() {
+        let mut body = String::new();
+        for i in 1..=30 {
+            body.push_str(&format!("interface Fa0/{i}\n switchport mode access\n switchport access vlan 1\n!\n"));
+        }
+        let d = audit_config(Config::parse("sw", "sw", &format!("hostname SW\n{body}")), &["access-vlan1".to_string()]);
+        assert!(d.findings().count() >= 30);
+        assert_eq!(d.score, 75, "30 × Medel räknas som högst 25 poäng");
+    }
+
+    #[test]
+    fn summary_counts_levels_and_categories() {
+        let a = sw("A", "interface Gi0/1\n description Trunk mot B\n switchport mode trunk\n switchport trunk native vlan 999\n!\n");
+        let b = sw("B", "interface Gi0/2\n description Trunk mot A\n switchport mode trunk\n!\n");
+        let fleet = audit_fleet(vec![a, b], &[]);
+        let s = fleet.summary();
+        assert_eq!(s.devices, 2);
+        assert_eq!(s.links, 1);
+        assert_eq!(s.findings, fleet.all_findings().count());
+        assert_eq!(s.by_severity.len(), 5);
+        for sev in Severity::ALL {
+            assert_eq!(s.count(sev), fleet.count(sev));
+        }
+        assert_eq!(s.by_category.values().sum::<usize>(), s.findings);
+        assert_eq!(s.by_category.get(CROSS_CATEGORY).copied(), Some(fleet.cross.len()));
+        assert!(s.by_category.contains_key("Åtkomst"));
+    }
+
+    #[test]
+    fn category_scores_per_category() {
+        let d = audit_config(Config::load(&root().join("examples-cfg/bad.cfg")).unwrap(), &[]);
+        let cats = d.category_scores();
+        let cat_names: Vec<&str> = cats.iter().map(|(c, _)| *c).collect();
+        let unique: BTreeSet<&&str> = cat_names.iter().collect();
+        assert_eq!(unique.len(), cat_names.len(), "en post per kategori");
+        let get = |n: &str| cats.iter().find(|(c, _)| *c == n).map(|(_, s)| *s).unwrap();
+        assert!(get("Åtkomst") < 100);
+        assert!(get("VLAN") < 100);
+        assert!(cats.iter().all(|(_, s)| *s >= d.score), "en kategori kan inte ha lägre betyg än hela enheten");
+        let clean = audit_config(Config::parse("x", "x", "hostname X\n"), &["banner".to_string()]);
+        assert!(clean.category_scores().iter().all(|(_, s)| *s == 100));
+    }
+
+    #[test]
+    fn trunk_allowing_vlans_missing_on_the_other_switch() {
+        let a = sw("A", "vlan 10\n name X\nvlan 20\n name Y\ninterface Gi0/1\n description Trunk mot B\n switchport mode trunk\n switchport trunk allowed vlan 10,20,30\n!\n");
+        let b = sw("B", "vlan 10\n name X\ninterface Gi0/2\n description Trunk mot A\n switchport mode trunk\n switchport trunk allowed vlan 10,20,30\n!\n");
+        let (cross, _) = cross_check(&[a, b]);
+        let m = rules_of(&cross, "link");
+        // A släpper igenom 20 och 30 som B saknar; B släpper igenom 30 som A saknar.
+        assert!(m.iter().any(|t| t.contains("A Gi0/1") && t.contains("VLAN 20,30") && t.contains("inte finns på B")), "{m:?}");
+        assert!(m.iter().any(|t| t.contains("B Gi0/2") && t.contains("VLAN 30 ") && t.contains("inte finns på A")), "{m:?}");
+    }
+
+    #[test]
+    fn duplicate_hostnames_are_reported() {
+        let a = Config::parse("a", "a.cfg", "hostname SW\n");
+        let b = Config::parse("b", "b.cfg", "hostname SW\n");
+        let c = Config::parse("c", "c.cfg", "hostname OTHER\n");
+        let (cross, _) = cross_check(&[a, b, c]);
+        let m = rules_of(&cross, "dup-hostname");
+        assert_eq!(m.len(), 1);
+        assert!(m[0].contains("SW") && m[0].contains("a.cfg") && m[0].contains("b.cfg"), "{m:?}");
+        assert!(rules_of(&cross_check(&[Config::parse("c", "c", "hostname OTHER\n")]).0, "dup-hostname").is_empty());
+    }
+
+    #[test]
+    fn svi_network_must_match_router_subinterface() {
+        let router = |ip: &str| sw("R", &format!("interface Gi0/0\n no shutdown\n!\ninterface Gi0/0.99\n encapsulation dot1Q 99\n ip address {ip} 255.255.255.0\n!\nip route 0.0.0.0 0.0.0.0 1.1.1.1\n"));
+        let switch = sw("S", "interface Vlan99\n ip address 10.0.99.2 255.255.255.0\n!\ninterface Fa0/1\n switchport mode access\n!\n");
+        let (ok, _) = cross_check(&[router("10.0.99.1"), switch.clone()]);
+        assert!(rules_of(&ok, "svi-subif").is_empty(), "{ok:?}");
+        let (bad, _) = cross_check(&[router("10.0.98.1"), switch]);
+        let m = rules_of(&bad, "svi-subif");
+        assert_eq!(m.len(), 1, "{bad:?}");
+        assert!(m[0].contains("VLAN 99") && m[0].contains("10.0.99.0/24") && m[0].contains("10.0.98.0/24"), "{m:?}");
+    }
+
+    #[test]
+    fn different_native_vlans_across_trunks() {
+        let trunk = |n: &str, native: &str| format!("interface {n}\n switchport mode trunk\n{native}!\n");
+        let a = sw("A", &(trunk("Gi0/1", " switchport trunk native vlan 999\n") + &trunk("Gi0/2", " switchport trunk native vlan 999\n")));
+        let b = sw("B", &trunk("Gi0/1", " switchport trunk native vlan 999\n"));
+        assert!(rules_of(&cross_check(&[a.clone(), b]).0, "native-mix").is_empty());
+        let c = sw("C", &trunk("Gi0/1", ""));
+        let m = rules_of(&cross_check(&[a, c]).0, "native-mix");
+        assert_eq!(m.len(), 1);
+        assert!(m[0].contains("VLAN 999") && m[0].contains("VLAN 1:"), "{m:?}");
+    }
+
+    #[test]
+    fn same_network_in_two_vlans() {
+        let r = sw("R", "interface Gi0/0.10\n encapsulation dot1Q 10\n ip address 10.0.0.1 255.255.255.0\n!\ninterface Gi0/0.20\n encapsulation dot1Q 20\n ip address 10.0.0.129 255.255.255.0\n!\ninterface Gi0/0.30\n encapsulation dot1Q 30\n ip address 10.0.30.1 255.255.255.0\n!\n");
+        let m = rules_of(&cross_check(&[r]).0, "vlan-subnet");
+        assert_eq!(m.len(), 1);
+        assert!(m[0].contains("10.0.0.0/24") && m[0].contains("VLAN 10") && m[0].contains("VLAN 20") && !m[0].contains("VLAN 30"), "{m:?}");
+        // Samma nät i samma VLAN på switch (SVI) och router är bra.
+        let r2 = sw("R", "interface Gi0/0.10\n encapsulation dot1Q 10\n ip address 10.0.0.1 255.255.255.0\n!\n");
+        let s2 = sw("S", "interface Vlan10\n ip address 10.0.0.2 255.255.255.0\n!\n");
+        assert!(rules_of(&cross_check(&[r2, s2]).0, "vlan-subnet").is_empty());
+    }
+
+    #[test]
+    fn loops_are_reported_as_info() {
+        let t = |me: &str, a: &str, b: &str| sw(me, &format!("interface Gi0/1\n description Trunk mot {a}\n switchport mode trunk\n!\ninterface Gi0/2\n description Trunk mot {b}\n switchport mode trunk\n!\n"));
+        let (cross, links) = cross_check(&[t("A", "B", "C"), t("B", "A", "C"), t("C", "A", "B")]);
+        let hits: Vec<&Finding> = cross.iter().filter(|f| f.rule == "loop").collect();
+        assert_eq!(hits.len(), 1, "{cross:?}");
+        assert_eq!(hits[0].severity, Severity::Info);
+        assert!(links.len() >= 2);
+        // En kedja är ingen slinga.
+        let chain = [sw("A", "interface Gi0/1\n description Trunk mot B\n switchport mode trunk\n!\n"), sw("B", "interface Gi0/1\n description Trunk mot A\n switchport mode trunk\n!\n")];
+        assert!(rules_of(&cross_check(&chain).0, "loop").is_empty());
     }
 }
