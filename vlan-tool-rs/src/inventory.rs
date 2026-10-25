@@ -4,6 +4,7 @@
 
 use crate::finding::{Finding, Severity};
 use crate::net::{parse_ip, range_len, Subnet};
+use crate::parser::peer_of;
 use anyhow::{Context, Result};
 use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
@@ -28,6 +29,10 @@ pub struct PortRow {
     pub description: String,
     pub up: bool,
     pub source: String,
+    /// Valfri kolumn `Voice_Vlan`.
+    pub voice_vlan: Option<u16>,
+    /// Valfri kolumn `Port_Security`: högsta antal MAC-adresser.
+    pub port_security: Option<u16>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -42,6 +47,8 @@ pub struct DhcpRow {
     pub gateway: Ipv4Addr,
     pub dns: Ipv4Addr,
     pub source: String,
+    /// Nätadressen exakt som den stod i filen (kan avvika från `network.network`).
+    pub network_addr: Ipv4Addr,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -51,6 +58,10 @@ pub struct DeviceRow {
     pub mgmt_mask: Ipv4Addr,
     pub gateway: Ipv4Addr,
     pub source: String,
+    /// Valfri kolumn `Plats`.
+    pub location: String,
+    /// Valfri kolumn `Modell`.
+    pub model: String,
 }
 
 #[derive(Debug, Default, Serialize)]
@@ -70,8 +81,13 @@ struct Row {
 }
 
 impl Row {
+    /// Rubriker matchas utan hänsyn till versaler/gemener (nycklarna är lagrade som gemener).
     fn get(&self, key: &str) -> &str {
-        self.fields.get(key).map(String::as_str).unwrap_or("")
+        self.fields.get(&key.to_ascii_lowercase()).map(String::as_str).unwrap_or("")
+    }
+
+    fn has(&self, key: &str) -> bool {
+        self.fields.contains_key(&key.to_ascii_lowercase())
     }
 
     fn ip(&self, key: &str) -> Result<Ipv4Addr, String> {
@@ -144,14 +160,48 @@ pub fn join_vlans(vlans: &[u16]) -> String {
     parts.join(",")
 }
 
-fn read_rows(path: &Path) -> Result<Vec<Row>> {
+/// Tolkar Up/Down/Upp/Nere/Ja/Nej/On/Off (och några till). None = känns inte igen.
+pub fn parse_status(text: &str) -> Option<bool> {
+    match text.trim().to_lowercase().as_str() {
+        "up" | "upp" | "ja" | "on" | "yes" | "true" | "1" | "aktiv" => Some(true),
+        "down" | "nere" | "nej" | "off" | "no" | "false" | "0" | "inaktiv" => Some(false),
+        _ => None,
+    }
+}
+
+/// Tillåtna tecken i ett hostname på IOS, och högst 63 tecken. None = giltigt.
+pub fn hostname_problem(name: &str) -> Option<String> {
+    if name.chars().count() > 63 {
+        return Some(format!("hostnamnet '{name}' är längre än 63 tecken"));
+    }
+    if !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
+        return Some(format!("hostnamnet '{name}' innehåller otillåtna tecken (tillåtna: bokstäver, siffror och bindestreck)"));
+    }
+    if !name.starts_with(|c: char| c.is_ascii_alphabetic()) {
+        return Some(format!("hostnamnet '{name}' måste börja med en bokstav"));
+    }
+    None
+}
+
+/// Siffror i en VLAN-lista som ligger utanför 1–4094 (annars tappas de tyst).
+fn vlans_out_of_range(text: &str) -> Vec<u32> {
+    text.split(|c: char| !c.is_ascii_digit()).filter_map(|n| n.parse::<u32>().ok()).filter(|n| !(1..=4094).contains(n)).collect()
+}
+
+/// Semikolon eller komma: det som förekommer mest på rubrikraden.
+fn detect_delimiter(text: &str) -> u8 {
+    let first = text.lines().next().unwrap_or("");
+    if first.matches(';').count() > first.matches(',').count() { b';' } else { b',' }
+}
+
+fn rows_from_text(file: &str, text: &str) -> Result<Vec<Row>> {
+    let text = text.trim_start_matches('\u{feff}');
     let mut reader = csv::ReaderBuilder::new()
         .trim(csv::Trim::All)
         .flexible(true)
-        .from_path(path)
-        .with_context(|| format!("kunde inte öppna {}", path.display()))?;
-    let headers: Vec<String> = reader.headers()?.iter().map(|h| h.trim_start_matches('\u{feff}').trim().to_string()).collect();
-    let file = path.file_name().map(|f| f.to_string_lossy().to_string()).unwrap_or_default();
+        .delimiter(detect_delimiter(text))
+        .from_reader(text.as_bytes());
+    let headers: Vec<String> = reader.headers()?.iter().map(|h| h.trim().to_ascii_lowercase()).collect();
     let mut rows = Vec::new();
     for (i, record) in reader.records().enumerate() {
         let record = record.with_context(|| format!("{file}: rad {} går inte att läsa", i + 2))?;
@@ -173,31 +223,51 @@ impl Inventory {
 
         let mut inv = Inventory::default();
         for path in paths {
-            let rows = read_rows(&path)?;
-            let Some(first) = rows.first() else { continue };
-            if first.fields.contains_key("Switch") {
-                for row in &rows {
-                    inv.parse_port(row);
-                }
-            } else if first.fields.contains_key("pool_name") {
-                for row in &rows {
-                    inv.parse_dhcp(row);
-                }
-            } else if first.fields.contains_key("Mgmt_IP") {
-                for row in &rows {
-                    inv.parse_device(row);
-                }
-            } else {
-                inv.problems.push(Finding::new(
-                    "csv-format",
-                    Severity::Info,
-                    format!("{}: okänd CSV-fil, hoppas över", path.display()),
-                ));
-                continue;
+            let bytes = std::fs::read(&path).with_context(|| format!("kunde inte öppna {}", path.display()))?;
+            let file = path.file_name().map(|f| f.to_string_lossy().to_string()).unwrap_or_default();
+            if inv.load_text(&file, &path.display().to_string(), &String::from_utf8_lossy(&bytes))? {
+                inv.files.push(path);
             }
-            inv.files.push(path);
         }
         Ok(inv)
+    }
+
+    /// Bygger en inventarie av CSV-texter `(filnamn, innehåll)` utan att röra disken.
+    pub fn from_csv_texts(texts: &[(&str, &str)]) -> Result<Self> {
+        let mut inv = Inventory::default();
+        for (file, text) in texts {
+            if inv.load_text(file, file, text)? {
+                inv.files.push(PathBuf::from(file));
+            }
+        }
+        Ok(inv)
+    }
+
+    /// Läser en CSV-text. Ger false om filen hoppades över.
+    fn load_text(&mut self, file: &str, shown_path: &str, text: &str) -> Result<bool> {
+        let rows = rows_from_text(file, text)?;
+        let Some(first) = rows.first() else { return Ok(false) };
+        if first.has("Switch") {
+            for row in &rows {
+                self.parse_port(row);
+            }
+        } else if first.has("pool_name") {
+            for row in &rows {
+                self.parse_dhcp(row);
+            }
+        } else if first.has("Mgmt_IP") {
+            for row in &rows {
+                self.parse_device(row);
+            }
+        } else {
+            self.problems.push(Finding::new("csv-format", Severity::Info, format!("{shown_path}: okänd CSV-fil, hoppas över")));
+            return Ok(false);
+        }
+        Ok(true)
+    }
+
+    fn warn(&mut self, severity: Severity, message: String) {
+        self.problems.push(Finding::new("csv-format", severity, message));
     }
 
     fn bad(&mut self, message: String) {
@@ -213,17 +283,45 @@ impl Inventory {
         if row.get("Switch").is_empty() || row.get("Port").is_empty() {
             return self.bad(format!("{}: Switch och Port måste fyllas i", row.where_));
         }
+        let mut optional = |key: &str, what: &str| -> Option<u16> {
+            let v = row.get(key);
+            if v.is_empty() {
+                return None;
+            }
+            let parsed = v.parse::<u16>().ok().filter(|n| *n > 0);
+            if parsed.is_none() {
+                self.problems.push(Finding::new("csv-format", Severity::Medium, format!("{}: '{v}' i {key} är {what}", row.where_)));
+            }
+            parsed
+        };
+        let voice_vlan = optional("Voice_Vlan", "inget VLAN-nummer");
+        let port_security = optional("Port_Security", "inget antal MAC-adresser");
+        let allowed_text = row.get("Tillatna_Vlan");
+        let bad_vlans = vlans_out_of_range(allowed_text);
+        if !bad_vlans.is_empty() {
+            let list: Vec<String> = bad_vlans.iter().map(u32::to_string).collect();
+            self.warn(Severity::High, format!("{}: tillåtna VLAN innehåller {} som är utanför 1–4094", row.where_, list.join(", ")));
+        }
+        let status = row.get("Status");
+        let up = parse_status(status).unwrap_or_else(|| {
+            if !status.is_empty() {
+                self.problems.push(Finding::new("csv-format", Severity::Low, format!("{}: okänd status '{status}', tolkas som Up", row.where_)));
+            }
+            true
+        });
         self.ports.push(PortRow {
             switch: row.get("Switch").to_string(),
             port: normalize_port(row.get("Port")),
             mode,
             vlan: row.get("Vlan_Id").parse().ok(),
             vlan_name: row.get("Vlan_Namn").to_string(),
-            allowed: split_vlans(row.get("Tillatna_Vlan")),
+            allowed: split_vlans(allowed_text).into_iter().filter(|v| (1..=4094).contains(v)).collect(),
             native: row.get("Native_Vlan").parse().ok(),
             description: row.get("Beskrivning").to_string(),
-            up: !row.get("Status").eq_ignore_ascii_case("down"),
+            up,
             source: row.where_.clone(),
+            voice_vlan,
+            port_security,
         });
     }
 
@@ -243,6 +341,7 @@ impl Inventory {
                 gateway: row.ip("gateway")?,
                 dns: row.ip("dns")?,
                 source: row.where_.clone(),
+                network_addr: row.ip("network")?,
             })
         })();
         match parsed {
@@ -259,6 +358,8 @@ impl Inventory {
                 mgmt_mask: row.ip("Mgmt_mask")?,
                 gateway: row.ip("Gateway")?,
                 source: row.where_.clone(),
+                location: row.get("Plats").to_string(),
+                model: row.get("Modell").to_string(),
             })
         })();
         match parsed {
@@ -335,8 +436,49 @@ impl Inventory {
                     }
                 }
             }
+            if let Some(v) = p.voice_vlan.filter(|v| !(1..=4094).contains(v)) {
+                out.push(Finding::new(rule, Severity::High, format!("{}: röst-VLAN {v} är utanför 1–4094", p.source)));
+            }
             if p.description.is_empty() {
                 out.push(Finding::new(rule, Severity::Info, format!("{}: {} saknar beskrivning", p.source, p.port)));
+            }
+        }
+
+        // Hostnames: tillåtna tecken och längd.
+        let mut checked: BTreeSet<&str> = BTreeSet::new();
+        for (name, source) in self.ports.iter().map(|p| (&p.switch, &p.source)).chain(self.devices.iter().map(|d| (&d.hostname, &d.source))) {
+            if checked.insert(name)
+                && let Some(why) = hostname_problem(name)
+            {
+                out.push(Finding::new(rule, Severity::Medium, format!("{source}: {why}")));
+            }
+        }
+
+        // Trunkar ska se likadana ut i båda ändar (beskrivningen "mot X" pekar på andra enheten).
+        for (i, a) in self.ports.iter().enumerate().filter(|(_, p)| p.mode == PortMode::Trunk) {
+            let Some(peer) = peer_of(&a.description) else { continue };
+            let back = self.ports.iter().enumerate().find(|(_, b)| {
+                b.mode == PortMode::Trunk && b.switch.eq_ignore_ascii_case(peer) && peer_of(&b.description).is_some_and(|x| x.eq_ignore_ascii_case(&a.switch))
+            });
+            let Some((j, b)) = back else { continue };
+            if i > j {
+                continue; // varje par rapporteras en gång
+            }
+            let (sa, sb): (BTreeSet<u16>, BTreeSet<u16>) = (a.allowed.iter().copied().collect(), b.allowed.iter().copied().collect());
+            if sa != sb {
+                out.push(Finding::new(
+                    rule,
+                    Severity::High,
+                    format!("{}: trunken {} {} tillåter {} men {} {} ({}) tillåter {}", a.source, a.switch, short_port(&a.port), join_vlans(&a.allowed), b.switch, short_port(&b.port), b.source, join_vlans(&b.allowed)),
+                ));
+            }
+            if a.native != b.native {
+                let show = |n: Option<u16>| n.map_or("saknas".to_string(), |n| n.to_string());
+                out.push(Finding::new(
+                    rule,
+                    Severity::High,
+                    format!("{}: native-VLAN {} på {} {} skiljer sig från {} på {} {} ({})", a.source, show(a.native), a.switch, short_port(&a.port), show(b.native), b.switch, short_port(&b.port), b.source),
+                ));
             }
         }
 
@@ -346,7 +488,7 @@ impl Inventory {
             if trunk_vlans.is_empty() {
                 continue;
             }
-            let access: BTreeSet<u16> = ports.iter().filter(|p| p.mode == PortMode::Access).filter_map(|p| p.vlan).collect();
+            let access: BTreeSet<u16> = ports.iter().filter(|p| p.mode == PortMode::Access).flat_map(|p| p.vlan.into_iter().chain(p.voice_vlan)).collect();
             for v in access.difference(&trunk_vlans) {
                 out.push(Finding::new(rule, Severity::Medium, format!("{switch}: VLAN {v} används på accessportar men går inte på någon trunk")));
             }
@@ -372,6 +514,13 @@ impl Inventory {
         // --- dhcp.csv --------------------------------------------------------
         for d in &self.dhcp {
             let net = d.network;
+            if d.network_addr != net.network {
+                out.push(Finding::new(
+                    rule,
+                    Severity::Medium,
+                    format!("{}: nätadressen {} är inte nätets första adress, nätet blir {net}", d.source, d.network_addr),
+                ));
+            }
             for (label, ip) in [
                 ("gateway", d.gateway),
                 ("pool_start", d.pool_start),
@@ -393,6 +542,16 @@ impl Inventory {
                 out.push(Finding::new(rule, Severity::Medium, format!("{}: gatewayen {} är inte undantagen från DHCP", d.source, d.gateway)));
             }
             let free = range_len(d.pool_start, d.pool_end).saturating_sub(range_len(d.excluded_start, d.excluded_end));
+            let (lo, hi) = (u32::from(d.pool_start).max(u32::from(d.excluded_start)), u32::from(d.pool_end).min(u32::from(d.excluded_end)));
+            let leased = range_len(d.pool_start, d.pool_end).saturating_sub(if hi >= lo { u64::from(hi - lo) + 1 } else { 0 });
+            let access_ports = self.ports.iter().filter(|p| p.mode == PortMode::Access && p.vlan == Some(d.vlan)).count() as u64;
+            if leased < access_ports {
+                out.push(Finding::new(
+                    rule,
+                    Severity::Medium,
+                    format!("{}: {} har bara {leased} lediga adresser men {access_ports} accessportar i VLAN {}", d.source, d.name, d.vlan),
+                ));
+            }
             if free < 5 {
                 out.push(Finding::new(rule, Severity::Low, format!("{}: bara {free} adresser kvar att dela ut i {}", d.source, d.name)));
             }
@@ -473,5 +632,147 @@ mod tests {
         assert_eq!(short_port("FastEthernet0/10"), "Fa0/10");
         assert_eq!(split_vlans("10;20, 30-32,Trunk"), vec![10, 20, 30, 31, 32]);
         assert_eq!(join_vlans(&[10, 20, 30, 31, 32, 99, 98]), "10,20,30-32,98,99");
+    }
+
+    const PORTS_HEAD: &str = "Switch,Port,Lage,Vlan_Id,Vlan_Namn,Tillatna_Vlan,Native_Vlan,Beskrivning,Status\n";
+
+    fn ports(rows: &str) -> Inventory {
+        Inventory::from_csv_texts(&[("ports.csv", &format!("{PORTS_HEAD}{rows}"))]).unwrap()
+    }
+
+    fn messages(inv: &Inventory) -> Vec<String> {
+        inv.validate(999, 99).into_iter().map(|f| f.message).collect()
+    }
+
+    #[test]
+    fn semicolon_and_case_insensitive_headers() {
+        let text = "SWITCH;port;LAGE;vlan_id;Vlan_Namn;Tillatna_Vlan;native_vlan;BESKRIVNING;status\nSW1;Fa0/1;Access;10;KONTOR;10;999;Port mot PC;Nere\nSW1;Gi0/1;trunk;;;\"10;20\";999;Port mot SW2;Upp\n";
+        let inv = Inventory::from_csv_texts(&[("ports.csv", text)]).unwrap();
+        assert!(inv.problems.is_empty(), "{:?}", inv.problems);
+        assert_eq!(inv.ports.len(), 2);
+        assert_eq!(inv.ports[0].port, "FastEthernet0/1");
+        assert!(!inv.ports[0].up);
+        assert!(inv.ports[1].up);
+        assert_eq!(inv.ports[1].allowed, vec![10, 20]);
+        let dev = "HOSTNAME;mgmt_ip;MGMT_MASK;gateway;PLATS;modell\nSW1;10.0.0.2;255.255.255.0;10.0.0.1;Serverrum;C2960\n";
+        let inv = Inventory::from_csv_texts(&[("devices.csv", dev)]).unwrap();
+        assert_eq!(inv.devices[0].location, "Serverrum");
+        assert_eq!(inv.devices[0].model, "C2960");
+    }
+
+    #[test]
+    fn bom_and_missing_optional_columns() {
+        let text = format!("\u{feff}{PORTS_HEAD}SW1,Fa0/1,access,10,KONTOR,10,999,x,Up\n");
+        let inv = Inventory::from_csv_texts(&[("ports.csv", &text)]).unwrap();
+        assert_eq!(inv.ports[0].voice_vlan, None);
+        assert_eq!(inv.ports[0].port_security, None);
+        let inv = Inventory::from_csv_texts(&[("devices.csv", "Hostname,Mgmt_IP,Mgmt_mask,Gateway\nSW1,10.0.0.2,255.255.255.0,10.0.0.1\n")]).unwrap();
+        assert_eq!((inv.devices[0].location.as_str(), inv.devices[0].model.as_str()), ("", ""));
+    }
+
+    #[test]
+    fn status_words() {
+        for (word, up) in [("Up", true), ("DOWN", false), ("upp", true), ("Nere", false), ("Ja", true), ("nej", false), ("On", true), ("off", false), ("", true)] {
+            let status = if word.is_empty() { None } else { parse_status(word) };
+            assert_eq!(status.unwrap_or(true), up, "{word}");
+        }
+        assert_eq!(parse_status("kanske"), None);
+        let inv = ports("SW1,Fa0/1,access,10,K,10,999,x,kanske\n");
+        assert!(inv.ports[0].up);
+        assert!(inv.problems.iter().any(|f| f.message.contains("okänd status 'kanske'")));
+    }
+
+    #[test]
+    fn voice_vlan_and_port_security_columns() {
+        let text = "Switch,Port,Lage,Vlan_Id,Vlan_Namn,Tillatna_Vlan,Native_Vlan,Beskrivning,Status,Voice_Vlan,Port_Security\nSW1,Fa0/1,access,10,K,10,999,x,Up,150,2\nSW1,Fa0/2,access,10,K,10,999,x,Up,,\nSW1,Fa0/3,access,10,K,10,999,x,Up,abc,0\n";
+        let inv = Inventory::from_csv_texts(&[("ports.csv", text)]).unwrap();
+        assert_eq!((inv.ports[0].voice_vlan, inv.ports[0].port_security), (Some(150), Some(2)));
+        assert_eq!((inv.ports[1].voice_vlan, inv.ports[1].port_security), (None, None));
+        assert_eq!((inv.ports[2].voice_vlan, inv.ports[2].port_security), (None, None));
+        assert_eq!(inv.problems.len(), 2, "abc och 0 är inga giltiga värden: {:?}", inv.problems);
+    }
+
+    #[test]
+    fn network_not_first_address_warns() {
+        let dhcp = "vlan_id,pool_name,network,mask,pool_start,pool_end,excluded_start,excluded_end,gateway,dns\n10,K,192.168.1.5,255.255.255.192,192.168.1.1,192.168.1.62,192.168.1.1,192.168.1.10,192.168.1.1,8.8.8.8\n";
+        let inv = Inventory::from_csv_texts(&[("dhcp.csv", dhcp)]).unwrap();
+        assert!(messages(&inv).iter().any(|m| m.contains("192.168.1.5 är inte nätets första adress") && m.contains("192.168.1.0/26") && m.starts_with("dhcp.csv:2")));
+        let ok = dhcp.replace("192.168.1.5,", "192.168.1.0,");
+        let inv = Inventory::from_csv_texts(&[("dhcp.csv", &ok)]).unwrap();
+        assert!(!messages(&inv).iter().any(|m| m.contains("första adress")));
+    }
+
+    #[test]
+    fn hostnames_are_checked() {
+        assert!(hostname_problem("SW-Nordvik-1").is_none());
+        assert!(hostname_problem("SW Nordvik").unwrap().contains("otillåtna"));
+        assert!(hostname_problem("SW_1").is_some());
+        assert!(hostname_problem(&"A".repeat(64)).unwrap().contains("63"));
+        assert!(hostname_problem("1SW").unwrap().contains("bokstav"));
+        let inv = ports("Switch ett,Fa0/1,access,10,K,10,999,x,Up\nSwitch ett,Fa0/2,access,10,K,10,999,x,Up\n");
+        let bad: Vec<String> = messages(&inv).into_iter().filter(|m| m.contains("otillåtna tecken")).collect();
+        assert_eq!(bad.len(), 1, "en gång per enhet: {bad:?}");
+        assert!(bad[0].starts_with("ports.csv:2"));
+    }
+
+    #[test]
+    fn allowed_vlans_out_of_range() {
+        let inv = ports("SW1,Gi0/1,trunk,,,\"10,5000,0\",999,x,Up\nSW1,Gi0/2,trunk,,,\"4000-5000\",999,x,Up\nSW1,Gi0/3,trunk,,,\"10-20\",999,x,Up\n");
+        let bad: Vec<String> = messages(&inv).into_iter().filter(|m| m.contains("utanför 1–4094")).collect();
+        assert_eq!(bad.len(), 2, "{bad:?}");
+        assert!(bad[0].contains("5000") || bad[1].contains("5000"));
+        assert!(bad.iter().any(|m| m.starts_with("ports.csv:3") && m.contains("5000")));
+        // Ogiltiga värden följer inte med in i konfigen.
+        assert_eq!(inv.ports[0].allowed, vec![10]);
+        assert!(inv.ports.iter().all(|p| p.allowed.iter().all(|v| (1..=4094).contains(v))));
+    }
+
+    #[test]
+    fn trunks_must_match_both_ways() {
+        let inv = ports(concat!(
+            "SW1,Gi0/2,trunk,,,\"10,20\",999,Port mot SW2,Up\n",
+            "SW2,Gi0/1,trunk,,,\"10,30\",888,Port mot SW1,Up\n",
+        ));
+        let m = messages(&inv);
+        let allowed: Vec<&String> = m.iter().filter(|m| m.contains("tillåter")).collect();
+        assert_eq!(allowed.len(), 1, "{m:?}");
+        assert!(allowed[0].starts_with("ports.csv:2") && allowed[0].contains("SW2") && allowed[0].contains("ports.csv:3"));
+        assert_eq!(m.iter().filter(|m| m.contains("native-VLAN 999 på SW1 Gi0/2 skiljer sig")).count(), 1);
+        // Likadana ändar ger inga fynd.
+        let same = ports("SW1,Gi0/2,trunk,,,\"10,20\",999,Port mot SW2,Up\nSW2,Gi0/1,trunk,,,\"20,10\",999,Port mot SW1,Up\n");
+        assert!(!messages(&same).iter().any(|m| m.contains("tillåter") || m.contains("skiljer sig")));
+    }
+
+    #[test]
+    fn dhcp_pool_smaller_than_access_ports() {
+        let dhcp = "vlan_id,pool_name,network,mask,pool_start,pool_end,excluded_start,excluded_end,gateway,dns\n10,K,10.0.0.0,255.255.255.0,10.0.0.1,10.0.0.12,10.0.0.1,10.0.0.10,10.0.0.1,8.8.8.8\n";
+        let rows: String = (1..=4).map(|n| format!("SW1,Fa0/{n},access,10,K,10,999,x,Up\n")).collect();
+        let inv = Inventory::from_csv_texts(&[("dhcp.csv", dhcp), ("ports.csv", &format!("{PORTS_HEAD}{rows}"))]).unwrap();
+        let m = messages(&inv);
+        assert!(m.iter().any(|m| m.starts_with("dhcp.csv:2") && m.contains("2 lediga adresser men 4 accessportar i VLAN 10")), "{m:?}");
+        let rows: String = (1..=2).map(|n| format!("SW1,Fa0/{n},access,10,K,10,999,x,Up\n")).collect();
+        let inv = Inventory::from_csv_texts(&[("dhcp.csv", dhcp), ("ports.csv", &format!("{PORTS_HEAD}{rows}"))]).unwrap();
+        assert!(!messages(&inv).iter().any(|m| m.contains("lediga adresser men")));
+    }
+
+    #[test]
+    fn voice_vlan_must_be_on_trunk() {
+        let text = "Switch,Port,Lage,Vlan_Id,Vlan_Namn,Tillatna_Vlan,Native_Vlan,Beskrivning,Status,Voice_Vlan\nSW1,Gi0/1,trunk,,,\"10\",999,x,Up,\nSW1,Fa0/1,access,10,K,10,999,x,Up,150\n";
+        let inv = Inventory::from_csv_texts(&[("ports.csv", text)]).unwrap();
+        assert!(messages(&inv).iter().any(|m| m.contains("VLAN 150 används på accessportar men går inte på någon trunk")));
+    }
+
+    #[test]
+    fn sample_files_have_no_new_warnings() {
+        let inv = Inventory::from_csv_texts(&[
+            ("ports.csv", include_str!("../samples/ports.csv")),
+            ("dhcp.csv", include_str!("../samples/dhcp.csv")),
+            ("devices.csv", include_str!("../samples/devices.csv")),
+        ])
+        .unwrap();
+        let m = messages(&inv);
+        for needle in ["otillåtna", "första adress", "lediga adresser men", "skiljer sig", "tillåter", "utanför 1–4094", "okänd status"] {
+            assert!(!m.iter().any(|m| m.contains(needle)), "{needle}: {m:?}");
+        }
     }
 }
