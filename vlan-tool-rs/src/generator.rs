@@ -1,11 +1,11 @@
 //! Bygger Cisco IOS-konfigar som text från CSV-datan.
 //! Switcharna byggs från ports.csv (+ devices.csv), routern från dhcp.csv.
 
-use crate::inventory::{join_vlans, short_port, DeviceRow, Inventory, PortMode, PortRow};
-use crate::parser::peer_of;
+use crate::inventory::{DeviceRow, Inventory, PortMode, PortRow, join_vlans, short_port};
 use crate::net::Subnet;
+use crate::parser::peer_of;
 use crate::settings::Settings;
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use std::collections::BTreeMap;
 
 pub struct Generated {
@@ -40,9 +40,11 @@ fn banner_text(s: &Settings) -> String {
 /// Hanteringsnätet för ACL 10: nätet för DHCP-raden med `mgmt_vlan`, annars hanterings-IP:ns
 /// nät i devices.csv (enhetens egen rad, annars första raden).
 fn mgmt_network(inv: &Inventory, s: &Settings, device: Option<&DeviceRow>) -> Option<Subnet> {
-    inv.dhcp.iter().find(|d| d.vlan == s.mgmt_vlan).map(|d| d.network).or_else(|| {
-        device.or(inv.devices.first()).and_then(|d| Subnet::from_addr_mask(d.mgmt_ip, d.mgmt_mask))
-    })
+    inv.dhcp
+        .iter()
+        .find(|d| d.vlan == s.mgmt_vlan)
+        .map(|d| d.network)
+        .or_else(|| device.or(inv.devices.first()).and_then(|d| Subnet::from_addr_mask(d.mgmt_ip, d.mgmt_mask)))
 }
 
 /// Switchen som ska bli STP-root: den med en trunk vars beskrivning pekar på routern,
@@ -52,7 +54,9 @@ fn stp_root(inv: &Inventory, s: &Settings) -> Option<String> {
     switches
         .iter()
         .find(|(_, ports)| {
-            ports.iter().any(|p| p.mode == PortMode::Trunk && peer_of(&p.description).is_some_and(|x| x.eq_ignore_ascii_case(&s.router_hostname)))
+            ports
+                .iter()
+                .any(|p| p.mode == PortMode::Trunk && peer_of(&p.description).is_some_and(|x| x.eq_ignore_ascii_case(&s.router_hostname)))
         })
         .or(switches.first())
         .map(|(name, _)| name.clone())
@@ -123,13 +127,7 @@ fn end_config(s: &Settings, mgmt: Option<Subnet>) -> Vec<String> {
     lines
 }
 
-pub fn generate_switch(
-    switch: &str,
-    ports: &[&PortRow],
-    names: &BTreeMap<u16, String>,
-    inv: &Inventory,
-    s: &Settings,
-) -> Result<String> {
+pub fn generate_switch(switch: &str, ports: &[&PortRow], names: &BTreeMap<u16, String>, inv: &Inventory, s: &Settings) -> Result<String> {
     let mut lines = base_config(switch, s);
     // transparent gör att VLAN-definitionerna hamnar i running-config istället för bara vlan.dat
     lines.extend(["vtp mode transparent".into(), "spanning-tree mode rapid-pvst".into(), "!".into()]);
@@ -321,15 +319,17 @@ pub fn summarize(mut nets: Vec<Subnet>) -> Vec<Subnet> {
                 continue;
             }
             if let Some(&b) = nets.get(i + 1)
-                && a.prefix == b.prefix && a.prefix > 0 {
-                    let parent = Subnet::new(a.network, a.prefix - 1);
-                    if parent.network == a.network && parent.contains(b.network) {
-                        out.push(parent);
-                        i += 2;
-                        merged = true;
-                        continue;
-                    }
+                && a.prefix == b.prefix
+                && a.prefix > 0
+            {
+                let parent = Subnet::new(a.network, a.prefix - 1);
+                if parent.network == a.network && parent.contains(b.network) {
+                    out.push(parent);
+                    i += 2;
+                    merged = true;
+                    continue;
                 }
+            }
             out.push(a);
             i += 1;
         }
@@ -448,7 +448,10 @@ mod tests {
         assert!(has_line(&sw1, "spanning-tree vlan 10,20,30,99,999 priority 4096"), "{sw1}");
         assert!(!text_of(&all, "SW-Nordvik-2").contains("priority 4096"));
         // Routern pekar på SW2 -> SW2 blir root, inte första switchen.
-        let ports = PORTS.replace("Port mot R-Nordvik-1", "Port mot SW-X").replace("SW-Nordvik-2,Gi0/1,trunk,trunk,trunk,\"10,20,30,99\",999,Port mot SW-Nordvik-1", "SW-Nordvik-2,Gi0/1,trunk,trunk,trunk,\"10,20,30,99\",999,Port mot R-Nordvik-1");
+        let ports = PORTS.replace("Port mot R-Nordvik-1", "Port mot SW-X").replace(
+            "SW-Nordvik-2,Gi0/1,trunk,trunk,trunk,\"10,20,30,99\",999,Port mot SW-Nordvik-1",
+            "SW-Nordvik-2,Gi0/1,trunk,trunk,trunk,\"10,20,30,99\",999,Port mot R-Nordvik-1",
+        );
         let inv = Inventory::from_csv_texts(&[("ports.csv", &ports), ("dhcp.csv", DHCP), ("devices.csv", DEVICES)]).unwrap();
         let all = generate_all(&inv, &Settings::default()).unwrap();
         assert!(!text_of(&all, "SW-Nordvik-1").contains("priority 4096"));
@@ -489,7 +492,9 @@ mod tests {
     #[test]
     fn descriptions_and_banner_are_cleaned() {
         let long = "x".repeat(300);
-        let ports = format!("Switch,Port,Lage,Vlan_Id,Vlan_Namn,Tillatna_Vlan,Native_Vlan,Beskrivning,Status\nSW1,Fa0/1,access,10,K,10,999,\"rad ett\nrad två\",Up\nSW1,Fa0/2,access,10,K,10,999,{long},Up\n");
+        let ports = format!(
+            "Switch,Port,Lage,Vlan_Id,Vlan_Namn,Tillatna_Vlan,Native_Vlan,Beskrivning,Status\nSW1,Fa0/1,access,10,K,10,999,\"rad ett\nrad två\",Up\nSW1,Fa0/2,access,10,K,10,999,{long},Up\n"
+        );
         let inv = Inventory::from_csv_texts(&[("ports.csv", &ports)]).unwrap();
         let s = Settings { banner: "Hej ^C\nandra raden^".into(), ..Settings::default() };
         let text = generate_all(&inv, &s).unwrap().remove(0).text;

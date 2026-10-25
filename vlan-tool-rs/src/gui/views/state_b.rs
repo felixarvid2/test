@@ -1,7 +1,9 @@
 //! Tillstånd för flikarna Portar, VLAN, Topologi, Drift, CSV-data, Subnät och
 //! Inställningar samt mappväljaren. Lagras i `App::sb`.
 
-use super::{csv::CsvState, drift::DriftState, export::ExportState, ports::PortsState, subnet::SubnetState, topo::TopoState, vlans::VlansState};
+use super::{
+    csv::CsvState, drift::DriftState, export::ExportState, ports::PortsState, subnet::SubnetState, topo::TopoState, vlans::VlansState,
+};
 
 #[derive(Default)]
 pub struct StateB {

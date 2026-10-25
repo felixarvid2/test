@@ -7,12 +7,14 @@
 
 use crate::audit::{self, FleetReport};
 use crate::finding::Severity;
-use crate::inventory::{short_port, Inventory};
+use crate::inventory::{Inventory, short_port};
 use crate::parser::{IfMode, Kind};
 use crate::settings::Settings;
 use crate::{generator, report, rules, topology};
 use anyhow::Result;
-use crossterm::event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+use crossterm::event::{
+    self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
+};
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style, Stylize};
 use ratatui::symbols;
@@ -105,14 +107,22 @@ pub fn watch_snapshot(paths: &[PathBuf]) -> Vec<(PathBuf, Option<std::time::Syst
     for p in paths {
         if p.is_dir() {
             if let Ok(rd) = std::fs::read_dir(p) {
-                files.extend(rd.flatten().map(|e| e.path()).filter(|f| f.extension().is_some_and(|e| EXT.iter().any(|x| e.eq_ignore_ascii_case(x)))));
+                files.extend(
+                    rd.flatten().map(|e| e.path()).filter(|f| f.extension().is_some_and(|e| EXT.iter().any(|x| e.eq_ignore_ascii_case(x)))),
+                );
             }
         } else if p.is_file() {
             files.push(p.clone());
         }
     }
     files.sort();
-    files.into_iter().map(|f| { let t = std::fs::metadata(&f).and_then(|m| m.modified()).ok(); (f, t) }).collect()
+    files
+        .into_iter()
+        .map(|f| {
+            let t = std::fs::metadata(&f).and_then(|m| m.modified()).ok();
+            (f, t)
+        })
+        .collect()
 }
 
 /// Base64 (RFC 4648) – bara för OSC 52, så ingen extra crate behövs.
@@ -280,7 +290,8 @@ impl App {
                 match std::fs::read_to_string(&path) {
                     Err(_) => DriftRow { host: g.hostname, change: None, diff: Vec::new() },
                     Ok(saved) => {
-                        let (text, stats) = crate::diff::diff(&path.display().to_string(), &saved, "från CSV", &g.text, report::Paint(false));
+                        let (text, stats) =
+                            crate::diff::diff(&path.display().to_string(), &saved, "från CSV", &g.text, report::Paint(false));
                         let diff = if stats.added + stats.removed == 0 { Vec::new() } else { text.lines().map(str::to_string).collect() };
                         DriftRow { host: g.hostname, change: Some((stats.added, stats.removed)), diff }
                     }
@@ -343,7 +354,12 @@ impl App {
         let mut list: Vec<_> = d
             .findings()
             .filter(|f| self.min_level.is_none_or(|m| f.severity >= m))
-            .filter(|f| q.is_empty() || f.message.to_lowercase().contains(&q) || f.rule.to_lowercase().contains(&q) || f.fix.iter().any(|l| l.to_lowercase().contains(&q)))
+            .filter(|f| {
+                q.is_empty()
+                    || f.message.to_lowercase().contains(&q)
+                    || f.rule.to_lowercase().contains(&q)
+                    || f.fix.iter().any(|l| l.to_lowercase().contains(&q))
+            })
             .collect();
         list.sort_by_key(|f| std::cmp::Reverse(f.severity));
         list
@@ -367,7 +383,8 @@ impl App {
     fn next_match(&mut self, forward: bool) {
         let m = self.config_matches();
         if m.is_empty() {
-            self.status = if self.cfg_query.is_empty() { "Sök i konfigen med /".into() } else { format!("Inga träffar på '{}'", self.cfg_query) };
+            self.status =
+                if self.cfg_query.is_empty() { "Sök i konfigen med /".into() } else { format!("Inga träffar på '{}'", self.cfg_query) };
             return;
         }
         let cur = self.scroll as usize + 4;
@@ -713,11 +730,14 @@ fn draw_devices(f: &mut Frame, app: &mut App, area: Rect) {
         let base = if sel { Style::new().bg(sel_bg()) } else { Style::new() };
         let width = inner.width.saturating_sub(2) as usize;
         let name: String = d.name.chars().take(width.saturating_sub(4)).collect();
-        lines.push(Line::from(vec![
-            Span::styled(if sel { "▌" } else { " " }, Style::new().fg(accent())),
-            Span::styled(format!("{icon} "), Style::new().fg(if sel { accent() } else { muted() })),
-            Span::styled(format!("{name:<w$}", w = width.saturating_sub(3)), Style::new().fg(text()).bold()),
-        ]).style(base));
+        lines.push(
+            Line::from(vec![
+                Span::styled(if sel { "▌" } else { " " }, Style::new().fg(accent())),
+                Span::styled(format!("{icon} "), Style::new().fg(if sel { accent() } else { muted() })),
+                Span::styled(format!("{name:<w$}", w = width.saturating_sub(3)), Style::new().fg(text()).bold()),
+            ])
+            .style(base),
+        );
         let (full, empty) = report::bar(d.score, 12);
         let mut meta = vec![
             Span::raw("   "),
@@ -729,7 +749,8 @@ fn draw_devices(f: &mut Frame, app: &mut App, area: Rect) {
             meta.push(Span::styled(format!(" {}", w.icon()), Style::new().fg(sev_color(w))));
         }
         lines.push(Line::from(meta).style(base));
-        lines.push(Line::from(Span::styled(format!("   {} · {} fynd", d.kind, d.findings().count()), Style::new().fg(muted()))).style(base));
+        lines
+            .push(Line::from(Span::styled(format!("   {} · {} fynd", d.kind, d.findings().count()), Style::new().fg(muted()))).style(base));
         lines.push(Line::raw(""));
     }
     f.render_widget(Paragraph::new(lines), inner);
@@ -761,8 +782,17 @@ fn draw_overview(f: &mut Frame, app: &App, area: Rect) {
             Span::styled("regler OK", Style::new().fg(muted())),
         ]),
         Line::from(vec![
-            Span::styled(format!("{} ", app.csv_findings), Style::new().fg(if app.csv_findings == 0 { good() } else { sev_color(Severity::Medium) }).bold()),
-            Span::styled(format!("anmärkningar i CSV-filerna ({}/)", app.samples.file_name().map_or_else(|| app.samples.display().to_string(), |n| n.to_string_lossy().to_string())), Style::new().fg(muted())),
+            Span::styled(
+                format!("{} ", app.csv_findings),
+                Style::new().fg(if app.csv_findings == 0 { good() } else { sev_color(Severity::Medium) }).bold(),
+            ),
+            Span::styled(
+                format!(
+                    "anmärkningar i CSV-filerna ({}/)",
+                    app.samples.file_name().map_or_else(|| app.samples.display().to_string(), |n| n.to_string_lossy().to_string())
+                ),
+                Style::new().fg(muted()),
+            ),
         ]),
     ])
     .block(panel("Status"));
@@ -824,7 +854,11 @@ fn draw_findings(f: &mut Frame, app: &mut App, area: Rect) {
         title.push_str(&format!(" · sök '{}'", app.query));
     }
     if findings.is_empty() {
-        let msg = if total == 0 { "\n  ✔ Inga fynd – allt ser bra ut!" } else { "\n  Inga fynd matchar filtret – Esc rensar, f byter nivå, / söker" };
+        let msg = if total == 0 {
+            "\n  ✔ Inga fynd – allt ser bra ut!"
+        } else {
+            "\n  Inga fynd matchar filtret – Esc rensar, f byter nivå, / söker"
+        };
         f.render_widget(Paragraph::new(msg).fg(if total == 0 { good() } else { muted() }).block(panel(&title)), area);
         return;
     }
@@ -852,7 +886,10 @@ fn draw_findings(f: &mut Frame, app: &mut App, area: Rect) {
     let mut lines = vec![
         Line::from(Span::styled(rule.map_or(fi.rule.as_str(), |r| r.title), Style::new().fg(text()).bold())),
         Line::from(vec![
-            Span::styled(format!(" {} {} ", fi.severity.icon(), fi.severity.label()), Style::new().fg(bg()).bg(sev_color(fi.severity)).bold()),
+            Span::styled(
+                format!(" {} {} ", fi.severity.icon(), fi.severity.label()),
+                Style::new().fg(bg()).bg(sev_color(fi.severity)).bold(),
+            ),
             Span::styled(format!("  regel {}", fi.rule), Style::new().fg(muted())),
             Span::styled(rule.map(|r| format!(" · {}", r.category)).unwrap_or_default(), Style::new().fg(muted())),
         ]),
@@ -866,23 +903,26 @@ fn draw_findings(f: &mut Frame, app: &mut App, area: Rect) {
     }
     if !fi.fix.is_empty() {
         lines.push(Line::raw(""));
-        lines.push(Line::from(vec![Span::styled("Rättning", Style::new().fg(violet()).bold()), Span::styled("   c kopierar", Style::new().fg(muted()))]));
+        lines.push(Line::from(vec![
+            Span::styled("Rättning", Style::new().fg(violet()).bold()),
+            Span::styled("   c kopierar", Style::new().fg(muted())),
+        ]));
         for l in &fi.fix {
             lines.push(Line::from(Span::styled(format!("  {l}"), Style::new().fg(accent()))));
         }
     }
     if let Some(no) = fi.line {
         lines.push(Line::raw(""));
-        lines.push(Line::from(vec![Span::styled(format!("I konfigen (rad {no})"), Style::new().fg(violet()).bold()), Span::styled("   Enter hoppar dit", Style::new().fg(muted()))]));
+        lines.push(Line::from(vec![
+            Span::styled(format!("I konfigen (rad {no})"), Style::new().fg(violet()).bold()),
+            Span::styled("   Enter hoppar dit", Style::new().fg(muted())),
+        ]));
         let from = no.saturating_sub(3).max(1);
         for l in d.config.lines.iter().filter(|l| l.no >= from && l.no <= no + 3) {
             let hit = l.no == no;
             lines.push(Line::from(vec![
                 Span::styled(format!("{:>4} ", l.no), Style::new().fg(if hit { sev_color(fi.severity) } else { line() })),
-                Span::styled(
-                    l.text.clone(),
-                    if hit { Style::new().fg(text()).bg(hit_bg()) } else { Style::new().fg(muted()) },
-                ),
+                Span::styled(l.text.clone(), if hit { Style::new().fg(text()).bg(hit_bg()) } else { Style::new().fg(muted()) }),
             ]));
         }
     }
@@ -894,7 +934,8 @@ fn draw_findings(f: &mut Frame, app: &mut App, area: Rect) {
 
 fn draw_ports(f: &mut Frame, app: &App, area: Rect) {
     let Some(d) = app.fleet.devices.get(app.device) else { return };
-    let header = Row::new(["Port", "Läge", "VLAN", "Beskrivning", "Status", "Skydd"].map(|h| Cell::from(h).style(Style::new().fg(muted()).bold())));
+    let header =
+        Row::new(["Port", "Läge", "VLAN", "Beskrivning", "Status", "Skydd"].map(|h| Cell::from(h).style(Style::new().fg(muted()).bold())));
     let rows: Vec<Row> = d
         .config
         .interfaces
@@ -920,7 +961,11 @@ fn draw_ports(f: &mut Frame, app: &App, area: Rect) {
                     .or_else(|| i.ip.map(|(a, m)| format!("{a}/{}", crate::net::mask_to_prefix(m).unwrap_or(0))))
                     .unwrap_or_default(),
             };
-            let status = if i.shutdown { Span::styled("● nere", Style::new().fg(sev_color(Severity::Critical))) } else { Span::styled("● uppe", Style::new().fg(good())) };
+            let status = if i.shutdown {
+                Span::styled("● nere", Style::new().fg(sev_color(Severity::Critical)))
+            } else {
+                Span::styled("● uppe", Style::new().fg(good()))
+            };
             let guard = match (i.mode, i.portfast, i.bpduguard) {
                 (IfMode::Access, true, true) => Span::styled("✔ portfast+bpdu", Style::new().fg(good())),
                 (IfMode::Access, _, _) => Span::styled("✖ saknas", Style::new().fg(sev_color(Severity::Low))),
@@ -938,7 +983,14 @@ fn draw_ports(f: &mut Frame, app: &App, area: Rect) {
         .collect();
     let table = Table::new(
         rows,
-        [Constraint::Length(10), Constraint::Length(8), Constraint::Length(18), Constraint::Min(16), Constraint::Length(8), Constraint::Length(16)],
+        [
+            Constraint::Length(10),
+            Constraint::Length(8),
+            Constraint::Length(18),
+            Constraint::Min(16),
+            Constraint::Length(8),
+            Constraint::Length(16),
+        ],
     )
     .header(header)
     .column_spacing(2)
@@ -955,18 +1007,36 @@ fn draw_vlans(f: &mut Frame, app: &App, area: Rect) {
     }
     let name_of = |v: u16| devices.iter().find_map(|d| d.config.vlans.get(&v).filter(|n| !n.is_empty()).cloned()).unwrap_or_default();
 
-    let mut header = vec![Cell::from("VLAN").style(Style::new().fg(muted()).bold()), Cell::from("Namn").style(Style::new().fg(muted()).bold())];
+    let mut header =
+        vec![Cell::from("VLAN").style(Style::new().fg(muted()).bold()), Cell::from("Namn").style(Style::new().fg(muted()).bold())];
     header.extend(devices.iter().map(|d| Cell::from(d.name.clone()).style(Style::new().fg(muted()).bold())));
     let rows: Vec<Row> = vlans
         .iter()
         .skip(app.scroll as usize)
         .map(|&v| {
-            let mut cells = vec![Cell::from(v.to_string()).style(Style::new().fg(accent()).bold()), Cell::from(name_of(v)).style(Style::new().fg(text()))];
+            let mut cells = vec![
+                Cell::from(v.to_string()).style(Style::new().fg(accent()).bold()),
+                Cell::from(name_of(v)).style(Style::new().fg(text())),
+            ];
             for d in devices {
                 let access = d.config.interfaces.iter().filter(|i| i.mode == IfMode::Access && i.access_vlan == Some(v)).count();
-                let trunk = d.config.interfaces.iter().filter(|i| i.mode == IfMode::Trunk && i.allowed.as_ref().is_none_or(|a| a.contains(&v))).count();
-                let native = d.config.interfaces.iter().any(|i| (i.mode == IfMode::Trunk && i.native_vlan == Some(v)) || (i.dot1q == Some(v) && i.dot1q_native));
-                let gw = d.config.interfaces.iter().find(|i| (i.dot1q == Some(v) && !i.dot1q_native) || i.svi_vlan() == Some(v)).and_then(|i| i.ip);
+                let trunk = d
+                    .config
+                    .interfaces
+                    .iter()
+                    .filter(|i| i.mode == IfMode::Trunk && i.allowed.as_ref().is_none_or(|a| a.contains(&v)))
+                    .count();
+                let native = d
+                    .config
+                    .interfaces
+                    .iter()
+                    .any(|i| (i.mode == IfMode::Trunk && i.native_vlan == Some(v)) || (i.dot1q == Some(v) && i.dot1q_native));
+                let gw = d
+                    .config
+                    .interfaces
+                    .iter()
+                    .find(|i| (i.dot1q == Some(v) && !i.dot1q_native) || i.svi_vlan() == Some(v))
+                    .and_then(|i| i.ip);
                 let defined = d.config.vlans.contains_key(&v);
                 let mut spans = Vec::new();
                 if access > 0 {
@@ -993,7 +1063,10 @@ fn draw_vlans(f: &mut Frame, app: &App, area: Rect) {
         .collect();
     let mut widths = vec![Constraint::Length(6), Constraint::Length(12)];
     widths.extend(devices.iter().map(|_| Constraint::Min(19)));
-    let table = Table::new(rows, widths).header(Row::new(header)).column_spacing(2).block(panel("VLAN-matris   ■ accessportar  ⇅ trunkar  ◉ gateway"));
+    let table = Table::new(rows, widths)
+        .header(Row::new(header))
+        .column_spacing(2)
+        .block(panel("VLAN-matris   ■ accessportar  ⇅ trunkar  ◉ gateway"));
     f.render_widget(table, area);
 }
 
@@ -1015,9 +1088,10 @@ fn draw_topology(f: &mut Frame, app: &App, area: Rect) {
             let name_style = if l.device { Style::new().fg(color).bold() } else { Style::new().fg(text()) };
             spans.push(Span::styled(format!("{icon} {}", l.peer), name_style));
             if l.device
-                && let Some(k) = l.kind {
-                    spans.push(Span::styled(format!(" ({})", k.label()), Style::new().fg(muted())));
-                }
+                && let Some(k) = l.kind
+            {
+                spans.push(Span::styled(format!(" ({})", k.label()), Style::new().fg(muted())));
+            }
             spans.push(Span::styled(format!("  {}", l.info), Style::new().fg(muted())));
             if l.down {
                 spans.push(Span::styled("  [avstängd]", Style::new().fg(sev_color(Severity::Critical))));
@@ -1026,7 +1100,10 @@ fn draw_topology(f: &mut Frame, app: &App, area: Rect) {
         })
         .collect();
     let total = lines.len() as u16;
-    f.render_widget(Paragraph::new(lines).scroll((app.scroll.min(total.saturating_sub(1)), 0)).block(panel("Topologi (från portbeskrivningar)")), area);
+    f.render_widget(
+        Paragraph::new(lines).scroll((app.scroll.min(total.saturating_sub(1)), 0)).block(panel("Topologi (från portbeskrivningar)")),
+        area,
+    );
 }
 
 /// Enkel syntaxfärgning för IOS-rader.
@@ -1038,7 +1115,13 @@ fn highlight(row: &str) -> Vec<Span<'static>> {
     let t = row.trim_start();
     let mut spans = vec![Span::raw(" ".repeat(indent))];
     let (first, rest) = t.split_once(' ').unwrap_or((t, ""));
-    let head = if t.starts_with("no ") { Style::new().fg(sev_color(Severity::High)) } else if indent == 0 { Style::new().fg(accent()).bold() } else { Style::new().fg(violet()) };
+    let head = if t.starts_with("no ") {
+        Style::new().fg(sev_color(Severity::High))
+    } else if indent == 0 {
+        Style::new().fg(accent()).bold()
+    } else {
+        Style::new().fg(violet())
+    };
     spans.push(Span::styled(first.to_string(), head));
     for word in rest.split(' ') {
         let style = if crate::net::parse_ip(word).is_some() {
@@ -1058,11 +1141,12 @@ fn highlight(row: &str) -> Vec<Span<'static>> {
 
 fn draw_config(f: &mut Frame, app: &App, area: Rect) {
     let Some(d) = app.fleet.devices.get(app.device) else { return };
-    let marks: std::collections::HashMap<usize, Severity> = d.findings().filter_map(|fi| fi.line.map(|l| (l, fi.severity))).fold(Default::default(), |mut m, (l, s)| {
-        let e = m.entry(l).or_insert(s);
-        *e = (*e).max(s);
-        m
-    });
+    let marks: std::collections::HashMap<usize, Severity> =
+        d.findings().filter_map(|fi| fi.line.map(|l| (l, fi.severity))).fold(Default::default(), |mut m, (l, s)| {
+            let e = m.entry(l).or_insert(s);
+            *e = (*e).max(s);
+            m
+        });
     let found: BTreeSet<usize> = app.config_matches().into_iter().collect();
     let lines: Vec<Line> = d
         .config
@@ -1096,7 +1180,10 @@ fn draw_config(f: &mut Frame, app: &App, area: Rect) {
     f.render_widget(Paragraph::new(lines).scroll((scroll as u16, 0)).block(panel(&title)), area);
     let mut sb = ScrollbarState::new(total).position(scroll);
     f.render_stateful_widget(
-        Scrollbar::new(ScrollbarOrientation::VerticalRight).symbols(symbols::scrollbar::VERTICAL).style(Style::new().fg(line())).thumb_style(Style::new().fg(accent())),
+        Scrollbar::new(ScrollbarOrientation::VerticalRight)
+            .symbols(symbols::scrollbar::VERTICAL)
+            .style(Style::new().fg(line()))
+            .thumb_style(Style::new().fg(accent())),
         area.inner(ratatui::layout::Margin { vertical: 1, horizontal: 0 }),
         &mut sb,
     );
@@ -1107,7 +1194,13 @@ fn draw_drift(f: &mut Frame, app: &App, area: Rect) {
     let rows = match &app.drift {
         Ok(r) => r,
         Err(e) => {
-            f.render_widget(Paragraph::new(format!("\n  ✖ Kan inte jämföra: {e}")).fg(sev_color(Severity::Critical)).wrap(Wrap { trim: false }).block(panel("Drift")), area);
+            f.render_widget(
+                Paragraph::new(format!("\n  ✖ Kan inte jämföra: {e}"))
+                    .fg(sev_color(Severity::Critical))
+                    .wrap(Wrap { trim: false })
+                    .block(panel("Drift")),
+                area,
+            );
             return;
         }
     };
@@ -1194,7 +1287,10 @@ fn draw_rules(f: &mut Frame, app: &App, area: Rect) {
     widths.extend(devices.iter().map(|_| Constraint::Min(10)));
     let ok: usize = devices.iter().map(|d| d.passed()).sum();
     let all: usize = devices.iter().map(|d| d.results.len()).sum();
-    let table = Table::new(rows, widths).header(Row::new(header)).column_spacing(2).block(panel(&format!("Regler per enhet – {ok}/{all} OK   ✔ godkänd  ▲ fynd (värsta nivå, antal)  – gäller ej")));
+    let table = Table::new(rows, widths)
+        .header(Row::new(header))
+        .column_spacing(2)
+        .block(panel(&format!("Regler per enhet – {ok}/{all} OK   ✔ godkänd  ▲ fynd (värsta nivå, antal)  – gäller ej")));
     f.render_widget(table, area);
 }
 
@@ -1238,12 +1334,19 @@ fn draw_footer(f: &mut Frame, app: &App, area: Rect) {
     let device = app.fleet.devices.get(app.device).map_or("–", |d| d.name.as_str());
     let left = Line::from(vec![
         Span::styled(format!(" {dir} "), Style::new().fg(accent())),
-        Span::styled(format!("· {device} · inläst för {ago} sedan{}", if app.auto_reload { " · bevakar filer" } else { "" }), Style::new().fg(muted())),
+        Span::styled(
+            format!("· {device} · inläst för {ago} sedan{}", if app.auto_reload { " · bevakar filer" } else { "" }),
+            Style::new().fg(muted()),
+        ),
     ]);
     let cols = Layout::new(Direction::Horizontal, [Constraint::Min(10), Constraint::Length(48)]).split(rows[1]);
     f.render_widget(Paragraph::new(left).style(Style::new().bg(bg())), cols[0]);
     let color = if app.status.starts_with('✖') { sev_color(Severity::Critical) } else { good() };
-    f.render_widget(Paragraph::new(Line::from(Span::styled(app.status.clone(), Style::new().fg(color))).alignment(Alignment::Right)).style(Style::new().bg(bg())), cols[1]);
+    f.render_widget(
+        Paragraph::new(Line::from(Span::styled(app.status.clone(), Style::new().fg(color))).alignment(Alignment::Right))
+            .style(Style::new().bg(bg())),
+        cols[1],
+    );
 }
 
 fn draw_help(f: &mut Frame, area: Rect) {
@@ -1272,7 +1375,10 @@ fn draw_help(f: &mut Frame, area: Rect) {
     f.render_widget(Clear, rect);
     let mut lines = vec![Line::raw("")];
     for (k, v) in rows {
-        lines.push(Line::from(vec![Span::styled(format!("  {k:<18}"), Style::new().fg(accent()).bold()), Span::styled(v, Style::new().fg(text()))]));
+        lines.push(Line::from(vec![
+            Span::styled(format!("  {k:<18}"), Style::new().fg(accent()).bold()),
+            Span::styled(v, Style::new().fg(text())),
+        ]));
     }
     lines.push(Line::raw(""));
     lines.push(Line::from(Span::styled("  Nivåer", Style::new().fg(violet()).bold())));
@@ -1290,8 +1396,8 @@ fn draw_help(f: &mut Frame, area: Rect) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ratatui::backend::TestBackend;
     use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
 
     #[test]
     fn renders_every_tab() {
@@ -1317,7 +1423,10 @@ mod tests {
 
     fn screen(term: &Terminal<TestBackend>) -> String {
         let buf = term.backend().buffer();
-        (0..buf.area.height).map(|y| (0..buf.area.width).map(|x| buf[(x, y)].symbol().to_string()).collect::<String>()).collect::<Vec<_>>().join("\n")
+        (0..buf.area.height)
+            .map(|y| (0..buf.area.width).map(|x| buf[(x, y)].symbol().to_string()).collect::<String>())
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 
     #[test]
@@ -1336,7 +1445,12 @@ mod tests {
     fn search_filter_and_jump() {
         let mut app = example_app();
         // Välj en enhet som har fynd med rad och rättning.
-        let dev = app.fleet.devices.iter().position(|d| d.findings().any(|f| f.line.is_some() && !f.fix.is_empty())).expect("exempelkonfigarna har fynd");
+        let dev = app
+            .fleet
+            .devices
+            .iter()
+            .position(|d| d.findings().any(|f| f.line.is_some() && !f.fix.is_empty()))
+            .expect("exempelkonfigarna har fynd");
         app.set_device(dev);
         app.set_tab(TAB_FINDINGS);
         let all = app.findings_sorted().len();
@@ -1386,14 +1500,24 @@ mod tests {
             assert!(!screen(&term).contains("Enheter"), "sidopanelen ska döljas under 100 kolumner");
         }
         let tab3 = app.hits.tabs[2];
-        app.on_mouse(MouseEvent { kind: MouseEventKind::Down(MouseButton::Left), column: tab3.x, row: tab3.y, modifiers: KeyModifiers::NONE });
+        app.on_mouse(MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: tab3.x,
+            row: tab3.y,
+            modifiers: KeyModifiers::NONE,
+        });
         assert_eq!(app.tab, 2);
         // Brett fönster: klick på andra enheten.
         let mut term = Terminal::new(TestBackend::new(140, 40)).unwrap();
         term.draw(|f| draw(f, &mut app)).unwrap();
         assert!(screen(&term).contains("Enheter"));
         let d = app.hits.devices;
-        app.on_mouse(MouseEvent { kind: MouseEventKind::Down(MouseButton::Left), column: d.x + 2, row: d.y + 4, modifiers: KeyModifiers::NONE });
+        app.on_mouse(MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: d.x + 2,
+            row: d.y + 4,
+            modifiers: KeyModifiers::NONE,
+        });
         assert_eq!(app.device, 1);
         // Ljust tema ritar alla flikar.
         app.on_key(KeyCode::Char('t'), KeyModifiers::NONE);

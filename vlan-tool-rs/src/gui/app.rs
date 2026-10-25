@@ -36,8 +36,19 @@ pub enum Tab {
 }
 
 impl Tab {
-    pub const ALL: [Tab; 11] =
-        [Tab::Overview, Tab::Findings, Tab::Rules, Tab::Ports, Tab::Vlans, Tab::Topology, Tab::Config, Tab::Drift, Tab::Csv, Tab::Subnet, Tab::Settings];
+    pub const ALL: [Tab; 11] = [
+        Tab::Overview,
+        Tab::Findings,
+        Tab::Rules,
+        Tab::Ports,
+        Tab::Vlans,
+        Tab::Topology,
+        Tab::Config,
+        Tab::Drift,
+        Tab::Csv,
+        Tab::Subnet,
+        Tab::Settings,
+    ];
 
     pub fn label(self) -> &'static str {
         match self {
@@ -96,7 +107,15 @@ pub struct Prefs {
 
 impl Default for Prefs {
     fn default() -> Self {
-        Prefs { dark: true, last_project: None, recent: Vec::new(), contrast: false, zoom: 1.0, cfg_font: 13.0, per_project: BTreeMap::new() }
+        Prefs {
+            dark: true,
+            last_project: None,
+            recent: Vec::new(),
+            contrast: false,
+            zoom: 1.0,
+            cfg_font: 13.0,
+            per_project: BTreeMap::new(),
+        }
     }
 }
 
@@ -167,9 +186,10 @@ impl App {
         }
         // För skärmbilder och felsökning: VLANTOOL_TAB=topologi, VLANTOOL_DEVICE=1, VLANTOOL_THEME=light.
         if let Ok(tab) = std::env::var("VLANTOOL_TAB")
-            && let Some(t) = Tab::ALL.iter().find(|t| t.label().eq_ignore_ascii_case(&tab)) {
-                app.tab = *t;
-            }
+            && let Some(t) = Tab::ALL.iter().find(|t| t.label().eq_ignore_ascii_case(&tab))
+        {
+            app.tab = *t;
+        }
         if let Some(d) = std::env::var("VLANTOOL_DEVICE").ok().and_then(|d| d.parse().ok()) {
             app.select_device(d);
         }
@@ -354,7 +374,10 @@ impl App {
     fn remember_view(&mut self) {
         let Some(project) = &self.project else { return };
         let key = project.root.to_string_lossy().to_string();
-        let want = ProjView { tab: self.tab.label().to_string(), device: self.fleet.devices.get(self.device).map(|d| d.name.clone()).unwrap_or_default() };
+        let want = ProjView {
+            tab: self.tab.label().to_string(),
+            device: self.fleet.devices.get(self.device).map(|d| d.name.clone()).unwrap_or_default(),
+        };
         if self.prefs.per_project.get(&key) != Some(&want) {
             self.prefs.per_project.insert(key, want);
         }
@@ -468,7 +491,13 @@ impl App {
         let rect = ctx.content_rect();
         painter.rect_filled(rect, 0.0, theme::alpha(p.bg, 0.85));
         painter.rect_stroke(rect.shrink(18.0), CornerRadius::same(16), Stroke::new(2.5, p.accent), egui::StrokeKind::Inside);
-        painter.text(rect.center(), egui::Align2::CENTER_CENTER, "Släpp .cfg-filer här för att lägga dem i configs/", egui::FontId::proportional(24.0), p.text);
+        painter.text(
+            rect.center(),
+            egui::Align2::CENTER_CENTER,
+            "Släpp .cfg-filer här för att lägga dem i configs/",
+            egui::FontId::proportional(24.0),
+            p.text,
+        );
     }
 
     pub fn generate(&mut self) {
@@ -543,7 +572,6 @@ impl App {
     }
 
     /// Används av testerna och reserv för kommandon; rubrikens Exportera-knapp öppnar views::export.
-    #[allow(dead_code)]
     pub fn export(&mut self, format: Format) {
         let Some(project) = &self.project else { return };
         if self.fleet.devices.is_empty() {
@@ -572,7 +600,6 @@ impl App {
         }
     }
 
-    #[allow(dead_code)]
     pub fn export_fix_scripts(&mut self) {
         let Some(project) = &self.project else { return };
         let mut written = 0;
@@ -605,7 +632,9 @@ impl App {
         let (reload, generate, open, theme, tabs, palette_key, help, find, zoom, zoom_reset) = ctx.input(|i| {
             let ctrl = i.modifiers.command;
             let mut tab = None;
-            for (n, key) in [Key::Num1, Key::Num2, Key::Num3, Key::Num4, Key::Num5, Key::Num6, Key::Num7, Key::Num8, Key::Num9].iter().enumerate() {
+            for (n, key) in
+                [Key::Num1, Key::Num2, Key::Num3, Key::Num4, Key::Num5, Key::Num6, Key::Num7, Key::Num8, Key::Num9].iter().enumerate()
+            {
                 if ctrl && i.key_pressed(*key) {
                     tab = Some(n);
                 }
@@ -675,7 +704,8 @@ impl App {
         }
         if self.tab.per_device() && !self.fleet.devices.is_empty() && !(self.tab == Tab::Findings && self.sa.all_devices) {
             let order = self.device_order();
-            let (up, down) = ctx.input(|i| (i.modifiers.command && i.key_pressed(Key::ArrowUp), i.modifiers.command && i.key_pressed(Key::ArrowDown)));
+            let (up, down) =
+                ctx.input(|i| (i.modifiers.command && i.key_pressed(Key::ArrowUp), i.modifiers.command && i.key_pressed(Key::ArrowDown)));
             if !order.is_empty() && (up || down) {
                 let n = order.len();
                 let pos = order.iter().position(|&d| d == self.device);
@@ -715,7 +745,11 @@ impl App {
                             ui.label(RichText::new("SENASTE PROJEKT").size(11.0).color(p.muted));
                             for dir in &recent {
                                 let current = *dir == root;
-                                let label = format!("{} {}", if current { "✔" } else { "  " }, dir.file_name().map_or_else(|| dir.display().to_string(), |n| n.to_string_lossy().to_string()));
+                                let label = format!(
+                                    "{} {}",
+                                    if current { "✔" } else { "  " },
+                                    dir.file_name().map_or_else(|| dir.display().to_string(), |n| n.to_string_lossy().to_string())
+                                );
                                 if ui.button(label).on_hover_text(dir.display().to_string()).clicked() {
                                     open = Some(dir.clone());
                                     ui.close();
@@ -744,10 +778,18 @@ impl App {
                         }
                     }
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        if ui.add(egui::Button::new(RichText::new("?").size(16.0)).frame(false)).on_hover_text("Kortkommandon (F1)").clicked() {
+                        if ui
+                            .add(egui::Button::new(RichText::new("?").size(16.0)).frame(false))
+                            .on_hover_text("Kortkommandon (F1)")
+                            .clicked()
+                        {
                             self.sa.help_open = true;
                         }
-                        if ui.add(egui::Button::new(RichText::new(format!("◐ {}", self.theme_label())).size(14.0)).frame(false)).on_hover_text("Byt tema: mörkt, ljust, högkontrast (Ctrl+T)").clicked() {
+                        if ui
+                            .add(egui::Button::new(RichText::new(format!("◐ {}", self.theme_label())).size(14.0)).frame(false))
+                            .on_hover_text("Byt tema: mörkt, ljust, högkontrast (Ctrl+T)")
+                            .clicked()
+                        {
                             self.cycle_theme();
                         }
                         if self.project.is_none() {
@@ -761,14 +803,19 @@ impl App {
                             self.reload();
                             self.toast("Läste om projektet");
                         }
-                        if theme::primary_button(ui, "⚡ Generera från CSV", dark).on_hover_text("Bygg konfigar från CSV-filerna och granska dem (Ctrl+G)").clicked() {
+                        if theme::primary_button(ui, "⚡ Generera från CSV", dark)
+                            .on_hover_text("Bygg konfigar från CSV-filerna och granska dem (Ctrl+G)")
+                            .clicked()
+                        {
                             self.generate();
                         }
                         ui.add_space(12.0);
                         let fleet = &self.fleet;
                         if !fleet.devices.is_empty() {
                             theme::chip(ui, &format!("Betyg {}", fleet.grade), theme::score_color(fleet.score, dark));
-                            ui.label(RichText::new(format!("{}", fleet.score)).size(18.0).strong().color(theme::score_color(fleet.score, dark)));
+                            ui.label(
+                                RichText::new(format!("{}", fleet.score)).size(18.0).strong().color(theme::score_color(fleet.score, dark)),
+                            );
                             ui.label(RichText::new("Hela nätet").color(p.muted));
                         }
                     });
@@ -792,26 +839,57 @@ impl App {
                         ui.label(RichText::new("DATA OCH VERKTYG").size(11.0).color(p.muted));
                     }
                     let badge = match tab {
-                        Tab::Findings => Some((self.fleet.all_findings().filter(|f| f.severity >= Severity::Medium).count(), self.fleet.worst())),
-                        Tab::Csv => Some((self.csv_findings.iter().filter(|f| f.severity >= Severity::Medium).count(), self.csv_findings.first().map(|f| f.severity))),
-                        Tab::Drift => Some((self.drift.iter().filter(|d| !d.saved || d.added + d.removed > 0).count(), Some(Severity::Medium))),
+                        Tab::Findings => {
+                            Some((self.fleet.all_findings().filter(|f| f.severity >= Severity::Medium).count(), self.fleet.worst()))
+                        }
+                        Tab::Csv => Some((
+                            self.csv_findings.iter().filter(|f| f.severity >= Severity::Medium).count(),
+                            self.csv_findings.first().map(|f| f.severity),
+                        )),
+                        Tab::Drift => {
+                            Some((self.drift.iter().filter(|d| !d.saved || d.added + d.removed > 0).count(), Some(Severity::Medium)))
+                        }
                         _ => None,
                     };
                     let selected = self.tab == tab;
                     let (rect, resp) = ui.allocate_exact_size(Vec2::new(ui.available_width(), 34.0), egui::Sense::click());
                     if selected || resp.hovered() {
-                        ui.painter().rect_filled(rect, CornerRadius::same(8), if selected { theme::alpha(p.accent, 0.18) } else { p.raised });
+                        ui.painter().rect_filled(
+                            rect,
+                            CornerRadius::same(8),
+                            if selected { theme::alpha(p.accent, 0.18) } else { p.raised },
+                        );
                     }
                     if selected {
-                        ui.painter().rect_filled(egui::Rect::from_min_size(rect.min + Vec2::new(0.0, 8.0), Vec2::new(3.0, 18.0)), CornerRadius::same(2), p.accent);
+                        ui.painter().rect_filled(
+                            egui::Rect::from_min_size(rect.min + Vec2::new(0.0, 8.0), Vec2::new(3.0, 18.0)),
+                            CornerRadius::same(2),
+                            p.accent,
+                        );
                     }
                     let color = if selected { p.accent } else { p.text };
-                    ui.painter().text(rect.left_center() + Vec2::new(14.0, 0.0), egui::Align2::LEFT_CENTER, tab.icon(), egui::FontId::proportional(15.0), if selected { p.accent } else { p.muted });
-                    ui.painter().text(rect.left_center() + Vec2::new(40.0, 0.0), egui::Align2::LEFT_CENTER, tab.label(), egui::FontId::proportional(14.5), color);
+                    ui.painter().text(
+                        rect.left_center() + Vec2::new(14.0, 0.0),
+                        egui::Align2::LEFT_CENTER,
+                        tab.icon(),
+                        egui::FontId::proportional(15.0),
+                        if selected { p.accent } else { p.muted },
+                    );
+                    ui.painter().text(
+                        rect.left_center() + Vec2::new(40.0, 0.0),
+                        egui::Align2::LEFT_CENTER,
+                        tab.label(),
+                        egui::FontId::proportional(14.5),
+                        color,
+                    );
                     if let Some((n, sev)) = badge.filter(|(n, _)| *n > 0) {
                         let c = sev.map_or(p.muted, |s| theme::sev_color(s, dark));
                         let center = rect.right_center() - Vec2::new(20.0, 0.0);
-                        ui.painter().rect_filled(egui::Rect::from_center_size(center, Vec2::new(28.0, 18.0)), CornerRadius::same(9), theme::alpha(c, 0.2));
+                        ui.painter().rect_filled(
+                            egui::Rect::from_center_size(center, Vec2::new(28.0, 18.0)),
+                            CornerRadius::same(9),
+                            theme::alpha(c, 0.2),
+                        );
                         ui.painter().text(center, egui::Align2::CENTER_CENTER, n.to_string(), egui::FontId::proportional(11.5), c);
                     }
                     if tab == Tab::Settings && settings_dirty {
@@ -825,7 +903,9 @@ impl App {
                 }
                 ui.with_layout(Layout::bottom_up(Align::Min), |ui| {
                     ui.label(RichText::new(format!("vlantool {}", env!("CARGO_PKG_VERSION"))).size(11.0).color(p.muted));
-                    if self.project.is_some() && ui.add(egui::Button::new(RichText::new("Stäng projektet").size(12.0).color(p.muted)).frame(false)).clicked() {
+                    if self.project.is_some()
+                        && ui.add(egui::Button::new(RichText::new("Stäng projektet").size(12.0).color(p.muted)).frame(false)).clicked()
+                    {
                         self.close_project();
                     }
                     if ui.add(egui::Button::new(RichText::new("Ctrl+K  Kommandon").size(12.0).color(p.muted)).frame(false)).clicked() {
@@ -857,10 +937,19 @@ impl App {
                     ui.label(RichText::new("·").color(p.line));
                     ui.label(RichText::new(format!("{total} fynd")).size(12.0).color(p.muted));
                     if critical > 0 {
-                        ui.label(RichText::new(format!("{critical} kritiska")).size(12.0).strong().color(theme::sev_color(Severity::Critical, dark)));
+                        ui.label(
+                            RichText::new(format!("{critical} kritiska"))
+                                .size(12.0)
+                                .strong()
+                                .color(theme::sev_color(Severity::Critical, dark)),
+                        );
                     }
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        ui.label(RichText::new(format!("{} · text {:.0} %", self.theme_label(), self.prefs.zoom * 100.0)).size(12.0).color(p.muted));
+                        ui.label(
+                            RichText::new(format!("{} · text {:.0} %", self.theme_label(), self.prefs.zoom * 100.0))
+                                .size(12.0)
+                                .color(p.muted),
+                        );
                     });
                 });
             });
@@ -975,15 +1064,13 @@ impl eframe::App for App {
             self.statusbar(ui);
             self.sidebar(ui);
         }
-        egui::CentralPanel::default()
-            .frame(egui::Frame::new().fill(p.bg).inner_margin(Margin::same(20)))
-            .show(ui, |ui| {
-                if self.project.is_none() {
-                    views::welcome(self, ui);
-                } else {
-                    views::show(self, ui);
-                }
-            });
+        egui::CentralPanel::default().frame(egui::Frame::new().fill(p.bg).inner_margin(Margin::same(20))).show(ui, |ui| {
+            if self.project.is_none() {
+                views::welcome(self, ui);
+            } else {
+                views::show(self, ui);
+            }
+        });
 
         if let Some(dialog) = &mut self.folder {
             match dialog.show(&ctx, self.prefs.dark) {
@@ -1133,11 +1220,13 @@ mod tests {
     #[test]
     fn theme_cycles_through_three_looks() {
         let mut app = App::empty(Prefs::default());
-        let seen: Vec<_> = (0..4).map(|_| {
-            let l = app.theme_label();
-            app.cycle_theme();
-            l
-        }).collect();
+        let seen: Vec<_> = (0..4)
+            .map(|_| {
+                let l = app.theme_label();
+                app.cycle_theme();
+                l
+            })
+            .collect();
         assert_eq!(seen, vec!["Mörkt", "Ljust", "Kontrast", "Mörkt"]);
         assert_eq!(ago_text(2), "just nu");
         assert_eq!(ago_text(75), "för 1 min sedan");

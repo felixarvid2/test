@@ -19,11 +19,7 @@ pub fn mask_to_prefix(mask: Ipv4Addr) -> Option<u8> {
 }
 
 pub fn prefix_to_mask(prefix: u8) -> Ipv4Addr {
-    if prefix == 0 {
-        Ipv4Addr::new(0, 0, 0, 0)
-    } else {
-        Ipv4Addr::from(u32::MAX << (32 - u32::from(prefix)))
-    }
+    if prefix == 0 { Ipv4Addr::new(0, 0, 0, 0) } else { Ipv4Addr::from(u32::MAX << (32 - u32::from(prefix))) }
 }
 
 /// Ett IPv4-nät, t.ex. 192.168.1.0/26.

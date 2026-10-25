@@ -1,10 +1,10 @@
 //! Gör läsbara rapporter av granskningen: terminal (med färg), text, Markdown,
 //! JSON, CSV och en fristående HTML-sida.
 
-use crate::audit::{DeviceReport, FleetReport, CROSS_CATEGORY};
+use crate::audit::{CROSS_CATEGORY, DeviceReport, FleetReport};
 use crate::finding::{Finding, Severity};
-use serde_json::json;
 use owo_colors::OwoColorize;
+use serde_json::json;
 use std::fmt::Write as _;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
@@ -236,7 +236,12 @@ fn device_terminal(d: &DeviceReport, opt: Options, term: Option<usize>, out: &mu
             finding_lines(p, f, opt, term, out);
         }
     }
-    let _ = writeln!(out, "\n  {}  {}\n", p.bold(&format!("{}/{} regler godkända", d.passed(), d.results.len())), counts_line(p, |s| d.count(s)));
+    let _ = writeln!(
+        out,
+        "\n  {}  {}\n",
+        p.bold(&format!("{}/{} regler godkända", d.passed(), d.results.len())),
+        counts_line(p, |s| d.count(s))
+    );
 }
 
 /// Regelns förklaring, dämpad och indragen under regelraden (bara i utförligt läge).
@@ -309,11 +314,7 @@ pub fn terminal_with_width(fleet: &FleetReport, opt: Options, width: Option<usiz
 fn summary_table(fleet: &FleetReport, p: Paint, out: &mut String) {
     let _ = writeln!(out, "{}", p.bold("  Sammanfattning"));
     let _ = writeln!(out, "  {}", p.dim(&"─".repeat(72)));
-    let _ = writeln!(
-        out,
-        "  {}",
-        p.dim(&format!("{}{}{}{}", pad("Enhet", 18), pad("Typ", 9), pad("Betyg", 22), "K  H  M  L  I"))
-    );
+    let _ = writeln!(out, "  {}", p.dim(&format!("{}{}{}{}", pad("Enhet", 18), pad("Typ", 9), pad("Betyg", 22), "K  H  M  L  I")));
     for d in &fleet.devices {
         let (full, empty) = bar(d.score, 14);
         let nums: Vec<String> = Severity::ALL
@@ -389,7 +390,14 @@ pub fn markdown(fleet: &FleetReport, opt: Options) -> String {
     }
     out.push_str("\n## Innehåll\n\n");
     for d in &fleet.devices {
-        let _ = writeln!(out, "- [{} ({}) – {}/100](#{})", d.name, d.kind, d.score, slug(&format!("{} ({}) – {}/100", d.name, d.kind, d.score)));
+        let _ = writeln!(
+            out,
+            "- [{} ({}) – {}/100](#{})",
+            d.name,
+            d.kind,
+            d.score,
+            slug(&format!("{} ({}) – {}/100", d.name, d.kind, d.score))
+        );
     }
     if !fleet.cross.is_empty() || !fleet.links.is_empty() {
         let _ = writeln!(out, "- [Mellan enheterna](#{})", slug("Mellan enheterna"));
@@ -404,7 +412,14 @@ pub fn markdown(fleet: &FleetReport, opt: Options) -> String {
             } else {
                 let text: Vec<String> = shown
                     .iter()
-                    .map(|f| format!("**{}** {}{}", f.severity.label(), f.message.replace('|', "\\|"), f.line.map(|l| format!(" (rad {l})")).unwrap_or_default()))
+                    .map(|f| {
+                        format!(
+                            "**{}** {}{}",
+                            f.severity.label(),
+                            f.message.replace('|', "\\|"),
+                            f.line.map(|l| format!(" (rad {l})")).unwrap_or_default()
+                        )
+                    })
                     .collect();
                 let _ = writeln!(out, "| ❌ | {} | {} |", r.title, text.join("<br>"));
             }
@@ -439,7 +454,14 @@ pub fn csv(fleet: &FleetReport) -> String {
     let _ = w.write_record(["enhet", "regel", "allvarlighet", "rad", "fynd", "rättning"]);
     for d in &fleet.devices {
         for f in d.findings() {
-            let _ = w.write_record([&d.name, &f.rule, f.severity.label(), &f.line.map(|l| l.to_string()).unwrap_or_default(), &f.message, &f.fix.join("\n")]);
+            let _ = w.write_record([
+                &d.name,
+                &f.rule,
+                f.severity.label(),
+                &f.line.map(|l| l.to_string()).unwrap_or_default(),
+                &f.message,
+                &f.fix.join("\n"),
+            ]);
         }
     }
     for f in &fleet.cross {
@@ -454,7 +476,14 @@ pub fn csv_excel(fleet: &FleetReport) -> String {
     let _ = w.write_record(["enhet", "regel", "allvarlighet", "rad", "fynd", "rättning"]);
     for d in &fleet.devices {
         for f in d.findings() {
-            let _ = w.write_record([&d.name, &f.rule, f.severity.label(), &f.line.map(|l| l.to_string()).unwrap_or_default(), &f.message, &f.fix.join("\n")]);
+            let _ = w.write_record([
+                &d.name,
+                &f.rule,
+                f.severity.label(),
+                &f.line.map(|l| l.to_string()).unwrap_or_default(),
+                &f.message,
+                &f.fix.join("\n"),
+            ]);
         }
     }
     for f in &fleet.cross {
@@ -469,13 +498,25 @@ pub fn csv_excel(fleet: &FleetReport) -> String {
 
 /// Titel och förklaring till reglerna för fynd mellan enheter (de ligger inte i `ALL_RULES`).
 pub const CROSS_RULES: [(&str, &str, &str); 9] = [
-    ("link", "Länkar mellan enheter stämmer", "Trunkens båda sidor måste ha samma native-VLAN och tillåtna VLAN, och mot en router måste subinterfacen finnas."),
+    (
+        "link",
+        "Länkar mellan enheter stämmer",
+        "Trunkens båda sidor måste ha samma native-VLAN och tillåtna VLAN, och mot en router måste subinterfacen finnas.",
+    ),
     ("dup-ip", "Inga IP-krockar mellan enheter", "Samma adress på två enheter gör att trafiken hamnar hos fel enhet."),
     ("vlan-names", "VLAN heter samma sak överallt", "Olika namn på samma VLAN-nummer gör nätet svårt att felsöka."),
-    ("gateway", "Switchens gateway finns på en router", "En default-gateway som ingen router har gör att switchen inte kan administreras utifrån."),
+    (
+        "gateway",
+        "Switchens gateway finns på en router",
+        "En default-gateway som ingen router har gör att switchen inte kan administreras utifrån.",
+    ),
     ("dup-hostname", "Unika hostnames", "Två enheter med samma namn går inte att skilja åt i loggar, SSH och topologin."),
     ("svi-subif", "SVI och subinterface har samma nät", "Switchens SVI och routerns subinterface för samma VLAN måste ligga i samma nät."),
-    ("native-mix", "Samma native-VLAN på alla trunkar", "Olika native-VLAN på trunkarna tyder på en miss och kan läcka trafik mellan VLAN."),
+    (
+        "native-mix",
+        "Samma native-VLAN på alla trunkar",
+        "Olika native-VLAN på trunkarna tyder på en miss och kan läcka trafik mellan VLAN.",
+    ),
     ("vlan-subnet", "Ett nät per VLAN", "Samma nät i två VLAN gör routingen oförutsägbar."),
     ("loop", "Inga slingor i nätet", "Redundanta länkar ger en loop om spanning-tree inte är på."),
 ];
@@ -607,7 +648,10 @@ pub fn junit(fleet: &FleetReport, opt: Options) -> String {
         let cases = d
             .results
             .iter()
-            .map(|r| Case { name: format!("{} – {}", r.id, r.title), findings: r.findings.iter().filter(|f| f.severity >= opt.min).cloned().collect() })
+            .map(|r| Case {
+                name: format!("{} – {}", r.id, r.title),
+                findings: r.findings.iter().filter(|f| f.severity >= opt.min).cloned().collect(),
+            })
             .collect();
         suites.push((d.name.clone(), cases));
     }
@@ -628,7 +672,12 @@ pub fn junit(fleet: &FleetReport, opt: Options) -> String {
     let _ = writeln!(out, "<testsuites name=\"vlantool\" tests=\"{total}\" failures=\"{failed}\" errors=\"0\" time=\"0\">");
     for (name, cases) in &suites {
         let f = cases.iter().filter(|c| fails(c)).count();
-        let _ = writeln!(out, "  <testsuite name=\"{}\" tests=\"{}\" failures=\"{f}\" errors=\"0\" skipped=\"0\" time=\"0\">", xml(name), cases.len());
+        let _ = writeln!(
+            out,
+            "  <testsuite name=\"{}\" tests=\"{}\" failures=\"{f}\" errors=\"0\" skipped=\"0\" time=\"0\">",
+            xml(name),
+            cases.len()
+        );
         for c in cases {
             let _ = write!(out, "    <testcase classname=\"{}\" name=\"{}\" time=\"0\"", xml(name), xml(&c.name));
             if c.findings.is_empty() {
@@ -636,10 +685,20 @@ pub fn junit(fleet: &FleetReport, opt: Options) -> String {
                 continue;
             }
             out.push_str(">\n");
-            let text: Vec<String> = c.findings.iter().map(|f| format!("[{}] {}{}", f.severity.label(), f.message, f.line.map(|l| format!(" (rad {l})")).unwrap_or_default())).collect();
+            let text: Vec<String> = c
+                .findings
+                .iter()
+                .map(|f| format!("[{}] {}{}", f.severity.label(), f.message, f.line.map(|l| format!(" (rad {l})")).unwrap_or_default()))
+                .collect();
             if fails(c) {
                 let worst = c.findings.iter().map(|f| f.severity).max().unwrap_or(Severity::Low);
-                let _ = writeln!(out, "      <failure message=\"{}\" type=\"{}\">{}</failure>", xml(&c.findings[0].message), worst.label(), xml(&text.join("\n")));
+                let _ = writeln!(
+                    out,
+                    "      <failure message=\"{}\" type=\"{}\">{}</failure>",
+                    xml(&c.findings[0].message),
+                    worst.label(),
+                    xml(&text.join("\n"))
+                );
             } else {
                 let _ = writeln!(out, "      <system-out>{}</system-out>", xml(&text.join("\n")));
             }
@@ -702,7 +761,13 @@ pub fn html_with_meta(fleet: &FleetReport, title: &str, timestamp: &str) -> Stri
         r#"<div class="filter hidden" id="filter"><input type="search" id="q" placeholder="Sök i fynden …" aria-label="Sök i fynden"><span id="levels">"#,
     );
     for s in Severity::ALL {
-        let _ = write!(body, r#"<button type="button" class="lvl on" data-sev="{}" style="--c:{}">{}</button>"#, sev_key(s), hex(s.rgb()), s.label());
+        let _ = write!(
+            body,
+            r#"<button type="button" class="lvl on" data-sev="{}" style="--c:{}">{}</button>"#,
+            sev_key(s),
+            hex(s.rgb()),
+            s.label()
+        );
     }
     body.push_str(r#"</span><span class="muted" id="count"></span></div>"#);
     body.push_str(r#"<section class="stats">"#);
@@ -822,7 +887,8 @@ fn topology_svg(fleet: &FleetReport) -> String {
     let all = edges(&configs);
     let names: Vec<&str> = fleet.devices.iter().map(|d| d.name.as_str()).collect();
     let idx = |n: &str| names.iter().position(|x| *x == n);
-    let links: Vec<_> = all.iter().filter(|e| e.b_device).filter_map(|e| Some((idx(&e.a)?, idx(&e.b)?, e))).filter(|(a, b, _)| a != b).collect();
+    let links: Vec<_> =
+        all.iter().filter(|e| e.b_device).filter_map(|e| Some((idx(&e.a)?, idx(&e.b)?, e))).filter(|(a, b, _)| a != b).collect();
     if links.is_empty() {
         return String::new();
     }
@@ -846,7 +912,13 @@ fn topology_svg(fleet: &FleetReport) -> String {
             }
             layers[dn].push(n);
             for (a, b, _) in &links {
-                let other = if *a == n { *b } else if *b == n { *a } else { continue };
+                let other = if *a == n {
+                    *b
+                } else if *b == n {
+                    *a
+                } else {
+                    continue;
+                };
                 if depth[other].is_none() {
                     depth[other] = Some(dn + 1);
                     queue.push_back(other);
@@ -1073,7 +1145,16 @@ mod tests {
         let mut stack: Vec<String> = Vec::new();
         let mut rest = &xml[xml.find("?>").unwrap() + 2..];
         while let Some(i) = rest.find('<') {
-            assert!(!rest[..i].contains('>') && !rest[..i].contains('&') || rest[..i].contains("&amp;") || rest[..i].contains("&lt;") || rest[..i].contains("&gt;") || rest[..i].contains("&quot;") || rest[..i].contains("&apos;"), "oescapad text: {}", &rest[..i]);
+            assert!(
+                !rest[..i].contains('>') && !rest[..i].contains('&')
+                    || rest[..i].contains("&amp;")
+                    || rest[..i].contains("&lt;")
+                    || rest[..i].contains("&gt;")
+                    || rest[..i].contains("&quot;")
+                    || rest[..i].contains("&apos;"),
+                "oescapad text: {}",
+                &rest[..i]
+            );
             let end = rest[i..].find('>').expect("tagg utan slut") + i;
             let tag = &rest[i + 1..end];
             assert!(!tag.contains('<'));

@@ -1,35 +1,35 @@
 //! Innehållet i varje flik. En fil per flik; gemensamma hjälpfunktioner ligger här.
 
-use crate::app::{open_path, App, Tab};
-use state_a::DevSort;
-use vlantool::audit::{DeviceReport, FleetReport};
-use crate::theme::{self, palette, Palette};
+use crate::app::{App, Tab, open_path};
+use crate::theme::{self, Palette, palette};
 use eframe::egui::{
-    self, text::LayoutJob, Align, Align2, Color32, CornerRadius, FontId, Layout, Margin, Pos2, Rect, RichText, Sense, Stroke, TextFormat, Ui,
-    Vec2,
+    self, Align, Align2, Color32, CornerRadius, FontId, Layout, Margin, Pos2, Rect, RichText, Sense, Stroke, TextFormat, Ui, Vec2,
+    text::LayoutJob,
 };
 use egui_extras::{Column, TableBuilder};
+use state_a::DevSort;
 use std::collections::BTreeSet;
+use vlantool::audit::{DeviceReport, FleetReport};
 use vlantool::finding::{Finding, Severity};
 use vlantool::inventory::{join_vlans, short_port};
 use vlantool::net::{self, Subnet};
 use vlantool::parser::{IfMode, Kind};
 use vlantool::{rules, topology};
 
-mod overview;
-mod findings;
-#[path = "rules.rs"]
-mod rules_tab;
-mod ports;
-mod vlans;
-mod topo;
 mod config;
-mod drift;
 mod csv;
 mod csv_edit;
+mod drift;
 pub mod export;
-mod subnet;
+mod findings;
+mod overview;
+mod ports;
+#[path = "rules.rs"]
+mod rules_tab;
 mod settings;
+mod subnet;
+mod topo;
+mod vlans;
 pub(crate) use overview::summary_markdown;
 pub mod state_a;
 pub mod state_b;
@@ -106,7 +106,13 @@ pub fn welcome(app: &mut App, ui: &mut Ui) {
                 ui.horizontal(|ui| {
                     ui.vertical(|ui| {
                         ui.label(RichText::new("Kom igång med gruppens exempel").size(17.0).strong());
-                        ui.label(RichText::new(format!("Skapar {} med ports.csv, dhcp.csv och devices.csv och genererar konfigarna.", example.display())).color(p.muted));
+                        ui.label(
+                            RichText::new(format!(
+                                "Skapar {} med ports.csv, dhcp.csv och devices.csv och genererar konfigarna.",
+                                example.display()
+                            ))
+                            .color(p.muted),
+                        );
                     });
                 });
                 ui.add_space(10.0);
@@ -131,7 +137,8 @@ pub fn welcome(app: &mut App, ui: &mut Ui) {
                     ui.set_width(520.0);
                     ui.label(RichText::new("Senaste projekt").strong());
                     for dir in recent {
-                        if ui.add(egui::Button::new(RichText::new(format!("◆  {}", dir.display())).color(p.accent)).frame(false)).clicked() {
+                        if ui.add(egui::Button::new(RichText::new(format!("◆  {}", dir.display())).color(p.accent)).frame(false)).clicked()
+                        {
                             app.open_project(&dir);
                         }
                     }
@@ -155,16 +162,18 @@ pub(crate) fn empty_state(app: &mut App, ui: &mut Ui) {
                 app.generate();
             }
         } else if theme::primary_button(ui, "Lägg in gruppens exempelfiler här", dark).clicked()
-            && let Some(root) = app.project.as_ref().map(|p| p.root.clone()) {
-                app.create_example(&root);
-            }
+            && let Some(root) = app.project.as_ref().map(|p| p.root.clone())
+        {
+            app.create_example(&root);
+        }
     });
 }
 
 /// Enheternas ordning i listan: filtrerad på namn och sorterad på namn eller betyg (sämst först).
 pub(crate) fn device_order(fleet: &FleetReport, filter: &str, sort: DevSort) -> Vec<usize> {
     let needle = filter.trim().to_lowercase();
-    let mut order: Vec<usize> = (0..fleet.devices.len()).filter(|&i| needle.is_empty() || fleet.devices[i].name.to_lowercase().contains(&needle)).collect();
+    let mut order: Vec<usize> =
+        (0..fleet.devices.len()).filter(|&i| needle.is_empty() || fleet.devices[i].name.to_lowercase().contains(&needle)).collect();
     let by_name = |d: &DeviceReport| d.name.to_lowercase();
     match sort {
         DevSort::Name => order.sort_by_key(|&i| by_name(&fleet.devices[i])),

@@ -46,7 +46,8 @@ pub(crate) fn category_counts(fleet: &FleetReport) -> Vec<(String, [usize; 5])> 
 
 /// De `n` allvarligaste fynden i nätet (enhetens index, eller `None` för kontroller mellan enheter).
 pub(crate) fn top_findings(fleet: &FleetReport, n: usize) -> Vec<(Option<usize>, &Finding)> {
-    let mut all: Vec<(Option<usize>, &Finding)> = fleet.devices.iter().enumerate().flat_map(|(i, d)| d.findings().map(move |f| (Some(i), f))).collect();
+    let mut all: Vec<(Option<usize>, &Finding)> =
+        fleet.devices.iter().enumerate().flat_map(|(i, d)| d.findings().map(move |f| (Some(i), f))).collect();
     all.extend(fleet.cross.iter().map(|f| (None, f)));
     all.sort_by_key(|(_, f)| std::cmp::Reverse(f.severity));
     all.truncate(n);
@@ -57,7 +58,12 @@ pub(crate) fn top_findings(fleet: &FleetReport, n: usize) -> Vec<(Option<usize>,
 pub(crate) fn summary_markdown(project: &str, fleet: &FleetReport) -> String {
     let total = fleet.all_findings().count();
     let mut out = format!("# Granskning av {project}\n\n");
-    out.push_str(&format!("Betyg för hela nätet: **{} ({})** · {} enheter · {total} fynd\n\n", fleet.score, fleet.grade, fleet.devices.len()));
+    out.push_str(&format!(
+        "Betyg för hela nätet: **{} ({})** · {} enheter · {total} fynd\n\n",
+        fleet.score,
+        fleet.grade,
+        fleet.devices.len()
+    ));
     out.push_str("| Enhet | Typ | Betyg |");
     for s in Severity::ALL {
         out.push_str(&format!(" {} |", s.label()));
@@ -105,7 +111,14 @@ pub(crate) fn overview(app: &mut App, ui: &mut Ui) {
                 let links = fleet.links.iter().filter(|l| l.b_port.is_some()).count();
                 let ok: usize = fleet.devices.iter().map(|d| d.passed()).sum();
                 let total: usize = fleet.devices.iter().map(|d| d.results.len()).sum();
-                ui.label(RichText::new(format!("{} enheter · {links} länkar · {ok}/{total} regler godkända · betyg {}", fleet.devices.len(), fleet.grade)).color(p.muted));
+                ui.label(
+                    RichText::new(format!(
+                        "{} enheter · {links} länkar · {ok}/{total} regler godkända · betyg {}",
+                        fleet.devices.len(),
+                        fleet.grade
+                    ))
+                    .color(p.muted),
+                );
             });
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 if ui.button("Kopiera sammanfattning").on_hover_text("Lägger en Markdown-sammanfattning i urklipp").clicked() {
@@ -180,7 +193,11 @@ pub(crate) fn overview(app: &mut App, ui: &mut Ui) {
                                 theme::score_ring(ui, d.score, 58.0, dark);
                                 ui.vertical(|ui| {
                                     ui.label(RichText::new(&d.name).size(16.0).strong());
-                                    ui.label(RichText::new(format!("{} · {}/{} regler", d.kind, d.passed(), d.results.len())).size(12.5).color(p.muted));
+                                    ui.label(
+                                        RichText::new(format!("{} · {}/{} regler", d.kind, d.passed(), d.results.len()))
+                                            .size(12.5)
+                                            .color(p.muted),
+                                    );
                                     ui.horizontal(|ui| {
                                         ui.spacing_mut().item_spacing.x = 4.0;
                                         for s in Severity::ALL {
@@ -264,7 +281,8 @@ fn history_chart(ui: &mut Ui, points: &[Point], dark: bool) {
     let plot = Rect::from_min_max(rect.min + Vec2::new(30.0, 8.0), rect.max - Vec2::new(8.0, 20.0));
     let y_of = |score: u32| plot.bottom() - plot.height() * (score.min(100) as f32 / 100.0);
     for g in [0u32, 50, 100] {
-        painter.line_segment([Pos2::new(plot.left(), y_of(g)), Pos2::new(plot.right(), y_of(g))], Stroke::new(1.0, theme::alpha(p.line, 0.8)));
+        painter
+            .line_segment([Pos2::new(plot.left(), y_of(g)), Pos2::new(plot.right(), y_of(g))], Stroke::new(1.0, theme::alpha(p.line, 0.8)));
         painter.text(Pos2::new(plot.left() - 6.0, y_of(g)), Align2::RIGHT_CENTER, g.to_string(), FontId::proportional(11.0), p.muted);
     }
     if shown.is_empty() {
@@ -280,11 +298,25 @@ fn history_chart(ui: &mut Ui, points: &[Point], dark: bool) {
         painter.circle_filled(*pos, 4.0, theme::score_color(pt.betyg, dark));
         painter.circle_stroke(*pos, 4.0, Stroke::new(1.0, p.card));
     }
-    painter.text(Pos2::new(plot.left(), rect.bottom()), Align2::LEFT_BOTTOM, history::format_time(shown[0].tid).split(' ').next().unwrap_or(""), FontId::proportional(11.0), p.muted);
+    painter.text(
+        Pos2::new(plot.left(), rect.bottom()),
+        Align2::LEFT_BOTTOM,
+        history::format_time(shown[0].tid).split(' ').next().unwrap_or(""),
+        FontId::proportional(11.0),
+        p.muted,
+    );
     if shown.len() > 1 {
-        painter.text(Pos2::new(plot.right(), rect.bottom()), Align2::RIGHT_BOTTOM, history::format_time(shown[shown.len() - 1].tid).split(' ').next().unwrap_or(""), FontId::proportional(11.0), p.muted);
+        painter.text(
+            Pos2::new(plot.right(), rect.bottom()),
+            Align2::RIGHT_BOTTOM,
+            history::format_time(shown[shown.len() - 1].tid).split(' ').next().unwrap_or(""),
+            FontId::proportional(11.0),
+            p.muted,
+        );
     }
-    let nearest = resp.hover_pos().and_then(|hover| pts.iter().enumerate().min_by(|a, b| (a.1.x - hover.x).abs().total_cmp(&(b.1.x - hover.x).abs())).map(|(i, _)| i));
+    let nearest = resp.hover_pos().and_then(|hover| {
+        pts.iter().enumerate().min_by(|a, b| (a.1.x - hover.x).abs().total_cmp(&(b.1.x - hover.x).abs())).map(|(i, _)| i)
+    });
     if let Some(i) = nearest {
         painter.circle_stroke(pts[i], 7.0, Stroke::new(1.5, p.text));
         let pt = &shown[i];
@@ -313,13 +345,27 @@ fn category_bars(ui: &mut Ui, fleet: &FleetReport, dark: bool) {
             let n = counts[s as usize];
             if n > 0 {
                 let w = bar.width() * n as f32 / max as f32;
-                painter.rect_filled(Rect::from_min_size(Pos2::new(x, bar.top()), Vec2::new(w, bar.height())), CornerRadius::ZERO, theme::sev_color(s, dark));
+                painter.rect_filled(
+                    Rect::from_min_size(Pos2::new(x, bar.top()), Vec2::new(w, bar.height())),
+                    CornerRadius::ZERO,
+                    theme::sev_color(s, dark),
+                );
                 x += w;
             }
         }
-        painter.text(rect.right_center(), Align2::RIGHT_CENTER, total.to_string(), FontId::proportional(12.0), if total == 0 { p.good } else { p.text });
+        painter.text(
+            rect.right_center(),
+            Align2::RIGHT_CENTER,
+            total.to_string(),
+            FontId::proportional(12.0),
+            if total == 0 { p.good } else { p.text },
+        );
         if total > 0 {
-            let detail: Vec<String> = Severity::ALL.iter().filter(|s| counts[**s as usize] > 0).map(|s| format!("{} {}", s.label(), counts[*s as usize])).collect();
+            let detail: Vec<String> = Severity::ALL
+                .iter()
+                .filter(|s| counts[**s as usize] > 0)
+                .map(|s| format!("{} {}", s.label(), counts[*s as usize]))
+                .collect();
             resp.on_hover_text(detail.join(" · "));
         }
     }

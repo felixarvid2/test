@@ -11,7 +11,12 @@ pub(crate) fn rule_rows(fleet: &FleetReport, filter: &str, only_failing: bool) -
     let needle = filter.trim().to_lowercase();
     rules::ALL_RULES
         .iter()
-        .filter(|r| needle.is_empty() || r.id.contains(&needle) || r.title.to_lowercase().contains(&needle) || r.category.to_lowercase().contains(&needle))
+        .filter(|r| {
+            needle.is_empty()
+                || r.id.contains(&needle)
+                || r.title.to_lowercase().contains(&needle)
+                || r.category.to_lowercase().contains(&needle)
+        })
         .filter(|r| !only_failing || fleet.devices.iter().any(|d| d.results.iter().any(|res| res.id == r.id && !res.findings.is_empty())))
         .collect()
 }
@@ -19,7 +24,12 @@ pub(crate) fn rule_rows(fleet: &FleetReport, filter: &str, only_failing: bool) -
 pub(crate) fn rules(app: &mut App, ui: &mut Ui) {
     let dark = app.dark();
     let p = palette(dark);
-    heading(ui, "Regler", &format!("{} regler granskar varje enhet. ✔ godkänd, siffran är antal fynd, – gäller inte enheten.", rules::ALL_RULES.len()), &p);
+    heading(
+        ui,
+        "Regler",
+        &format!("{} regler granskar varje enhet. ✔ godkänd, siffran är antal fynd, – gäller inte enheten.", rules::ALL_RULES.len()),
+        &p,
+    );
     ui.horizontal(|ui| {
         ui.add(egui::TextEdit::singleline(&mut app.sa.rules_filter).hint_text("Sök regel eller kategori …").desired_width(240.0));
         ui.checkbox(&mut app.sa.rules_only_failing, "Bara regler med fynd");
@@ -58,8 +68,16 @@ pub(crate) fn rules(app: &mut App, ui: &mut Ui) {
                             Some(res) => {
                                 let worst = res.findings.iter().map(|f| f.severity).max().unwrap_or(Severity::Info);
                                 let c = theme::sev_color(worst, dark);
-                                let btn = egui::Button::new(RichText::new(format!("{} {}", worst.icon(), res.findings.len())).strong().color(c)).fill(theme::alpha(c, 0.16)).stroke(Stroke::NONE).corner_radius(CornerRadius::same(255));
-                                if ui.add(btn).on_hover_text(format!("{} fynd, värst {} – visa dem", res.findings.len(), worst.label())).clicked() {
+                                let btn =
+                                    egui::Button::new(RichText::new(format!("{} {}", worst.icon(), res.findings.len())).strong().color(c))
+                                        .fill(theme::alpha(c, 0.16))
+                                        .stroke(Stroke::NONE)
+                                        .corner_radius(CornerRadius::same(255));
+                                if ui
+                                    .add(btn)
+                                    .on_hover_text(format!("{} fynd, värst {} – visa dem", res.findings.len(), worst.label()))
+                                    .clicked()
+                                {
                                     go = Some((i, r.id));
                                 }
                             }

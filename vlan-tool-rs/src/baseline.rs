@@ -148,7 +148,9 @@ mod tests {
     use crate::parser::Config;
 
     fn fleet(extra: &str) -> FleetReport {
-        let text = format!("hostname SW1\n!\nvlan 10\n name A\n!\ninterface Fa0/1\n switchport mode access\n switchport access vlan 10\n!\n{extra}");
+        let text = format!(
+            "hostname SW1\n!\nvlan 10\n name A\n!\ninterface Fa0/1\n switchport mode access\n switchport access vlan 10\n!\n{extra}"
+        );
         audit_fleet(vec![Config::parse("sw1", "sw1.cfg", &text)], &[])
     }
 

@@ -39,7 +39,12 @@ pub(crate) fn settings(app: &mut App, ui: &mut Ui) {
             ui.horizontal(|ui| {
                 let resp = ui.add(egui::TextEdit::singleline(v).desired_width(320.0).hint_text(hint));
                 if let Some(why) = ip_problem(v, check == Check::Mask) {
-                    ui.painter().rect_stroke(resp.rect.expand(1.0), CornerRadius::same(4), Stroke::new(1.5, bad), egui::StrokeKind::Outside);
+                    ui.painter().rect_stroke(
+                        resp.rect.expand(1.0),
+                        CornerRadius::same(4),
+                        Stroke::new(1.5, bad),
+                        egui::StrokeKind::Outside,
+                    );
                     ui.label(RichText::new(format!("✖ {why}")).size(12.0).color(bad));
                 }
             });

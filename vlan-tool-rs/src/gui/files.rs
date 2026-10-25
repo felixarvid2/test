@@ -41,7 +41,8 @@ pub fn backup_configs(configs: &Path, new: &[(String, String)], stamp: &str) -> 
         copied += 1;
     }
     if copied > 0 {
-        let mut dirs: Vec<PathBuf> = std::fs::read_dir(configs.join(".backup"))?.flatten().map(|e| e.path()).filter(|p| p.is_dir()).collect();
+        let mut dirs: Vec<PathBuf> =
+            std::fs::read_dir(configs.join(".backup"))?.flatten().map(|e| e.path()).filter(|p| p.is_dir()).collect();
         dirs.sort();
         let excess = dirs.len().saturating_sub(KEEP_BACKUPS);
         for old in &dirs[..excess] {

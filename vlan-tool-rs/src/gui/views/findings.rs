@@ -27,7 +27,11 @@ pub(crate) fn build_items<'a>(fleet: &'a FleetReport, scope: Option<usize>, flt:
             return;
         }
         if !needle.is_empty() {
-            let who = if scope.is_none() { dev.map_or("mellan enheter", |d| fleet.devices[d].name.as_str()).to_lowercase() } else { String::new() };
+            let who = if scope.is_none() {
+                dev.map_or("mellan enheter", |d| fleet.devices[d].name.as_str()).to_lowercase()
+            } else {
+                String::new()
+            };
             if !(f.message.to_lowercase().contains(&needle) || f.rule.contains(&needle) || who.contains(&needle)) {
                 return;
             }
@@ -54,7 +58,10 @@ pub(crate) fn build_items<'a>(fleet: &'a FleetReport, scope: Option<usize>, flt:
             *e = (*e).max(it.f.severity);
         }
         items.sort_by(|a, b| {
-            worst[b.f.rule.as_str()].cmp(&worst[a.f.rule.as_str()]).then_with(|| a.f.rule.cmp(&b.f.rule)).then_with(|| b.f.severity.cmp(&a.f.severity))
+            worst[b.f.rule.as_str()]
+                .cmp(&worst[a.f.rule.as_str()])
+                .then_with(|| a.f.rule.cmp(&b.f.rule))
+                .then_with(|| b.f.severity.cmp(&a.f.severity))
         });
     } else {
         items.sort_by_key(|it| std::cmp::Reverse(it.f.severity));
@@ -102,7 +109,9 @@ pub(crate) fn findings(app: &mut App, ui: &mut Ui) {
     }
     // Piltangenterna flyttar markeringen när ingen textruta har fokus (169).
     if !list.is_empty() && !ui.ctx().egui_wants_keyboard_input() {
-        let (up, down) = ui.ctx().input(|i| (!i.modifiers.any() && i.key_pressed(egui::Key::ArrowUp), !i.modifiers.any() && i.key_pressed(egui::Key::ArrowDown)));
+        let (up, down) = ui.ctx().input(|i| {
+            (!i.modifiers.any() && i.key_pressed(egui::Key::ArrowUp), !i.modifiers.any() && i.key_pressed(egui::Key::ArrowDown))
+        });
         let cur = app.finding.min(list.len() - 1);
         if down && cur + 1 < list.len() {
             app.finding = cur + 1;
@@ -120,13 +129,29 @@ pub(crate) fn findings(app: &mut App, ui: &mut Ui) {
             theme::score_ring(ui, d.score, 54.0, dark);
             ui.vertical(|ui| {
                 ui.label(RichText::new(&d.name).size(22.0).strong());
-                ui.label(RichText::new(format!("{} · {} · {total} fynd · {}/{} regler godkända", d.kind, file_name(&d.path), d.passed(), d.results.len())).color(p.muted));
+                ui.label(
+                    RichText::new(format!(
+                        "{} · {} · {total} fynd · {}/{} regler godkända",
+                        d.kind,
+                        file_name(&d.path),
+                        d.passed(),
+                        d.results.len()
+                    ))
+                    .color(p.muted),
+                );
             });
         } else {
             theme::score_ring(ui, app.fleet.score, 54.0, dark);
             ui.vertical(|ui| {
                 ui.label(RichText::new("Hela nätet").size(22.0).strong());
-                ui.label(RichText::new(format!("{} enheter · {total} fynd · {} mellan enheterna", app.fleet.devices.len(), app.fleet.cross.len())).color(p.muted));
+                ui.label(
+                    RichText::new(format!(
+                        "{} enheter · {total} fynd · {} mellan enheterna",
+                        app.fleet.devices.len(),
+                        app.fleet.cross.len()
+                    ))
+                    .color(p.muted),
+                );
             });
         }
     });
@@ -135,7 +160,12 @@ pub(crate) fn findings(app: &mut App, ui: &mut Ui) {
         ui.selectable_value(&mut app.sa.all_devices, false, "Vald enhet");
         ui.selectable_value(&mut app.sa.all_devices, true, "Alla enheter");
         ui.add_space(6.0);
-        ui.add(egui::TextEdit::singleline(&mut app.search).id(egui::Id::unique("findings_search")).hint_text("Sök i fynden (Ctrl+F) …").desired_width(220.0));
+        ui.add(
+            egui::TextEdit::singleline(&mut app.search)
+                .id(egui::Id::unique("findings_search"))
+                .hint_text("Sök i fynden (Ctrl+F) …")
+                .desired_width(220.0),
+        );
         ui.checkbox(&mut app.sa.group_by_rule, "Gruppera per regel");
     });
     ui.add_space(4.0);
@@ -144,7 +174,11 @@ pub(crate) fn findings(app: &mut App, ui: &mut Ui) {
         for s in Severity::ALL {
             let on = app.sa.sev_on[s as usize];
             let c = theme::sev_color(s, dark);
-            let text = RichText::new(format!("{} {} {}", s.icon(), s.label(), counts[s as usize])).size(12.0).strong().color(if on { c } else { p.muted });
+            let text = RichText::new(format!("{} {} {}", s.icon(), s.label(), counts[s as usize])).size(12.0).strong().color(if on {
+                c
+            } else {
+                p.muted
+            });
             let btn = egui::Button::new(text)
                 .fill(if on { theme::alpha(c, 0.18) } else { Color32::TRANSPARENT })
                 .stroke(Stroke::new(1.0, if on { theme::alpha(c, 0.7) } else { p.line }))
@@ -167,7 +201,11 @@ pub(crate) fn findings(app: &mut App, ui: &mut Ui) {
     if list.is_empty() {
         theme::card(dark).show(ui, |ui| {
             ui.set_width(ui.available_width());
-            ui.label(RichText::new(if total == 0 { "✔ Inga fynd – allt ser bra ut!" } else { "Inga fynd matchar filtret." }).size(16.0).color(p.good));
+            ui.label(
+                RichText::new(if total == 0 { "✔ Inga fynd – allt ser bra ut!" } else { "Inga fynd matchar filtret." })
+                    .size(16.0)
+                    .color(p.good),
+            );
         });
         if !all {
             rule_overview(app, ui);
@@ -212,7 +250,9 @@ pub(crate) fn findings(app: &mut App, ui: &mut Ui) {
                                 }
                                 ui.label(RichText::new(&f.rule).monospace().size(12.0).color(p.muted));
                                 if let Some(l) = f.line {
-                                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| ui.label(RichText::new(format!("rad {l}")).size(12.0).color(p.muted)));
+                                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                                        ui.label(RichText::new(format!("rad {l}")).size(12.0).color(p.muted))
+                                    });
                                 }
                             });
                             ui.label(&f.message);
@@ -242,7 +282,14 @@ pub(crate) fn findings(app: &mut App, ui: &mut Ui) {
                     ui.horizontal(|ui| {
                         theme::sev_chip(ui, f.severity, dark);
                         let who = if all { format!("{} · ", d.map_or("mellan enheter", |d| d.name.as_str())) } else { String::new() };
-                        ui.label(RichText::new(format!("{who}regel {}{}", f.rule, rule.map(|r| format!(" · {}", r.category)).unwrap_or_default())).color(p.muted));
+                        ui.label(
+                            RichText::new(format!(
+                                "{who}regel {}{}",
+                                f.rule,
+                                rule.map(|r| format!(" · {}", r.category)).unwrap_or_default()
+                            ))
+                            .color(p.muted),
+                        );
                     });
                     ui.add_space(8.0);
                     ui.label(RichText::new(&f.message).size(15.0));
@@ -274,20 +321,31 @@ pub(crate) fn findings(app: &mut App, ui: &mut Ui) {
                                 }
                             });
                         });
-                        egui::Frame::new().fill(p.code_bg).corner_radius(CornerRadius::same(8)).inner_margin(Margin::same(8)).show(ui, |ui| {
-                            ui.set_width(ui.available_width());
-                            let from = no.saturating_sub(3).max(1);
-                            for l in d.config.lines.iter().filter(|l| l.no >= from && l.no <= no + 3) {
-                                let hit = l.no == no;
-                                let mut job = LayoutJob::default();
-                                job.append(&format!("{:>4}  ", l.no), 0.0, fmt(if hit { theme::sev_color(f.severity, dark) } else { p.muted }, true));
-                                highlight_into(&mut job, &l.text, &p, dark);
-                                let resp = ui.label(job);
-                                if hit {
-                                    ui.painter().rect_filled(resp.rect.expand2(Vec2::new(4.0, 0.0)), CornerRadius::same(4), theme::alpha(theme::sev_color(f.severity, dark), 0.12));
+                        egui::Frame::new().fill(p.code_bg).corner_radius(CornerRadius::same(8)).inner_margin(Margin::same(8)).show(
+                            ui,
+                            |ui| {
+                                ui.set_width(ui.available_width());
+                                let from = no.saturating_sub(3).max(1);
+                                for l in d.config.lines.iter().filter(|l| l.no >= from && l.no <= no + 3) {
+                                    let hit = l.no == no;
+                                    let mut job = LayoutJob::default();
+                                    job.append(
+                                        &format!("{:>4}  ", l.no),
+                                        0.0,
+                                        fmt(if hit { theme::sev_color(f.severity, dark) } else { p.muted }, true),
+                                    );
+                                    highlight_into(&mut job, &l.text, &p, dark);
+                                    let resp = ui.label(job);
+                                    if hit {
+                                        ui.painter().rect_filled(
+                                            resp.rect.expand2(Vec2::new(4.0, 0.0)),
+                                            CornerRadius::same(4),
+                                            theme::alpha(theme::sev_color(f.severity, dark), 0.12),
+                                        );
+                                    }
                                 }
-                            }
-                        });
+                            },
+                        );
                     }
                     if let Some(i) = dev {
                         ui.add_space(12.0);

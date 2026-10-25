@@ -57,7 +57,15 @@ pub(crate) fn plan_text(rows: &[VlsmRow]) -> String {
     let mut s = String::from("Namn\tBehov\tNät\tMask\tVärdar\tLedigt\n");
     for r in rows {
         match r.subnet {
-            Some(n) => s.push_str(&format!("{}\t{}\t{n}\t{}\t{} - {}\t{}\n", r.name, r.hosts, n.mask(), n.first_host(), n.last_host(), n.usable_hosts() - r.hosts)),
+            Some(n) => s.push_str(&format!(
+                "{}\t{}\t{n}\t{}\t{} - {}\t{}\n",
+                r.name,
+                r.hosts,
+                n.mask(),
+                n.first_host(),
+                n.last_host(),
+                n.usable_hosts() - r.hosts
+            )),
             None => s.push_str(&format!("{}\t{}\tfår inte plats\n", r.name, r.hosts)),
         }
     }
@@ -79,10 +87,8 @@ pub(crate) fn calc_text(n: &Subnet) -> String {
 /// VLAN-nummer för planens rader: samma poolnamn som i dhcp.csv behåller sitt VLAN, övriga får
 /// lediga nummer i tiotal (10, 20, …).
 pub(crate) fn assign_vlans(rows: &[VlsmRow], existing: &[(String, u16)]) -> (Vec<(String, u16, Subnet)>, Vec<String>) {
-    let mut used: Vec<u16> = rows
-        .iter()
-        .filter_map(|r| existing.iter().find(|(n, _)| n.eq_ignore_ascii_case(&r.name)).map(|(_, v)| *v))
-        .collect();
+    let mut used: Vec<u16> =
+        rows.iter().filter_map(|r| existing.iter().find(|(n, _)| n.eq_ignore_ascii_case(&r.name)).map(|(_, v)| *v)).collect();
     let mut next = 10u16;
     let mut pools = Vec::new();
     let mut skipped = Vec::new();
@@ -110,9 +116,16 @@ pub(crate) fn assign_vlans(rows: &[VlsmRow], existing: &[(String, u16)]) -> (Vec
 pub(crate) fn write_plan(samples: &std::path::Path, pools: &[(String, u16, Subnet)]) -> anyhow::Result<std::path::PathBuf> {
     let tables = csv_edit::load_all(samples);
     let existing = tables.into_iter().find(|t| t.kind == TableKind::Dhcp);
-    let mut table = existing.unwrap_or_else(|| CsvTable::new(samples.join("dhcp.csv"), TableKind::Dhcp, csv_edit::DHCP_HEADERS.iter().map(|h| h.to_string()).collect()));
-    let dns = table.col("dns").and_then(|c| table.rows.first().and_then(|r| r.get(c))).and_then(|v| net::parse_ip(v)).unwrap_or(Ipv4Addr::new(8, 8, 8, 8));
-    let plan: Vec<PlanPool> = pools.iter().map(|(name, vlan, subnet)| PlanPool { name: name.clone(), vlan: *vlan, subnet: *subnet }).collect();
+    let mut table = existing.unwrap_or_else(|| {
+        CsvTable::new(samples.join("dhcp.csv"), TableKind::Dhcp, csv_edit::DHCP_HEADERS.iter().map(|h| h.to_string()).collect())
+    });
+    let dns = table
+        .col("dns")
+        .and_then(|c| table.rows.first().and_then(|r| r.get(c)))
+        .and_then(|v| net::parse_ip(v))
+        .unwrap_or(Ipv4Addr::new(8, 8, 8, 8));
+    let plan: Vec<PlanPool> =
+        pools.iter().map(|(name, vlan, subnet)| PlanPool { name: name.clone(), vlan: *vlan, subnet: *subnet }).collect();
     table.rows = csv_edit::dhcp_rows(&table.headers, &plan, dns);
     table.save()?;
     Ok(table.path)
@@ -146,7 +159,11 @@ pub(crate) fn subnet(app: &mut App, ui: &mut Ui) {
             });
             ui.add_space(6.0);
             ui.horizontal(|ui| {
-                ui.label(RichText::new(format!("Värdar {} – {}   ·   wildcard {}", n.first_host(), n.last_host(), n.wildcard())).monospace().color(p.muted));
+                ui.label(
+                    RichText::new(format!("Värdar {} – {}   ·   wildcard {}", n.first_host(), n.last_host(), n.wildcard()))
+                        .monospace()
+                        .color(p.muted),
+                );
                 if ui.button("Kopiera som text").clicked() {
                     copy = Some(calc_text(&n));
                 }
@@ -166,7 +183,11 @@ pub(crate) fn subnet(app: &mut App, ui: &mut Ui) {
                     ui.end_row();
                 }
             });
-            ui.label(RichText::new(format!("Blått är de {} nätbitarna, grått är de {} värdbitarna.", n.prefix, 32 - n.prefix)).size(12.0).color(p.muted));
+            ui.label(
+                RichText::new(format!("Blått är de {} nätbitarna, grått är de {} värdbitarna.", n.prefix, 32 - n.prefix))
+                    .size(12.0)
+                    .color(p.muted),
+            );
         });
         let Some(n) = Subnet::parse(&app.subnet_input) else { return };
         ui.add_space(12.0);
@@ -182,7 +203,14 @@ pub(crate) fn subnet(app: &mut App, ui: &mut Ui) {
                 }
             });
             let parts = n.split(app.split_prefix);
-            ui.label(RichText::new(format!("{} delnät med {} användbara adresser var", parts.len(), parts.first().map_or(0, |s| s.usable_hosts()))).color(p.muted));
+            ui.label(
+                RichText::new(format!(
+                    "{} delnät med {} användbara adresser var",
+                    parts.len(),
+                    parts.first().map_or(0, |s| s.usable_hosts())
+                ))
+                .color(p.muted),
+            );
             egui::Grid::new("split").striped(true).spacing([18.0, 4.0]).show(ui, |ui| {
                 for (i, s) in parts.iter().enumerate().take(32) {
                     ui.label(RichText::new(format!("{}", i + 1)).color(p.muted));
@@ -243,21 +271,33 @@ pub(crate) fn subnet(app: &mut App, ui: &mut Ui) {
                         if let Some(s) = r.subnet {
                             let x0 = rect.left() + rect.width() * (u32::from(s.network) as f32 - base) / n.size() as f32;
                             let w = rect.width() * s.size() as f32 / n.size() as f32;
-                            let seg = Rect::from_min_size(Pos2::new(x0, rect.top()), Vec2::new(w, rect.height())).shrink2(Vec2::new(1.0, 0.0));
-                            ui.painter().rect_filled(seg, CornerRadius::same(5), theme::alpha(theme::vlan_color(i as u16 * 10 + 10, dark), 0.75));
+                            let seg =
+                                Rect::from_min_size(Pos2::new(x0, rect.top()), Vec2::new(w, rect.height())).shrink2(Vec2::new(1.0, 0.0));
+                            ui.painter().rect_filled(
+                                seg,
+                                CornerRadius::same(5),
+                                theme::alpha(theme::vlan_color(i as u16 * 10 + 10, dark), 0.75),
+                            );
                             if w > 50.0 {
                                 ui.painter().text(seg.center(), Align2::CENTER_CENTER, &r.name, FontId::proportional(11.5), Color32::WHITE);
                             }
                         }
                     }
-                    ui.label(RichText::new(format!("{used} av {} adresser används ({:.0} %)", n.size(), used as f32 * 100.0 / n.size() as f32)).color(p.muted));
+                    ui.label(
+                        RichText::new(format!("{used} av {} adresser används ({:.0} %)", n.size(), used as f32 * 100.0 / n.size() as f32))
+                            .color(p.muted),
+                    );
                     ui.add_space(8.0);
                     ui.horizontal(|ui| {
                         if ui.button("Kopiera tabellen").clicked() {
                             copy = Some(plan_text(&rows));
                         }
                         let can = app.project.is_some() && rows.iter().any(|r| r.subnet.is_some());
-                        if ui.add_enabled(can, egui::Button::new(RichText::new("Använd planen …").strong())).on_hover_text("Skriver planen som DHCP-pooler till samples/dhcp.csv (efter bekräftelse)").clicked() {
+                        if ui
+                            .add_enabled(can, egui::Button::new(RichText::new("Använd planen …").strong()))
+                            .on_hover_text("Skriver planen som DHCP-pooler till samples/dhcp.csv (efter bekräftelse)")
+                            .clicked()
+                        {
                             ask_confirm = true;
                         }
                     });
@@ -271,12 +311,13 @@ pub(crate) fn subnet(app: &mut App, ui: &mut Ui) {
     }
     if ask_confirm
         && let Ok(wants) = net::parse_plan(&app.plan_input)
-        && let Some(n) = Subnet::parse(&app.subnet_input) {
-            let rows = net::vlsm(n, &wants);
-            let existing: Vec<(String, u16)> = app.inventory.iter().flat_map(|i| i.dhcp.iter().map(|d| (d.name.clone(), d.vlan))).collect();
-            let (pools, skipped) = assign_vlans(&rows, &existing);
-            app.sb.subnet.confirm = Some(PlanConfirm { pools, skipped });
-        }
+        && let Some(n) = Subnet::parse(&app.subnet_input)
+    {
+        let rows = net::vlsm(n, &wants);
+        let existing: Vec<(String, u16)> = app.inventory.iter().flat_map(|i| i.dhcp.iter().map(|d| (d.name.clone(), d.vlan))).collect();
+        let (pools, skipped) = assign_vlans(&rows, &existing);
+        app.sb.subnet.confirm = Some(PlanConfirm { pools, skipped });
+    }
     confirm_window(app, ui.ctx());
 }
 
@@ -291,43 +332,61 @@ fn confirm_window(app: &mut App, ctx: &egui::Context) {
     let path = samples.join("dhcp.csv");
     let mut open = true;
     let (mut go, mut cancel) = (false, false);
-    egui::Window::new("Skriva över dhcp.csv?").open(&mut open).collapsible(false).resizable(false).anchor(Align2::CENTER_CENTER, Vec2::ZERO).show(ctx, |ui| {
-        ui.set_width(520.0);
-        ui.label(format!("Hela {} ersätts av VLSM-planen. Poolerna som finns där nu försvinner (generera om konfigarna efteråt).", path.display()));
-        ui.add_space(8.0);
-        egui::Grid::new("plan-confirm").striped(true).spacing([18.0, 4.0]).show(ui, |ui| {
-            for h in ["VLAN", "Pool", "Nät"] {
-                ui.label(RichText::new(h).strong().color(p.muted));
-            }
-            ui.end_row();
-            for (name, vlan, s) in &mut c.pools {
-                ui.add(egui::DragValue::new(vlan).range(1..=4094));
-                ui.label(RichText::new(name.as_str()).strong());
-                ui.label(RichText::new(s.to_string()).monospace().color(p.accent));
+    egui::Window::new("Skriva över dhcp.csv?")
+        .open(&mut open)
+        .collapsible(false)
+        .resizable(false)
+        .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
+        .show(ctx, |ui| {
+            ui.set_width(520.0);
+            ui.label(format!(
+                "Hela {} ersätts av VLSM-planen. Poolerna som finns där nu försvinner (generera om konfigarna efteråt).",
+                path.display()
+            ));
+            ui.add_space(8.0);
+            egui::Grid::new("plan-confirm").striped(true).spacing([18.0, 4.0]).show(ui, |ui| {
+                for h in ["VLAN", "Pool", "Nät"] {
+                    ui.label(RichText::new(h).strong().color(p.muted));
+                }
                 ui.end_row();
+                for (name, vlan, s) in &mut c.pools {
+                    ui.add(egui::DragValue::new(vlan).range(1..=4094));
+                    ui.label(RichText::new(name.as_str()).strong());
+                    ui.label(RichText::new(s.to_string()).monospace().color(p.accent));
+                    ui.end_row();
+                }
+            });
+            if !c.skipped.is_empty() {
+                ui.add_space(6.0);
+                ui.label(
+                    RichText::new(format!("Får inte plats och hoppas över: {}", c.skipped.join(", ")))
+                        .color(theme::sev_color(Severity::Medium, dark)),
+                );
             }
+            let mut vlans: Vec<u16> = c.pools.iter().map(|(_, v, _)| *v).collect();
+            vlans.sort_unstable();
+            vlans.dedup();
+            let dup = vlans.len() != c.pools.len();
+            if dup {
+                ui.label(RichText::new("Två pooler har samma VLAN-nummer.").color(theme::sev_color(Severity::High, dark)));
+            }
+            ui.add_space(10.0);
+            ui.horizontal(|ui| {
+                if ui
+                    .add_enabled(
+                        !dup,
+                        egui::Button::new(RichText::new("Skriv över dhcp.csv").strong().color(Color32::WHITE))
+                            .fill(theme::sev_color(Severity::High, dark)),
+                    )
+                    .clicked()
+                {
+                    go = true;
+                }
+                if ui.button("Avbryt").clicked() {
+                    cancel = true;
+                }
+            });
         });
-        if !c.skipped.is_empty() {
-            ui.add_space(6.0);
-            ui.label(RichText::new(format!("Får inte plats och hoppas över: {}", c.skipped.join(", "))).color(theme::sev_color(Severity::Medium, dark)));
-        }
-        let mut vlans: Vec<u16> = c.pools.iter().map(|(_, v, _)| *v).collect();
-        vlans.sort_unstable();
-        vlans.dedup();
-        let dup = vlans.len() != c.pools.len();
-        if dup {
-            ui.label(RichText::new("Två pooler har samma VLAN-nummer.").color(theme::sev_color(Severity::High, dark)));
-        }
-        ui.add_space(10.0);
-        ui.horizontal(|ui| {
-            if ui.add_enabled(!dup, egui::Button::new(RichText::new("Skriv över dhcp.csv").strong().color(Color32::WHITE)).fill(theme::sev_color(Severity::High, dark))).clicked() {
-                go = true;
-            }
-            if ui.button("Avbryt").clicked() {
-                cancel = true;
-            }
-        });
-    });
     if go {
         let pools = c.pools.clone();
         app.sb.subnet.confirm = None;

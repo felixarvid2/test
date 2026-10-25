@@ -1,10 +1,10 @@
 //! Kör alla regler på varje konfig och kontrollerar sedan att enheterna passar
 //! ihop med varandra (trunkar, native-VLAN, IP-krockar).
 
-use crate::finding::{grade, score, Finding, Severity};
+use crate::finding::{Finding, Severity, grade, score};
 use crate::inventory::{join_vlans, short_port};
 use crate::parser::{Config, IfMode, Interface, Kind};
-use crate::rules::{Rule, ALL_RULES};
+use crate::rules::{ALL_RULES, Rule};
 use anyhow::{Context, Result};
 use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
@@ -189,11 +189,8 @@ pub fn ignore_directives(config: &Config) -> Vec<Ignore> {
 }
 
 pub fn audit_config(config: Config, only: &[String]) -> DeviceReport {
-    let rules: Vec<&Rule> = ALL_RULES
-        .iter()
-        .filter(|r| r.applies_to(config.kind))
-        .filter(|r| only.is_empty() || only.iter().any(|o| o == r.id))
-        .collect();
+    let rules: Vec<&Rule> =
+        ALL_RULES.iter().filter(|r| r.applies_to(config.kind)).filter(|r| only.is_empty() || only.iter().any(|o| o == r.id)).collect();
     let ignores = ignore_directives(&config);
     let mut ignored = 0;
     let results: Vec<RuleResult> = rules
@@ -329,17 +326,27 @@ pub fn cross_check(configs: &[Config]) -> (Vec<Finding>, Vec<Link>) {
         }
     }
     for (v, set) in names.iter().filter(|(_, s)| s.len() > 1) {
-        out.push(Finding::new("vlan-names", Severity::Low, format!("VLAN {v} har olika namn: {}", set.iter().cloned().collect::<Vec<_>>().join(", "))));
+        out.push(Finding::new(
+            "vlan-names",
+            Severity::Low,
+            format!("VLAN {v} har olika namn: {}", set.iter().cloned().collect::<Vec<_>>().join(", ")),
+        ));
     }
 
     // --- Switcharnas gateway ska vara en router-adress ---------------------------
-    let router_ips: BTreeSet<Ipv4Addr> = configs.iter().filter(|c| c.kind == Kind::Router).flat_map(|c| c.addresses().into_iter().map(|(_, a)| a)).collect();
+    let router_ips: BTreeSet<Ipv4Addr> =
+        configs.iter().filter(|c| c.kind == Kind::Router).flat_map(|c| c.addresses().into_iter().map(|(_, a)| a)).collect();
     if !router_ips.is_empty() {
         for c in configs.iter().filter(|c| c.kind == Kind::Switch) {
             if let Some(gw) = c.global("ip default-gateway").and_then(|l| l.text.split_whitespace().nth(2)).and_then(crate::net::parse_ip)
-                && !router_ips.contains(&gw) {
-                    out.push(Finding::new("gateway", Severity::High, format!("{}: default-gateway {gw} finns inte på någon router", c.display_name())));
-                }
+                && !router_ips.contains(&gw)
+            {
+                out.push(Finding::new(
+                    "gateway",
+                    Severity::High,
+                    format!("{}: default-gateway {gw} finns inte på någon router", c.display_name()),
+                ));
+            }
         }
     }
 
@@ -349,7 +356,11 @@ pub fn cross_check(configs: &[Config]) -> (Vec<Finding>, Vec<Link>) {
         hostnames.entry(c.display_name()).or_default().push(&c.path);
     }
     for (name, paths) in hostnames.iter().filter(|(_, p)| p.len() > 1) {
-        out.push(Finding::new("dup-hostname", Severity::High, format!("Hostname {name} används av {} konfigar: {}", paths.len(), paths.join(", "))));
+        out.push(Finding::new(
+            "dup-hostname",
+            Severity::High,
+            format!("Hostname {name} används av {} konfigar: {}", paths.len(), paths.join(", ")),
+        ));
     }
 
     // --- Switchens SVI-nät mot routerns subinterface för samma VLAN --------------
@@ -366,8 +377,14 @@ pub fn cross_check(configs: &[Config]) -> (Vec<Finding>, Vec<Link>) {
                             Severity::High,
                             format!(
                                 "VLAN {vlan}: {} {} har nät {}/{} men {} {} har {}/{}",
-                                sw.display_name(), short_port(&svi.name), net.network, net.prefix,
-                                r.display_name(), short_port(&sub.name), rnet.network, rnet.prefix
+                                sw.display_name(),
+                                short_port(&svi.name),
+                                net.network,
+                                net.prefix,
+                                r.display_name(),
+                                short_port(&sub.name),
+                                rnet.network,
+                                rnet.prefix
                             ),
                         ));
                     }
@@ -394,13 +411,21 @@ pub fn cross_check(configs: &[Config]) -> (Vec<Finding>, Vec<Link>) {
         for i in &c.interfaces {
             let vlan = i.svi_vlan().or(if i.name.contains('.') { i.dot1q } else { None });
             if let (Some(vlan), Some(n)) = (vlan, i.subnet()) {
-                nets.entry((n.network, n.prefix)).or_default().entry(vlan).or_default().push(format!("{} {}", c.display_name(), short_port(&i.name)));
+                nets.entry((n.network, n.prefix)).or_default().entry(vlan).or_default().push(format!(
+                    "{} {}",
+                    c.display_name(),
+                    short_port(&i.name)
+                ));
             }
         }
     }
     for ((network, prefix), vlans) in nets.iter().filter(|(_, v)| v.len() > 1) {
         let parts: Vec<String> = vlans.iter().map(|(v, w)| format!("VLAN {v} ({})", w.join(", "))).collect();
-        out.push(Finding::new("vlan-subnet", Severity::High, format!("Nätet {network}/{prefix} används i flera VLAN: {}", parts.join(", "))));
+        out.push(Finding::new(
+            "vlan-subnet",
+            Severity::High,
+            format!("Nätet {network}/{prefix} används i flera VLAN: {}", parts.join(", ")),
+        ));
     }
 
     // --- Slingor (redundanta länkar) --------------------------------------------------
@@ -410,7 +435,10 @@ pub fn cross_check(configs: &[Config]) -> (Vec<Finding>, Vec<Link>) {
             Severity::Info,
             format!(
                 "Slinga i nätet: {} {} – {} {} ger en andra väg mellan enheterna (kontrollera att spanning-tree är på)",
-                e.a, e.a_port, e.b, e.b_port.as_deref().unwrap_or("")
+                e.a,
+                e.a_port,
+                e.b,
+                e.b_port.as_deref().unwrap_or("")
             ),
         ));
     }
@@ -442,14 +470,24 @@ fn check_link(a: &Config, ai: &Interface, b: &Config, bi: &Interface, out: &mut 
                         out.push(Finding::new(
                             "link",
                             Severity::Medium,
-                            format!("{} {} släpper igenom VLAN {} som inte finns på {}", from.display_name(), short_port(&fi.name), join_vlans(&missing), to.display_name()),
+                            format!(
+                                "{} {} släpper igenom VLAN {} som inte finns på {}",
+                                from.display_name(),
+                                short_port(&fi.name),
+                                join_vlans(&missing),
+                                to.display_name()
+                            ),
                         ));
                     }
                 }
             }
             if ai.allowed != bi.allowed {
                 let show = |i: &Interface| i.allowed.as_ref().map_or("alla".into(), |v| join_vlans(v));
-                out.push(Finding::new("link", Severity::Medium, format!("Tillåtna VLAN skiljer: {an} [{}] ≠ {bn} [{}]", show(ai), show(bi))));
+                out.push(Finding::new(
+                    "link",
+                    Severity::Medium,
+                    format!("Tillåtna VLAN skiljer: {an} [{}] ≠ {bn} [{}]", show(ai), show(bi)),
+                ));
             }
             return;
         }
@@ -473,7 +511,13 @@ fn check_link(a: &Config, ai: &Interface, b: &Config, bi: &Interface, out: &mut 
             out.push(Finding::new(
                 "link",
                 Severity::High,
-                format!("{} har subinterface för VLAN {} som trunken på {} {} inte släpper igenom", router.display_name(), join_vlans(&missing), sw.display_name(), short_port(&swi.name)),
+                format!(
+                    "{} har subinterface för VLAN {} som trunken på {} {} inte släpper igenom",
+                    router.display_name(),
+                    join_vlans(&missing),
+                    sw.display_name(),
+                    short_port(&swi.name)
+                ),
             ));
         }
     }
@@ -482,7 +526,14 @@ fn check_link(a: &Config, ai: &Interface, b: &Config, bi: &Interface, out: &mut 
         out.push(Finding::new(
             "link",
             Severity::High,
-            format!("Native-VLAN skiljer: {} {} har {} men {} har {}", sw.display_name(), short_port(&swi.name), swi.native_vlan.unwrap_or(1), router.display_name(), router_native),
+            format!(
+                "Native-VLAN skiljer: {} {} har {} men {} har {}",
+                sw.display_name(),
+                short_port(&swi.name),
+                swi.native_vlan.unwrap_or(1),
+                router.display_name(),
+                router_native
+            ),
         ));
     }
 }
@@ -505,15 +556,13 @@ mod tests {
         let inv = Inventory::load_dir(&root().join("samples")).unwrap();
         let s = Settings { secret: "Hemligt123".into(), ..Settings::default() };
         assert!(inv.validate(s.native_vlan, s.mgmt_vlan).iter().all(|f| f.severity < Severity::Medium));
-        let configs: Vec<Config> = generator::generate_all(&inv, &s)
-            .unwrap()
-            .into_iter()
-            .map(|g| Config::parse(&g.hostname, "mem", &g.text))
-            .collect();
+        let configs: Vec<Config> =
+            generator::generate_all(&inv, &s).unwrap().into_iter().map(|g| Config::parse(&g.hostname, "mem", &g.text)).collect();
         let fleet = audit_fleet(configs, &[]);
         for d in &fleet.devices {
             // Info-fynd (t.ex. port-security, dhcp-snooping) är förslag och får finnas kvar.
-            let left: Vec<String> = d.findings().filter(|f| f.severity > Severity::Info).map(|f| format!("{}: {}", f.rule, f.message)).collect();
+            let left: Vec<String> =
+                d.findings().filter(|f| f.severity > Severity::Info).map(|f| format!("{}: {}", f.rule, f.message)).collect();
             assert!(left.is_empty(), "{} har fynd: {left:?}", d.name);
         }
         assert!(fleet.cross.is_empty(), "{:?}", fleet.cross);
@@ -587,13 +636,14 @@ mod tests {
 
     #[test]
     fn ignore_directive_parsing() {
-        let c = Config::parse("x", "x", "hostname X\n! vlantool:ignore ssh\n!vlantool:ignore vlans VLAN 10 finns inte\n! vlantool:ignored foo\n! vanlig kommentar\n ! vlantool:ignore\n");
+        let c = Config::parse(
+            "x",
+            "x",
+            "hostname X\n! vlantool:ignore ssh\n!vlantool:ignore vlans VLAN 10 finns inte\n! vlantool:ignored foo\n! vanlig kommentar\n ! vlantool:ignore\n",
+        );
         assert_eq!(
             ignore_directives(&c),
-            vec![
-                Ignore { rule: "ssh".into(), text: None },
-                Ignore { rule: "vlans".into(), text: Some("VLAN 10 finns inte".into()) },
-            ]
+            vec![Ignore { rule: "ssh".into(), text: None }, Ignore { rule: "vlans".into(), text: Some("VLAN 10 finns inte".into()) },]
         );
         assert!(ignore_directives(&c)[1].matches(&Finding::new("vlans", Severity::High, "VLAN 10 finns inte")));
         assert!(!ignore_directives(&c)[1].matches(&Finding::new("ssh", Severity::High, "VLAN 10 finns inte")));
@@ -645,8 +695,14 @@ mod tests {
 
     #[test]
     fn trunk_allowing_vlans_missing_on_the_other_switch() {
-        let a = sw("A", "vlan 10\n name X\nvlan 20\n name Y\ninterface Gi0/1\n description Trunk mot B\n switchport mode trunk\n switchport trunk allowed vlan 10,20,30\n!\n");
-        let b = sw("B", "vlan 10\n name X\ninterface Gi0/2\n description Trunk mot A\n switchport mode trunk\n switchport trunk allowed vlan 10,20,30\n!\n");
+        let a = sw(
+            "A",
+            "vlan 10\n name X\nvlan 20\n name Y\ninterface Gi0/1\n description Trunk mot B\n switchport mode trunk\n switchport trunk allowed vlan 10,20,30\n!\n",
+        );
+        let b = sw(
+            "B",
+            "vlan 10\n name X\ninterface Gi0/2\n description Trunk mot A\n switchport mode trunk\n switchport trunk allowed vlan 10,20,30\n!\n",
+        );
         let (cross, _) = cross_check(&[a, b]);
         let m = rules_of(&cross, "link");
         // A släpper igenom 20 och 30 som B saknar; B släpper igenom 30 som A saknar.
@@ -668,7 +724,14 @@ mod tests {
 
     #[test]
     fn svi_network_must_match_router_subinterface() {
-        let router = |ip: &str| sw("R", &format!("interface Gi0/0\n no shutdown\n!\ninterface Gi0/0.99\n encapsulation dot1Q 99\n ip address {ip} 255.255.255.0\n!\nip route 0.0.0.0 0.0.0.0 1.1.1.1\n"));
+        let router = |ip: &str| {
+            sw(
+                "R",
+                &format!(
+                    "interface Gi0/0\n no shutdown\n!\ninterface Gi0/0.99\n encapsulation dot1Q 99\n ip address {ip} 255.255.255.0\n!\nip route 0.0.0.0 0.0.0.0 1.1.1.1\n"
+                ),
+            )
+        };
         let switch = sw("S", "interface Vlan99\n ip address 10.0.99.2 255.255.255.0\n!\ninterface Fa0/1\n switchport mode access\n!\n");
         let (ok, _) = cross_check(&[router("10.0.99.1"), switch.clone()]);
         assert!(rules_of(&ok, "svi-subif").is_empty(), "{ok:?}");
@@ -692,7 +755,10 @@ mod tests {
 
     #[test]
     fn same_network_in_two_vlans() {
-        let r = sw("R", "interface Gi0/0.10\n encapsulation dot1Q 10\n ip address 10.0.0.1 255.255.255.0\n!\ninterface Gi0/0.20\n encapsulation dot1Q 20\n ip address 10.0.0.129 255.255.255.0\n!\ninterface Gi0/0.30\n encapsulation dot1Q 30\n ip address 10.0.30.1 255.255.255.0\n!\n");
+        let r = sw(
+            "R",
+            "interface Gi0/0.10\n encapsulation dot1Q 10\n ip address 10.0.0.1 255.255.255.0\n!\ninterface Gi0/0.20\n encapsulation dot1Q 20\n ip address 10.0.0.129 255.255.255.0\n!\ninterface Gi0/0.30\n encapsulation dot1Q 30\n ip address 10.0.30.1 255.255.255.0\n!\n",
+        );
         let m = rules_of(&cross_check(&[r]).0, "vlan-subnet");
         assert_eq!(m.len(), 1);
         assert!(m[0].contains("10.0.0.0/24") && m[0].contains("VLAN 10") && m[0].contains("VLAN 20") && !m[0].contains("VLAN 30"), "{m:?}");
@@ -704,14 +770,24 @@ mod tests {
 
     #[test]
     fn loops_are_reported_as_info() {
-        let t = |me: &str, a: &str, b: &str| sw(me, &format!("interface Gi0/1\n description Trunk mot {a}\n switchport mode trunk\n!\ninterface Gi0/2\n description Trunk mot {b}\n switchport mode trunk\n!\n"));
+        let t = |me: &str, a: &str, b: &str| {
+            sw(
+                me,
+                &format!(
+                    "interface Gi0/1\n description Trunk mot {a}\n switchport mode trunk\n!\ninterface Gi0/2\n description Trunk mot {b}\n switchport mode trunk\n!\n"
+                ),
+            )
+        };
         let (cross, links) = cross_check(&[t("A", "B", "C"), t("B", "A", "C"), t("C", "A", "B")]);
         let hits: Vec<&Finding> = cross.iter().filter(|f| f.rule == "loop").collect();
         assert_eq!(hits.len(), 1, "{cross:?}");
         assert_eq!(hits[0].severity, Severity::Info);
         assert!(links.len() >= 2);
         // En kedja är ingen slinga.
-        let chain = [sw("A", "interface Gi0/1\n description Trunk mot B\n switchport mode trunk\n!\n"), sw("B", "interface Gi0/1\n description Trunk mot A\n switchport mode trunk\n!\n")];
+        let chain = [
+            sw("A", "interface Gi0/1\n description Trunk mot B\n switchport mode trunk\n!\n"),
+            sw("B", "interface Gi0/1\n description Trunk mot A\n switchport mode trunk\n!\n"),
+        ];
         assert!(rules_of(&cross_check(&chain).0, "loop").is_empty());
     }
 }

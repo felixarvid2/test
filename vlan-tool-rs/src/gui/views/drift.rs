@@ -112,7 +112,11 @@ pub(crate) fn drift(app: &mut App, ui: &mut Ui) {
                     }
                     if changed {
                         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                            if ui.button("Skriv över bara denna").on_hover_text("Bygger om den här enhetens konfig från CSV och lämnar de andra").clicked() {
+                            if ui
+                                .button("Skriv över bara denna")
+                                .on_hover_text("Bygger om den här enhetens konfig från CSV och lämnar de andra")
+                                .clicked()
+                            {
                                 only = Some(e.hostname.clone());
                             }
                         });
@@ -133,7 +137,9 @@ pub(crate) fn drift(app: &mut App, ui: &mut Ui) {
             });
             ui.add_space(10.0);
         }
-        if app.drift.iter().any(|e| !e.saved || e.added + e.removed > 0) && theme::primary_button(ui, "⚡ Skriv över alla med konfigar från CSV", dark).clicked() {
+        if app.drift.iter().any(|e| !e.saved || e.added + e.removed > 0)
+            && theme::primary_button(ui, "⚡ Skriv över alla med konfigar från CSV", dark).clicked()
+        {
             regenerate = true;
         }
     });

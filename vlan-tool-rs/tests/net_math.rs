@@ -82,9 +82,8 @@ fn summarize_keeps_the_same_address_set() {
         // Håll alla nät inom ett /20 så att de ofta ligger intill varandra och går att slå ihop.
         let base = u32::from(Ipv4Addr::new(10, 1, 0, 0)) + (rng.below(4) << 12);
         let count = rng.below(12) + 1;
-        let nets: Vec<Subnet> = (0..count)
-            .map(|_| Subnet::new(Ipv4Addr::from(base + rng.below(1 << 12)), 22 + rng.below(9) as u8))
-            .collect();
+        let nets: Vec<Subnet> =
+            (0..count).map(|_| Subnet::new(Ipv4Addr::from(base + rng.below(1 << 12)), 22 + rng.below(9) as u8)).collect();
         let summary = summarize(nets.clone());
         assert_eq!(merged_ranges(&summary), merged_ranges(&nets), "fall {case}: {nets:?} -> {summary:?}");
         assert!(summary.len() <= nets.len(), "fall {case}: summarize ökade antalet nät");
@@ -116,13 +115,11 @@ fn vlsm_never_overlaps_and_stays_inside_the_network() {
     for case in 0..500 {
         let prefix = rng.below(13) as u8 + 16; // /16 .. /28
         let net = Subnet::new(Ipv4Addr::from(rng.next()), prefix);
-        let wants: Vec<(String, u64)> = (0..rng.below(10) + 1)
-            .map(|i| (format!("N{i}"), u64::from(rng.below(1 << (32 - u32::from(prefix)).min(14)))))
-            .collect();
+        let wants: Vec<(String, u64)> =
+            (0..rng.below(10) + 1).map(|i| (format!("N{i}"), u64::from(rng.below(1 << (32 - u32::from(prefix)).min(14))))).collect();
         let rows = vlsm(net, &wants);
         assert_eq!(rows.len(), wants.len(), "fall {case}");
-        let placed: Vec<(&str, Subnet, u64)> =
-            rows.iter().filter_map(|r| r.subnet.map(|s| (r.name.as_str(), s, r.hosts))).collect();
+        let placed: Vec<(&str, Subnet, u64)> = rows.iter().filter_map(|r| r.subnet.map(|s| (r.name.as_str(), s, r.hosts))).collect();
         for (name, s, hosts) in &placed {
             assert!(start(s) >= start(&net) && end(s) <= end(&net), "fall {case}: {name} {s} utanför {net}");
             assert!(s.usable_hosts() >= *hosts, "fall {case}: {name} {s} rymmer inte {hosts}");

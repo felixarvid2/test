@@ -1,4 +1,4 @@
-.TH VLANTOOL 1 "oktober 2026" "vlantool 0.2.0" "Användarkommandon"
+.TH VLANTOOL 1 "oktober 2026" "vlantool 0.3.0" "Användarkommandon"
 .SH NAMN
 vlantool \- generera och granska Cisco IOS\-konfigar från CSV\-filer
 .SH SYNOPSIS
@@ -24,6 +24,12 @@ Gäller alla kommandon.
 .TP
 .BI \-\-settings " FIL"
 Inställningsfil. Standard är \fInordvik.toml\fP (skapas med \fBvlantool init\fP).
+.TP
+.BI \-\-project " MAPP"
+Byt till projektmappen innan något annat görs. Standard är miljövariabeln \fBVLANTOOL_PROJECT\fP.
+.TP
+.BR \-q ", " \-\-quiet
+Skriv bara ut fel och det som efterfrågas.
 .TP
 .B \-\-no\-color
 Stäng av färger. Färger stängs också av när miljövariabeln \fBNO_COLOR\fP är satt eller utdata inte är en terminal.
@@ -53,7 +59,7 @@ Granskar konfigar (standard: alla i \fIconfigs/\fP).
 .RS
 .TP
 .BR \-f ", " \-\-format " \fIFORMAT\fR"
-\fBterminal\fR (standard), \fBtext\fR, \fBmarkdown\fR, \fBjson\fR, \fBcsv\fR eller \fBhtml\fR.
+\fBterminal\fR (standard), \fBtext\fR, \fBmarkdown\fR, \fBjson\fR, \fBcsv\fR, \fBhtml\fR, \fBsarif\fR eller \fBjunit\fR.
 .TP
 .BR \-o ", " \-\-output " \fIFIL\fR"
 Spara rapporten i en fil. Formatet gissas från ändelsen.
@@ -96,8 +102,23 @@ delar nätet i lika stora delar och
 .B \-\-plan
 gör en VLSM\-plan, till exempel \fBKONTOR:50,EKONOMI:20,GAST:20\fR.
 .TP
-.B init \fR[\fB\-\-force\fR]
-Skapar \fInordvik.toml\fP med standardinställningarna.
+.B init \fR[\fB\-\-force\fR] [\fB\-\-example\fR]
+Skapar \fInordvik.toml\fP med standardinställningarna. Med \fB\-\-example\fR skapas ett helt exempelprojekt.
+.TP
+.B explain \fIREGEL\fR
+Förklarar en regel och visar ett exempel på fynd och rättning.
+.TP
+.B watch \fR[\fIFIL\fR|\fIMAPP\fR...]
+Granskar om varje gång en konfig\- eller CSV\-fil ändras (Ctrl+C avslutar).
+.TP
+.B baseline save\fR|\fBcompare \fR[\fB\-\-file\fR \fIFIL\fR] [\fB\-\-fail\-on\fR \fINIVÅ\fR]
+Sparar fynden som baslinje (standard \fIreports/baseline.json\fP) eller visar nya och åtgärdade fynd sedan dess.
+.TP
+.B inventory\fR, \fBstats \fR[\fB\-\-format text\fR|\fBjson\fR]
+Tabeller över CSV\-datan, portar per VLAN och beläggning i DHCP\-poolerna.
+.TP
+.B completions \fISKAL\fR
+Skriver skalkomplettering för bash, zsh, fish, elvish eller powershell.
 .TP
 .B run \fR[\fB\-\-samples\fR \fIMAPP\fR] [\fB\-\-configs\fR \fIMAPP\fR] [\fB\-\-reports\fR \fIMAPP\fR]
 Allt i ett: validerar CSV, genererar, granskar och skriver en HTML\-rapport.

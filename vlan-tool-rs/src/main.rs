@@ -4,14 +4,14 @@
 //! granskning mellan enheter, rättningsskript, topologi, drift-kontroll,
 //! subnätskalkylator, rapporter i flera format och ett interaktivt TUI.
 
-use anyhow::{bail, Context, Result};
-use vlantool::{audit, diff, finding, generator, inventory, net, project, report, rules, settings, topology, tui};
+use anyhow::{Context, Result, bail};
 use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
 use finding::Severity;
 use report::{Format, Options, Paint};
 use settings::Settings;
 use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
+use vlantool::{audit, diff, finding, generator, inventory, net, project, report, rules, settings, topology, tui};
 
 #[derive(Parser)]
 #[command(
@@ -51,8 +51,7 @@ enum RulesFormat {
     Markdown,
 }
 
-#[derive(Subcommand)]
-#[derive(Clone, Copy, clap::ValueEnum)]
+#[derive(Subcommand, Clone, Copy, clap::ValueEnum)]
 enum TopologyFormat {
     Text,
     Dot,
@@ -256,6 +255,16 @@ macro_rules! info {
 }
 
 fn main() {
+    // `vlantool rules | head` stänger röret innan allt är skrivet. Avsluta då tyst som andra
+    // kommandoradsverktyg (141 = 128 + SIGPIPE) istället för att skriva ut en panik.
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let msg = info.payload().downcast_ref::<String>().map(String::as_str).unwrap_or("");
+        if msg.contains("Broken pipe") {
+            std::process::exit(141);
+        }
+        default_hook(info);
+    }));
     let cli = Cli::parse();
     let color = !cli.no_color && std::env::var_os("NO_COLOR").is_none() && std::io::stdout().is_terminal();
     match run(cli, color) {
@@ -330,16 +339,20 @@ fn run(cli: Cli, color: bool) -> Result<i32> {
                     info!(q, "{} {}", p.ok("✔ Sparade"), path.display());
                     // Visa ändå en kort sammanfattning i terminalen.
                     if !q {
-                        print!("{}", report::render(&fleet, Format::Terminal, Options { color, verbose: false, fixes: false, min: Severity::High }));
+                        print!(
+                            "{}",
+                            report::render(&fleet, Format::Terminal, Options { color, verbose: false, fixes: false, min: Severity::High })
+                        );
                     }
                 }
                 None if summary => print_summary(&fleet, p),
                 None => print!("{}", report::render(&fleet, format, opt)),
             }
             if let Some(level) = fail_on
-                && fleet.worst().is_some_and(|w| w >= level) {
-                    return Ok(2);
-                }
+                && fleet.worst().is_some_and(|w| w >= level)
+            {
+                return Ok(2);
+            }
         }
         Command::Explain { rule } => explain(&rule, p)?,
         Command::Watch { paths, min, rules } => {
@@ -435,7 +448,8 @@ fn run(cli: Cli, color: bool) -> Result<i32> {
             println!("{} Sparade {} fynd i {}", p.ok("✔"), base.findings.len(), file.display());
         }
         Command::Baseline { action: BaselineAction::Compare { paths, file, fail_on } } => {
-            let base = vlantool::baseline::Baseline::load(&file).with_context(|| format!("ingen baslinje i {} – kör `vlantool baseline save` först", file.display()))?;
+            let base = vlantool::baseline::Baseline::load(&file)
+                .with_context(|| format!("ingen baslinje i {} – kör `vlantool baseline save` först", file.display()))?;
             let fleet = load_and_audit(&paths, &[])?;
             let cmp = base.compare(&fleet);
             print!("{}", cmp.render());
@@ -446,22 +460,23 @@ fn run(cli: Cli, color: bool) -> Result<i32> {
         Command::Rules { format: RulesFormat::Markdown } => print!("{}", rules_markdown()),
         Command::Rules { format: RulesFormat::Text } => {
             println!();
-            let mut cat = "";
-            for r in rules::ALL_RULES {
-                if r.category != cat {
-                    cat = r.category;
-                    println!("  {}", p.bold(&p.accent(cat)));
+            for (cat, list) in rules::by_category() {
+                println!("  {}", p.bold(&p.accent(cat)));
+                for r in list {
+                    println!(
+                        "    {} {} {:<34} {}",
+                        p.sev(r.severity.icon(), r.severity),
+                        p.bold(&format!("{:<14}", r.id)),
+                        r.title,
+                        p.dim(applies_text(r.applies))
+                    );
+                    println!("      {}", p.dim(r.why));
                 }
-                println!(
-                    "    {} {} {:<34} {}",
-                    p.sev(r.severity.icon(), r.severity),
-                    p.bold(&format!("{:<14}", r.id)),
-                    r.title,
-                    p.dim(applies_text(r.applies))
-                );
-                println!("      {}", p.dim(r.why));
             }
-            println!("\n  {} regler. Kör bara vissa med `vlantool audit -r ssh -r trunk`, läs mer med `vlantool explain ssh`.\n", rules::ALL_RULES.len());
+            println!(
+                "\n  {} regler. Kör bara vissa med `vlantool audit -r ssh -r trunk`, läs mer med `vlantool explain ssh`.\n",
+                rules::ALL_RULES.len()
+            );
         }
         Command::Subnet { network, split, plan, json } => subnet(&network, split, plan.as_deref(), json, p)?,
         Command::Init { force, example } => {
@@ -489,7 +504,10 @@ fn run(cli: Cli, color: bool) -> Result<i32> {
             }
             let html = reports.join("rapport.html");
             write_file(&html, &report::html(&fleet))?;
-            write_file(&reports.join("rapport.md"), &report::markdown(&fleet, Options { color: false, verbose: true, fixes: true, min: Severity::Info }))?;
+            write_file(
+                &reports.join("rapport.md"),
+                &report::markdown(&fleet, Options { color: false, verbose: true, fixes: true, min: Severity::Info }),
+            )?;
             info!(q, "  {} {}  och  {}\n", p.ok("✔ Rapporter:"), html.display(), reports.join("rapport.md").display());
         }
         Command::Tui { paths, samples } => tui::run(default_paths(&paths), samples, settings)?,
@@ -509,13 +527,18 @@ fn applies_text(a: rules::Applies) -> &'static str {
 fn rules_markdown() -> String {
     let cell = |s: &str| s.replace('|', "\\|");
     let mut out = String::from("# Granskningsregler\n\n");
-    let mut cat = "";
-    for r in rules::ALL_RULES {
-        if r.category != cat {
-            cat = r.category;
-            out.push_str(&format!("\n## {cat}\n\n| Id | Nivå | Gäller | Regel | Varför |\n|---|---|---|---|---|\n"));
+    for (cat, list) in rules::by_category() {
+        out.push_str(&format!("\n## {cat}\n\n| Id | Nivå | Gäller | Regel | Varför |\n|---|---|---|---|---|\n"));
+        for r in list {
+            out.push_str(&format!(
+                "| `{}` | {} | {} | {} | {} |\n",
+                r.id,
+                r.severity.label(),
+                applies_text(r.applies),
+                cell(r.title),
+                cell(r.why)
+            ));
         }
-        out.push_str(&format!("| `{}` | {} | {} | {} | {} |\n", r.id, r.severity.label(), applies_text(r.applies), cell(r.title), cell(r.why)));
     }
     out.push_str(&format!("\n{} regler.\n", rules::ALL_RULES.len()));
     out
@@ -530,7 +553,10 @@ fn explain(id: &str, p: Paint) -> Result<()> {
     };
     println!();
     println!("  {} {}", p.sev(r.severity.icon(), r.severity), p.bold(&p.accent(r.title)));
-    println!("  {}", p.dim(&format!("regel {} · {} · gäller {} · högst nivå {}", r.id, r.category, applies_text(r.applies), r.severity.label())));
+    println!(
+        "  {}",
+        p.dim(&format!("regel {} · {} · gäller {} · högst nivå {}", r.id, r.category, applies_text(r.applies), r.severity.label()))
+    );
     println!("\n  {}\n  {}", p.bold("Varför?"), r.why);
     // Kör regeln på de inbyggda exempelkonfigarna och visa första fyndet som har en rättning.
     let example = project::EXAMPLE_FILES.iter().filter(|(rel, _)| rel.starts_with("examples-cfg/")).find_map(|(rel, text)| {
@@ -593,7 +619,11 @@ fn watch(paths: &[PathBuf], rules: &[String], min: Severity, color: bool, quiet:
             }
             seen = Some(now);
             match audit::load_configs(paths).map(|c| audit::audit_fleet(c, rules)) {
-                Ok(fleet) if fleet.devices.is_empty() => eprintln!("{} hittade inga konfigfiler i {}", p.rgb("fel:", (240, 80, 90)), paths.iter().map(|p| p.display().to_string()).collect::<Vec<_>>().join(", ")),
+                Ok(fleet) if fleet.devices.is_empty() => eprintln!(
+                    "{} hittade inga konfigfiler i {}",
+                    p.rgb("fel:", (240, 80, 90)),
+                    paths.iter().map(|p| p.display().to_string()).collect::<Vec<_>>().join(", ")
+                ),
                 Ok(fleet) => {
                     print!("{}", report::render(&fleet, Format::Terminal, Options { color, verbose: false, fixes: false, min }));
                     info!(quiet, "{}", p.dim(&format!("  Bevakar {} filer – Ctrl+C avslutar", tui::watch_snapshot(paths).len())));
@@ -611,7 +641,8 @@ fn init_example(settings_path: &Path, p: Paint, quiet: bool) -> Result<()> {
     let root = Path::new(".");
     let before: Vec<bool> = project::EXAMPLE_FILES.iter().map(|(rel, _)| root.join(rel).exists()).collect();
     project::Project::create_example(root)?;
-    let mut created = project::EXAMPLE_FILES.iter().zip(&before).filter(|(_, had)| !**had).map(|((rel, _), _)| rel.to_string()).collect::<Vec<_>>();
+    let mut created =
+        project::EXAMPLE_FILES.iter().zip(&before).filter(|(_, had)| !**had).map(|((rel, _), _)| rel.to_string()).collect::<Vec<_>>();
     if !settings_path.exists() {
         write_file(settings_path, &format!("# Inställningar för vlantool\n\n{}", Settings::default().to_toml()))?;
         created.push(settings_path.display().to_string());
@@ -632,7 +663,13 @@ fn init_example(settings_path: &Path, p: Paint, quiet: bool) -> Result<()> {
 fn print_inventory(inv: &inventory::Inventory, p: Paint) {
     let list = |v: &[u16]| if v.is_empty() { "–".to_string() } else { inventory::join_vlans(v) };
     println!("\n  {}", p.bold(&p.accent(&format!("Portar ({})", inv.ports.len()))));
-    println!("  {}", p.dim(&format!("{:<14} {:<8} {:<7} {:<12} {:<14} {:<8} {:<5} {}", "Switch", "Port", "Läge", "VLAN", "Namn", "Native", "Upp", "Beskrivning")));
+    println!(
+        "  {}",
+        p.dim(&format!(
+            "{:<14} {:<8} {:<7} {:<12} {:<14} {:<8} {:<5} {}",
+            "Switch", "Port", "Läge", "VLAN", "Namn", "Native", "Upp", "Beskrivning"
+        ))
+    );
     for r in &inv.ports {
         let (mode, vlan) = match r.mode {
             inventory::PortMode::Access => ("access", r.vlan.map_or("–".into(), |v| v.to_string())),
@@ -651,7 +688,10 @@ fn print_inventory(inv: &inventory::Inventory, p: Paint) {
         );
     }
     println!("\n  {}", p.bold(&p.accent(&format!("DHCP-pooler ({})", inv.dhcp.len()))));
-    println!("  {}", p.dim(&format!("{:<6} {:<12} {:<18} {:<32} {:<32} {:<16} {}", "VLAN", "Namn", "Nät", "Pool", "Undantag", "Gateway", "DNS")));
+    println!(
+        "  {}",
+        p.dim(&format!("{:<6} {:<12} {:<18} {:<32} {:<32} {:<16} {}", "VLAN", "Namn", "Nät", "Pool", "Undantag", "Gateway", "DNS"))
+    );
     for d in &inv.dhcp {
         println!(
             "  {:<6} {:<12} {:<18} {:<32} {:<32} {:<16} {}",
@@ -727,7 +767,13 @@ fn stats(inv: &inventory::Inventory, format: Plain, p: Paint) -> Result<()> {
     println!("  {}", p.dim(&format!("{:<6} {:<12} {:<18} {:>9} {:>8}  {}", "VLAN", "Namn", "Nät", "Adresser", "Portar", "Beläggning")));
     for (d, free, ports, pct) in pools {
         let (full, empty) = report::bar((pct as u32).min(100), 12);
-        let color = if pct >= 90 { (240, 80, 90) } else if pct >= 70 { (240, 190, 70) } else { (110, 210, 140) };
+        let color = if pct >= 90 {
+            (240, 80, 90)
+        } else if pct >= 70 {
+            (240, 190, 70)
+        } else {
+            (110, 210, 140)
+        };
         println!(
             "  {:<6} {:<12} {:<18} {:>9} {:>8}  {}{} {:>3}%",
             d.vlan,
@@ -776,9 +822,19 @@ fn write_file(path: &Path, text: &str) -> Result<()> {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn generate(samples: &Path, out: &Path, dry_run: bool, force: bool, only: &[String], settings: &Settings, p: Paint, quiet: bool) -> Result<()> {
+fn generate(
+    samples: &Path,
+    out: &Path,
+    dry_run: bool,
+    force: bool,
+    only: &[String],
+    settings: &Settings,
+    p: Paint,
+    quiet: bool,
+) -> Result<()> {
     let inv = inventory::Inventory::load_dir(samples)?;
-    let problems: Vec<_> = inv.validate(settings.native_vlan, settings.mgmt_vlan).into_iter().filter(|f| f.severity >= Severity::Critical).collect();
+    let problems: Vec<_> =
+        inv.validate(settings.native_vlan, settings.mgmt_vlan).into_iter().filter(|f| f.severity >= Severity::Critical).collect();
     if !problems.is_empty() && !force {
         for f in &problems {
             eprintln!("  {} {}", p.sev(f.severity.icon(), f.severity), f.message);
@@ -818,7 +874,14 @@ fn generate(samples: &Path, out: &Path, dry_run: bool, force: bool, only: &[Stri
             }
         };
         write_file(&path, &new_text)?;
-        info!(quiet, "  {} {:<16} {}  {}", p.ok("✔"), g.hostname, p.dim(&format!("{}  ({} rader)", path.display(), g.text.lines().count())), change);
+        info!(
+            quiet,
+            "  {} {:<16} {}  {}",
+            p.ok("✔"),
+            g.hostname,
+            p.dim(&format!("{}  ({} rader)", path.display(), g.text.lines().count())),
+            change
+        );
     }
     Ok(())
 }
@@ -929,7 +992,14 @@ fn subnet(network: &str, split: Option<u8>, plan: Option<&str>, json: bool, p: P
         }
         println!("\n  {}", p.bold(&format!("{} delnät /{prefix}", parts.len())));
         for (i, s) in parts.iter().enumerate().take(64) {
-            println!("  {:>4}  {:<18} {} – {}  {}", p.dim(&(i + 1).to_string()), s.to_string(), s.first_host(), s.last_host(), p.dim(&format!("bc {}", s.broadcast())));
+            println!(
+                "  {:>4}  {:<18} {} – {}  {}",
+                p.dim(&(i + 1).to_string()),
+                s.to_string(),
+                s.first_host(),
+                s.last_host(),
+                p.dim(&format!("bc {}", s.broadcast()))
+            );
         }
     }
 

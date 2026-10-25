@@ -50,7 +50,13 @@ pub fn commands(app: &App) -> Vec<Cmd> {
         v.push(cmd("Generera från CSV", "Ctrl+G", Action::Generate));
         v.push(cmd("Läs om projektet", "F5", Action::Reload));
         v.push(cmd("Kopiera sammanfattning (Markdown)", "", Action::CopySummary));
-        for (label, f) in [("HTML-rapport", Format::Html), ("Markdown", Format::Markdown), ("JSON", Format::Json), ("CSV", Format::Csv), ("Text", Format::Text)] {
+        for (label, f) in [
+            ("HTML-rapport", Format::Html),
+            ("Markdown", Format::Markdown),
+            ("JSON", Format::Json),
+            ("CSV", Format::Csv),
+            ("Text", Format::Text),
+        ] {
             v.push(cmd(format!("Exportera {label}"), "", Action::Export(f)));
         }
         v.push(cmd("Exportera rättningsskript per enhet", "", Action::FixScripts));
@@ -61,7 +67,11 @@ pub fn commands(app: &App) -> Vec<Cmd> {
         if app.project.as_ref().is_some_and(|p| p.root == *dir) {
             continue;
         }
-        v.push(cmd(format!("Öppna projekt {}", dir.file_name().map_or_else(|| dir.display().to_string(), |n| n.to_string_lossy().to_string())), dir.display().to_string(), Action::OpenRecent(dir.clone())));
+        v.push(cmd(
+            format!("Öppna projekt {}", dir.file_name().map_or_else(|| dir.display().to_string(), |n| n.to_string_lossy().to_string())),
+            dir.display().to_string(),
+            Action::OpenRecent(dir.clone()),
+        ));
     }
     v.push(cmd("Öppna projektmapp …", "Ctrl+O", Action::OpenFolder));
     v.push(cmd("Byt tema (mörkt, ljust, högkontrast)", "Ctrl+T", Action::CycleTheme));
@@ -193,10 +203,26 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                     let selected = i == sel;
                     let (rect, r) = ui.allocate_exact_size(Vec2::new(ui.available_width(), 28.0), egui::Sense::click());
                     if selected || r.hovered() {
-                        ui.painter().rect_filled(rect, egui::CornerRadius::same(6), if selected { theme::alpha(p.accent, 0.22) } else { p.raised });
+                        ui.painter().rect_filled(
+                            rect,
+                            egui::CornerRadius::same(6),
+                            if selected { theme::alpha(p.accent, 0.22) } else { p.raised },
+                        );
                     }
-                    ui.painter().text(rect.left_center() + Vec2::new(10.0, 0.0), egui::Align2::LEFT_CENTER, &c.label, egui::FontId::proportional(14.5), p.text);
-                    ui.painter().text(rect.right_center() - Vec2::new(10.0, 0.0), egui::Align2::RIGHT_CENTER, &c.hint, egui::FontId::proportional(12.0), p.muted);
+                    ui.painter().text(
+                        rect.left_center() + Vec2::new(10.0, 0.0),
+                        egui::Align2::LEFT_CENTER,
+                        &c.label,
+                        egui::FontId::proportional(14.5),
+                        p.text,
+                    );
+                    ui.painter().text(
+                        rect.right_center() - Vec2::new(10.0, 0.0),
+                        egui::Align2::RIGHT_CENTER,
+                        &c.hint,
+                        egui::FontId::proportional(12.0),
+                        p.muted,
+                    );
                     if selected && (down || up) {
                         r.scroll_to_me(None);
                     }
@@ -250,24 +276,29 @@ pub fn show_help(app: &mut App, ctx: &egui::Context) {
     let p = colors(app.dark());
     let mut open = true;
     let mut about = false;
-    egui::Window::new("Kortkommandon").open(&mut open).collapsible(false).resizable(false).anchor(egui::Align2::CENTER_CENTER, Vec2::ZERO).show(ctx, |ui| {
-        ui.set_width(520.0);
-        egui::Grid::new("help-keys").num_columns(2).spacing([20.0, 6.0]).show(ui, |ui| {
-            for (k, v) in SHORTCUTS {
-                ui.label(RichText::new(*k).monospace().color(p.accent));
-                ui.label(*v);
-                ui.end_row();
-            }
+    egui::Window::new("Kortkommandon")
+        .open(&mut open)
+        .collapsible(false)
+        .resizable(false)
+        .anchor(egui::Align2::CENTER_CENTER, Vec2::ZERO)
+        .show(ctx, |ui| {
+            ui.set_width(520.0);
+            egui::Grid::new("help-keys").num_columns(2).spacing([20.0, 6.0]).show(ui, |ui| {
+                for (k, v) in SHORTCUTS {
+                    ui.label(RichText::new(*k).monospace().color(p.accent));
+                    ui.label(*v);
+                    ui.end_row();
+                }
+            });
+            ui.add_space(8.0);
+            ui.label(RichText::new("Dra och släpp .cfg-filer på fönstret för att lägga dem i configs/.").color(p.muted));
+            ui.add_space(6.0);
+            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                if ui.button("Om vlantool").clicked() {
+                    about = true;
+                }
+            });
         });
-        ui.add_space(8.0);
-        ui.label(RichText::new("Dra och släpp .cfg-filer på fönstret för att lägga dem i configs/.").color(p.muted));
-        ui.add_space(6.0);
-        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            if ui.button("Om vlantool").clicked() {
-                about = true;
-            }
-        });
-    });
     if about {
         open = false;
         app.show_about = true;

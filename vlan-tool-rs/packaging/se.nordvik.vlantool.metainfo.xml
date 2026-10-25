@@ -39,9 +39,9 @@
       <image type="source" width="1360" height="860">https://raw.githubusercontent.com/felixarvid2/test/main/vlan-tool-rs/docs/gui-topologi.png</image>
     </screenshot>
     <screenshot>
-      <caption>Findings for one device, light theme</caption>
-      <caption xml:lang="sv">Fynd för en enhet, ljust tema</caption>
-      <image type="source" width="1360" height="860">https://raw.githubusercontent.com/felixarvid2/test/main/vlan-tool-rs/docs/gui-fynd-ljust.png</image>
+      <caption>Rule status per device, light theme</caption>
+      <caption xml:lang="sv">Regelstatus per enhet, ljust tema</caption>
+      <image type="source" width="1360" height="860">https://raw.githubusercontent.com/felixarvid2/test/main/vlan-tool-rs/docs/gui-regler-ljust.png</image>
     </screenshot>
   </screenshots>
   <categories>
@@ -64,6 +64,7 @@
     <binary>vlantool-gui</binary>
   </provides>
   <releases>
+    <release version="0.3.0" date="2026-10-25"/>
     <release version="0.2.0" date="2026-10-23"/>
   </releases>
 </component>

@@ -52,7 +52,9 @@ fn mode_label(m: IfMode) -> &'static str {
 pub(crate) fn port_line(i: &Interface) -> PortLine {
     let vlan_text = match i.mode {
         IfMode::Access => format!("VLAN {}", i.access_vlan.unwrap_or(1)),
-        IfMode::Trunk => format!("{}  (native {})", i.allowed.as_ref().map_or("alla".into(), |v| join_vlans(v)), i.native_vlan.unwrap_or(1)),
+        IfMode::Trunk => {
+            format!("{}  (native {})", i.allowed.as_ref().map_or("alla".into(), |v| join_vlans(v)), i.native_vlan.unwrap_or(1))
+        }
         _ => i
             .dot1q
             .map(|v| format!("dot1Q {v}{}", if i.dot1q_native { " native" } else { "" }))
@@ -148,7 +150,8 @@ pub(crate) fn lines_csv(lines: &[PortLine]) -> String {
     let mut w = ::csv::Writer::from_writer(Vec::new());
     let _ = w.write_record(HEADERS);
     for l in lines {
-        let _ = w.write_record([l.short.as_str(), l.mode_label, l.vlan_text.as_str(), l.description.as_str(), status_text(l), shield_text(l)]);
+        let _ =
+            w.write_record([l.short.as_str(), l.mode_label, l.vlan_text.as_str(), l.description.as_str(), status_text(l), shield_text(l)]);
     }
     String::from_utf8(w.into_inner().unwrap_or_default()).unwrap_or_default()
 }
@@ -175,20 +178,23 @@ pub(crate) fn ports(app: &mut App, ui: &mut Ui) {
 
     let mut copy = false;
     ui.horizontal_wrapped(|ui| {
-        for (m, label) in [(ModeFilter::All, "Alla"), (ModeFilter::Access, "access"), (ModeFilter::Trunk, "trunk"), (ModeFilter::Routed, "routad")] {
+        for (m, label) in
+            [(ModeFilter::All, "Alla"), (ModeFilter::Access, "access"), (ModeFilter::Trunk, "trunk"), (ModeFilter::Routed, "routad")]
+        {
             if ui.selectable_label(st.mode == m, label).clicked() {
                 st.mode = m;
             }
         }
         ui.add_space(8.0);
-        egui::ComboBox::from_id_salt("ports-vlan")
-            .selected_text(st.vlan.map_or("Alla VLAN".to_string(), |v| format!("VLAN {v}")))
-            .show_ui(ui, |ui| {
+        egui::ComboBox::from_id_salt("ports-vlan").selected_text(st.vlan.map_or("Alla VLAN".to_string(), |v| format!("VLAN {v}"))).show_ui(
+            ui,
+            |ui| {
                 ui.selectable_value(&mut st.vlan, None, "Alla VLAN");
                 for v in &vlans {
                     ui.selectable_value(&mut st.vlan, Some(*v), format!("VLAN {v}"));
                 }
-            });
+            },
+        );
         ui.add(egui::TextEdit::singleline(&mut st.text).hint_text("Sök port eller beskrivning …").desired_width(220.0));
         if (st.mode != ModeFilter::All || st.vlan.is_some() || !st.text.is_empty() || st.sort.is_some())
             && ui.button("Återställ").on_hover_text("Visa alla portar i ursprunglig ordning").clicked()
@@ -228,7 +234,14 @@ pub(crate) fn ports(app: &mut App, ui: &mut Ui) {
                         };
                         let active = st.sort.is_some_and(|(sc, _)| sc == c);
                         let resp = ui
-                            .add(egui::Label::new(RichText::new(format!("{t}{arrow}")).size(12.0).strong().color(if active { p.accent } else { p.muted })).sense(Sense::click()))
+                            .add(
+                                egui::Label::new(RichText::new(format!("{t}{arrow}")).size(12.0).strong().color(if active {
+                                    p.accent
+                                } else {
+                                    p.muted
+                                }))
+                                .sense(Sense::click()),
+                            )
                             .on_hover_text("Klicka för att sortera");
                         if resp.clicked() {
                             st.sort = match st.sort {

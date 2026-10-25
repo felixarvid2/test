@@ -4,7 +4,7 @@
 //! `interface FastEthernet0/1` + ` switchport mode access`.
 
 use crate::inventory::{normalize_port, split_vlans};
-use crate::net::{parse_ip, Subnet};
+use crate::net::{Subnet, parse_ip};
 use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
 use std::net::Ipv4Addr;
@@ -191,9 +191,7 @@ impl Config {
             }
         }
 
-        let hostname = blocks
-            .iter()
-            .find_map(|b| b.header.text.strip_prefix("hostname ").map(|h| h.trim().to_string()));
+        let hostname = blocks.iter().find_map(|b| b.header.text.strip_prefix("hostname ").map(|h| h.trim().to_string()));
 
         let mut vlans = BTreeMap::new();
         for b in &blocks {
@@ -204,11 +202,8 @@ impl Config {
             }
         }
 
-        let interfaces: Vec<Interface> = blocks
-            .iter()
-            .filter(|b| b.header.text.starts_with("interface "))
-            .flat_map(parse_interfaces)
-            .collect();
+        let interfaces: Vec<Interface> =
+            blocks.iter().filter(|b| b.header.text.starts_with("interface ")).flat_map(parse_interfaces).collect();
 
         let has = |p: &str| lines.iter().any(|l| l.text.trim_start().starts_with(p));
         let kind = if interfaces.iter().any(|i| i.mode == IfMode::Access || i.mode == IfMode::Trunk) || has("ip default-gateway") {
@@ -376,7 +371,11 @@ fn parse_interface(b: &Block, name: String) -> Interface {
     let is_secondary = |l: &&Line| l.text.starts_with("ip address ") && l.text.trim_end().ends_with(" secondary");
     let ip = b.body.iter().find(|l| l.text.starts_with("ip address ") && !is_secondary(l)).and_then(addr);
     let secondary = b.body.iter().filter(is_secondary).filter_map(addr).collect();
-    let helpers = b.body.iter().filter_map(|l| l.text.strip_prefix("ip helper-address ").and_then(|v| parse_ip(v.split_whitespace().next()?))).collect();
+    let helpers = b
+        .body
+        .iter()
+        .filter_map(|l| l.text.strip_prefix("ip helper-address ").and_then(|v| parse_ip(v.split_whitespace().next()?)))
+        .collect();
     let acl = |dir: &str| {
         b.body.iter().find_map(|l| {
             let w: Vec<&str> = l.text.split_whitespace().collect();
@@ -458,9 +457,14 @@ mod tests {
 
     #[test]
     fn interface_range_is_expanded() {
-        let c = parse("interface range Fa0/1 - 3, Gi0/1\n switchport mode access\n switchport access vlan 10\n!\ninterface range FastEthernet0/10 - FastEthernet0/11\n shutdown\n");
+        let c = parse(
+            "interface range Fa0/1 - 3, Gi0/1\n switchport mode access\n switchport access vlan 10\n!\ninterface range FastEthernet0/10 - FastEthernet0/11\n shutdown\n",
+        );
         let names: Vec<&str> = c.interfaces.iter().map(|i| i.name.as_str()).collect();
-        assert_eq!(names, ["FastEthernet0/1", "FastEthernet0/2", "FastEthernet0/3", "GigabitEthernet0/1", "FastEthernet0/10", "FastEthernet0/11"]);
+        assert_eq!(
+            names,
+            ["FastEthernet0/1", "FastEthernet0/2", "FastEthernet0/3", "GigabitEthernet0/1", "FastEthernet0/10", "FastEthernet0/11"]
+        );
         assert!(c.interfaces[..4].iter().all(|i| i.access_vlan == Some(10) && i.mode == IfMode::Access));
         assert!(c.interfaces[5].shutdown);
         assert_eq!(expand_range("port-channel1 - 2"), ["Port-channel1", "Port-channel2"]);
@@ -488,7 +492,10 @@ mod tests {
     #[test]
     fn allowed_vlan_add_remove() {
         let allowed = |lines: &str| parse(&format!("interface Gi0/1\n switchport mode trunk\n{lines}")).interfaces[0].allowed.clone();
-        assert_eq!(allowed(" switchport trunk allowed vlan 10,20\n switchport trunk allowed vlan add 30,40-41\n"), Some(vec![10, 20, 30, 40, 41]));
+        assert_eq!(
+            allowed(" switchport trunk allowed vlan 10,20\n switchport trunk allowed vlan add 30,40-41\n"),
+            Some(vec![10, 20, 30, 40, 41])
+        );
         assert_eq!(allowed(" switchport trunk allowed vlan 10,20,30\n switchport trunk allowed vlan remove 20\n"), Some(vec![10, 30]));
         assert_eq!(allowed(" switchport trunk allowed vlan none\n switchport trunk allowed vlan add 5\n"), Some(vec![5]));
         assert_eq!(allowed(" switchport trunk allowed vlan all\n"), None);
@@ -517,7 +524,9 @@ mod tests {
 
     #[test]
     fn acl_names_lists_numbers_and_names() {
-        let c = parse("access-list 1 permit 10.0.0.0 0.0.0.255\naccess-list 1 permit 10.1.0.0 0.0.0.255\naccess-list 110 deny ip any any\nip access-list extended FILTER\n permit ip any any\nip access-list standard MGMT\n permit 10.0.0.0 0.0.0.255\n");
+        let c = parse(
+            "access-list 1 permit 10.0.0.0 0.0.0.255\naccess-list 1 permit 10.1.0.0 0.0.0.255\naccess-list 110 deny ip any any\nip access-list extended FILTER\n permit ip any any\nip access-list standard MGMT\n permit 10.0.0.0 0.0.0.255\n",
+        );
         assert_eq!(c.acl_names(), ["1", "110", "FILTER", "MGMT"]);
         assert!(parse("hostname A\n").acl_names().is_empty());
     }

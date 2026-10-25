@@ -1,8 +1,8 @@
 //! Jämför två konfigar rad för rad, t.ex. den sparade mot den som CSV-filerna
 //! säger att den borde vara ("drift").
 
-use crate::report::Paint;
 use crate::parser::Config;
+use crate::report::Paint;
 use similar::{ChangeTag, DiffTag, TextDiff};
 use std::collections::BTreeMap;
 
@@ -13,12 +13,7 @@ pub struct Stats {
 
 /// Rader som bara är kommentarer räknas inte som skillnader.
 fn clean(text: &str) -> String {
-    text.lines()
-        .map(str::trim_end)
-        .filter(|l| !l.trim().is_empty() && !l.starts_with('!'))
-        .collect::<Vec<_>>()
-        .join("\n")
-        + "\n"
+    text.lines().map(str::trim_end).filter(|l| !l.trim().is_empty() && !l.starts_with('!')).collect::<Vec<_>>().join("\n") + "\n"
 }
 
 pub fn diff(old_name: &str, old: &str, new_name: &str, new: &str, p: Paint) -> (String, Stats) {
@@ -31,19 +26,14 @@ pub fn diff(old_name: &str, old: &str, new_name: &str, new: &str, p: Paint) -> (
     for group in d.grouped_ops(2) {
         let (first, last) = (group.first().unwrap(), group.last().unwrap());
         let (o, n) = (first.old_range().start, first.new_range().start);
-        let header = format!(
-            "@@ -{},{} +{},{} @@\n",
-            o + 1,
-            last.old_range().end - o,
-            n + 1,
-            last.new_range().end - n
-        );
+        let header = format!("@@ -{},{} +{},{} @@\n", o + 1, last.old_range().end - o, n + 1, last.new_range().end - n);
         out.push_str(&p.rgb(&header, (120, 170, 255)));
         for op in group {
             if op.tag() == DiffTag::Replace {
                 let (old_lines, new_lines) = (d.old_slices()[op.old_range()].to_vec(), d.new_slices()[op.new_range()].to_vec());
                 let pairs = old_lines.len().min(new_lines.len());
-                let marked: Vec<(String, String)> = (0..pairs).map(|i| mark_words(old_lines[i].trim_end_matches('\n'), new_lines[i].trim_end_matches('\n'), p)).collect();
+                let marked: Vec<(String, String)> =
+                    (0..pairs).map(|i| mark_words(old_lines[i].trim_end_matches('\n'), new_lines[i].trim_end_matches('\n'), p)).collect();
                 for (i, l) in old_lines.iter().enumerate() {
                     stats.removed += 1;
                     match marked.get(i) {

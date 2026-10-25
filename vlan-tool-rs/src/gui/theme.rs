@@ -4,8 +4,8 @@ use eframe::egui::{
     self, Align2, Color32, CornerRadius, FontData, FontDefinitions, FontFamily, FontId, Margin, Pos2, Rect, Response, RichText, Sense,
     Shadow, Stroke, Ui, Vec2,
 };
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use vlantool::finding::Severity;
 use vlantool::report;
 
@@ -212,11 +212,7 @@ pub fn apply(ctx: &egui::Context, dark: bool) {
 /// Ett kort med rundade hörn.
 pub fn card(dark: bool) -> egui::Frame {
     let p = palette(dark);
-    egui::Frame::new()
-        .fill(p.card)
-        .stroke(Stroke::new(1.0, p.line))
-        .corner_radius(CornerRadius::same(14))
-        .inner_margin(Margin::same(16))
+    egui::Frame::new().fill(p.card).stroke(Stroke::new(1.0, p.line)).corner_radius(CornerRadius::same(14)).inner_margin(Margin::same(16))
 }
 
 pub fn section_title(ui: &mut Ui, text: &str, dark: bool) {

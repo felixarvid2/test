@@ -222,3 +222,21 @@ fn init_creates_settings_and_refuses_to_overwrite() {
     assert_ne!(w.code(&["init"]), 0);
     assert_eq!(w.code(&["init", "--force"]), 0);
 }
+
+/// Ett stängt rör (`vlantool rules | head -1`) ska inte ge en panik på stderr.
+#[test]
+fn closed_pipe_exits_quietly() {
+    use std::io::Read;
+    let mut child = std::process::Command::new(env!("CARGO_BIN_EXE_vlantool"))
+        .args(["rules", "--no-color"])
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    drop(child.stdout.take());
+    let status = child.wait().unwrap();
+    let mut err = String::new();
+    child.stderr.take().unwrap().read_to_string(&mut err).unwrap();
+    assert!(!err.contains("panicked"), "panik på stderr: {err}");
+    assert!(status.code() == Some(141) || status.success(), "{status:?}");
+}

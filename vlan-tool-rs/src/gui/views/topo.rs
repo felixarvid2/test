@@ -77,7 +77,8 @@ fn iface_text(c: &Config, i: &Interface) -> String {
         ),
         IfMode::Access => format!("{head}: access, VLAN {}", i.access_vlan.unwrap_or(1)),
         IfMode::Routed => {
-            let subs: BTreeSet<u16> = c.interfaces.iter().filter(|s| s.name.starts_with(&format!("{}.", i.name))).filter_map(|s| s.dot1q).collect();
+            let subs: BTreeSet<u16> =
+                c.interfaces.iter().filter(|s| s.name.starts_with(&format!("{}.", i.name))).filter_map(|s| s.dot1q).collect();
             if subs.is_empty() {
                 format!("{head}: routad{}", i.ip.map_or(String::new(), |(a, _)| format!(", {a}")))
             } else {
@@ -92,7 +93,9 @@ fn carry_of(c: &Config, i: &Interface) -> Carry {
     match i.mode {
         IfMode::Trunk => i.allowed.as_ref().map_or(Carry::All, |v| Carry::Set(v.iter().copied().collect())),
         IfMode::Access => Carry::Set([i.access_vlan.unwrap_or(1)].into()),
-        IfMode::Routed => Carry::Set(c.interfaces.iter().filter(|s| s.name.starts_with(&format!("{}.", i.name))).filter_map(|s| s.dot1q).collect()),
+        IfMode::Routed => {
+            Carry::Set(c.interfaces.iter().filter(|s| s.name.starts_with(&format!("{}.", i.name))).filter_map(|s| s.dot1q).collect())
+        }
         IfMode::Other => Carry::Set(BTreeSet::new()),
     }
 }
@@ -141,11 +144,13 @@ pub(crate) fn build_graph(fleet: &FleetReport) -> Graph {
         let parent = stack.last().map(|(_, n)| *n);
         let vlan = l.info.strip_prefix("vlan ").and_then(|v| v.parse().ok());
         // Datorer och liknande samlas i en lista under switchen istället för egna noder.
-        if !l.device && vlan.is_some()
-            && let Some(par) = parent {
-                nodes[par].endpoints.push((l.port.clone(), l.peer.clone(), vlan, l.down));
-                continue;
-            }
+        if !l.device
+            && vlan.is_some()
+            && let Some(par) = parent
+        {
+            nodes[par].endpoints.push((l.port.clone(), l.peer.clone(), vlan, l.down));
+            continue;
+        }
         let idx = nodes.len();
         nodes.push(Node {
             label: l.peer.clone(),
@@ -253,7 +258,12 @@ pub(crate) fn svg(g: &Graph, scores: &std::collections::HashMap<String, u32>) ->
         b.min.x.floor(),
         b.min.y.floor()
     ));
-    s.push_str(&format!("<rect x=\"{}\" y=\"{}\" width=\"{w}\" height=\"{h}\" fill=\"{}\"/>\n", b.min.x.floor(), b.min.y.floor(), hex(p.bg)));
+    s.push_str(&format!(
+        "<rect x=\"{}\" y=\"{}\" width=\"{w}\" height=\"{h}\" fill=\"{}\"/>\n",
+        b.min.x.floor(),
+        b.min.y.floor(),
+        hex(p.bg)
+    ));
     for e in &g.edges {
         let (pts, _) = edge_points(g, e);
         let bad = !e.errors.is_empty();
@@ -283,15 +293,32 @@ pub(crate) fn svg(g: &Graph, scores: &std::collections::HashMap<String, u32>) ->
         };
         s.push_str(&format!(
             "<rect x=\"{:.1}\" y=\"{:.1}\" width=\"{:.1}\" height=\"{:.1}\" rx=\"14\" fill=\"{}\" stroke=\"{}\" stroke-width=\"1.5\"/>\n",
-            r.min.x, r.min.y, r.width(), r.height(), hex(p.card), hex(color)
+            r.min.x,
+            r.min.y,
+            r.width(),
+            r.height(),
+            hex(p.card),
+            hex(color)
         ));
         s.push_str(&format!("<circle cx=\"{:.1}\" cy=\"{:.1}\" r=\"6\" fill=\"{}\"/>\n", r.min.x + 20.0, r.min.y + 20.0, hex(color)));
-        s.push_str(&format!("<text x=\"{:.1}\" y=\"{:.1}\" font-size=\"15\" fill=\"{}\">{}</text>\n", r.min.x + 36.0, r.min.y + 25.0, hex(p.text), esc(&n.label)));
+        s.push_str(&format!(
+            "<text x=\"{:.1}\" y=\"{:.1}\" font-size=\"15\" fill=\"{}\">{}</text>\n",
+            r.min.x + 36.0,
+            r.min.y + 25.0,
+            hex(p.text),
+            esc(&n.label)
+        ));
         let sub = match n.kind {
             Some(k) => k.label().to_string(),
             None => n.sub.clone(),
         };
-        s.push_str(&format!("<text x=\"{:.1}\" y=\"{:.1}\" font-size=\"12\" fill=\"{}\">{}</text>\n", r.min.x + 36.0, r.min.y + 45.0, hex(p.muted), esc(&sub)));
+        s.push_str(&format!(
+            "<text x=\"{:.1}\" y=\"{:.1}\" font-size=\"12\" fill=\"{}\">{}</text>\n",
+            r.min.x + 36.0,
+            r.min.y + 45.0,
+            hex(p.muted),
+            esc(&sub)
+        ));
         if let Some(score) = scores.get(&n.label) {
             let c = r.right_top() + Vec2::new(-26.0, 30.0);
             let sc = theme::score_color(*score, false);
@@ -302,16 +329,40 @@ pub(crate) fn svg(g: &Graph, scores: &std::collections::HashMap<String, u32>) ->
         }
         let mut y = r.top() + if n.kind.is_some() { 66.0 } else { 52.0 };
         if !n.endpoints.is_empty() {
-            s.push_str(&format!("<line x1=\"{:.1}\" y1=\"{:.1}\" x2=\"{:.1}\" y2=\"{:.1}\" stroke=\"{}\"/>\n", r.left() + 12.0, y - 6.0, r.right() - 12.0, y - 6.0, hex(p.line)));
+            s.push_str(&format!(
+                "<line x1=\"{:.1}\" y1=\"{:.1}\" x2=\"{:.1}\" y2=\"{:.1}\" stroke=\"{}\"/>\n",
+                r.left() + 12.0,
+                y - 6.0,
+                r.right() - 12.0,
+                y - 6.0,
+                hex(p.line)
+            ));
         }
         for (port, name, vlan, down) in &n.endpoints {
             let vc = vlan.map_or(p.muted, |v| theme::vlan_color(v, false));
             let dot = if *down { theme::sev_color(Severity::Critical, false) } else { vc };
             s.push_str(&format!("<circle cx=\"{:.1}\" cy=\"{:.1}\" r=\"4\" fill=\"{}\"/>\n", r.left() + 18.0, y + 6.0, hex(dot)));
-            s.push_str(&format!("<text x=\"{:.1}\" y=\"{:.1}\" font-family=\"monospace\" font-size=\"11.5\" fill=\"{}\">{}</text>\n", r.left() + 30.0, y + 10.0, hex(p.muted), esc(port)));
-            s.push_str(&format!("<text x=\"{:.1}\" y=\"{:.1}\" font-size=\"12.5\" fill=\"{}\">{}</text>\n", r.left() + 92.0, y + 10.0, hex(p.text), esc(name)));
+            s.push_str(&format!(
+                "<text x=\"{:.1}\" y=\"{:.1}\" font-family=\"monospace\" font-size=\"11.5\" fill=\"{}\">{}</text>\n",
+                r.left() + 30.0,
+                y + 10.0,
+                hex(p.muted),
+                esc(port)
+            ));
+            s.push_str(&format!(
+                "<text x=\"{:.1}\" y=\"{:.1}\" font-size=\"12.5\" fill=\"{}\">{}</text>\n",
+                r.left() + 92.0,
+                y + 10.0,
+                hex(p.text),
+                esc(name)
+            ));
             if let Some(v) = vlan {
-                s.push_str(&format!("<text x=\"{:.1}\" y=\"{:.1}\" font-size=\"11.5\" text-anchor=\"end\" fill=\"{}\">VLAN {v}</text>\n", r.right() - 14.0, y + 10.0, hex(vc)));
+                s.push_str(&format!(
+                    "<text x=\"{:.1}\" y=\"{:.1}\" font-size=\"11.5\" text-anchor=\"end\" fill=\"{}\">VLAN {v}</text>\n",
+                    r.right() - 14.0,
+                    y + 10.0,
+                    hex(vc)
+                ));
             }
             y += 19.0;
         }
@@ -329,7 +380,9 @@ pub(crate) fn export_svg(app: &mut App) -> Result<std::path::PathBuf, String> {
     }
     let scores = app.fleet.devices.iter().map(|d| (d.name.clone(), d.score)).collect();
     let path = project.reports().join("topologi.svg");
-    std::fs::create_dir_all(project.reports()).and_then(|_| std::fs::write(&path, svg(&g, &scores))).map_err(|e| format!("Kunde inte spara: {e}"))?;
+    std::fs::create_dir_all(project.reports())
+        .and_then(|_| std::fs::write(&path, svg(&g, &scores)))
+        .map_err(|e| format!("Kunde inte spara: {e}"))?;
     Ok(path)
 }
 
@@ -359,14 +412,15 @@ pub(crate) fn topology_view(app: &mut App, ui: &mut Ui) {
             if ui.button("−").on_hover_text("Zooma ut").clicked() {
                 zoom = Some(0.8);
             }
-            egui::ComboBox::from_id_salt("topo-vlan")
-                .selected_text(vlan.map_or("Alla VLAN".to_string(), |v| format!("VLAN {v}")))
-                .show_ui(ui, |ui| {
+            egui::ComboBox::from_id_salt("topo-vlan").selected_text(vlan.map_or("Alla VLAN".to_string(), |v| format!("VLAN {v}"))).show_ui(
+                ui,
+                |ui| {
                     ui.selectable_value(&mut vlan, None, "Alla VLAN");
                     for v in &graph.vlans {
                         ui.selectable_value(&mut vlan, Some(*v), format!("VLAN {v}"));
                     }
-                });
+                },
+            );
             ui.label(RichText::new("Visa VLAN").size(12.0).color(p.muted));
             ui.label(RichText::new("Dra för att flytta · Ctrl+scroll eller +/− för att zooma").size(12.0).color(p.muted));
         });
@@ -382,15 +436,17 @@ pub(crate) fn topology_view(app: &mut App, ui: &mut Ui) {
     });
     ui.add_space(8.0);
     if let Some(f) = zoom
-        && app.scene_rect.is_positive() && app.sb.topo.view.min_elem() > 0.0 {
-            let view = app.sb.topo.view;
-            let c = app.scene_rect.center();
-            let mut size = app.scene_rect.size() / f;
-            let scale = (view / size).min_elem();
-            let clamped = scale.clamp(ZOOM_MIN, ZOOM_MAX);
-            size *= scale / clamped;
-            app.scene_rect = Rect::from_center_size(c, size);
-        }
+        && app.scene_rect.is_positive()
+        && app.sb.topo.view.min_elem() > 0.0
+    {
+        let view = app.sb.topo.view;
+        let c = app.scene_rect.center();
+        let mut size = app.scene_rect.size() / f;
+        let scale = (view / size).min_elem();
+        let clamped = scale.clamp(ZOOM_MIN, ZOOM_MAX);
+        size *= scale / clamped;
+        app.scene_rect = Rect::from_center_size(c, size);
+    }
     let scores: std::collections::HashMap<String, u32> = app.fleet.devices.iter().map(|d| (d.name.clone(), d.score)).collect();
     let mut open: Option<String> = None;
     let crit = theme::sev_color(Severity::Critical, dark);
@@ -399,7 +455,9 @@ pub(crate) fn topology_view(app: &mut App, ui: &mut Ui) {
         ui.set_min_size(ui.available_size());
         view_size = ui.available_size();
         if graph.nodes.is_empty() {
-            ui.centered_and_justified(|ui| ui.label(RichText::new("Inga portbeskrivningar som 'Port mot X' – topologin går inte att rita.").color(p.muted)));
+            ui.centered_and_justified(|ui| {
+                ui.label(RichText::new("Inga portbeskrivningar som 'Port mot X' – topologin går inte att rita.").color(p.muted))
+            });
             return;
         }
         let mut rect = app.scene_rect;
@@ -434,7 +492,11 @@ pub(crate) fn topology_view(app: &mut App, ui: &mut Ui) {
                             ui.label(RichText::new(d).monospace().size(12.0));
                         }
                         if let Some(v) = vlan {
-                            let (t, col) = if e.carry.has(v) { (format!("✔ bär VLAN {v}"), p.good) } else { (format!("Bär inte VLAN {v}"), p.muted) };
+                            let (t, col) = if e.carry.has(v) {
+                                (format!("✔ bär VLAN {v}"), p.good)
+                            } else {
+                                (format!("Bär inte VLAN {v}"), p.muted)
+                            };
                             ui.label(RichText::new(t).color(col));
                         }
                         for m in &e.errors {
@@ -448,7 +510,8 @@ pub(crate) fn topology_view(app: &mut App, ui: &mut Ui) {
                 let bad = !e.errors.is_empty();
                 let carries = vlan.is_none_or(|v| e.carry.has(v));
                 let base = if bad { crit } else { vlan.map_or(p.accent, |v| theme::vlan_color(v, dark)) };
-                let color = if carries { theme::alpha(base, if bad || vlan.is_some() { 0.95 } else { 0.55 }) } else { theme::alpha(p.muted, 0.18) };
+                let color =
+                    if carries { theme::alpha(base, if bad || vlan.is_some() { 0.95 } else { 0.55 }) } else { theme::alpha(p.muted, 0.18) };
                 let width = (if g.hovered { 3.5 } else { 2.0 }) + if vlan.is_some() && carries { 1.5 } else { 0.0 };
                 if bad {
                     // Streckad röd linje för länkar med fel.
@@ -456,12 +519,23 @@ pub(crate) fn topology_view(app: &mut App, ui: &mut Ui) {
                     let pts = shape.flatten(Some(0.5));
                     painter.extend(egui::Shape::dashed_line(&pts, Stroke::new(width, color), 8.0, 5.0));
                 } else {
-                    painter.add(egui::epaint::CubicBezierShape::from_points_stroke(g.pts, false, Color32::TRANSPARENT, Stroke::new(width, color)));
+                    painter.add(egui::epaint::CubicBezierShape::from_points_stroke(
+                        g.pts,
+                        false,
+                        Color32::TRANSPARENT,
+                        Stroke::new(width, color),
+                    ));
                 }
                 if let Some((r, text)) = &g.label {
                     let tc = if carries { p.violet } else { p.muted };
                     let galley = painter.layout_no_wrap(text.clone(), FontId::monospace(11.5), tc);
-                    painter.rect(*r, CornerRadius::same(8), p.raised, if bad { Stroke::new(1.0, crit) } else { Stroke::NONE }, egui::StrokeKind::Inside);
+                    painter.rect(
+                        *r,
+                        CornerRadius::same(8),
+                        p.raised,
+                        if bad { Stroke::new(1.0, crit) } else { Stroke::NONE },
+                        egui::StrokeKind::Inside,
+                    );
                     painter.galley(r.center() - galley.size() / 2.0, galley, tc);
                     if bad {
                         painter.text(r.right_center() + Vec2::new(10.0, 0.0), Align2::LEFT_CENTER, "⚠", FontId::proportional(14.0), crit);
@@ -476,7 +550,13 @@ pub(crate) fn topology_view(app: &mut App, ui: &mut Ui) {
                     Some(Kind::Unknown) => ("◇", p.muted),
                     None => ("☁", p.muted),
                 };
-                painter.rect(r, CornerRadius::same(14), p.card, Stroke::new(if n.kind.is_some() { 1.5 } else { 1.0 }, theme::alpha(color, 0.75)), egui::StrokeKind::Inside);
+                painter.rect(
+                    r,
+                    CornerRadius::same(14),
+                    p.card,
+                    Stroke::new(if n.kind.is_some() { 1.5 } else { 1.0 }, theme::alpha(color, 0.75)),
+                    egui::StrokeKind::Inside,
+                );
                 painter.text(r.left_top() + Vec2::new(16.0, 20.0), Align2::LEFT_CENTER, icon, FontId::proportional(20.0), color);
                 painter.text(r.left_top() + Vec2::new(42.0, 20.0), Align2::LEFT_CENTER, &n.label, FontId::proportional(15.5), p.text);
                 let sub = match n.kind {
@@ -491,7 +571,10 @@ pub(crate) fn topology_view(app: &mut App, ui: &mut Ui) {
                 }
                 let mut y = r.top() + if n.kind.is_some() { 66.0 } else { 52.0 };
                 if !n.endpoints.is_empty() {
-                    painter.line_segment([Pos2::new(r.left() + 12.0, y - 6.0), Pos2::new(r.right() - 12.0, y - 6.0)], Stroke::new(1.0, p.line));
+                    painter.line_segment(
+                        [Pos2::new(r.left() + 12.0, y - 6.0), Pos2::new(r.right() - 12.0, y - 6.0)],
+                        Stroke::new(1.0, p.line),
+                    );
                 }
                 for (port, name, v, down) in &n.endpoints {
                     let hit = vlan.is_none_or(|sel| *v == Some(sel));
@@ -501,11 +584,22 @@ pub(crate) fn topology_view(app: &mut App, ui: &mut Ui) {
                     painter.text(Pos2::new(r.left() + 30.0, y + 6.0), Align2::LEFT_CENTER, port, FontId::monospace(11.5), fade(p.muted));
                     painter.text(Pos2::new(r.left() + 92.0, y + 6.0), Align2::LEFT_CENTER, name, FontId::proportional(12.5), fade(p.text));
                     if let Some(v) = v {
-                        painter.text(Pos2::new(r.right() - 14.0, y + 6.0), Align2::RIGHT_CENTER, format!("VLAN {v}"), FontId::proportional(11.5), fade(vc));
+                        painter.text(
+                            Pos2::new(r.right() - 14.0, y + 6.0),
+                            Align2::RIGHT_CENTER,
+                            format!("VLAN {v}"),
+                            FontId::proportional(11.5),
+                            fade(vc),
+                        );
                     }
                     y += 19.0;
                 }
-                if n.kind.is_some() && ui.interact(r, ui.scope_id().with(&n.label), Sense::click()).on_hover_text("Dubbelklicka för att visa fynden").double_clicked() {
+                if n.kind.is_some()
+                    && ui
+                        .interact(r, ui.scope_id().with(&n.label), Sense::click())
+                        .on_hover_text("Dubbelklicka för att visa fynden")
+                        .double_clicked()
+                {
                     open = Some(n.label.clone());
                 }
             }
@@ -522,10 +616,11 @@ pub(crate) fn topology_view(app: &mut App, ui: &mut Ui) {
         }
     }
     if let Some(name) = open
-        && let Some(i) = app.fleet.devices.iter().position(|d| d.name == name) {
-            app.select_device(i);
-            app.tab = Tab::Findings;
-        }
+        && let Some(i) = app.fleet.devices.iter().position(|d| d.name == name)
+    {
+        app.select_device(i);
+        app.tab = Tab::Findings;
+    }
 }
 
 #[cfg(test)]
@@ -536,7 +631,9 @@ mod tests {
     fn fleet(native_b: u16) -> FleetReport {
         let a = "hostname SW-A\nvlan 10\nvlan 20\nvlan 999\n!\ninterface GigabitEthernet0/1\n description Port mot SW-B\n switchport mode trunk\n switchport trunk allowed vlan 10,20\n switchport trunk native vlan 999\n!\n\
                  interface FastEthernet0/1\n description Port mot Dator-1\n switchport mode access\n switchport access vlan 10\n!\n";
-        let b = format!("hostname SW-B\nvlan 10\nvlan 20\nvlan 999\n!\ninterface GigabitEthernet0/1\n description Port mot SW-A\n switchport mode trunk\n switchport trunk allowed vlan 10,20\n switchport trunk native vlan {native_b}\n!\n");
+        let b = format!(
+            "hostname SW-B\nvlan 10\nvlan 20\nvlan 999\n!\ninterface GigabitEthernet0/1\n description Port mot SW-A\n switchport mode trunk\n switchport trunk allowed vlan 10,20\n switchport trunk native vlan {native_b}\n!\n"
+        );
         vlantool::audit::audit_fleet(vec![Config::parse("SW-A", "SW-A.cfg", a), Config::parse("SW-B", "SW-B.cfg", &b)], &[])
     }
 

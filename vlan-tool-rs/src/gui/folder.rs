@@ -27,7 +27,16 @@ pub struct FolderDialog {
 impl FolderDialog {
     pub fn new(start: Option<PathBuf>) -> Self {
         let start = start.filter(|p| p.is_dir()).or_else(dirs::home_dir).unwrap_or_else(|| PathBuf::from("/"));
-        let mut d = FolderDialog { current: PathBuf::new(), typed: String::new(), new_name: String::new(), entries: Vec::new(), show_hidden: false, error: None, selected: None, scroll_to_selected: false };
+        let mut d = FolderDialog {
+            current: PathBuf::new(),
+            typed: String::new(),
+            new_name: String::new(),
+            entries: Vec::new(),
+            show_hidden: false,
+            error: None,
+            selected: None,
+            scroll_to_selected: false,
+        };
         d.go(start);
         d
     }
@@ -67,7 +76,12 @@ impl FolderDialog {
                 // Tangentbord (bara när inget textfält har fokus): pilar väljer, Enter öppnar, Backsteg går upp.
                 if !ui.ctx().egui_wants_keyboard_input() {
                     let (down, up, enter, back) = ui.input(|i| {
-                        (i.key_pressed(egui::Key::ArrowDown), i.key_pressed(egui::Key::ArrowUp), i.key_pressed(egui::Key::Enter), i.key_pressed(egui::Key::Backspace))
+                        (
+                            i.key_pressed(egui::Key::ArrowDown),
+                            i.key_pressed(egui::Key::ArrowUp),
+                            i.key_pressed(egui::Key::Enter),
+                            i.key_pressed(egui::Key::Backspace),
+                        )
                     });
                     let n = self.entries.len();
                     if n > 0 && (down || up) {
@@ -94,9 +108,10 @@ impl FolderDialog {
                         target = dirs::home_dir();
                     }
                     if let Some(docs) = dirs::document_dir()
-                        && ui.button("Dokument").clicked() {
-                            target = Some(docs);
-                        }
+                        && ui.button("Dokument").clicked()
+                    {
+                        target = Some(docs);
+                    }
                     let resp = ui.add(egui::TextEdit::singleline(&mut self.typed).desired_width(f32::INFINITY));
                     if resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                         target = Some(PathBuf::from(self.typed.trim()));
@@ -115,7 +130,11 @@ impl FolderDialog {
                         };
                         let last = n + 1 == parts.len();
                         let color = if last { p.text } else { p.accent };
-                        if ui.add(egui::Button::new(RichText::new(label).color(color).strong()).frame(false)).on_hover_text(path.display().to_string()).clicked() {
+                        if ui
+                            .add(egui::Button::new(RichText::new(label).color(color).strong()).frame(false))
+                            .on_hover_text(path.display().to_string())
+                            .clicked()
+                        {
                             target = Some(path.clone());
                         }
                         if !last && !matches!(c, std::path::Component::RootDir) {
@@ -137,30 +156,35 @@ impl FolderDialog {
                     .color(if valid { p.good } else { p.muted }),
                 );
                 ui.add_space(4.0);
-                egui::Frame::new().fill(p.code_bg).corner_radius(egui::CornerRadius::same(10)).inner_margin(egui::Margin::same(6)).show(ui, |ui| {
-                    egui::ScrollArea::vertical().auto_shrink([false, false]).max_height(300.0).show(ui, |ui| {
-                        if self.entries.is_empty() {
-                            ui.label(RichText::new("(inga undermappar)").color(p.muted));
-                        }
-                        for (idx, dir) in self.entries.iter().enumerate() {
-                            let name = dir.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-                            let project = Project::looks_valid(dir);
-                            let text = if project { format!("◆  {name}") } else { format!("▸  {name}") };
-                            let picked = self.selected == Some(idx);
-                            let resp = ui.add_sized(
-                                Vec2::new(ui.available_width(), 26.0),
-                                egui::Button::new(RichText::new(text).color(if project { p.violet } else { p.text })).frame(false).fill(if picked { theme::alpha(p.accent, 0.18) } else { egui::Color32::TRANSPARENT }),
-                            );
-                            if picked && self.scroll_to_selected {
-                                resp.scroll_to_me(None);
-                                self.scroll_to_selected = false;
+                egui::Frame::new().fill(p.code_bg).corner_radius(egui::CornerRadius::same(10)).inner_margin(egui::Margin::same(6)).show(
+                    ui,
+                    |ui| {
+                        egui::ScrollArea::vertical().auto_shrink([false, false]).max_height(300.0).show(ui, |ui| {
+                            if self.entries.is_empty() {
+                                ui.label(RichText::new("(inga undermappar)").color(p.muted));
                             }
-                            if resp.clicked() {
-                                target = Some(dir.clone());
+                            for (idx, dir) in self.entries.iter().enumerate() {
+                                let name = dir.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+                                let project = Project::looks_valid(dir);
+                                let text = if project { format!("◆  {name}") } else { format!("▸  {name}") };
+                                let picked = self.selected == Some(idx);
+                                let resp = ui.add_sized(
+                                    Vec2::new(ui.available_width(), 26.0),
+                                    egui::Button::new(RichText::new(text).color(if project { p.violet } else { p.text }))
+                                        .frame(false)
+                                        .fill(if picked { theme::alpha(p.accent, 0.18) } else { egui::Color32::TRANSPARENT }),
+                                );
+                                if picked && self.scroll_to_selected {
+                                    resp.scroll_to_me(None);
+                                    self.scroll_to_selected = false;
+                                }
+                                if resp.clicked() {
+                                    target = Some(dir.clone());
+                                }
                             }
-                        }
-                    });
-                });
+                        });
+                    },
+                );
                 ui.label(RichText::new("↑ ↓ väljer mapp · Enter öppnar den · Backsteg går upp").size(12.0).color(p.muted));
                 ui.add_space(4.0);
                 ui.horizontal(|ui| {

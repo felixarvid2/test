@@ -159,7 +159,14 @@ pub fn edges(configs: &[Config]) -> Vec<Edge> {
                 continue;
             }
             let Some(other) = by_name.get(peer) else {
-                out.push(Edge { a: me.into(), a_port: short_port(&i.name), b: peer.into(), b_port: None, b_device: false, info: link_info(i, None) });
+                out.push(Edge {
+                    a: me.into(),
+                    a_port: short_port(&i.name),
+                    b: peer.into(),
+                    b_port: None,
+                    b_device: false,
+                    info: link_info(i, None),
+                });
                 continue;
             };
             let a_ports = toward(c, peer);
@@ -170,9 +177,30 @@ pub fn edges(configs: &[Config]) -> Vec<Edge> {
             }
             for n in 0..a_ports.len().max(b_ports.len()) {
                 match (a_ports.get(n), b_ports.get(n)) {
-                    (Some(x), Some(y)) => out.push(Edge { a: me.into(), a_port: short_port(&x.name), b: peer.into(), b_port: Some(short_port(&y.name)), b_device: true, info: link_info(x, Some(y)) }),
-                    (Some(x), None) => out.push(Edge { a: me.into(), a_port: short_port(&x.name), b: peer.into(), b_port: None, b_device: true, info: link_info(x, None) }),
-                    (None, Some(y)) => out.push(Edge { a: peer.into(), a_port: short_port(&y.name), b: me.into(), b_port: None, b_device: true, info: link_info(y, None) }),
+                    (Some(x), Some(y)) => out.push(Edge {
+                        a: me.into(),
+                        a_port: short_port(&x.name),
+                        b: peer.into(),
+                        b_port: Some(short_port(&y.name)),
+                        b_device: true,
+                        info: link_info(x, Some(y)),
+                    }),
+                    (Some(x), None) => out.push(Edge {
+                        a: me.into(),
+                        a_port: short_port(&x.name),
+                        b: peer.into(),
+                        b_port: None,
+                        b_device: true,
+                        info: link_info(x, None),
+                    }),
+                    (None, Some(y)) => out.push(Edge {
+                        a: peer.into(),
+                        a_port: short_port(&y.name),
+                        b: me.into(),
+                        b_port: None,
+                        b_device: true,
+                        info: link_info(y, None),
+                    }),
                     (None, None) => {}
                 }
             }
@@ -212,7 +240,9 @@ fn dot_esc(s: &str) -> String {
 
 /// Nätet som Graphviz (`dot -Tsvg`). Enheter utan konfig ritas streckade.
 pub fn dot(configs: &[Config]) -> String {
-    let mut s = String::from("graph vlantool {\n  graph [overlap=false, splines=true];\n  node [fontname=\"Helvetica\"];\n  edge [fontname=\"Helvetica\", fontsize=10];\n");
+    let mut s = String::from(
+        "graph vlantool {\n  graph [overlap=false, splines=true];\n  node [fontname=\"Helvetica\"];\n  edge [fontname=\"Helvetica\", fontsize=10];\n",
+    );
     let es = edges(configs);
     for c in configs {
         let shape = match c.kind {
@@ -220,7 +250,12 @@ pub fn dot(configs: &[Config]) -> String {
             Kind::Switch => "shape=box",
             Kind::Unknown => "shape=ellipse",
         };
-        s.push_str(&format!("  \"{}\" [{shape}, label=\"{}\\n{}\"];\n", dot_esc(c.display_name()), dot_esc(c.display_name()), c.kind.label()));
+        s.push_str(&format!(
+            "  \"{}\" [{shape}, label=\"{}\\n{}\"];\n",
+            dot_esc(c.display_name()),
+            dot_esc(c.display_name()),
+            c.kind.label()
+        ));
     }
     let known: BTreeSet<&str> = configs.iter().map(|c| c.display_name()).collect();
     let mut external: BTreeSet<&str> = BTreeSet::new();
@@ -309,7 +344,8 @@ mod tests {
     fn redundant_link_is_a_loop() {
         let extra = "interface Gi0/2\n description Trunk mot SW1\n switchport mode trunk\n!\n";
         let sw1_extra = format!("{SW1}interface Gi0/3\n description Trunk mot SW2\n switchport mode trunk\n!\n");
-        let cfgs = vec![Config::parse("r", "r", R), Config::parse("s1", "s1", &sw1_extra), Config::parse("s2", "s2", &format!("{SW2}{extra}"))];
+        let cfgs =
+            vec![Config::parse("r", "r", R), Config::parse("s1", "s1", &sw1_extra), Config::parse("s2", "s2", &format!("{SW2}{extra}"))];
         let l = loops(&cfgs);
         assert_eq!(l.len(), 1, "{l:?}");
         assert_eq!((l[0].a.as_str(), l[0].b.as_str()), ("SW1", "SW2"));

@@ -68,8 +68,14 @@ impl CsvTable {
         let first = text.lines().next().unwrap_or("");
         let delimiter = detect_delimiter(first);
         let crlf = first.len() < text.split('\n').next().map_or(0, str::len);
-        let mut reader = ::csv::ReaderBuilder::new().delimiter(delimiter).flexible(true).trim(::csv::Trim::Fields).from_reader(text.as_bytes());
-        let headers: Vec<String> = reader.headers().with_context(|| format!("{}: rubrikraden går inte att läsa", path.display()))?.iter().map(str::to_string).collect();
+        let mut reader =
+            ::csv::ReaderBuilder::new().delimiter(delimiter).flexible(true).trim(::csv::Trim::Fields).from_reader(text.as_bytes());
+        let headers: Vec<String> = reader
+            .headers()
+            .with_context(|| format!("{}: rubrikraden går inte att läsa", path.display()))?
+            .iter()
+            .map(str::to_string)
+            .collect();
         let Some(kind) = TableKind::detect(&headers) else { return Ok(None) };
         let mut rows = Vec::new();
         for (i, record) in reader.records().enumerate() {
@@ -307,7 +313,21 @@ mod tests {
             PlanPool { name: "DRIFT".into(), vlan: 99, subnet: Subnet::parse("192.168.1.64/28").unwrap() },
         ];
         let rows = dhcp_rows(&headers, &pools, "8.8.8.8".parse().unwrap());
-        assert_eq!(rows[0], ["10", "KONTOR", "192.168.1.0", "255.255.255.192", "192.168.1.1", "192.168.1.62", "192.168.1.1", "192.168.1.10", "192.168.1.1", "8.8.8.8"]);
+        assert_eq!(
+            rows[0],
+            [
+                "10",
+                "KONTOR",
+                "192.168.1.0",
+                "255.255.255.192",
+                "192.168.1.1",
+                "192.168.1.62",
+                "192.168.1.1",
+                "192.168.1.10",
+                "192.168.1.1",
+                "8.8.8.8"
+            ]
+        );
         assert_eq!(rows[1][8], "192.168.1.65");
         assert_eq!(rows[1][5], "192.168.1.78");
 
@@ -325,7 +345,21 @@ mod tests {
 
     #[test]
     fn vlsm_rows_keep_reordered_headers() {
-        let headers: Vec<String> = ["pool_name", "vlan_id", "dns", "network", "mask", "pool_start", "pool_end", "excluded_start", "excluded_end", "gateway", "kommentar"].map(String::from).to_vec();
+        let headers: Vec<String> = [
+            "pool_name",
+            "vlan_id",
+            "dns",
+            "network",
+            "mask",
+            "pool_start",
+            "pool_end",
+            "excluded_start",
+            "excluded_end",
+            "gateway",
+            "kommentar",
+        ]
+        .map(String::from)
+        .to_vec();
         let pools = [PlanPool { name: "A".into(), vlan: 5, subnet: Subnet::parse("10.0.0.0/30").unwrap() }];
         let rows = dhcp_rows(&headers, &pools, "1.1.1.1".parse().unwrap());
         assert_eq!(rows[0][0], "A");

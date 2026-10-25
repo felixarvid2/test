@@ -1,7 +1,7 @@
 //! Exportdialogen: kryssrutor för format, rättningsskript och topologi, och "öppna mappen efteråt".
 
 use super::topo;
-use crate::app::{open_path, App};
+use crate::app::{App, open_path};
 use crate::theme::{self, palette};
 use eframe::egui::{self, Align2, RichText, Vec2};
 use std::path::PathBuf;
@@ -106,37 +106,46 @@ pub(crate) fn show(app: &mut App, ctx: &egui::Context) {
     let (mut go, mut cancel) = (false, false);
     let empty = app.fleet.devices.is_empty();
     let st = &mut app.sb.export;
-    egui::Window::new("Exportera").open(&mut open).collapsible(false).resizable(false).anchor(Align2::CENTER_CENTER, Vec2::ZERO).show(ctx, |ui| {
-        ui.set_width(400.0);
-        ui.label(RichText::new("Välj vad som ska sparas i reports/").color(p.muted));
-        ui.add_space(6.0);
-        if empty {
-            ui.label(RichText::new("Det finns inget att exportera ännu – generera eller läs in konfigar först.").color(theme::sev_color(Severity::Medium, dark)));
+    egui::Window::new("Exportera").open(&mut open).collapsible(false).resizable(false).anchor(Align2::CENTER_CENTER, Vec2::ZERO).show(
+        ctx,
+        |ui| {
+            ui.set_width(400.0);
+            ui.label(RichText::new("Välj vad som ska sparas i reports/").color(p.muted));
             ui.add_space(6.0);
-        }
-        ui.label(RichText::new("Rapport").strong());
-        ui.checkbox(&mut st.sel.html, "HTML (rapport.html)");
-        ui.checkbox(&mut st.sel.markdown, "Markdown (rapport.md)");
-        ui.checkbox(&mut st.sel.json, "JSON (rapport.json)");
-        ui.checkbox(&mut st.sel.csv, "CSV (rapport.csv)");
-        ui.checkbox(&mut st.sel.text, "Text (rapport.txt)");
-        ui.add_space(6.0);
-        ui.label(RichText::new("Övrigt").strong());
-        ui.checkbox(&mut st.sel.fix_scripts, "Rättningsskript per enhet (<enhet>_fix.txt)");
-        ui.checkbox(&mut st.sel.svg, "Topologin som bild (topologi.svg)");
-        ui.add_space(8.0);
-        ui.checkbox(&mut st.open_folder, "Öppna mappen efteråt");
-        ui.add_space(10.0);
-        ui.horizontal(|ui| {
-            let can = !empty && st.sel.any();
-            if ui.add_enabled(can, egui::Button::new(RichText::new("Exportera").strong().color(egui::Color32::WHITE)).fill(p.accent)).clicked() {
-                go = true;
+            if empty {
+                ui.label(
+                    RichText::new("Det finns inget att exportera ännu – generera eller läs in konfigar först.")
+                        .color(theme::sev_color(Severity::Medium, dark)),
+                );
+                ui.add_space(6.0);
             }
-            if ui.button("Avbryt").clicked() {
-                cancel = true;
-            }
-        });
-    });
+            ui.label(RichText::new("Rapport").strong());
+            ui.checkbox(&mut st.sel.html, "HTML (rapport.html)");
+            ui.checkbox(&mut st.sel.markdown, "Markdown (rapport.md)");
+            ui.checkbox(&mut st.sel.json, "JSON (rapport.json)");
+            ui.checkbox(&mut st.sel.csv, "CSV (rapport.csv)");
+            ui.checkbox(&mut st.sel.text, "Text (rapport.txt)");
+            ui.add_space(6.0);
+            ui.label(RichText::new("Övrigt").strong());
+            ui.checkbox(&mut st.sel.fix_scripts, "Rättningsskript per enhet (<enhet>_fix.txt)");
+            ui.checkbox(&mut st.sel.svg, "Topologin som bild (topologi.svg)");
+            ui.add_space(8.0);
+            ui.checkbox(&mut st.open_folder, "Öppna mappen efteråt");
+            ui.add_space(10.0);
+            ui.horizontal(|ui| {
+                let can = !empty && st.sel.any();
+                if ui
+                    .add_enabled(can, egui::Button::new(RichText::new("Exportera").strong().color(egui::Color32::WHITE)).fill(p.accent))
+                    .clicked()
+                {
+                    go = true;
+                }
+                if ui.button("Avbryt").clicked() {
+                    cancel = true;
+                }
+            });
+        },
+    );
     if go {
         run(app);
     } else if cancel || !open {
@@ -190,7 +199,11 @@ mod tests {
         assert_eq!(w.iter().any(|p| p.to_string_lossy().ends_with("_fix.txt")), has_fixes);
         let line = "no ip http server".to_string();
         let fix = fix_script("SW-1", &[&line]).unwrap();
-        assert!(fix.starts_with("! Rättningsskript för SW-1") && fix.contains("configure terminal\nno ip http server\n") && fix.ends_with("end\nwrite memory\n"));
+        assert!(
+            fix.starts_with("! Rättningsskript för SW-1")
+                && fix.contains("configure terminal\nno ip http server\n")
+                && fix.ends_with("end\nwrite memory\n")
+        );
         assert_eq!(fix_script("X", &[]), None);
 
         // SVG-export via appen.

@@ -6,7 +6,7 @@
 
 use crate::finding::{Finding, Severity};
 use crate::inventory::{join_vlans, short_port};
-use crate::net::{parse_ip, Subnet};
+use crate::net::{Subnet, parse_ip};
 use crate::parser::{Block, Config, IfMode, Interface, Kind, Line};
 use std::collections::BTreeSet;
 
@@ -46,8 +46,10 @@ fn hostname(c: &Config) -> Vec<Finding> {
     match c.hostname.as_deref() {
         None => vec![Finding::new("hostname", Severity::High, "Inget hostname är satt").fix([format!("hostname {}", c.name)])],
         Some(h @ ("Switch" | "Router" | "switch" | "router")) => {
-            vec![Finding::new("hostname", Severity::Medium, format!("Hostname är fortfarande standardnamnet '{h}'"))
-                .at(c.global("hostname").map_or(0, |l| l.no))]
+            vec![
+                Finding::new("hostname", Severity::Medium, format!("Hostname är fortfarande standardnamnet '{h}'"))
+                    .at(c.global("hostname").map_or(0, |l| l.no)),
+            ]
         }
         _ => vec![],
     }
@@ -55,16 +57,20 @@ fn hostname(c: &Config) -> Vec<Finding> {
 
 fn timestamps(c: &Config) -> Vec<Finding> {
     if c.global("service timestamps log datetime").is_none() {
-        return vec![Finding::new("timestamps", Severity::Low, "Loggmeddelanden saknar tidsstämplar")
-            .fix(["service timestamps log datetime msec", "service timestamps debug datetime msec"])];
+        return vec![
+            Finding::new("timestamps", Severity::Low, "Loggmeddelanden saknar tidsstämplar")
+                .fix(["service timestamps log datetime msec", "service timestamps debug datetime msec"]),
+        ];
     }
     vec![]
 }
 
 fn domain_lookup(c: &Config) -> Vec<Finding> {
     if c.global("no ip domain-lookup").is_none() && c.global("no ip domain lookup").is_none() {
-        return vec![Finding::new("domain-lookup", Severity::Info, "DNS-uppslag av felstavade kommandon är på (terminalen hänger)")
-            .fix(["no ip domain-lookup"])];
+        return vec![
+            Finding::new("domain-lookup", Severity::Info, "DNS-uppslag av felstavade kommandon är på (terminalen hänger)")
+                .fix(["no ip domain-lookup"]),
+        ];
     }
     vec![]
 }
@@ -76,10 +82,16 @@ fn domain_lookup(c: &Config) -> Vec<Finding> {
 fn ssh_enabled(c: &Config) -> Vec<Finding> {
     let mut out = Vec::new();
     if c.global("ip domain-name ").is_none() && c.global("ip domain name ").is_none() {
-        out.push(Finding::new("ssh", Severity::High, "Inget domännamn (behövs för att skapa SSH-nycklar)").fix(["ip domain-name nordvik.example", "crypto key generate rsa modulus 2048"]));
+        out.push(
+            Finding::new("ssh", Severity::High, "Inget domännamn (behövs för att skapa SSH-nycklar)")
+                .fix(["ip domain-name nordvik.example", "crypto key generate rsa modulus 2048"]),
+        );
     }
     if c.global("ip ssh version 2").is_none() {
-        out.push(Finding::new("ssh", Severity::High, "SSH version 2 är inte påtvingat").fix(["ip ssh version 2", "crypto key generate rsa modulus 2048"]));
+        out.push(
+            Finding::new("ssh", Severity::High, "SSH version 2 är inte påtvingat")
+                .fix(["ip ssh version 2", "crypto key generate rsa modulus 2048"]),
+        );
     }
     out
 }
@@ -87,8 +99,11 @@ fn ssh_enabled(c: &Config) -> Vec<Finding> {
 fn vty_transport(c: &Config) -> Vec<Finding> {
     let vtys: Vec<_> = c.blocks_of("line").filter(|b| b.name().starts_with("vty")).collect();
     if vtys.is_empty() {
-        return vec![Finding::new("vty-ssh", Severity::High, "Inga vty-linjer är konfigurerade (standard kan tillåta telnet)")
-            .fix(["line vty 0 15", " transport input ssh", " login local"])];
+        return vec![Finding::new("vty-ssh", Severity::High, "Inga vty-linjer är konfigurerade (standard kan tillåta telnet)").fix([
+            "line vty 0 15",
+            " transport input ssh",
+            " login local",
+        ])];
     }
     let mut out = Vec::new();
     for b in vtys {
@@ -107,7 +122,10 @@ fn vty_transport(c: &Config) -> Vec<Finding> {
                             .fix([b.header.text.clone(), " transport input ssh".into()]),
                     );
                 } else if !words.contains(&"ssh") {
-                    out.push(Finding::new("vty-ssh", Severity::Medium, format!("{}: SSH är inte tillåtet ('{}')", b.header.text, l.text)).at(l.no));
+                    out.push(
+                        Finding::new("vty-ssh", Severity::Medium, format!("{}: SSH är inte tillåtet ('{}')", b.header.text, l.text))
+                            .at(l.no),
+                    );
                 }
             }
         }
@@ -166,7 +184,10 @@ fn local_users(c: &Config) -> Vec<Finding> {
     let users: Vec<_> = c.globals("username ").collect();
     let mut out = Vec::new();
     if users.is_empty() {
-        out.push(Finding::new("users", Severity::High, "Inga lokala användare finns (login local fungerar inte)").fix(["username drift privilege 15 secret <lösenord>"]));
+        out.push(
+            Finding::new("users", Severity::High, "Inga lokala användare finns (login local fungerar inte)")
+                .fix(["username drift privilege 15 secret <lösenord>"]),
+        );
     }
     for u in users {
         let words: Vec<&str> = u.text.split_whitespace().collect();
@@ -186,10 +207,17 @@ fn local_users(c: &Config) -> Vec<Finding> {
 fn enable_secret(c: &Config) -> Vec<Finding> {
     let mut out = Vec::new();
     if let Some(l) = c.global("enable password") {
-        out.push(Finding::new("enable", Severity::High, "'enable password' är svagt krypterat, använd 'enable secret'").at(l.no).fix(["no enable password", "enable secret <lösenord>"]));
+        out.push(
+            Finding::new("enable", Severity::High, "'enable password' är svagt krypterat, använd 'enable secret'")
+                .at(l.no)
+                .fix(["no enable password", "enable secret <lösenord>"]),
+        );
     }
     if c.global("enable secret").is_none() {
-        out.push(Finding::new("enable", Severity::Medium, "Inget 'enable secret' – privilegierat läge är oskyddat från konsolen").fix(["enable secret <lösenord>"]));
+        out.push(
+            Finding::new("enable", Severity::Medium, "Inget 'enable secret' – privilegierat läge är oskyddat från konsolen")
+                .fix(["enable secret <lösenord>"]),
+        );
     }
     out
 }
@@ -197,33 +225,41 @@ fn enable_secret(c: &Config) -> Vec<Finding> {
 fn placeholder_secret(c: &Config) -> Vec<Finding> {
     let hits: Vec<_> = c.lines.iter().filter(|l| l.text.contains("CHANGE_ME")).collect();
     match hits.first() {
-        Some(first) => vec![Finding::new(
-            "placeholder",
-            Severity::Medium,
-            format!("{} rad(er) har kvar platshållarlösenordet CHANGE_ME – sätt riktiga lösenord i nordvik.toml", hits.len()),
-        )
-        .at(first.no)],
+        Some(first) => vec![
+            Finding::new(
+                "placeholder",
+                Severity::Medium,
+                format!("{} rad(er) har kvar platshållarlösenordet CHANGE_ME – sätt riktiga lösenord i nordvik.toml", hits.len()),
+            )
+            .at(first.no),
+        ],
         None => vec![],
     }
 }
 
 fn password_encryption(c: &Config) -> Vec<Finding> {
     if c.global("service password-encryption").is_none() {
-        return vec![Finding::new("pw-encryption", Severity::Low, "Lösenord i konfigen visas i klartext").fix(["service password-encryption"])];
+        return vec![
+            Finding::new("pw-encryption", Severity::Low, "Lösenord i konfigen visas i klartext").fix(["service password-encryption"]),
+        ];
     }
     vec![]
 }
 
 fn banner(c: &Config) -> Vec<Finding> {
     if c.global("banner motd").is_none() && c.global("banner login").is_none() {
-        return vec![Finding::new("banner", Severity::Info, "Ingen varningsbanner vid inloggning").fix(["banner motd ^Endast behorig personal^"])];
+        return vec![
+            Finding::new("banner", Severity::Info, "Ingen varningsbanner vid inloggning").fix(["banner motd ^Endast behorig personal^"]),
+        ];
     }
     vec![]
 }
 
 fn http_server(c: &Config) -> Vec<Finding> {
     match c.lines.iter().find(|l| l.text == "ip http server") {
-        Some(l) => vec![Finding::new("http", Severity::Medium, "Okrypterad webbserver (ip http server) är på").at(l.no).fix(["no ip http server"])],
+        Some(l) => {
+            vec![Finding::new("http", Severity::Medium, "Okrypterad webbserver (ip http server) är på").at(l.no).fix(["no ip http server"])]
+        }
         None => vec![],
     }
 }
@@ -234,7 +270,9 @@ fn http_server(c: &Config) -> Vec<Finding> {
 
 fn ntp(c: &Config) -> Vec<Finding> {
     if c.global("ntp server").is_none() {
-        return vec![Finding::new("ntp", Severity::Medium, "Ingen NTP-server – loggarnas tider går inte att lita på").fix(["ntp server <adress>"])];
+        return vec![
+            Finding::new("ntp", Severity::Medium, "Ingen NTP-server – loggarnas tider går inte att lita på").fix(["ntp server <adress>"]),
+        ];
     }
     vec![]
 }
@@ -268,9 +306,13 @@ fn vlans_defined(c: &Config) -> Vec<Finding> {
         for (v, how) in used {
             if !defined.contains(&v) {
                 out.push(
-                    Finding::new("vlans", Severity::High, format!("{}: VLAN {v} används ({how}) men är inte definierat", short_port(&i.name)))
-                        .at(i.line)
-                        .fix([format!("vlan {v}"), format!(" name VLAN{v}")]),
+                    Finding::new(
+                        "vlans",
+                        Severity::High,
+                        format!("{}: VLAN {v} används ({how}) men är inte definierat", short_port(&i.name)),
+                    )
+                    .at(i.line)
+                    .fix([format!("vlan {v}"), format!(" name VLAN{v}")]),
                 );
             }
         }
@@ -278,9 +320,13 @@ fn vlans_defined(c: &Config) -> Vec<Finding> {
             let missing: Vec<u16> = allowed.iter().copied().filter(|v| !defined.contains(v)).collect();
             if !missing.is_empty() {
                 out.push(
-                    Finding::new("vlans", Severity::Medium, format!("{}: trunken tillåter VLAN {} som inte finns på switchen", short_port(&i.name), join_vlans(&missing)))
-                        .at(i.line)
-                        .fix(missing.iter().flat_map(|v| [format!("vlan {v}"), format!(" name VLAN{v}")])),
+                    Finding::new(
+                        "vlans",
+                        Severity::Medium,
+                        format!("{}: trunken tillåter VLAN {} som inte finns på switchen", short_port(&i.name), join_vlans(&missing)),
+                    )
+                    .at(i.line)
+                    .fix(missing.iter().flat_map(|v| [format!("vlan {v}"), format!(" name VLAN{v}")])),
                 );
             }
         }
@@ -306,8 +352,10 @@ fn unused_vlans(c: &Config) -> Vec<Finding> {
     if unused.is_empty() {
         return vec![];
     }
-    vec![Finding::new("unused-vlans", Severity::Info, format!("VLAN {} är definierade men används inte", join_vlans(&unused)))
-        .fix(unused.iter().map(|v| format!("no vlan {v}")))]
+    vec![
+        Finding::new("unused-vlans", Severity::Info, format!("VLAN {} är definierade men används inte", join_vlans(&unused)))
+            .fix(unused.iter().map(|v| format!("no vlan {v}"))),
+    ]
 }
 
 fn trunks(c: &Config) -> Vec<Finding> {
@@ -350,7 +398,8 @@ fn access_ports(c: &Config) -> Vec<Finding> {
 }
 
 fn edge_protection(c: &Config) -> Vec<Finding> {
-    let missing: Vec<_> = c.interfaces.iter().filter(|i| i.mode == IfMode::Access && !i.shutdown && (!i.portfast || !i.bpduguard)).collect();
+    let missing: Vec<_> =
+        c.interfaces.iter().filter(|i| i.mode == IfMode::Access && !i.shutdown && (!i.portfast || !i.bpduguard)).collect();
     if missing.is_empty() {
         return vec![];
     }
@@ -359,13 +408,15 @@ fn edge_protection(c: &Config) -> Vec<Finding> {
     for i in &missing {
         fix.extend([format!("interface {}", i.name), " spanning-tree portfast".into(), " spanning-tree bpduguard enable".into()]);
     }
-    vec![Finding::new(
-        "edge",
-        Severity::Low,
-        format!("{} accessport(ar) saknar portfast/bpduguard: {}", missing.len(), compact_list(&names)),
-    )
-    .at(missing[0].line)
-    .fix(fix)]
+    vec![
+        Finding::new(
+            "edge",
+            Severity::Low,
+            format!("{} accessport(ar) saknar portfast/bpduguard: {}", missing.len(), compact_list(&names)),
+        )
+        .at(missing[0].line)
+        .fix(fix),
+    ]
 }
 
 fn descriptions(c: &Config) -> Vec<Finding> {
@@ -392,19 +443,33 @@ fn switch_mgmt(c: &Config) -> Vec<Finding> {
     let mut out = Vec::new();
     let svi = c.interfaces.iter().find(|i| i.svi_vlan().is_some() && i.ip.is_some());
     match svi {
-        None => out.push(Finding::new("mgmt", Severity::Medium, "Switchen har ingen hanterings-IP (interface VlanX) och går inte att nå med SSH")),
+        None => out.push(Finding::new(
+            "mgmt",
+            Severity::Medium,
+            "Switchen har ingen hanterings-IP (interface VlanX) och går inte att nå med SSH",
+        )),
         Some(i) => {
             if i.shutdown {
-                out.push(Finding::new("mgmt", Severity::High, format!("{} är avstängt", i.name)).at(i.line).fix([format!("interface {}", i.name), " no shutdown".into()]));
+                out.push(
+                    Finding::new("mgmt", Severity::High, format!("{} är avstängt", i.name))
+                        .at(i.line)
+                        .fix([format!("interface {}", i.name), " no shutdown".into()]),
+                );
             }
             match c.global("ip default-gateway") {
-                None => out.push(Finding::new("mgmt", Severity::Medium, "Ingen 'ip default-gateway' – switchen nås bara från sitt eget nät")),
+                None => {
+                    out.push(Finding::new("mgmt", Severity::Medium, "Ingen 'ip default-gateway' – switchen nås bara från sitt eget nät"))
+                }
                 Some(l) => {
                     let gw = l.text.split_whitespace().nth(2).and_then(parse_ip);
                     if let (Some(gw), Some(net)) = (gw, i.subnet())
-                        && !net.contains(gw) {
-                            out.push(Finding::new("mgmt", Severity::High, format!("Default-gateway {gw} ligger inte i hanteringsnätet {net}")).at(l.no));
-                        }
+                        && !net.contains(gw)
+                    {
+                        out.push(
+                            Finding::new("mgmt", Severity::High, format!("Default-gateway {gw} ligger inte i hanteringsnätet {net}"))
+                                .at(l.no),
+                        );
+                    }
                 }
             }
         }
@@ -427,7 +492,8 @@ fn subinterfaces(c: &Config) -> Vec<Finding> {
                     .fix([format!("interface {}", i.name), format!(" encapsulation dot1Q {}", tag.unwrap_or(0))]),
             ),
             Some(v) if Some(v) != tag => out.push(
-                Finding::new("subif", Severity::Low, format!("{}: taggar VLAN {v} – förvirrande när numret inte matchar", i.name)).at(i.line),
+                Finding::new("subif", Severity::Low, format!("{}: taggar VLAN {v} – förvirrande när numret inte matchar", i.name))
+                    .at(i.line),
             ),
             _ => {}
         }
@@ -466,18 +532,31 @@ fn dhcp_pools(c: &Config) -> Vec<Finding> {
             continue;
         };
         match b.value("default-router").and_then(parse_ip) {
-            None => out.push(Finding::new("dhcp", Severity::High, format!("Poolen {name} saknar default-router – klienterna når inget annat nät")).at(b.header.no)),
+            None => out.push(
+                Finding::new("dhcp", Severity::High, format!("Poolen {name} saknar default-router – klienterna når inget annat nät"))
+                    .at(b.header.no),
+            ),
             Some(gw) => {
                 if !net.contains(gw) {
-                    out.push(Finding::new("dhcp", Severity::High, format!("Poolen {name}: default-router {gw} ligger inte i {net}")).at(b.header.no));
+                    out.push(
+                        Finding::new("dhcp", Severity::High, format!("Poolen {name}: default-router {gw} ligger inte i {net}"))
+                            .at(b.header.no),
+                    );
                 } else if !c.addresses().iter().any(|(_, a)| *a == gw) {
-                    out.push(Finding::new("dhcp", Severity::High, format!("Poolen {name}: ingen egen interface har adressen {gw}")).at(b.header.no));
+                    out.push(
+                        Finding::new("dhcp", Severity::High, format!("Poolen {name}: ingen egen interface har adressen {gw}"))
+                            .at(b.header.no),
+                    );
                 }
                 if !excluded.iter().any(|(s, e)| (*s..=*e).contains(&u32::from(gw))) {
                     out.push(
-                        Finding::new("dhcp", Severity::Medium, format!("Poolen {name}: gatewayen {gw} är inte undantagen och kan delas ut"))
-                            .at(b.header.no)
-                            .fix([format!("ip dhcp excluded-address {gw}")]),
+                        Finding::new(
+                            "dhcp",
+                            Severity::Medium,
+                            format!("Poolen {name}: gatewayen {gw} är inte undantagen och kan delas ut"),
+                        )
+                        .at(b.header.no)
+                        .fix([format!("ip dhcp excluded-address {gw}")]),
                     );
                 }
             }
@@ -486,7 +565,9 @@ fn dhcp_pools(c: &Config) -> Vec<Finding> {
             out.push(Finding::new("dhcp", Severity::Low, format!("Poolen {name} delar inte ut någon DNS-server")).at(b.header.no));
         }
         if !c.interfaces.iter().any(|i| i.subnet() == Some(net)) {
-            out.push(Finding::new("dhcp", Severity::Medium, format!("Poolen {name} ({net}) matchar inget interface på routern")).at(b.header.no));
+            out.push(
+                Finding::new("dhcp", Severity::Medium, format!("Poolen {name} ({net}) matchar inget interface på routern")).at(b.header.no),
+            );
         }
     }
     out
@@ -507,7 +588,8 @@ fn nat(c: &Config) -> Vec<Finding> {
             let w: Vec<&str> = l.text.split_whitespace().collect();
             if let Some(i) = w.iter().position(|x| *x == "list") {
                 let acl = w.get(i + 1).copied().unwrap_or("");
-                let has_acl = c.global(&format!("access-list {acl} ")).is_some() || c.global(&format!("ip access-list standard {acl}")).is_some();
+                let has_acl =
+                    c.global(&format!("access-list {acl} ")).is_some() || c.global(&format!("ip access-list standard {acl}")).is_some();
                 if !has_acl {
                     out.push(Finding::new("nat", Severity::High, format!("NAT använder ACL {acl} som inte finns")).at(l.no));
                 }
@@ -532,9 +614,10 @@ fn duplicate_ips(c: &Config) -> Vec<Finding> {
             if a == b {
                 out.push(Finding::new("dup-ip", Severity::Critical, format!("{a} finns på både {} och {}", i.name, j.name)).at(j.line));
             } else if let (Some(x), Some(y)) = (i.subnet(), j.subnet())
-                && x.overlaps(&y) {
-                    out.push(Finding::new("dup-ip", Severity::High, format!("{} ({x}) och {} ({y}) överlappar", i.name, j.name)).at(j.line));
-                }
+                && x.overlaps(&y)
+            {
+                out.push(Finding::new("dup-ip", Severity::High, format!("{} ({x}) och {} ({y}) överlappar", i.name, j.name)).at(j.line));
+            }
         }
     }
     out
@@ -607,7 +690,9 @@ fn acl_defs(c: &Config) -> Vec<(String, usize, String)> {
         let w: Vec<&str> = l.text.split_whitespace().collect();
         let found = match w.as_slice() {
             ["access-list", id, ..] => Some((id.to_string(), format!("no access-list {id}"))),
-            ["ip", "access-list", kind @ ("standard" | "extended"), name, ..] => Some((name.to_string(), format!("no ip access-list {kind} {name}"))),
+            ["ip", "access-list", kind @ ("standard" | "extended"), name, ..] => {
+                Some((name.to_string(), format!("no ip access-list {kind} {name}")))
+            }
             _ => None,
         };
         if let Some((name, remove)) = found
@@ -635,8 +720,20 @@ fn acl_refs(c: &Config) -> BTreeSet<String> {
         let orig: Vec<&str> = l.text.split_whitespace().collect();
         for n in 1..w.len() {
             let prev = w[n - 1].as_str();
-            let hit = matches!(prev, "access-group" | "access-class" | "list" | "address" | "distribute-list" | "ro" | "rw" | "peer" | "serve" | "serve-only" | "query-only")
-                || (prev == "name" && w.contains(&"access-group".to_string()));
+            let hit = matches!(
+                prev,
+                "access-group"
+                    | "access-class"
+                    | "list"
+                    | "address"
+                    | "distribute-list"
+                    | "ro"
+                    | "rw"
+                    | "peer"
+                    | "serve"
+                    | "serve-only"
+                    | "query-only"
+            ) || (prev == "name" && w.contains(&"access-group".to_string()));
             if hit {
                 out.insert(orig[n].to_string());
             }
@@ -651,10 +748,17 @@ fn acl_refs(c: &Config) -> BTreeSet<String> {
 
 fn ssh_timeout(c: &Config) -> Vec<Finding> {
     match c.global("ip ssh time-out") {
-        None => vec![Finding::new("ssh-timeout", Severity::Low, "SSH-inloggningen har ingen 'ip ssh time-out' (standard är 120 s)").fix(["ip ssh time-out 60"])],
+        None => vec![
+            Finding::new("ssh-timeout", Severity::Low, "SSH-inloggningen har ingen 'ip ssh time-out' (standard är 120 s)")
+                .fix(["ip ssh time-out 60"]),
+        ],
         Some(l) => match number_after(l, "ip ssh time-out") {
             Some(n) if n > 60 => {
-                vec![Finding::new("ssh-timeout", Severity::Low, format!("SSH time-out är {n} s (max 60 s rekommenderas)")).at(l.no).fix(["ip ssh time-out 60"])]
+                vec![
+                    Finding::new("ssh-timeout", Severity::Low, format!("SSH time-out är {n} s (max 60 s rekommenderas)"))
+                        .at(l.no)
+                        .fix(["ip ssh time-out 60"]),
+                ]
             }
             _ => vec![],
         },
@@ -663,12 +767,20 @@ fn ssh_timeout(c: &Config) -> Vec<Finding> {
 
 fn ssh_retries(c: &Config) -> Vec<Finding> {
     match c.global("ip ssh authentication-retries") {
-        None => vec![Finding::new("ssh-retries", Severity::Low, "Antalet SSH-inloggningsförsök är inte begränsat ('ip ssh authentication-retries' saknas)")
-            .fix(["ip ssh authentication-retries 3"])],
+        None => vec![
+            Finding::new(
+                "ssh-retries",
+                Severity::Low,
+                "Antalet SSH-inloggningsförsök är inte begränsat ('ip ssh authentication-retries' saknas)",
+            )
+            .fix(["ip ssh authentication-retries 3"]),
+        ],
         Some(l) => match number_after(l, "ip ssh authentication-retries") {
-            Some(n) if n > 3 => vec![Finding::new("ssh-retries", Severity::Low, format!("{n} SSH-inloggningsförsök tillåts (max 3 rekommenderas)"))
-                .at(l.no)
-                .fix(["ip ssh authentication-retries 3"])],
+            Some(n) if n > 3 => vec![
+                Finding::new("ssh-retries", Severity::Low, format!("{n} SSH-inloggningsförsök tillåts (max 3 rekommenderas)"))
+                    .at(l.no)
+                    .fix(["ip ssh authentication-retries 3"]),
+            ],
             _ => vec![],
         },
     }
@@ -676,16 +788,21 @@ fn ssh_retries(c: &Config) -> Vec<Finding> {
 
 fn aaa_model(c: &Config) -> Vec<Finding> {
     if c.global("aaa new-model").is_none() {
-        return vec![Finding::new("aaa", Severity::Info, "AAA är inte aktiverat ('aaa new-model' saknas)")
-            .fix(["aaa new-model", "aaa authentication login default local", "aaa authorization exec default local"])];
+        return vec![Finding::new("aaa", Severity::Info, "AAA är inte aktiverat ('aaa new-model' saknas)").fix([
+            "aaa new-model",
+            "aaa authentication login default local",
+            "aaa authorization exec default local",
+        ])];
     }
     vec![]
 }
 
 fn login_block(c: &Config) -> Vec<Finding> {
     if c.global("login block-for").is_none() {
-        return vec![Finding::new("login-block", Severity::Low, "Inget skydd mot lösenordsgissning ('login block-for' saknas)")
-            .fix(["login block-for 120 attempts 3 within 60"])];
+        return vec![
+            Finding::new("login-block", Severity::Low, "Inget skydd mot lösenordsgissning ('login block-for' saknas)")
+                .fix(["login block-for 120 attempts 3 within 60"]),
+        ];
     }
     vec![]
 }
@@ -695,16 +812,23 @@ fn cdp_wan(c: &Config) -> Vec<Finding> {
         .into_iter()
         .filter(|(_, b)| b.has("ip nat outside") && !b.has("no cdp enable"))
         .map(|(i, _)| {
-            Finding::new("cdp-wan", Severity::Low, format!("{}: CDP är på mot det yttre nätet (avslöjar modell och version för operatören)", short_port(&i.name)))
-                .at(i.line)
-                .fix([format!("interface {}", i.name), " no cdp enable".into()])
+            Finding::new(
+                "cdp-wan",
+                Severity::Low,
+                format!("{}: CDP är på mot det yttre nätet (avslöjar modell och version för operatören)", short_port(&i.name)),
+            )
+            .at(i.line)
+            .fix([format!("interface {}", i.name), " no cdp enable".into()])
         })
         .collect()
 }
 
 fn source_route(c: &Config) -> Vec<Finding> {
     if c.global("no ip source-route").is_none() {
-        return vec![Finding::new("source-route", Severity::Low, "IP source routing är på ('no ip source-route' saknas)").fix(["no ip source-route"])];
+        return vec![
+            Finding::new("source-route", Severity::Low, "IP source routing är på ('no ip source-route' saknas)")
+                .fix(["no ip source-route"]),
+        ];
     }
     vec![]
 }
@@ -772,13 +896,11 @@ fn snmp(c: &Config) -> Vec<Finding> {
 
 fn https_auth(c: &Config) -> Vec<Finding> {
     match c.global("ip http secure-server") {
-        Some(l) if c.global("ip http authentication").is_none() => vec![Finding::new(
-            "https-auth",
-            Severity::Low,
-            "Webbservern (HTTPS) saknar 'ip http authentication local'",
-        )
-        .at(l.no)
-        .fix(["ip http authentication local"])],
+        Some(l) if c.global("ip http authentication").is_none() => vec![
+            Finding::new("https-auth", Severity::Low, "Webbservern (HTTPS) saknar 'ip http authentication local'")
+                .at(l.no)
+                .fix(["ip http authentication local"]),
+        ],
         _ => vec![],
     }
 }
@@ -794,7 +916,9 @@ fn unused_ports(c: &Config) -> Vec<Finding> {
             is_physical(&i.name)
                 && !b.has("shutdown")
                 && !b.body.iter().any(|l| {
-                    ["switchport", "no switchport", "ip address", "description", "channel-group", "encapsulation"].iter().any(|p| l.text.starts_with(p))
+                    ["switchport", "no switchport", "ip address", "description", "channel-group", "encapsulation"]
+                        .iter()
+                        .any(|p| l.text.starts_with(p))
                 })
         })
         .map(|(i, _)| i)
@@ -803,22 +927,31 @@ fn unused_ports(c: &Config) -> Vec<Finding> {
         return vec![];
     }
     let names: Vec<String> = free.iter().map(|i| short_port(&i.name)).collect();
-    vec![Finding::new("unused-ports", Severity::Low, format!("{} ledig(a) port(ar) är inte avstängda: {}", free.len(), compact_list(&names)))
+    vec![
+        Finding::new(
+            "unused-ports",
+            Severity::Low,
+            format!("{} ledig(a) port(ar) är inte avstängda: {}", free.len(), compact_list(&names)),
+        )
         .at(free[0].line)
-        .fix(port_fix(&free, &[" shutdown"]))]
+        .fix(port_fix(&free, &[" shutdown"])),
+    ]
 }
 
 fn blackhole_vlan(c: &Config) -> Vec<Finding> {
-    let ports: Vec<&Interface> = c.interfaces.iter().filter(|i| i.mode == IfMode::Access && i.shutdown && matches!(i.access_vlan, None | Some(1))).collect();
+    let ports: Vec<&Interface> =
+        c.interfaces.iter().filter(|i| i.mode == IfMode::Access && i.shutdown && matches!(i.access_vlan, None | Some(1))).collect();
     if ports.is_empty() {
         return vec![];
     }
     let names: Vec<String> = ports.iter().map(|i| short_port(&i.name)).collect();
     let mut fix = vec!["vlan 998".to_string(), " name BLACKHOLE".into()];
     fix.extend(port_fix(&ports, &[" switchport access vlan 998"]));
-    vec![Finding::new("blackhole-vlan", Severity::Info, format!("Avstängda accessportar ligger i VLAN 1: {}", compact_list(&names)))
-        .at(ports[0].line)
-        .fix(fix)]
+    vec![
+        Finding::new("blackhole-vlan", Severity::Info, format!("Avstängda accessportar ligger i VLAN 1: {}", compact_list(&names)))
+            .at(ports[0].line)
+            .fix(fix),
+    ]
 }
 
 fn dtp(c: &Config) -> Vec<Finding> {
@@ -831,9 +964,15 @@ fn dtp(c: &Config) -> Vec<Finding> {
         return vec![];
     }
     let names: Vec<String> = ports.iter().map(|i| short_port(&i.name)).collect();
-    vec![Finding::new("dtp", Severity::Low, format!("{} port(ar) förhandlar trunk automatiskt (DTP): {}", ports.len(), compact_list(&names)))
+    vec![
+        Finding::new(
+            "dtp",
+            Severity::Low,
+            format!("{} port(ar) förhandlar trunk automatiskt (DTP): {}", ports.len(), compact_list(&names)),
+        )
         .at(ports[0].line)
-        .fix(port_fix(&ports, &[" switchport nonegotiate"]))]
+        .fix(port_fix(&ports, &[" switchport nonegotiate"])),
+    ]
 }
 
 fn port_security(c: &Config) -> Vec<Finding> {
@@ -846,21 +985,33 @@ fn port_security(c: &Config) -> Vec<Finding> {
         return vec![];
     }
     let names: Vec<String> = ports.iter().map(|i| short_port(&i.name)).collect();
-    vec![Finding::new("port-security", Severity::Info, format!("{} accessport(ar) saknar port-security: {}", ports.len(), compact_list(&names)))
+    vec![
+        Finding::new(
+            "port-security",
+            Severity::Info,
+            format!("{} accessport(ar) saknar port-security: {}", ports.len(), compact_list(&names)),
+        )
         .at(ports[0].line)
         .fix(port_fix(
             &ports,
             &[" switchport port-security", " switchport port-security maximum 2", " switchport port-security violation restrict"],
-        ))]
+        )),
+    ]
 }
 
 fn vtp(c: &Config) -> Vec<Finding> {
     let mode = c.global("vtp mode ").and_then(|l| l.text.split_whitespace().nth(2));
     if matches!(mode, Some("server" | "client")) && c.global("vtp domain ").is_some() && c.global("vtp password ").is_none() {
         let l = c.global("vtp mode ").unwrap();
-        return vec![Finding::new("vtp", Severity::Low, format!("VTP ({}) har domän men inget lösenord – en främmande switch kan skriva över VLAN-databasen", mode.unwrap()))
+        return vec![
+            Finding::new(
+                "vtp",
+                Severity::Low,
+                format!("VTP ({}) har domän men inget lösenord – en främmande switch kan skriva över VLAN-databasen", mode.unwrap()),
+            )
             .at(l.no)
-            .fix(["vtp password <lösenord>", "! eller helt utan VTP: vtp mode transparent"])];
+            .fix(["vtp password <lösenord>", "! eller helt utan VTP: vtp mode transparent"]),
+        ];
     }
     vec![]
 }
@@ -870,8 +1021,14 @@ fn stp_root(c: &Config) -> Vec<Finding> {
     let set = c.globals("spanning-tree vlan ").any(|l| l.text.contains(" priority ") || l.text.contains(" root "));
     if trunks > 1 && !set {
         let vlans: Vec<u16> = if c.vlans.is_empty() { vec![1] } else { c.vlans.keys().copied().collect() };
-        return vec![Finding::new("stp-root", Severity::Info, format!("Switchen har {trunks} trunkar men ingen vald root bridge (spanning-tree priority saknas)"))
-            .fix([format!("spanning-tree vlan {} priority 4096", join_vlans(&vlans))])];
+        return vec![
+            Finding::new(
+                "stp-root",
+                Severity::Info,
+                format!("Switchen har {trunks} trunkar men ingen vald root bridge (spanning-tree priority saknas)"),
+            )
+            .fix([format!("spanning-tree vlan {} priority 4096", join_vlans(&vlans))]),
+        ];
     }
     vec![]
 }
@@ -894,9 +1051,11 @@ fn mgmt_vlan1(c: &Config) -> Vec<Finding> {
         .into_iter()
         .filter(|(i, b)| i.svi_vlan() == Some(1) && b.find("ip address ").is_some())
         .map(|(i, _)| {
-            Finding::new("mgmt-vlan1", Severity::Medium, "Hanteringen ligger i VLAN 1 (interface Vlan1 har en IP-adress)")
-                .at(i.line)
-                .fix(["interface Vlan1", " no ip address", " shutdown"])
+            Finding::new("mgmt-vlan1", Severity::Medium, "Hanteringen ligger i VLAN 1 (interface Vlan1 har en IP-adress)").at(i.line).fix([
+                "interface Vlan1",
+                " no ip address",
+                " shutdown",
+            ])
         })
         .collect()
 }
@@ -948,21 +1107,29 @@ fn hostname_format(c: &Config) -> Vec<Finding> {
     let fixed: String = h.chars().map(|ch| if ch.is_ascii_alphanumeric() || ch == '-' { ch } else { '-' }).take(63).collect();
     let fixed = fixed.trim_matches('-');
     let fixed = if fixed.is_empty() { "switch1" } else { fixed };
-    vec![Finding::new("hostname-format", Severity::Medium, format!("Hostname '{h}' {why}"))
-        .at(c.global("hostname").map_or(0, |l| l.no))
-        .fix([format!("hostname {fixed}")])]
+    vec![
+        Finding::new("hostname-format", Severity::Medium, format!("Hostname '{h}' {why}"))
+            .at(c.global("hostname").map_or(0, |l| l.no))
+            .fix([format!("hostname {fixed}")]),
+    ]
 }
 
 fn name_server(c: &Config) -> Vec<Finding> {
     if !lookup_off(c) && c.global("ip name-server").is_none() {
-        return vec![Finding::new("name-server", Severity::Info, "DNS-uppslag är på men ingen 'ip name-server' finns").fix(["ip name-server <adress>"])];
+        return vec![
+            Finding::new("name-server", Severity::Info, "DNS-uppslag är på men ingen 'ip name-server' finns")
+                .fix(["ip name-server <adress>"]),
+        ];
     }
     vec![]
 }
 
 fn clock_zone(c: &Config) -> Vec<Finding> {
     if c.global("clock timezone").is_none() {
-        return vec![Finding::new("clock", Severity::Info, "Ingen tidszon satt ('clock timezone' saknas) – loggarna visar UTC").fix(["clock timezone CET 1 0"])];
+        return vec![
+            Finding::new("clock", Severity::Info, "Ingen tidszon satt ('clock timezone' saknas) – loggarna visar UTC")
+                .fix(["clock timezone CET 1 0"]),
+        ];
     }
     vec![]
 }
@@ -986,9 +1153,13 @@ fn banner_welcome(c: &Config) -> Vec<Finding> {
             t.contains("välkommen") || t.contains("welcome")
         })
         .map(|(no, _)| {
-            Finding::new("banner-welcome", Severity::Low, "Bannern hälsar användaren välkommen – juridiskt en inbjudan, skriv en varning istället")
-                .at(no)
-                .fix(["banner motd ^Endast behorig personal. All aktivitet loggas.^"])
+            Finding::new(
+                "banner-welcome",
+                Severity::Low,
+                "Bannern hälsar användaren välkommen – juridiskt en inbjudan, skriv en varning istället",
+            )
+            .at(no)
+            .fix(["banner motd ^Endast behorig personal. All aktivitet loggas.^"])
         })
         .collect()
 }
@@ -1007,7 +1178,9 @@ fn secret_type(c: &Config) -> Vec<Finding> {
             format!("username {} algorithm-type scrypt secret <lösenord>", w.get(1).unwrap_or(&"<namn>"))
         };
         let who = if w[0] == "enable" { "enable secret".to_string() } else { format!("Användaren {}", w.get(1).unwrap_or(&"?")) };
-        out.push(Finding::new("secret-type", Severity::Info, format!("{who} använder typ 5 (MD5), använd scrypt (typ 9)")).at(l.no).fix([fix]));
+        out.push(
+            Finding::new("secret-type", Severity::Info, format!("{who} använder typ 5 (MD5), använd scrypt (typ 9)")).at(l.no).fix([fix]),
+        );
     }
     out
 }
@@ -1021,11 +1194,16 @@ fn static_routes(c: &Config) -> Vec<Finding> {
     let mut out = Vec::new();
     for l in c.globals("ip route ") {
         let w: Vec<&str> = l.text.split_whitespace().collect();
-        let (Some(_), Some(_), Some(nh)) = (w.get(2).and_then(|x| parse_ip(x)), w.get(3).and_then(|x| parse_ip(x)), w.get(4).and_then(|x| parse_ip(x))) else {
+        let (Some(_), Some(_), Some(nh)) =
+            (w.get(2).and_then(|x| parse_ip(x)), w.get(3).and_then(|x| parse_ip(x)), w.get(4).and_then(|x| parse_ip(x)))
+        else {
             continue;
         };
         if !nets.iter().any(|n| n.contains(nh)) {
-            out.push(Finding::new("static-route", Severity::Medium, format!("Nästa hopp {nh} i '{}' ligger inte i något anslutet nät", l.text)).at(l.no));
+            out.push(
+                Finding::new("static-route", Severity::Medium, format!("Nästa hopp {nh} i '{}' ligger inte i något anslutet nät", l.text))
+                    .at(l.no),
+            );
         }
     }
     out
@@ -1037,7 +1215,9 @@ fn acl_unused(c: &Config) -> Vec<Finding> {
         .into_iter()
         .filter(|(name, _, _)| !refs.contains(name))
         .map(|(name, no, remove)| {
-            Finding::new("acl-unused", Severity::Info, format!("ACL {name} används inte av något interface, NAT eller vty")).at(no).fix([remove])
+            Finding::new("acl-unused", Severity::Info, format!("ACL {name} används inte av något interface, NAT eller vty"))
+                .at(no)
+                .fix([remove])
         })
         .collect()
 }
@@ -1063,7 +1243,11 @@ fn acl_missing(c: &Config) -> Vec<Finding> {
         } else {
             vec![format!("ip access-list standard {name}"), " permit <nät> <wildcard>".into()]
         };
-        out.push(Finding::new("acl-missing", Severity::High, format!("'{kind} {name}' pekar på en ACL som inte finns – ingen filtrering sker")).at(l.no).fix(fix));
+        out.push(
+            Finding::new("acl-missing", Severity::High, format!("'{kind} {name}' pekar på en ACL som inte finns – ingen filtrering sker"))
+                .at(l.no)
+                .fix(fix),
+        );
     }
     out
 }
@@ -1071,13 +1255,22 @@ fn acl_missing(c: &Config) -> Vec<Finding> {
 fn dhcp_overlap(c: &Config) -> Vec<Finding> {
     let pools: Vec<(&str, Subnet, usize)> = c
         .blocks_of("ip dhcp pool")
-        .filter_map(|b| Some((b.header.text.trim_start_matches("ip dhcp pool").trim(), b.rest("network").and_then(Subnet::parse)?, b.header.no)))
+        .filter_map(|b| {
+            Some((b.header.text.trim_start_matches("ip dhcp pool").trim(), b.rest("network").and_then(Subnet::parse)?, b.header.no))
+        })
         .collect();
     let mut out = Vec::new();
     for (n, (a, x, _)) in pools.iter().enumerate() {
         for (b, y, line) in &pools[n + 1..] {
             if x.overlaps(y) {
-                out.push(Finding::new("dhcp-overlap", Severity::High, format!("DHCP-poolerna {a} ({x}) och {b} ({y}) överlappar – samma adress kan delas ut två gånger")).at(*line));
+                out.push(
+                    Finding::new(
+                        "dhcp-overlap",
+                        Severity::High,
+                        format!("DHCP-poolerna {a} ({x}) och {b} ({y}) överlappar – samma adress kan delas ut två gånger"),
+                    )
+                    .at(*line),
+                );
             }
         }
     }
@@ -1118,9 +1311,13 @@ fn ip_netaddr(c: &Config) -> Vec<Finding> {
             continue;
         };
         out.push(
-            Finding::new("ip-netaddr", Severity::High, format!("{}: adressen {addr} är {what} i {net} och kan inte användas på ett interface", short_port(&i.name)))
-                .at(i.line)
-                .fix([format!("interface {}", i.name), format!(" ip address {} {mask}", net.first_host())]),
+            Finding::new(
+                "ip-netaddr",
+                Severity::High,
+                format!("{}: adressen {addr} är {what} i {net} och kan inte användas på ett interface", short_port(&i.name)),
+            )
+            .at(i.line)
+            .fix([format!("interface {}", i.name), format!(" ip address {} {mask}", net.first_host())]),
         );
     }
     out
@@ -1128,76 +1325,572 @@ fn ip_netaddr(c: &Config) -> Vec<Finding> {
 
 /// Kortar listor: ["Fa0/1", ..., "Fa0/9"] -> "Fa0/1, Fa0/2, Fa0/3 … (+6)".
 fn compact_list(items: &[String]) -> String {
-    if items.len() <= 5 {
-        items.join(", ")
-    } else {
-        format!("{} … (+{})", items[..4].join(", "), items.len() - 4)
-    }
+    if items.len() <= 5 { items.join(", ") } else { format!("{} … (+{})", items[..4].join(", "), items.len() - 4) }
 }
 
 pub static ALL_RULES: &[Rule] = &[
-    Rule { id: "hostname", title: "Hostname är satt", category: "Grund", severity: Severity::High, applies: Applies::All, why: "Utan hostname går det inte att se vilken enhet man är inloggad på, och SSH-nycklar kräver ett namn.", check: hostname },
-    Rule { id: "ssh", title: "SSH v2 med domännamn", category: "Åtkomst", severity: Severity::High, applies: Applies::All, why: "SSH-nycklar skapas från hostname + domännamn. Version 1 har kända säkerhetshål.", check: ssh_enabled },
-    Rule { id: "vty-ssh", title: "Bara SSH på vty", category: "Åtkomst", severity: Severity::Critical, applies: Applies::All, why: "Telnet skickar lösenord i klartext över nätet.", check: vty_transport },
-    Rule { id: "login", title: "Inloggning med lokala konton", category: "Åtkomst", severity: Severity::Critical, applies: Applies::All, why: "'login local' kräver användarnamn + lösenord och loggar vem som loggade in.", check: line_login },
-    Rule { id: "exec-timeout", title: "Inaktiva sessioner loggas ut", category: "Åtkomst", severity: Severity::Medium, applies: Applies::All, why: "En bortglömd inloggad session kan användas av någon annan.", check: exec_timeout },
-    Rule { id: "users", title: "Lokala användare med secret", category: "Lösenord", severity: Severity::High, applies: Applies::All, why: "'password' sparas i klartext eller med typ 7 som knäcks på sekunder.", check: local_users },
-    Rule { id: "enable", title: "Enable secret", category: "Lösenord", severity: Severity::High, applies: Applies::All, why: "Skyddar privilegierat läge (konfigurationsrättigheter).", check: enable_secret },
-    Rule { id: "placeholder", title: "Inga platshållarlösenord", category: "Lösenord", severity: Severity::Medium, applies: Applies::All, why: "CHANGE_ME är ett känt lösenord som alla som läst koden vet om.", check: placeholder_secret },
-    Rule { id: "pw-encryption", title: "service password-encryption", category: "Lösenord", severity: Severity::Low, applies: Applies::All, why: "Döljer lösenord om någon tittar över axeln på 'show run'.", check: password_encryption },
-    Rule { id: "banner", title: "Inloggningsbanner", category: "Grund", severity: Severity::Info, applies: Applies::All, why: "En varningstext gör det juridiskt tydligt att intrång inte är tillåtet.", check: banner },
-    Rule { id: "http", title: "Ingen okrypterad webbserver", category: "Åtkomst", severity: Severity::Medium, applies: Applies::All, why: "HTTP-gränssnittet skickar inloggningen i klartext.", check: http_server },
-    Rule { id: "timestamps", title: "Tidsstämplar i loggen", category: "Drift", severity: Severity::Low, applies: Applies::All, why: "Utan tidsstämplar går det inte att följa vad som hände när.", check: timestamps },
-    Rule { id: "domain-lookup", title: "Inga DNS-uppslag av kommandon", category: "Grund", severity: Severity::Info, applies: Applies::All, why: "Ett felstavat kommando tolkas annars som ett värdnamn och terminalen hänger.", check: domain_lookup },
-    Rule { id: "ntp", title: "NTP-server", category: "Drift", severity: Severity::Medium, applies: Applies::All, why: "Rätt tid behövs för loggar, certifikat och felsökning mellan enheter.", check: ntp },
-    Rule { id: "logging", title: "Extern loggserver", category: "Drift", severity: Severity::Medium, applies: Applies::All, why: "Loggar som bara finns lokalt försvinner vid omstart.", check: logging },
-    Rule { id: "vlans", title: "Använda VLAN är definierade", category: "VLAN", severity: Severity::High, applies: Applies::Switch, why: "En port i ett VLAN som inte finns blir inaktiv och trafiken går ingenstans.", check: vlans_defined },
-    Rule { id: "unused-vlans", title: "Inga oanvända VLAN", category: "VLAN", severity: Severity::Info, applies: Applies::Switch, why: "Gamla VLAN gör konfigen svårläst och kan tas i bruk av misstag.", check: unused_vlans },
-    Rule { id: "trunk", title: "Säkra trunkar", category: "VLAN", severity: Severity::High, applies: Applies::Switch, why: "Native-VLAN 1 möjliggör VLAN-hopping; 'allowed all' släpper igenom VLAN som inte ska dit.", check: trunks },
-    Rule { id: "access-vlan1", title: "Accessportar inte i VLAN 1", category: "VLAN", severity: Severity::Medium, applies: Applies::Switch, why: "VLAN 1 används för kontrolltrafik och ska inte ha vanliga datorer.", check: access_ports },
-    Rule { id: "edge", title: "Portfast + BPDU guard", category: "Switching", severity: Severity::Low, applies: Applies::Switch, why: "Datorer får nät direkt, och en inkopplad switch stänger porten istället för att skapa en loop.", check: edge_protection },
-    Rule { id: "stp", title: "Rapid spanning tree", category: "Switching", severity: Severity::Low, applies: Applies::Switch, why: "Rapid-PVST går över på sekunder istället för ~50 s vid förändringar.", check: stp_mode },
-    Rule { id: "mgmt", title: "Hanterings-IP och gateway", category: "Switching", severity: Severity::High, applies: Applies::Switch, why: "Switchen måste ha en IP och en gateway för att kunna administreras över nätet.", check: switch_mgmt },
-    Rule { id: "description", title: "Portbeskrivningar", category: "Dokumentation", severity: Severity::Info, applies: Applies::All, why: "Beskrivningar visar vad som sitter i porten och används för att rita topologin.", check: descriptions },
-    Rule { id: "subif", title: "Router-on-a-stick", category: "Routing", severity: Severity::Critical, applies: Applies::Router, why: "Varje subinterface behöver rätt dot1Q-tagg och en IP, och den fysiska porten måste vara på.", check: subinterfaces },
-    Rule { id: "dhcp", title: "DHCP-pooler", category: "Routing", severity: Severity::High, applies: Applies::Router, why: "Fel default-router eller saknade undantag ger klienter som inte når ut eller IP-krockar.", check: dhcp_pools },
-    Rule { id: "nat", title: "NAT är komplett", category: "Routing", severity: Severity::High, applies: Applies::Router, why: "NAT kräver inside, outside, en regel och en ACL som finns.", check: nat },
-    Rule { id: "route", title: "Standardväg", category: "Routing", severity: Severity::Medium, applies: Applies::Router, why: "Utan standardväg vet routern inte vart internettrafik ska.", check: default_route },
-    Rule { id: "dup-ip", title: "Inga IP-krockar", category: "Routing", severity: Severity::Critical, applies: Applies::All, why: "Samma eller överlappande nät på två interface gör routingen oförutsägbar.", check: duplicate_ips },
-    Rule { id: "ssh-timeout", title: "SSH time-out högst 60 s", category: "Åtkomst", severity: Severity::Low, applies: Applies::All, why: "Ett långt time-out låter en angripare hålla halvöppna inloggningar uppe.", check: ssh_timeout },
-    Rule { id: "ssh-retries", title: "Högst 3 SSH-inloggningsförsök", category: "Åtkomst", severity: Severity::Low, applies: Applies::All, why: "Färre försök per anslutning gör lösenordsgissning långsammare.", check: ssh_retries },
-    Rule { id: "aaa", title: "AAA aktiverat", category: "Åtkomst", severity: Severity::Info, applies: Applies::All, why: "aaa new-model ger central styrning av inloggning, behörighet och loggning.", check: aaa_model },
-    Rule { id: "login-block", title: "Skydd mot lösenordsgissning", category: "Åtkomst", severity: Severity::Low, applies: Applies::All, why: "login block-for stänger inloggningen en stund efter flera misslyckade försök.", check: login_block },
-    Rule { id: "cdp-wan", title: "Inget CDP mot yttre nätet", category: "Åtkomst", severity: Severity::Low, applies: Applies::Router, why: "CDP berättar modell, IOS-version och adresser för vem som lyssnar på länken mot operatören.", check: cdp_wan },
-    Rule { id: "source-route", title: "Ingen IP source routing", category: "Åtkomst", severity: Severity::Low, applies: Applies::Router, why: "Source routing låter avsändaren välja väg och kan användas för att runda brandväggar.", check: source_route },
-    Rule { id: "small-servers", title: "Inga onödiga småtjänster", category: "Åtkomst", severity: Severity::Medium, applies: Applies::All, why: "TCP/UDP small servers och finger är gamla tjänster som läcker information och kan missbrukas.", check: small_servers },
-    Rule { id: "vty-acl", title: "Begränsa vty med access-class", category: "Åtkomst", severity: Severity::Low, applies: Applies::All, why: "En ACL på vty gör att bara hanteringsnätet kan försöka logga in.", check: vty_acl },
-    Rule { id: "aux", title: "AUX-porten avstängd", category: "Åtkomst", severity: Severity::Low, applies: Applies::All, why: "Ett oanvänt modem- eller konsolspår är en onödig väg in till enheten.", check: aux_port },
-    Rule { id: "unused-ports", title: "Lediga portar avstängda", category: "Switching", severity: Severity::Low, applies: Applies::Switch, why: "En ofylld port som är på kan användas av vem som helst som kopplar in en kabel.", check: unused_ports },
-    Rule { id: "blackhole-vlan", title: "Avstängda portar i eget VLAN", category: "VLAN", severity: Severity::Info, applies: Applies::Switch, why: "Ligger avstängda portar i ett oanvänt VLAN hamnar ingen där av misstag i VLAN 1.", check: blackhole_vlan },
-    Rule { id: "dtp", title: "Ingen DTP-förhandling", category: "Switching", severity: Severity::Low, applies: Applies::Switch, why: "switchport nonegotiate hindrar att en inkopplad enhet förhandlar upp en trunk.", check: dtp },
-    Rule { id: "port-security", title: "Port security på accessportar", category: "Switching", severity: Severity::Info, applies: Applies::Switch, why: "Begränsar hur många MAC-adresser en port lär sig och stoppar okända enheter.", check: port_security },
-    Rule { id: "vtp", title: "VTP med lösenord", category: "VLAN", severity: Severity::Low, applies: Applies::Switch, why: "Utan VTP-lösenord kan en främmande switch med högre revision skriva över hela VLAN-databasen.", check: vtp },
-    Rule { id: "stp-root", title: "Vald root bridge", category: "Switching", severity: Severity::Info, applies: Applies::Switch, why: "Utan prioritet väljs root bridge efter MAC-adress, ofta den äldsta switchen.", check: stp_root },
-    Rule { id: "dhcp-snooping", title: "DHCP snooping", category: "Switching", severity: Severity::Info, applies: Applies::Switch, why: "Släpper bara igenom DHCP-svar från betrodda portar och stoppar falska DHCP-servrar.", check: dhcp_snooping },
-    Rule { id: "mgmt-vlan1", title: "Ingen hantering i VLAN 1", category: "VLAN", severity: Severity::Medium, applies: Applies::All, why: "VLAN 1 finns på alla portar och är det första en angripare provar.", check: mgmt_vlan1 },
-    Rule { id: "vlan1-shutdown", title: "Vlan1 avstängt", category: "VLAN", severity: Severity::Low, applies: Applies::All, why: "När hanteringen ligger i ett annat VLAN ska SVI:n för VLAN 1 vara avstängd.", check: vlan1_shutdown },
-    Rule { id: "duplex", title: "Ingen halv duplex", category: "Switching", severity: Severity::Medium, applies: Applies::All, why: "Half duplex ger kollisioner och dålig prestanda, oftast efter en felaktig manuell inställning.", check: duplex },
-    Rule { id: "hostname-format", title: "Giltigt hostname", category: "Grund", severity: Severity::Medium, applies: Applies::All, why: "Hostname används i DNS, SSH-nycklar och prompten och ska bara ha bokstäver, siffror och bindestreck (max 63 tecken).", check: hostname_format },
-    Rule { id: "name-server", title: "DNS-server vid DNS-uppslag", category: "Grund", severity: Severity::Info, applies: Applies::All, why: "Är DNS-uppslag på utan namnserver väntar terminalen på en time-out efter varje felskrivet kommando.", check: name_server },
-    Rule { id: "clock", title: "Tidszon satt", category: "Drift", severity: Severity::Info, applies: Applies::All, why: "Utan tidszon visar loggarna UTC och går inte att jämföra med lokal tid.", check: clock_zone },
-    Rule { id: "logging-trap", title: "Lagom loggnivå till loggservern", category: "Drift", severity: Severity::Low, applies: Applies::All, why: "Nivån debugging skickar enorma mängder meddelanden och kan belasta enheten och loggservern.", check: logging_trap },
-    Rule { id: "banner-welcome", title: "Ingen välkomsthälsning i bannern", category: "Grund", severity: Severity::Low, applies: Applies::All, why: "En banner som hälsar välkommen kan tolkas som tillstånd att logga in; den ska varna.", check: banner_welcome },
-    Rule { id: "secret-type", title: "Stark hash för lösenord", category: "Lösenord", severity: Severity::Info, applies: Applies::All, why: "Typ 5 (MD5) är snabb att knäcka; typ 9 (scrypt) är avsevärt starkare.", check: secret_type },
-    Rule { id: "snmp", title: "Säker SNMP", category: "Åtkomst", severity: Severity::High, applies: Applies::All, why: "public/private är kända och RW låter vem som helst ändra konfigen över nätet.", check: snmp },
-    Rule { id: "https-auth", title: "HTTPS med inloggning", category: "Åtkomst", severity: Severity::Low, applies: Applies::All, why: "Webbservern ska använda lokala konton och inte stå öppen eller med ett delat lösenord.", check: https_auth },
-    Rule { id: "static-route", title: "Statiska vägar når ett anslutet nät", category: "Routing", severity: Severity::Medium, applies: Applies::Router, why: "Är nästa hopp inte i ett anslutet nät kan routern inte skicka paketet och vägen blir aldrig aktiv.", check: static_routes },
-    Rule { id: "acl-unused", title: "Inga oanvända ACL:er", category: "Åtkomst", severity: Severity::Info, applies: Applies::All, why: "En ACL som inget använder är oftast kvarglömd och förvirrar den som läser konfigen.", check: acl_unused },
-    Rule { id: "acl-missing", title: "Använda ACL:er finns", category: "Åtkomst", severity: Severity::High, applies: Applies::All, why: "Pekar ip access-group eller access-class på en ACL som saknas släpps all trafik igenom.", check: acl_missing },
-    Rule { id: "dhcp-overlap", title: "DHCP-pooler överlappar inte", category: "Routing", severity: Severity::High, applies: Applies::Router, why: "Överlappande pooler kan dela ut samma adress i två nät och ge IP-krockar.", check: dhcp_overlap },
-    Rule { id: "dhcp-excluded", title: "Undantag ligger i en pool", category: "Routing", severity: Severity::Low, applies: Applies::All, why: "Ett undantag utanför alla pooler gör ingenting och är oftast ett skrivfel eller en rest.", check: dhcp_excluded },
-    Rule { id: "ip-netaddr", title: "Interface-IP är en värdadress", category: "Routing", severity: Severity::High, applies: Applies::All, why: "Nät- och broadcastadressen går inte att använda som adress på ett interface.", check: ip_netaddr },
+    Rule {
+        id: "hostname",
+        title: "Hostname är satt",
+        category: "Grund",
+        severity: Severity::High,
+        applies: Applies::All,
+        why: "Utan hostname går det inte att se vilken enhet man är inloggad på, och SSH-nycklar kräver ett namn.",
+        check: hostname,
+    },
+    Rule {
+        id: "ssh",
+        title: "SSH v2 med domännamn",
+        category: "Åtkomst",
+        severity: Severity::High,
+        applies: Applies::All,
+        why: "SSH-nycklar skapas från hostname + domännamn. Version 1 har kända säkerhetshål.",
+        check: ssh_enabled,
+    },
+    Rule {
+        id: "vty-ssh",
+        title: "Bara SSH på vty",
+        category: "Åtkomst",
+        severity: Severity::Critical,
+        applies: Applies::All,
+        why: "Telnet skickar lösenord i klartext över nätet.",
+        check: vty_transport,
+    },
+    Rule {
+        id: "login",
+        title: "Inloggning med lokala konton",
+        category: "Åtkomst",
+        severity: Severity::Critical,
+        applies: Applies::All,
+        why: "'login local' kräver användarnamn + lösenord och loggar vem som loggade in.",
+        check: line_login,
+    },
+    Rule {
+        id: "exec-timeout",
+        title: "Inaktiva sessioner loggas ut",
+        category: "Åtkomst",
+        severity: Severity::Medium,
+        applies: Applies::All,
+        why: "En bortglömd inloggad session kan användas av någon annan.",
+        check: exec_timeout,
+    },
+    Rule {
+        id: "users",
+        title: "Lokala användare med secret",
+        category: "Lösenord",
+        severity: Severity::High,
+        applies: Applies::All,
+        why: "'password' sparas i klartext eller med typ 7 som knäcks på sekunder.",
+        check: local_users,
+    },
+    Rule {
+        id: "enable",
+        title: "Enable secret",
+        category: "Lösenord",
+        severity: Severity::High,
+        applies: Applies::All,
+        why: "Skyddar privilegierat läge (konfigurationsrättigheter).",
+        check: enable_secret,
+    },
+    Rule {
+        id: "placeholder",
+        title: "Inga platshållarlösenord",
+        category: "Lösenord",
+        severity: Severity::Medium,
+        applies: Applies::All,
+        why: "CHANGE_ME är ett känt lösenord som alla som läst koden vet om.",
+        check: placeholder_secret,
+    },
+    Rule {
+        id: "pw-encryption",
+        title: "service password-encryption",
+        category: "Lösenord",
+        severity: Severity::Low,
+        applies: Applies::All,
+        why: "Döljer lösenord om någon tittar över axeln på 'show run'.",
+        check: password_encryption,
+    },
+    Rule {
+        id: "banner",
+        title: "Inloggningsbanner",
+        category: "Grund",
+        severity: Severity::Info,
+        applies: Applies::All,
+        why: "En varningstext gör det juridiskt tydligt att intrång inte är tillåtet.",
+        check: banner,
+    },
+    Rule {
+        id: "http",
+        title: "Ingen okrypterad webbserver",
+        category: "Åtkomst",
+        severity: Severity::Medium,
+        applies: Applies::All,
+        why: "HTTP-gränssnittet skickar inloggningen i klartext.",
+        check: http_server,
+    },
+    Rule {
+        id: "timestamps",
+        title: "Tidsstämplar i loggen",
+        category: "Drift",
+        severity: Severity::Low,
+        applies: Applies::All,
+        why: "Utan tidsstämplar går det inte att följa vad som hände när.",
+        check: timestamps,
+    },
+    Rule {
+        id: "domain-lookup",
+        title: "Inga DNS-uppslag av kommandon",
+        category: "Grund",
+        severity: Severity::Info,
+        applies: Applies::All,
+        why: "Ett felstavat kommando tolkas annars som ett värdnamn och terminalen hänger.",
+        check: domain_lookup,
+    },
+    Rule {
+        id: "ntp",
+        title: "NTP-server",
+        category: "Drift",
+        severity: Severity::Medium,
+        applies: Applies::All,
+        why: "Rätt tid behövs för loggar, certifikat och felsökning mellan enheter.",
+        check: ntp,
+    },
+    Rule {
+        id: "logging",
+        title: "Extern loggserver",
+        category: "Drift",
+        severity: Severity::Medium,
+        applies: Applies::All,
+        why: "Loggar som bara finns lokalt försvinner vid omstart.",
+        check: logging,
+    },
+    Rule {
+        id: "vlans",
+        title: "Använda VLAN är definierade",
+        category: "VLAN",
+        severity: Severity::High,
+        applies: Applies::Switch,
+        why: "En port i ett VLAN som inte finns blir inaktiv och trafiken går ingenstans.",
+        check: vlans_defined,
+    },
+    Rule {
+        id: "unused-vlans",
+        title: "Inga oanvända VLAN",
+        category: "VLAN",
+        severity: Severity::Info,
+        applies: Applies::Switch,
+        why: "Gamla VLAN gör konfigen svårläst och kan tas i bruk av misstag.",
+        check: unused_vlans,
+    },
+    Rule {
+        id: "trunk",
+        title: "Säkra trunkar",
+        category: "VLAN",
+        severity: Severity::High,
+        applies: Applies::Switch,
+        why: "Native-VLAN 1 möjliggör VLAN-hopping; 'allowed all' släpper igenom VLAN som inte ska dit.",
+        check: trunks,
+    },
+    Rule {
+        id: "access-vlan1",
+        title: "Accessportar inte i VLAN 1",
+        category: "VLAN",
+        severity: Severity::Medium,
+        applies: Applies::Switch,
+        why: "VLAN 1 används för kontrolltrafik och ska inte ha vanliga datorer.",
+        check: access_ports,
+    },
+    Rule {
+        id: "edge",
+        title: "Portfast + BPDU guard",
+        category: "Switching",
+        severity: Severity::Low,
+        applies: Applies::Switch,
+        why: "Datorer får nät direkt, och en inkopplad switch stänger porten istället för att skapa en loop.",
+        check: edge_protection,
+    },
+    Rule {
+        id: "stp",
+        title: "Rapid spanning tree",
+        category: "Switching",
+        severity: Severity::Low,
+        applies: Applies::Switch,
+        why: "Rapid-PVST går över på sekunder istället för ~50 s vid förändringar.",
+        check: stp_mode,
+    },
+    Rule {
+        id: "mgmt",
+        title: "Hanterings-IP och gateway",
+        category: "Switching",
+        severity: Severity::High,
+        applies: Applies::Switch,
+        why: "Switchen måste ha en IP och en gateway för att kunna administreras över nätet.",
+        check: switch_mgmt,
+    },
+    Rule {
+        id: "description",
+        title: "Portbeskrivningar",
+        category: "Dokumentation",
+        severity: Severity::Info,
+        applies: Applies::All,
+        why: "Beskrivningar visar vad som sitter i porten och används för att rita topologin.",
+        check: descriptions,
+    },
+    Rule {
+        id: "subif",
+        title: "Router-on-a-stick",
+        category: "Routing",
+        severity: Severity::Critical,
+        applies: Applies::Router,
+        why: "Varje subinterface behöver rätt dot1Q-tagg och en IP, och den fysiska porten måste vara på.",
+        check: subinterfaces,
+    },
+    Rule {
+        id: "dhcp",
+        title: "DHCP-pooler",
+        category: "Routing",
+        severity: Severity::High,
+        applies: Applies::Router,
+        why: "Fel default-router eller saknade undantag ger klienter som inte når ut eller IP-krockar.",
+        check: dhcp_pools,
+    },
+    Rule {
+        id: "nat",
+        title: "NAT är komplett",
+        category: "Routing",
+        severity: Severity::High,
+        applies: Applies::Router,
+        why: "NAT kräver inside, outside, en regel och en ACL som finns.",
+        check: nat,
+    },
+    Rule {
+        id: "route",
+        title: "Standardväg",
+        category: "Routing",
+        severity: Severity::Medium,
+        applies: Applies::Router,
+        why: "Utan standardväg vet routern inte vart internettrafik ska.",
+        check: default_route,
+    },
+    Rule {
+        id: "dup-ip",
+        title: "Inga IP-krockar",
+        category: "Routing",
+        severity: Severity::Critical,
+        applies: Applies::All,
+        why: "Samma eller överlappande nät på två interface gör routingen oförutsägbar.",
+        check: duplicate_ips,
+    },
+    Rule {
+        id: "ssh-timeout",
+        title: "SSH time-out högst 60 s",
+        category: "Åtkomst",
+        severity: Severity::Low,
+        applies: Applies::All,
+        why: "Ett långt time-out låter en angripare hålla halvöppna inloggningar uppe.",
+        check: ssh_timeout,
+    },
+    Rule {
+        id: "ssh-retries",
+        title: "Högst 3 SSH-inloggningsförsök",
+        category: "Åtkomst",
+        severity: Severity::Low,
+        applies: Applies::All,
+        why: "Färre försök per anslutning gör lösenordsgissning långsammare.",
+        check: ssh_retries,
+    },
+    Rule {
+        id: "aaa",
+        title: "AAA aktiverat",
+        category: "Åtkomst",
+        severity: Severity::Info,
+        applies: Applies::All,
+        why: "aaa new-model ger central styrning av inloggning, behörighet och loggning.",
+        check: aaa_model,
+    },
+    Rule {
+        id: "login-block",
+        title: "Skydd mot lösenordsgissning",
+        category: "Åtkomst",
+        severity: Severity::Low,
+        applies: Applies::All,
+        why: "login block-for stänger inloggningen en stund efter flera misslyckade försök.",
+        check: login_block,
+    },
+    Rule {
+        id: "cdp-wan",
+        title: "Inget CDP mot yttre nätet",
+        category: "Åtkomst",
+        severity: Severity::Low,
+        applies: Applies::Router,
+        why: "CDP berättar modell, IOS-version och adresser för vem som lyssnar på länken mot operatören.",
+        check: cdp_wan,
+    },
+    Rule {
+        id: "source-route",
+        title: "Ingen IP source routing",
+        category: "Åtkomst",
+        severity: Severity::Low,
+        applies: Applies::Router,
+        why: "Source routing låter avsändaren välja väg och kan användas för att runda brandväggar.",
+        check: source_route,
+    },
+    Rule {
+        id: "small-servers",
+        title: "Inga onödiga småtjänster",
+        category: "Åtkomst",
+        severity: Severity::Medium,
+        applies: Applies::All,
+        why: "TCP/UDP small servers och finger är gamla tjänster som läcker information och kan missbrukas.",
+        check: small_servers,
+    },
+    Rule {
+        id: "vty-acl",
+        title: "Begränsa vty med access-class",
+        category: "Åtkomst",
+        severity: Severity::Low,
+        applies: Applies::All,
+        why: "En ACL på vty gör att bara hanteringsnätet kan försöka logga in.",
+        check: vty_acl,
+    },
+    Rule {
+        id: "aux",
+        title: "AUX-porten avstängd",
+        category: "Åtkomst",
+        severity: Severity::Low,
+        applies: Applies::All,
+        why: "Ett oanvänt modem- eller konsolspår är en onödig väg in till enheten.",
+        check: aux_port,
+    },
+    Rule {
+        id: "unused-ports",
+        title: "Lediga portar avstängda",
+        category: "Switching",
+        severity: Severity::Low,
+        applies: Applies::Switch,
+        why: "En ofylld port som är på kan användas av vem som helst som kopplar in en kabel.",
+        check: unused_ports,
+    },
+    Rule {
+        id: "blackhole-vlan",
+        title: "Avstängda portar i eget VLAN",
+        category: "VLAN",
+        severity: Severity::Info,
+        applies: Applies::Switch,
+        why: "Ligger avstängda portar i ett oanvänt VLAN hamnar ingen där av misstag i VLAN 1.",
+        check: blackhole_vlan,
+    },
+    Rule {
+        id: "dtp",
+        title: "Ingen DTP-förhandling",
+        category: "Switching",
+        severity: Severity::Low,
+        applies: Applies::Switch,
+        why: "switchport nonegotiate hindrar att en inkopplad enhet förhandlar upp en trunk.",
+        check: dtp,
+    },
+    Rule {
+        id: "port-security",
+        title: "Port security på accessportar",
+        category: "Switching",
+        severity: Severity::Info,
+        applies: Applies::Switch,
+        why: "Begränsar hur många MAC-adresser en port lär sig och stoppar okända enheter.",
+        check: port_security,
+    },
+    Rule {
+        id: "vtp",
+        title: "VTP med lösenord",
+        category: "VLAN",
+        severity: Severity::Low,
+        applies: Applies::Switch,
+        why: "Utan VTP-lösenord kan en främmande switch med högre revision skriva över hela VLAN-databasen.",
+        check: vtp,
+    },
+    Rule {
+        id: "stp-root",
+        title: "Vald root bridge",
+        category: "Switching",
+        severity: Severity::Info,
+        applies: Applies::Switch,
+        why: "Utan prioritet väljs root bridge efter MAC-adress, ofta den äldsta switchen.",
+        check: stp_root,
+    },
+    Rule {
+        id: "dhcp-snooping",
+        title: "DHCP snooping",
+        category: "Switching",
+        severity: Severity::Info,
+        applies: Applies::Switch,
+        why: "Släpper bara igenom DHCP-svar från betrodda portar och stoppar falska DHCP-servrar.",
+        check: dhcp_snooping,
+    },
+    Rule {
+        id: "mgmt-vlan1",
+        title: "Ingen hantering i VLAN 1",
+        category: "VLAN",
+        severity: Severity::Medium,
+        applies: Applies::All,
+        why: "VLAN 1 finns på alla portar och är det första en angripare provar.",
+        check: mgmt_vlan1,
+    },
+    Rule {
+        id: "vlan1-shutdown",
+        title: "Vlan1 avstängt",
+        category: "VLAN",
+        severity: Severity::Low,
+        applies: Applies::All,
+        why: "När hanteringen ligger i ett annat VLAN ska SVI:n för VLAN 1 vara avstängd.",
+        check: vlan1_shutdown,
+    },
+    Rule {
+        id: "duplex",
+        title: "Ingen halv duplex",
+        category: "Switching",
+        severity: Severity::Medium,
+        applies: Applies::All,
+        why: "Half duplex ger kollisioner och dålig prestanda, oftast efter en felaktig manuell inställning.",
+        check: duplex,
+    },
+    Rule {
+        id: "hostname-format",
+        title: "Giltigt hostname",
+        category: "Grund",
+        severity: Severity::Medium,
+        applies: Applies::All,
+        why: "Hostname används i DNS, SSH-nycklar och prompten och ska bara ha bokstäver, siffror och bindestreck (max 63 tecken).",
+        check: hostname_format,
+    },
+    Rule {
+        id: "name-server",
+        title: "DNS-server vid DNS-uppslag",
+        category: "Grund",
+        severity: Severity::Info,
+        applies: Applies::All,
+        why: "Är DNS-uppslag på utan namnserver väntar terminalen på en time-out efter varje felskrivet kommando.",
+        check: name_server,
+    },
+    Rule {
+        id: "clock",
+        title: "Tidszon satt",
+        category: "Drift",
+        severity: Severity::Info,
+        applies: Applies::All,
+        why: "Utan tidszon visar loggarna UTC och går inte att jämföra med lokal tid.",
+        check: clock_zone,
+    },
+    Rule {
+        id: "logging-trap",
+        title: "Lagom loggnivå till loggservern",
+        category: "Drift",
+        severity: Severity::Low,
+        applies: Applies::All,
+        why: "Nivån debugging skickar enorma mängder meddelanden och kan belasta enheten och loggservern.",
+        check: logging_trap,
+    },
+    Rule {
+        id: "banner-welcome",
+        title: "Ingen välkomsthälsning i bannern",
+        category: "Grund",
+        severity: Severity::Low,
+        applies: Applies::All,
+        why: "En banner som hälsar välkommen kan tolkas som tillstånd att logga in; den ska varna.",
+        check: banner_welcome,
+    },
+    Rule {
+        id: "secret-type",
+        title: "Stark hash för lösenord",
+        category: "Lösenord",
+        severity: Severity::Info,
+        applies: Applies::All,
+        why: "Typ 5 (MD5) är snabb att knäcka; typ 9 (scrypt) är avsevärt starkare.",
+        check: secret_type,
+    },
+    Rule {
+        id: "snmp",
+        title: "Säker SNMP",
+        category: "Åtkomst",
+        severity: Severity::High,
+        applies: Applies::All,
+        why: "public/private är kända och RW låter vem som helst ändra konfigen över nätet.",
+        check: snmp,
+    },
+    Rule {
+        id: "https-auth",
+        title: "HTTPS med inloggning",
+        category: "Åtkomst",
+        severity: Severity::Low,
+        applies: Applies::All,
+        why: "Webbservern ska använda lokala konton och inte stå öppen eller med ett delat lösenord.",
+        check: https_auth,
+    },
+    Rule {
+        id: "static-route",
+        title: "Statiska vägar når ett anslutet nät",
+        category: "Routing",
+        severity: Severity::Medium,
+        applies: Applies::Router,
+        why: "Är nästa hopp inte i ett anslutet nät kan routern inte skicka paketet och vägen blir aldrig aktiv.",
+        check: static_routes,
+    },
+    Rule {
+        id: "acl-unused",
+        title: "Inga oanvända ACL:er",
+        category: "Åtkomst",
+        severity: Severity::Info,
+        applies: Applies::All,
+        why: "En ACL som inget använder är oftast kvarglömd och förvirrar den som läser konfigen.",
+        check: acl_unused,
+    },
+    Rule {
+        id: "acl-missing",
+        title: "Använda ACL:er finns",
+        category: "Åtkomst",
+        severity: Severity::High,
+        applies: Applies::All,
+        why: "Pekar ip access-group eller access-class på en ACL som saknas släpps all trafik igenom.",
+        check: acl_missing,
+    },
+    Rule {
+        id: "dhcp-overlap",
+        title: "DHCP-pooler överlappar inte",
+        category: "Routing",
+        severity: Severity::High,
+        applies: Applies::Router,
+        why: "Överlappande pooler kan dela ut samma adress i två nät och ge IP-krockar.",
+        check: dhcp_overlap,
+    },
+    Rule {
+        id: "dhcp-excluded",
+        title: "Undantag ligger i en pool",
+        category: "Routing",
+        severity: Severity::Low,
+        applies: Applies::All,
+        why: "Ett undantag utanför alla pooler gör ingenting och är oftast ett skrivfel eller en rest.",
+        check: dhcp_excluded,
+    },
+    Rule {
+        id: "ip-netaddr",
+        title: "Interface-IP är en värdadress",
+        category: "Routing",
+        severity: Severity::High,
+        applies: Applies::All,
+        why: "Nät- och broadcastadressen går inte att använda som adress på ett interface.",
+        check: ip_netaddr,
+    },
 ];
+
+/// Reglerna grupperade per kategori, i den ordning kategorierna först förekommer.
+pub fn by_category() -> Vec<(&'static str, Vec<&'static Rule>)> {
+    let mut groups: Vec<(&'static str, Vec<&'static Rule>)> = Vec::new();
+    for r in ALL_RULES {
+        match groups.iter_mut().find(|(c, _)| *c == r.category) {
+            Some((_, list)) => list.push(r),
+            None => groups.push((r.category, vec![r])),
+        }
+    }
+    groups
+}
 
 pub fn find(id: &str) -> Option<&'static Rule> {
     ALL_RULES.iter().find(|r| r.id == id)
@@ -1226,10 +1919,39 @@ mod tests {
     #[test]
     fn every_new_rule_is_registered_with_a_why() {
         for id in [
-            "ssh-timeout", "ssh-retries", "aaa", "login-block", "cdp-wan", "source-route", "small-servers", "vty-acl", "aux", "unused-ports",
-            "blackhole-vlan", "dtp", "port-security", "vtp", "stp-root", "dhcp-snooping", "mgmt-vlan1", "vlan1-shutdown", "duplex", "hostname-format",
-            "name-server", "clock", "logging-trap", "banner-welcome", "secret-type", "snmp", "https-auth", "static-route", "acl-unused", "acl-missing",
-            "dhcp-overlap", "dhcp-excluded", "ip-netaddr",
+            "ssh-timeout",
+            "ssh-retries",
+            "aaa",
+            "login-block",
+            "cdp-wan",
+            "source-route",
+            "small-servers",
+            "vty-acl",
+            "aux",
+            "unused-ports",
+            "blackhole-vlan",
+            "dtp",
+            "port-security",
+            "vtp",
+            "stp-root",
+            "dhcp-snooping",
+            "mgmt-vlan1",
+            "vlan1-shutdown",
+            "duplex",
+            "hostname-format",
+            "name-server",
+            "clock",
+            "logging-trap",
+            "banner-welcome",
+            "secret-type",
+            "snmp",
+            "https-auth",
+            "static-route",
+            "acl-unused",
+            "acl-missing",
+            "dhcp-overlap",
+            "dhcp-excluded",
+            "ip-netaddr",
         ] {
             let r = find(id).unwrap_or_else(|| panic!("{id} saknas"));
             assert!(!r.why.is_empty() && !r.title.is_empty());
@@ -1326,7 +2048,8 @@ mod tests {
     #[test]
     fn port_security_on_access_ports() {
         let bad = "interface Fa0/1\n switchport mode access\n";
-        let good = "interface Fa0/1\n switchport mode access\n switchport port-security\n!\ninterface Fa0/2\n switchport mode access\n shutdown\n";
+        let good =
+            "interface Fa0/1\n switchport mode access\n switchport port-security\n!\ninterface Fa0/2\n switchport mode access\n shutdown\n";
         bad_good("port-security", bad, good);
     }
 
@@ -1395,7 +2118,11 @@ mod tests {
 
     #[test]
     fn banner_welcome_single_and_multiline() {
-        bad_good("banner-welcome", "banner motd ^Välkommen till Nordvik^\n", "banner motd ^Endast behorig personal. All aktivitet loggas.^\n");
+        bad_good(
+            "banner-welcome",
+            "banner motd ^Välkommen till Nordvik^\n",
+            "banner motd ^Endast behorig personal. All aktivitet loggas.^\n",
+        );
         let f = run("banner-welcome", "banner motd ^C\nWelcome!\nHer ser vi\n^C\n");
         assert_eq!(f.len(), 1);
         assert_eq!(f[0].line, Some(1));
@@ -1404,7 +2131,11 @@ mod tests {
 
     #[test]
     fn secret_type_5() {
-        let f = bad_good("secret-type", "enable secret 5 $1$abcd$xyz\nusername drift secret 5 $1$abcd$xyz\n", "enable secret 9 $9$abc\nusername drift secret CHANGE_ME\n");
+        let f = bad_good(
+            "secret-type",
+            "enable secret 5 $1$abcd$xyz\nusername drift secret 5 $1$abcd$xyz\n",
+            "enable secret 9 $9$abc\nusername drift secret CHANGE_ME\n",
+        );
         assert_eq!(f.len(), 2);
         assert!(f[1].fix[0].contains("username drift algorithm-type scrypt secret"));
     }
@@ -1427,7 +2158,11 @@ mod tests {
     #[test]
     fn static_route_next_hop_must_be_connected() {
         let ifc = "interface Gi0/1\n ip address 203.0.113.10 255.255.255.0\n!\n";
-        bad_good("static-route", &format!("{ifc}ip route 0.0.0.0 0.0.0.0 198.51.100.1\n"), &format!("{ifc}ip route 0.0.0.0 0.0.0.0 203.0.113.1\n"));
+        bad_good(
+            "static-route",
+            &format!("{ifc}ip route 0.0.0.0 0.0.0.0 198.51.100.1\n"),
+            &format!("{ifc}ip route 0.0.0.0 0.0.0.0 203.0.113.1\n"),
+        );
         assert!(run("static-route", &format!("{ifc}ip route 10.0.0.0 255.0.0.0 Gi0/1\n")).is_empty());
     }
 
@@ -1457,7 +2192,11 @@ mod tests {
         assert_eq!(f[0].line, Some(4));
 
         let pools = pool("A", "10.0.0.0 255.255.255.0");
-        bad_good("dhcp-excluded", &format!("ip dhcp excluded-address 192.168.9.1 192.168.9.5\n{pools}"), &format!("ip dhcp excluded-address 10.0.0.1 10.0.0.19\nip dhcp excluded-address 10.0.0.50\n{pools}"));
+        bad_good(
+            "dhcp-excluded",
+            &format!("ip dhcp excluded-address 192.168.9.1 192.168.9.5\n{pools}"),
+            &format!("ip dhcp excluded-address 10.0.0.1 10.0.0.19\nip dhcp excluded-address 10.0.0.50\n{pools}"),
+        );
         assert!(!run("dhcp-excluded", "ip dhcp excluded-address 10.0.0.1\n").is_empty());
     }
 

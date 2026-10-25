@@ -43,7 +43,8 @@ fn sync(app: &mut App) {
 }
 
 fn col_width(t: &CsvTable, c: usize) -> f32 {
-    let longest = t.rows.iter().filter_map(|r| r.get(c)).map(|s| s.chars().count()).chain([t.headers[c].chars().count()]).max().unwrap_or(4);
+    let longest =
+        t.rows.iter().filter_map(|r| r.get(c)).map(|s| s.chars().count()).chain([t.headers[c].chars().count()]).max().unwrap_or(4);
     (longest as f32 * 7.6 + 22.0).clamp(64.0, 260.0)
 }
 
@@ -56,16 +57,26 @@ pub(crate) fn csv(app: &mut App, ui: &mut Ui) {
         ui.label(RichText::new("CSV-data").size(24.0).strong());
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             if let Some(dir) = &samples
-                && ui.button("Öppna samples/").clicked() {
-                    open_path(dir);
-                }
+                && ui.button("Öppna samples/").clicked()
+            {
+                open_path(dir);
+            }
         });
     });
     let Some(inv) = &app.inventory else {
         ui.label(RichText::new("Hittade inga CSV-filer i samples/.").color(p.muted));
         return;
     };
-    ui.label(RichText::new(format!("{} portar · {} DHCP-pooler · {} enheter från {} filer", inv.ports.len(), inv.dhcp.len(), inv.devices.len(), inv.files.len())).color(p.muted));
+    ui.label(
+        RichText::new(format!(
+            "{} portar · {} DHCP-pooler · {} enheter från {} filer",
+            inv.ports.len(),
+            inv.dhcp.len(),
+            inv.devices.len(),
+            inv.files.len()
+        ))
+        .color(p.muted),
+    );
     ui.add_space(10.0);
 
     // --- Kontroll: klick på ett fel markerar raden i tabellen -----------------------
@@ -86,7 +97,10 @@ pub(crate) fn csv(app: &mut App, ui: &mut Ui) {
                 ui.horizontal_wrapped(|ui| {
                     theme::sev_chip(ui, f.severity, dark);
                     if target.is_some() {
-                        let resp = ui.add(egui::Label::new(RichText::new(&f.message).color(p.text)).sense(Sense::click())).on_hover_text("Klicka för att markera raden i tabellen").on_hover_cursor(egui::CursorIcon::PointingHand);
+                        let resp = ui
+                            .add(egui::Label::new(RichText::new(&f.message).color(p.text)).sense(Sense::click()))
+                            .on_hover_text("Klicka för att markera raden i tabellen")
+                            .on_hover_cursor(egui::CursorIcon::PointingHand);
                         if resp.clicked() {
                             jump = target;
                         }
@@ -136,7 +150,11 @@ fn editor(app: &mut App, ui: &mut Ui) {
         if ui.button("+ Lägg till rad").clicked() {
             add_row = true;
         }
-        if ui.add_enabled(any_dirty, egui::Button::new(RichText::new("Spara").strong())).on_hover_text("Skriver ändrade tabeller till samples/ och läser om projektet").clicked() {
+        if ui
+            .add_enabled(any_dirty, egui::Button::new(RichText::new("Spara").strong()))
+            .on_hover_text("Skriver ändrade tabeller till samples/ och läser om projektet")
+            .clicked()
+        {
             save = true;
         }
         if ui.add_enabled(any_dirty, egui::Button::new("Ångra ändringar")).clicked() {
@@ -176,7 +194,11 @@ fn editor(app: &mut App, ui: &mut Ui) {
             .min_scrolled_height(120.0)
             .column(Column::exact(34.0));
         for (c, w) in widths.iter().enumerate() {
-            tb = tb.column(if Some(c) == desc_col { Column::remainder().at_least(*w).clip(true) } else { Column::initial(*w).at_least(48.0).clip(true) });
+            tb = tb.column(if Some(c) == desc_col {
+                Column::remainder().at_least(*w).clip(true)
+            } else {
+                Column::initial(*w).at_least(48.0).clip(true)
+            });
         }
         if let Some(r) = scroll_to {
             tb = tb.scroll_to_row(r, Some(Align::Center));
@@ -195,7 +217,11 @@ fn editor(app: &mut App, ui: &mut Ui) {
                 body.row(28.0, |mut row| {
                     row.set_selected(mark == Some(ri));
                     row.col(|ui| {
-                        if ui.add(egui::Button::new(RichText::new("✖").color(p.muted)).frame(false)).on_hover_text("Ta bort raden").clicked() {
+                        if ui
+                            .add(egui::Button::new(RichText::new("✖").color(p.muted)).frame(false))
+                            .on_hover_text("Ta bort raden")
+                            .clicked()
+                        {
                             delete = Some(ri);
                         }
                     });
@@ -204,24 +230,35 @@ fn editor(app: &mut App, ui: &mut Ui) {
                             let cell = &mut t.rows[ri][c];
                             if is_ports && Some(c) == lage_col {
                                 let cur = if cell.eq_ignore_ascii_case("trunk") { "trunk" } else { "access" };
-                                egui::ComboBox::from_id_salt(("lage", ri)).selected_text(if cell.is_empty() { cur } else { cell.as_str() }).width(ui.available_width() - 8.0).show_ui(ui, |ui| {
-                                    for o in ["access", "trunk"] {
-                                        if ui.selectable_label(cell.eq_ignore_ascii_case(o), o).clicked() {
-                                            *cell = o.to_string();
+                                egui::ComboBox::from_id_salt(("lage", ri))
+                                    .selected_text(if cell.is_empty() { cur } else { cell.as_str() })
+                                    .width(ui.available_width() - 8.0)
+                                    .show_ui(ui, |ui| {
+                                        for o in ["access", "trunk"] {
+                                            if ui.selectable_label(cell.eq_ignore_ascii_case(o), o).clicked() {
+                                                *cell = o.to_string();
+                                            }
                                         }
-                                    }
-                                });
+                                    });
                             } else if is_ports && Some(c) == status_col {
                                 let up = !cell.eq_ignore_ascii_case("down");
-                                egui::ComboBox::from_id_salt(("status", ri)).selected_text(if up { "Up" } else { "Down" }).width(ui.available_width() - 8.0).show_ui(ui, |ui| {
-                                    for o in ["Up", "Down"] {
-                                        if ui.selectable_label(cell.eq_ignore_ascii_case(o), o).clicked() {
-                                            *cell = o.to_string();
+                                egui::ComboBox::from_id_salt(("status", ri))
+                                    .selected_text(if up { "Up" } else { "Down" })
+                                    .width(ui.available_width() - 8.0)
+                                    .show_ui(ui, |ui| {
+                                        for o in ["Up", "Down"] {
+                                            if ui.selectable_label(cell.eq_ignore_ascii_case(o), o).clicked() {
+                                                *cell = o.to_string();
+                                            }
                                         }
-                                    }
-                                });
+                                    });
                             } else {
-                                ui.add(egui::TextEdit::singleline(cell).desired_width(f32::INFINITY).frame(egui::Frame::NONE).font(egui::TextStyle::Monospace));
+                                ui.add(
+                                    egui::TextEdit::singleline(cell)
+                                        .desired_width(f32::INFINITY)
+                                        .frame(egui::Frame::NONE)
+                                        .font(egui::TextStyle::Monospace),
+                                );
                             }
                         });
                     }

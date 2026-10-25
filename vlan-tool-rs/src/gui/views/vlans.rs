@@ -50,7 +50,8 @@ pub(crate) fn fleet_key(fleet: &FleetReport) -> u64 {
         d.config.vlans.hash(&mut h);
         d.config.interfaces.len().hash(&mut h);
         for i in &d.config.interfaces {
-            (&i.name, &i.description, i.mode as u8, i.access_vlan, i.native_vlan, &i.allowed, i.dot1q, i.dot1q_native, i.shutdown, i.ip).hash(&mut h);
+            (&i.name, &i.description, i.mode as u8, i.access_vlan, i.native_vlan, &i.allowed, i.dot1q, i.dot1q_native, i.shutdown, i.ip)
+                .hash(&mut h);
         }
     }
     h.finish()
@@ -73,9 +74,21 @@ fn build_matrix(fleet: &FleetReport) -> Matrix {
                     let c = &d.config;
                     Cell {
                         access: c.interfaces.iter().filter(|i| i.mode == IfMode::Access && i.access_vlan == Some(v)).count(),
-                        trunk: c.interfaces.iter().filter(|i| i.mode == IfMode::Trunk && i.allowed.as_ref().is_none_or(|a| a.contains(&v))).count(),
-                        native: c.interfaces.iter().any(|i| (i.mode == IfMode::Trunk && i.native_vlan == Some(v)) || (i.dot1q == Some(v) && i.dot1q_native)),
-                        gateway: c.interfaces.iter().find(|i| (i.dot1q == Some(v) && !i.dot1q_native) || i.svi_vlan() == Some(v)).and_then(|i| i.ip).map(|(ip, _)| ip),
+                        trunk: c
+                            .interfaces
+                            .iter()
+                            .filter(|i| i.mode == IfMode::Trunk && i.allowed.as_ref().is_none_or(|a| a.contains(&v)))
+                            .count(),
+                        native: c
+                            .interfaces
+                            .iter()
+                            .any(|i| (i.mode == IfMode::Trunk && i.native_vlan == Some(v)) || (i.dot1q == Some(v) && i.dot1q_native)),
+                        gateway: c
+                            .interfaces
+                            .iter()
+                            .find(|i| (i.dot1q == Some(v) && !i.dot1q_native) || i.svi_vlan() == Some(v))
+                            .and_then(|i| i.ip)
+                            .map(|(ip, _)| ip),
                         defined: c.vlans.contains_key(&v),
                         switch: c.kind == Kind::Switch,
                     }
@@ -138,11 +151,13 @@ pub(crate) fn vlans(app: &mut App, ui: &mut Ui) {
                             ui.spacing_mut().item_spacing.x = 6.0;
                             let mut any = false;
                             if c.access > 0 {
-                                ui.label(RichText::new(format!("■ {}", c.access)).color(p.good)).on_hover_text(format!("{} accessportar", c.access));
+                                ui.label(RichText::new(format!("■ {}", c.access)).color(p.good))
+                                    .on_hover_text(format!("{} accessportar", c.access));
                                 any = true;
                             }
                             if c.trunk > 0 {
-                                ui.label(RichText::new(format!("⇅ {}", c.trunk)).color(p.violet)).on_hover_text(format!("tillåts på {} trunkar", c.trunk));
+                                ui.label(RichText::new(format!("⇅ {}", c.trunk)).color(p.violet))
+                                    .on_hover_text(format!("tillåts på {} trunkar", c.trunk));
                                 any = true;
                             }
                             if c.native {
@@ -196,7 +211,15 @@ fn detail(app: &App, ui: &mut Ui, v: u16, matrix: &Matrix) -> bool {
                 for i in d.config.interfaces.iter().filter(|i| (i.dot1q == Some(v) && !i.dot1q_native) || i.svi_vlan() == Some(v)) {
                     if let Some((ip, mask)) = i.ip {
                         let net = i.subnet().map_or(String::new(), |s| format!("  ({s})"));
-                        ui.label(RichText::new(format!("{} {}: {ip}/{}{net}", d.name, short_port(&i.name), net::mask_to_prefix(mask).unwrap_or(0))).monospace());
+                        ui.label(
+                            RichText::new(format!(
+                                "{} {}: {ip}/{}{net}",
+                                d.name,
+                                short_port(&i.name),
+                                net::mask_to_prefix(mask).unwrap_or(0)
+                            ))
+                            .monospace(),
+                        );
                         any = true;
                     }
                 }
@@ -239,7 +262,12 @@ fn detail(app: &App, ui: &mut Ui, v: u16, matrix: &Matrix) -> bool {
             let mut any = false;
             for d in &app.fleet.devices {
                 let access: Vec<_> = d.config.interfaces.iter().filter(|i| i.mode == IfMode::Access && i.access_vlan == Some(v)).collect();
-                let trunks: Vec<_> = d.config.interfaces.iter().filter(|i| i.mode == IfMode::Trunk && i.allowed.as_ref().is_none_or(|a| a.contains(&v))).collect();
+                let trunks: Vec<_> = d
+                    .config
+                    .interfaces
+                    .iter()
+                    .filter(|i| i.mode == IfMode::Trunk && i.allowed.as_ref().is_none_or(|a| a.contains(&v)))
+                    .collect();
                 if access.is_empty() && trunks.is_empty() {
                     continue;
                 }
@@ -277,7 +305,9 @@ mod tests {
     use vlantool::parser::Config;
 
     fn fleet(desc: &str) -> FleetReport {
-        let cfg = format!("hostname SW\nvlan 10\n name KONTOR\ninterface FastEthernet0/1\n description {desc}\n switchport mode access\n switchport access vlan 10\n");
+        let cfg = format!(
+            "hostname SW\nvlan 10\n name KONTOR\ninterface FastEthernet0/1\n description {desc}\n switchport mode access\n switchport access vlan 10\n"
+        );
         vlantool::audit::audit_fleet(vec![Config::parse("SW", "SW.cfg", &cfg)], &[])
     }
 

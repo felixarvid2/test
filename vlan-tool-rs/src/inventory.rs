@@ -3,7 +3,7 @@
 //! Python-versionen, så filerna får heta vad som helst.
 
 use crate::finding::{Finding, Severity};
-use crate::net::{parse_ip, range_len, Subnet};
+use crate::net::{Subnet, parse_ip, range_len};
 use crate::parser::peer_of;
 use anyhow::{Context, Result};
 use serde::Serialize;
@@ -115,13 +115,9 @@ pub fn normalize_port(name: &str) -> String {
 
 /// Kortnamn för tabeller: "GigabitEthernet0/1" -> "Gi0/1".
 pub fn short_port(name: &str) -> String {
-    for (long, short) in [
-        ("TenGigabitEthernet", "Te"),
-        ("GigabitEthernet", "Gi"),
-        ("FastEthernet", "Fa"),
-        ("Ethernet", "Eth"),
-        ("Port-channel", "Po"),
-    ] {
+    for (long, short) in
+        [("TenGigabitEthernet", "Te"), ("GigabitEthernet", "Gi"), ("FastEthernet", "Fa"), ("Ethernet", "Eth"), ("Port-channel", "Po")]
+    {
         if let Some(rest) = name.strip_prefix(long) {
             return format!("{short}{rest}");
         }
@@ -155,7 +151,13 @@ pub fn join_vlans(vlans: &[u16]) -> String {
         while iter.peek() == Some(&(end + 1)) {
             end = iter.next().unwrap();
         }
-        parts.push(if end >= start + 2 { format!("{start}-{end}") } else if end == start + 1 { format!("{start},{end}") } else { start.to_string() });
+        parts.push(if end >= start + 2 {
+            format!("{start}-{end}")
+        } else if end == start + 1 {
+            format!("{start},{end}")
+        } else {
+            start.to_string()
+        });
     }
     parts.join(",")
 }
@@ -196,11 +198,8 @@ fn detect_delimiter(text: &str) -> u8 {
 
 fn rows_from_text(file: &str, text: &str) -> Result<Vec<Row>> {
     let text = text.trim_start_matches('\u{feff}');
-    let mut reader = csv::ReaderBuilder::new()
-        .trim(csv::Trim::All)
-        .flexible(true)
-        .delimiter(detect_delimiter(text))
-        .from_reader(text.as_bytes());
+    let mut reader =
+        csv::ReaderBuilder::new().trim(csv::Trim::All).flexible(true).delimiter(detect_delimiter(text)).from_reader(text.as_bytes());
     let headers: Vec<String> = reader.headers()?.iter().map(|h| h.trim().to_ascii_lowercase()).collect();
     let mut rows = Vec::new();
     for (i, record) in reader.records().enumerate() {
@@ -305,7 +304,11 @@ impl Inventory {
         let status = row.get("Status");
         let up = parse_status(status).unwrap_or_else(|| {
             if !status.is_empty() {
-                self.problems.push(Finding::new("csv-format", Severity::Low, format!("{}: okänd status '{status}', tolkas som Up", row.where_)));
+                self.problems.push(Finding::new(
+                    "csv-format",
+                    Severity::Low,
+                    format!("{}: okänd status '{status}', tolkas som Up", row.where_),
+                ));
             }
             true
         });
@@ -327,7 +330,8 @@ impl Inventory {
 
     fn parse_dhcp(&mut self, row: &Row) {
         let parsed = (|| -> Result<DhcpRow, String> {
-            let vlan = row.get("vlan_id").parse().map_err(|_| format!("{}: vlan_id '{}' är inget nummer", row.where_, row.get("vlan_id")))?;
+            let vlan =
+                row.get("vlan_id").parse().map_err(|_| format!("{}: vlan_id '{}' är inget nummer", row.where_, row.get("vlan_id")))?;
             let network = Subnet::from_addr_mask(row.ip("network")?, row.ip("mask")?)
                 .ok_or_else(|| format!("{}: masken {} är ogiltig", row.where_, row.get("mask")))?;
             Ok(DhcpRow {
@@ -378,10 +382,13 @@ impl Inventory {
             }
             map.entry(&p.switch).or_default().push(p);
         }
-        order.into_iter().map(|s| {
-            let ports = map.remove(s.as_str()).unwrap_or_default();
-            (s, ports)
-        }).collect()
+        order
+            .into_iter()
+            .map(|s| {
+                let ports = map.remove(s.as_str()).unwrap_or_default();
+                (s, ports)
+            })
+            .collect()
     }
 
     /// VLAN-nummer -> namn från alla källor. Namnet i ports.csv går före dhcp.csv.
@@ -392,9 +399,10 @@ impl Inventory {
         }
         for p in &self.ports {
             if let (PortMode::Access, Some(v)) = (p.mode, p.vlan)
-                && !p.vlan_name.is_empty() {
-                    names.insert(v, p.vlan_name.clone());
-                }
+                && !p.vlan_name.is_empty()
+            {
+                names.insert(v, p.vlan_name.clone());
+            }
         }
         names
     }
@@ -416,9 +424,15 @@ impl Inventory {
             }
             match p.mode {
                 PortMode::Access => match p.vlan {
-                    None => out.push(Finding::new(rule, Severity::High, format!("{}: accessporten {} saknar VLAN-nummer", p.source, p.port))),
-                    Some(1) => out.push(Finding::new(rule, Severity::Medium, format!("{}: {} ligger i VLAN 1 (standard-VLAN)", p.source, p.port))),
-                    Some(v) if !(1..=4094).contains(&v) => out.push(Finding::new(rule, Severity::High, format!("{}: VLAN {v} är utanför 1–4094", p.source))),
+                    None => {
+                        out.push(Finding::new(rule, Severity::High, format!("{}: accessporten {} saknar VLAN-nummer", p.source, p.port)))
+                    }
+                    Some(1) => {
+                        out.push(Finding::new(rule, Severity::Medium, format!("{}: {} ligger i VLAN 1 (standard-VLAN)", p.source, p.port)))
+                    }
+                    Some(v) if !(1..=4094).contains(&v) => {
+                        out.push(Finding::new(rule, Severity::High, format!("{}: VLAN {v} är utanför 1–4094", p.source)))
+                    }
                     _ => {}
                 },
                 PortMode::Trunk => {
@@ -426,7 +440,9 @@ impl Inventory {
                         out.push(Finding::new(rule, Severity::Medium, format!("{}: trunken {} saknar tillåtna VLAN", p.source, p.port)));
                     }
                     match p.native {
-                        None => out.push(Finding::new(rule, Severity::High, format!("{}: trunken {} saknar native-VLAN", p.source, p.port))),
+                        None => {
+                            out.push(Finding::new(rule, Severity::High, format!("{}: trunken {} saknar native-VLAN", p.source, p.port)))
+                        }
                         Some(n) if n != native_vlan => out.push(Finding::new(
                             rule,
                             Severity::High,
@@ -446,7 +462,8 @@ impl Inventory {
 
         // Hostnames: tillåtna tecken och längd.
         let mut checked: BTreeSet<&str> = BTreeSet::new();
-        for (name, source) in self.ports.iter().map(|p| (&p.switch, &p.source)).chain(self.devices.iter().map(|d| (&d.hostname, &d.source))) {
+        for (name, source) in self.ports.iter().map(|p| (&p.switch, &p.source)).chain(self.devices.iter().map(|d| (&d.hostname, &d.source)))
+        {
             if checked.insert(name)
                 && let Some(why) = hostname_problem(name)
             {
@@ -458,7 +475,9 @@ impl Inventory {
         for (i, a) in self.ports.iter().enumerate().filter(|(_, p)| p.mode == PortMode::Trunk) {
             let Some(peer) = peer_of(&a.description) else { continue };
             let back = self.ports.iter().enumerate().find(|(_, b)| {
-                b.mode == PortMode::Trunk && b.switch.eq_ignore_ascii_case(peer) && peer_of(&b.description).is_some_and(|x| x.eq_ignore_ascii_case(&a.switch))
+                b.mode == PortMode::Trunk
+                    && b.switch.eq_ignore_ascii_case(peer)
+                    && peer_of(&b.description).is_some_and(|x| x.eq_ignore_ascii_case(&a.switch))
             });
             let Some((j, b)) = back else { continue };
             if i > j {
@@ -469,7 +488,17 @@ impl Inventory {
                 out.push(Finding::new(
                     rule,
                     Severity::High,
-                    format!("{}: trunken {} {} tillåter {} men {} {} ({}) tillåter {}", a.source, a.switch, short_port(&a.port), join_vlans(&a.allowed), b.switch, short_port(&b.port), b.source, join_vlans(&b.allowed)),
+                    format!(
+                        "{}: trunken {} {} tillåter {} men {} {} ({}) tillåter {}",
+                        a.source,
+                        a.switch,
+                        short_port(&a.port),
+                        join_vlans(&a.allowed),
+                        b.switch,
+                        short_port(&b.port),
+                        b.source,
+                        join_vlans(&b.allowed)
+                    ),
                 ));
             }
             if a.native != b.native {
@@ -477,20 +506,36 @@ impl Inventory {
                 out.push(Finding::new(
                     rule,
                     Severity::High,
-                    format!("{}: native-VLAN {} på {} {} skiljer sig från {} på {} {} ({})", a.source, show(a.native), a.switch, short_port(&a.port), show(b.native), b.switch, short_port(&b.port), b.source),
+                    format!(
+                        "{}: native-VLAN {} på {} {} skiljer sig från {} på {} {} ({})",
+                        a.source,
+                        show(a.native),
+                        a.switch,
+                        short_port(&a.port),
+                        show(b.native),
+                        b.switch,
+                        short_port(&b.port),
+                        b.source
+                    ),
                 ));
             }
         }
 
         // Varje VLAN som används på en accessport ska finnas på switchens trunkar.
         for (switch, ports) in self.switches() {
-            let trunk_vlans: BTreeSet<u16> = ports.iter().filter(|p| p.mode == PortMode::Trunk).flat_map(|p| p.allowed.iter().copied()).collect();
+            let trunk_vlans: BTreeSet<u16> =
+                ports.iter().filter(|p| p.mode == PortMode::Trunk).flat_map(|p| p.allowed.iter().copied()).collect();
             if trunk_vlans.is_empty() {
                 continue;
             }
-            let access: BTreeSet<u16> = ports.iter().filter(|p| p.mode == PortMode::Access).flat_map(|p| p.vlan.into_iter().chain(p.voice_vlan)).collect();
+            let access: BTreeSet<u16> =
+                ports.iter().filter(|p| p.mode == PortMode::Access).flat_map(|p| p.vlan.into_iter().chain(p.voice_vlan)).collect();
             for v in access.difference(&trunk_vlans) {
-                out.push(Finding::new(rule, Severity::Medium, format!("{switch}: VLAN {v} används på accessportar men går inte på någon trunk")));
+                out.push(Finding::new(
+                    rule,
+                    Severity::Medium,
+                    format!("{switch}: VLAN {v} används på accessportar men går inte på någon trunk"),
+                ));
             }
         }
 
@@ -539,7 +584,11 @@ impl Inventory {
             }
             let gw = u32::from(d.gateway);
             if gw < u32::from(d.excluded_start) || gw > u32::from(d.excluded_end) {
-                out.push(Finding::new(rule, Severity::Medium, format!("{}: gatewayen {} är inte undantagen från DHCP", d.source, d.gateway)));
+                out.push(Finding::new(
+                    rule,
+                    Severity::Medium,
+                    format!("{}: gatewayen {} är inte undantagen från DHCP", d.source, d.gateway),
+                ));
             }
             let free = range_len(d.pool_start, d.pool_end).saturating_sub(range_len(d.excluded_start, d.excluded_end));
             let (lo, hi) = (u32::from(d.pool_start).max(u32::from(d.excluded_start)), u32::from(d.pool_end).min(u32::from(d.excluded_end)));
@@ -559,7 +608,11 @@ impl Inventory {
         for (i, a) in self.dhcp.iter().enumerate() {
             for b in &self.dhcp[i + 1..] {
                 if a.network.overlaps(&b.network) {
-                    out.push(Finding::new(rule, Severity::Critical, format!("{} ({}) och {} ({}) överlappar", a.name, a.network, b.name, b.network)));
+                    out.push(Finding::new(
+                        rule,
+                        Severity::Critical,
+                        format!("{} ({}) och {} ({}) överlappar", a.name, a.network, b.name, b.network),
+                    ));
                 }
                 if a.vlan == b.vlan {
                     out.push(Finding::new(rule, Severity::High, format!("VLAN {} har två DHCP-pooler: {} och {}", a.vlan, a.name, b.name)));
@@ -587,10 +640,18 @@ impl Inventory {
             }
             if let Some(m) = mgmt {
                 if !m.network.contains(dev.mgmt_ip) {
-                    out.push(Finding::new(rule, Severity::High, format!("{}: {} ligger inte i hanterings-VLAN:ets nät {}", dev.source, dev.mgmt_ip, m.network)));
+                    out.push(Finding::new(
+                        rule,
+                        Severity::High,
+                        format!("{}: {} ligger inte i hanterings-VLAN:ets nät {}", dev.source, dev.mgmt_ip, m.network),
+                    ));
                 }
                 if dev.gateway != m.gateway {
-                    out.push(Finding::new(rule, Severity::Medium, format!("{}: gatewayen {} är inte routerns {}", dev.source, dev.gateway, m.gateway)));
+                    out.push(Finding::new(
+                        rule,
+                        Severity::Medium,
+                        format!("{}: gatewayen {} är inte routerns {}", dev.source, dev.gateway, m.gateway),
+                    ));
                 }
                 let (s, e) = (u32::from(dev.mgmt_ip), (u32::from(m.excluded_start), u32::from(m.excluded_end)));
                 let in_pool = s >= u32::from(m.pool_start) && s <= u32::from(m.pool_end);
@@ -666,13 +727,25 @@ mod tests {
         let inv = Inventory::from_csv_texts(&[("ports.csv", &text)]).unwrap();
         assert_eq!(inv.ports[0].voice_vlan, None);
         assert_eq!(inv.ports[0].port_security, None);
-        let inv = Inventory::from_csv_texts(&[("devices.csv", "Hostname,Mgmt_IP,Mgmt_mask,Gateway\nSW1,10.0.0.2,255.255.255.0,10.0.0.1\n")]).unwrap();
+        let inv =
+            Inventory::from_csv_texts(&[("devices.csv", "Hostname,Mgmt_IP,Mgmt_mask,Gateway\nSW1,10.0.0.2,255.255.255.0,10.0.0.1\n")])
+                .unwrap();
         assert_eq!((inv.devices[0].location.as_str(), inv.devices[0].model.as_str()), ("", ""));
     }
 
     #[test]
     fn status_words() {
-        for (word, up) in [("Up", true), ("DOWN", false), ("upp", true), ("Nere", false), ("Ja", true), ("nej", false), ("On", true), ("off", false), ("", true)] {
+        for (word, up) in [
+            ("Up", true),
+            ("DOWN", false),
+            ("upp", true),
+            ("Nere", false),
+            ("Ja", true),
+            ("nej", false),
+            ("On", true),
+            ("off", false),
+            ("", true),
+        ] {
             let status = if word.is_empty() { None } else { parse_status(word) };
             assert_eq!(status.unwrap_or(true), up, "{word}");
         }
@@ -696,7 +769,9 @@ mod tests {
     fn network_not_first_address_warns() {
         let dhcp = "vlan_id,pool_name,network,mask,pool_start,pool_end,excluded_start,excluded_end,gateway,dns\n10,K,192.168.1.5,255.255.255.192,192.168.1.1,192.168.1.62,192.168.1.1,192.168.1.10,192.168.1.1,8.8.8.8\n";
         let inv = Inventory::from_csv_texts(&[("dhcp.csv", dhcp)]).unwrap();
-        assert!(messages(&inv).iter().any(|m| m.contains("192.168.1.5 är inte nätets första adress") && m.contains("192.168.1.0/26") && m.starts_with("dhcp.csv:2")));
+        assert!(messages(&inv).iter().any(|m| m.contains("192.168.1.5 är inte nätets första adress")
+            && m.contains("192.168.1.0/26")
+            && m.starts_with("dhcp.csv:2")));
         let ok = dhcp.replace("192.168.1.5,", "192.168.1.0,");
         let inv = Inventory::from_csv_texts(&[("dhcp.csv", &ok)]).unwrap();
         assert!(!messages(&inv).iter().any(|m| m.contains("första adress")));
@@ -717,7 +792,9 @@ mod tests {
 
     #[test]
     fn allowed_vlans_out_of_range() {
-        let inv = ports("SW1,Gi0/1,trunk,,,\"10,5000,0\",999,x,Up\nSW1,Gi0/2,trunk,,,\"4000-5000\",999,x,Up\nSW1,Gi0/3,trunk,,,\"10-20\",999,x,Up\n");
+        let inv = ports(
+            "SW1,Gi0/1,trunk,,,\"10,5000,0\",999,x,Up\nSW1,Gi0/2,trunk,,,\"4000-5000\",999,x,Up\nSW1,Gi0/3,trunk,,,\"10-20\",999,x,Up\n",
+        );
         let bad: Vec<String> = messages(&inv).into_iter().filter(|m| m.contains("utanför 1–4094")).collect();
         assert_eq!(bad.len(), 2, "{bad:?}");
         assert!(bad[0].contains("5000") || bad[1].contains("5000"));
@@ -729,10 +806,7 @@ mod tests {
 
     #[test]
     fn trunks_must_match_both_ways() {
-        let inv = ports(concat!(
-            "SW1,Gi0/2,trunk,,,\"10,20\",999,Port mot SW2,Up\n",
-            "SW2,Gi0/1,trunk,,,\"10,30\",888,Port mot SW1,Up\n",
-        ));
+        let inv = ports(concat!("SW1,Gi0/2,trunk,,,\"10,20\",999,Port mot SW2,Up\n", "SW2,Gi0/1,trunk,,,\"10,30\",888,Port mot SW1,Up\n",));
         let m = messages(&inv);
         let allowed: Vec<&String> = m.iter().filter(|m| m.contains("tillåter")).collect();
         assert_eq!(allowed.len(), 1, "{m:?}");
@@ -771,7 +845,8 @@ mod tests {
         ])
         .unwrap();
         let m = messages(&inv);
-        for needle in ["otillåtna", "första adress", "lediga adresser men", "skiljer sig", "tillåter", "utanför 1–4094", "okänd status"] {
+        for needle in ["otillåtna", "första adress", "lediga adresser men", "skiljer sig", "tillåter", "utanför 1–4094", "okänd status"]
+        {
             assert!(!m.iter().any(|m| m.contains(needle)), "{needle}: {m:?}");
         }
     }

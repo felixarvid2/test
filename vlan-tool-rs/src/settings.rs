@@ -1,9 +1,9 @@
 //! Inställningar som är samma för alla enheter. Standardvärdena är desamma som i
 //! Python-versionen, men allt kan ändras i `nordvik.toml` utan att röra koden.
 
+use crate::net::{Subnet, mask_to_prefix, parse_ip};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use crate::net::{mask_to_prefix, parse_ip, Subnet};
 use std::path::Path;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -185,7 +185,8 @@ mod tests {
         for f in ["log_server", "wan_mask", "mgmt_vlan", "native_vlan", "timezone"] {
             assert!(fields.contains(&f), "{f} saknas i {fields:?}");
         }
-        let s = Settings { wan_gateway: "198.51.100.1".into(), mgmt_vlan: 99, native_vlan: 99, timezone: String::new(), ..Settings::default() };
+        let s =
+            Settings { wan_gateway: "198.51.100.1".into(), mgmt_vlan: 99, native_vlan: 99, timezone: String::new(), ..Settings::default() };
         let issues = s.validate();
         assert!(issues.iter().any(|i| i.field == "wan_gateway" && i.message.contains("WAN-nätet")));
         assert!(issues.iter().any(|i| i.field == "native_vlan"));
