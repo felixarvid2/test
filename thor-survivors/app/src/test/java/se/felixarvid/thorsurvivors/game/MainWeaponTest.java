@@ -93,10 +93,12 @@ public class MainWeaponTest {
     public void heroBaseStatsReplaceTheDefaults() throws Exception {
         Sim b = run("BASTION"), p = run("SPECTRE"), x = run("XENOMANT");
         assertEquals(130f, b.maxHp, 0.01f);
-        assertEquals(80f, p.maxHp, 0.01f);
+        assertEquals(105f, p.maxHp, 0.01f); // phase 12: 80 -> 105
         assertEquals(95f, x.maxHp, 0.01f);
         assertEquals(1.0, b.stats.armor, 1e-9);
-        assertEquals(0.4, b.stats.regen, 1e-9);
+        assertEquals(0.3, b.stats.regen, 1e-9);
+        assertEquals(0.5, p.stats.regen, 1e-9);
+        assertEquals(1.0, p.stats.armor, 1e-9);
         assertEquals(0.2, x.stats.regen, 1e-9);
         assertEquals(0.92, b.stats.moveSpeedMul, 1e-9);
         assertEquals(1.10, p.stats.moveSpeedMul, 1e-9);

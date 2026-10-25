@@ -167,9 +167,9 @@ public class StatusTest {
         s.hp = s.maxHp = 100f;
         Enemy e = s.addEnemy("COLONIST", 0, 0, false);
         e.speed = 0f;
-        s.applyStatus(e, Entities.ST_DECAY, 5, 0.01f, 0f); // -20%: the colonist's 10 becomes 8
+        s.applyStatus(e, Entities.ST_DECAY, 5, 0.01f, 0f); // -20%: the colonist's contact damage times 0.8
         s.update(DT, new Input());
-        assertEquals(92f, s.hp, 0.05f);
+        assertEquals(100f - 0.8f * (float) s.type("COLONIST").def.power, s.hp, 0.05f);
     }
 
     @Test

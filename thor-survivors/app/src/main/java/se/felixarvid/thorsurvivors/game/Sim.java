@@ -182,7 +182,7 @@ public final class Sim {
     /** Destructible kinds: the old brazier / candelabra (drops only), explosive barrel, supply chest, stim pylon. */
     public static final int DK_LEGACY = 0, DK_BARREL = 1, DK_CHEST = 2, DK_PYLON = 3;
     /** Barrel blast (design 9.1): radius 80, 5P (50) to every enemy and to the hero if within range; the hero takes 15 (an approximation: 5P on the hero would be half its health). */
-    public static final float BARREL_R = 80f, BARREL_DMG = 50f, BARREL_HERO_DMG = 15f;
+    public static final float BARREL_R = 80f, BARREL_DMG = 50f, BARREL_HERO_DMG = 10f;
     /** A stim pylon heals 30% of max HP when destroyed; it works again 60 s after its last use. */
     public static final float PYLON_HEAL = 0.3f, PYLON_COOLDOWN = 60f;
     /** The destructibles of the cells around the player that are still standing (swap-remove compacted). */
@@ -942,7 +942,7 @@ public final class Sim {
         e.speed = (float) (t.def.speed * ENEMY_SPEED_K * stage.enemySpeed * (1 + stats.curse * 0.5) * stats.enemySpeed);
         e.power = (float) t.def.power;
         e.radius = t.radius * (boss ? 1.8f : 1f);
-        e.xp = (float) t.def.xp;
+        e.xp = (float) (t.def.xp * stage.xpFade(time)); // Ashfall: the late-game XP fade (stage data)
         if (t.arch != EnemyDef.ARCH_CHASER) ai.init(e);
     }
 
@@ -1475,7 +1475,24 @@ public final class Sim {
     static final int GEM_RESERVE = 64;
     private float condenseT;
 
+    /**
+     * Ashfall late-fight readability (phase 12): once {@code GEM_MERGE_FROM} pickups lie around, a gem dropped far from the
+     * hero ({@code FAR_MERGE_DIST}) folds into a normal gem within {@code FAR_MERGE_R}; with {@code GEM_MERGE_HARD} pickups also
+     * the gems of the mid ring ({@code MID_MERGE_DIST}) do, within {@code MID_MERGE_R}. XP is kept (the merged gem is worth the
+     * sum, up to {@code MERGE_CAP}), only the carpet of crystals gets thinner. Gems next to the hero stay separate.
+     */
+    static final int GEM_MERGE_FROM = 140, GEM_MERGE_HARD = 420;
+    static final float FAR_MERGE_DIST = 300f, FAR_MERGE_R = 110f, MID_MERGE_DIST = 170f, MID_MERGE_R = 70f;
+
     void addPickup(int kind, float x, float y, float value) {
+        if (kind == Entities.K_GEM && pickN >= GEM_MERGE_FROM) {
+            float dx = x - px, dy = y - py, d2 = dx * dx + dy * dy;
+            if (d2 > FAR_MERGE_DIST * FAR_MERGE_DIST) {
+                if (mergeNearby(x, y, value, FAR_MERGE_R, MERGE_CAP)) return;
+            } else if (pickN >= GEM_MERGE_HARD && d2 > MID_MERGE_DIST * MID_MERGE_DIST) {
+                if (mergeNearby(x, y, value, MID_MERGE_R, MERGE_CAP)) return;
+            }
+        }
         // gems stop growing the pool GEM_RESERVE slots early so coins, food and chests always find room
         if (pickN >= (kind == Entities.K_GEM ? MAX_PICK - GEM_RESERVE : MAX_PICK)) {
             if (kind == Entities.K_GEM && mergeNearby(x, y, value)) return;
@@ -1493,11 +1510,16 @@ public final class Sim {
 
     /** Pool full: adds a gem to the nearest normal gem within MERGE_DIST of (x, y). */
     private boolean mergeNearby(float x, float y, float value) {
+        return mergeNearby(x, y, value, MERGE_DIST, MERGE_CAP);
+    }
+
+    /** Adds a gem to the nearest normal gem within {@code radius} of (x, y) whose value stays within {@code cap}. */
+    private boolean mergeNearby(float x, float y, float value, float radius, float cap) {
         int best = -1;
-        float bd = MERGE_DIST * MERGE_DIST;
+        float bd = radius * radius;
         for (int i = 0; i < pickN; i++) {
             Pickup p = picks[i];
-            if (p.kind != Entities.K_GEM || p.red || p.value + value > MERGE_CAP) continue;
+            if (p.kind != Entities.K_GEM || p.red || p.value + value > cap) continue;
             float dx = p.x - x, dy = p.y - y, d2 = dx * dx + dy * dy;
             if (d2 < bd) {
                 bd = d2;
@@ -1907,7 +1929,7 @@ public final class Sim {
         e.speed *= (float) data.elite("speedMul", 0.9);
         e.xp *= (float) data.elite("xpMul", 8);
         if ((mods & Elites.M_ARMORED) != 0) {
-            e.armor = Elites.FLAT_ARMOR;
+            e.armor = (float) data.elite("armor", Elites.FLAT_ARMOR);
             e.kbMul = 0f; // cannot be knocked back
         }
         e.mt0 = 1.5f;

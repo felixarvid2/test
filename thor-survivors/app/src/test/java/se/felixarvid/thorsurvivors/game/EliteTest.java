@@ -49,7 +49,7 @@ public class EliteTest {
 
     /** 30 minutes headless on both stages: the first elite at 3:00 and one every 150 s less 1% per minute (floor 100 s). */
     @Test
-    public void oneEliteEveryHundredAndFiftySecondsShrinkingOnePercentAMinute() throws Exception {
+    public void oneEliteEveryHundredAndTwentyFiveSecondsShrinkingOnePercentAMinute() throws Exception {
         GameData d = TestData.load();
         for (String stage : new String[]{"FLATS", "MINES"}) {
             StageSoak.Result r = StageSoak.run(stage, "BASTION", "immortal", 3, 1800);
@@ -59,10 +59,10 @@ public class EliteTest {
                 double gap = r.eliteAt.get(i) - r.eliteAt.get(i - 1);
                 double want = Elites.interval(d, r.eliteAt.get(i - 1));
                 assertTrue(stage + " gap " + gap + " wanted " + want + " +-10 s", Math.abs(gap - want) <= 10.0);
-                assertTrue("never over 150 s + 10 s, never under the 100 s floor - 10 s: " + gap, gap <= 160 && gap >= 90);
+                assertTrue("never over 125 s + 10 s, never under the 90 s floor - 10 s: " + gap, gap <= 135 && gap >= 80);
             }
-            // 180, then 145 s shrinking to 105 s at the end: 13 elites in 30 minutes
-            assertTrue(stage + " elites " + r.eliteAt.size(), r.eliteAt.size() >= 12 && r.eliteAt.size() <= 14);
+            // 180, then 120 s shrinking to 100 s at the end: 15 to 17 elites in 30 minutes (phase 12: 125 s, floor 90 s)
+            assertTrue(stage + " elites " + r.eliteAt.size(), r.eliteAt.size() >= 15 && r.eliteAt.size() <= 18);
             assertTrue("they die too: " + r.eliteKilled, r.eliteKilled >= r.eliteAt.size() - 2);
         }
     }
@@ -70,10 +70,11 @@ public class EliteTest {
     @Test
     public void theIntervalShrinksOnePercentAMinuteDownToTheFloor() throws Exception {
         GameData d = TestData.load();
-        assertEquals(150f, Elites.interval(d, 0), 1e-3f);
-        assertEquals(135f, Elites.interval(d, 600), 1e-3f);
-        assertEquals(105f, Elites.interval(d, 1800), 1e-3f);
-        assertEquals("the floor", 100f, Elites.interval(d, 6000), 1e-3f);
+        assertEquals(125f, Elites.interval(d, 0), 1e-3f);
+        assertEquals(112.5f, Elites.interval(d, 600), 1e-3f);
+        assertEquals("125 x 0.7 = 87.5 is under the floor", 90f, Elites.interval(d, 1800), 1e-3f);
+        assertEquals(100f, Elites.interval(d, 1200), 1e-3f);
+        assertEquals("the floor", 90f, Elites.interval(d, 6000), 1e-3f);
     }
 
     @Test
@@ -139,7 +140,7 @@ public class EliteTest {
         assertEquals(plain.power * 1.5f, e.power, 1e-4f);
         assertEquals(plain.speed * 0.9f, e.speed, 1e-4f);
         assertEquals(plain.radius * 1.4f, e.radius, 1e-3f);
-        assertEquals(plain.xp * 8f, e.xp, 1e-4f);
+        assertEquals(plain.xp * 4f, e.xp, 1e-4f);
         assertEquals("shots hit 1.5 times as hard", 1.5f, e.shotMul, 1e-6f);
         assertEquals("six adds came with it", 1 + 1 + 6, s.enemyN);
         assertEquals(1, s.sound.emitted[SoundEvents.ELITE_SPAWN]);
@@ -341,7 +342,7 @@ public class EliteTest {
         }
         assertEquals("exactly one equipment drop", 1, crates);
         assertTrue("a pile of gems: " + gems, gems >= 5);
-        assertTrue("worth about two levels of XP: " + gemXp, gemXp >= s.xpNeed * 1.5f);
+        assertTrue("worth about 0.7 levels of XP: " + gemXp, gemXp >= s.xpNeed * 0.6f);
         assertEquals(1, s.sound.emitted[SoundEvents.ELITE_DIE]);
         assertEquals(1, s.sound.emitted[SoundEvents.EQUIP_DROP]);
         assertEquals(1, s.eliteKilled);

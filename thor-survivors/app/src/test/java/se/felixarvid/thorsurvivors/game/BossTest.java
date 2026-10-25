@@ -66,11 +66,14 @@ public class BossTest {
             assertTrue(e.ashfallBoss);
         }
         assertEquals("the ramp 20% -> 100% by minute 20 is kept", 20f, d.enemies.get("CARGO_LOADER").param("hpRamp", 0), 0f);
-        assertEquals(29f, d.enemies.get("THE_FIRST").param("hpRamp", 0), 0f);
+        assertEquals(28f, d.enemies.get("THE_FIRST").param("hpRamp", 0), 0f);
         assertEquals(EnemyDef.ARCH_TENTACLE, d.enemies.get("LUMEN_TENTACLE").archetype);
         assertFalse(d.enemies.get("LUMEN_TENTACLE").ashfallBoss);
-        assertEquals("The First comes at minute 29 on Deep Mines", "THE_FIRST", d.stages.get("MINES").rows.get(d.stages.get("MINES").rows.size() - 1).bosses[0]);
-        assertEquals(29, d.stages.get("MINES").rows.get(d.stages.get("MINES").rows.size() - 1).minute);
+        // phase 12: The First comes at 28:00 (two minutes to kill it before the run ends), the last minute has no boss
+        se.felixarvid.thorsurvivors.data.StageDef mines = d.stages.get("MINES");
+        assertEquals("The First comes at minute 28 on Deep Mines", "THE_FIRST", mines.rows.get(mines.rows.size() - 2).bosses[0]);
+        assertEquals(28, mines.rows.get(mines.rows.size() - 2).minute);
+        assertEquals(0, mines.rows.get(mines.rows.size() - 1).bosses.length);
         assertEquals(5, d.stages.get("MINES").tentacleMinutes.length);
         assertEquals("no tentacle hazard on Cinder Flats", 0, d.stages.get("FLATS").tentacleMinutes.length);
     }
@@ -417,17 +420,17 @@ public class BossTest {
     // ------------------------------------------------------------------ The First
 
     private static Sim firstSim(long seed) throws Exception {
-        Sim s = sim("MINES", 29 * 60, seed);
+        Sim s = sim("MINES", 28 * 60, seed);
         s.px = 0;
         s.py = 0;
         return s;
     }
 
     @Test
-    public void theFirstSpawnsAtMinute29WithABannerARoarAndFinalMusic() throws Exception {
+    public void theFirstSpawnsAtMinute28WithABannerARoarAndFinalMusic() throws Exception {
         GameData d = TestData.load();
         Sim s = new Sim(d, d.stages.get("MINES"), null, new HashMap<String, Double>(), null, 71);
-        s.time = 29 * 60 - 0.5;
+        s.time = 28 * 60 - 0.5;
         s.nextEliteAt = 1e9f;
         for (int i = 0; i < 60 * 2 && s.bossNow == null; i++) {
             s.hp = s.maxHp;
@@ -440,7 +443,7 @@ public class BossTest {
         assertTrue(s.bannerT > 1.8f);
         assertEquals(1, s.sound.emitted[SoundEvents.THE_FIRST_ROAR]);
         assertEquals("the banner replaces the plain boss sound", 0, s.sound.emitted[SoundEvents.BOSS_SPAWN]);
-        assertEquals(25000f * 1.25f, s.bossNow.maxHp, 5f); // full HP at minute 29, Deep Mines health x1.25
+        assertEquals(18000f * 1.5f, s.bossNow.maxHp, 5f); // full HP at minute 28 (hpRamp 28), Deep Mines health x1.5
         for (int i = 0; i < 60 * 2; i++) {
             s.hp = s.maxHp;
             s.update(DT, new Input());
@@ -767,7 +770,7 @@ public class BossTest {
     public void theBossEliteAndTentacleLoopAllocatesNothing() throws Exception {
         GameData d = TestData.load();
         Sim s = new Sim(d, d.stages.get("MINES"), "WHIP", new HashMap<String, Double>(), "BASTION", 121);
-        s.time = 29 * 60 - 3; // The First comes at 29:00; the tentacle hazard of minute 27 is long over: bursts of The First's own
+        s.time = 28 * 60 - 3; // The First comes at 28:00; the tentacle hazard of minute 27 is over (20 s): bursts of The First's own
         s.nextEliteAt = (float) s.time + 1f;
         Input in = new Input();
         Enemy first = null;

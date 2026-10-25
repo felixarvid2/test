@@ -38,14 +38,15 @@ public class AshfallStageTest {
         assertEquals("Cinder Flats", f.name);
         assertEquals("Deep Mines", m.name);
         assertEquals(30, f.rows.size());
-        assertEquals(22, m.rows.size());
-        // mods copied from the VS stages; Deep Mines is harder (health x1.25, speed x1.05 on top of the library's)
+        assertEquals(23, m.rows.size()); // phase 12: the extra row is minute 28 (The First)
+        // mods copied from the VS stages; Deep Mines is harder (speed x1.05 on top of the library's); phase 12 sets the health multipliers by hand
         StageDef forest = d.stages.get("FOREST"), library = d.stages.get("LIBRARY");
         assertEquals(forest.enemySpeed, f.enemySpeed, 1e-9);
         assertEquals(forest.playerSpeed, f.playerSpeed, 1e-9);
         assertEquals(library.playerSpeed, m.playerSpeed, 1e-9);
         assertEquals(library.enemySpeed * 1.05, m.enemySpeed, 1e-6);
-        assertEquals(library.enemyHealth * 1.25, m.enemyHealth, 1e-6);
+        assertEquals(1.5, m.enemyHealth, 1e-6);
+        assertEquals(1.2, f.enemyHealth, 1e-6);
         assertEquals(1800.0, f.timeLimit, 0.0);
         assertEquals(1800.0, m.timeLimit, 0.0);
         // wave tables of the design
@@ -55,7 +56,7 @@ public class AshfallStageTest {
         assertEquals(8, f.rows.get(29).enemies.length);
         assertEquals("CARGO_LOADER", f.rows.get(5).bosses[0]);
         assertEquals(2, f.rows.get(25).bosses.length);
-        assertEquals("THE_FIRST", m.rows.get(m.rows.size() - 1).bosses[0]);
+        assertEquals("THE_FIRST", m.rows.get(m.rows.size() - 2).bosses[0]); // 28:00 (phase 12)
         // missing minutes inherit the previous row
         assertEquals(46, m.rowAt(11 * 60).minimum);
         assertEquals(52, m.rowAt(12 * 60).minimum);
