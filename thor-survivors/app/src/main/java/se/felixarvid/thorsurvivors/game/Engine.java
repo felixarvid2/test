@@ -182,7 +182,7 @@ public final class Engine {
     }
 
     private void startRun() {
-        sim = new Sim(data, stage(), starters.get(weaponIdx), meta.bonuses(), meta.heroKey());
+        sim = new Sim(data, stage(), starters.get(weaponIdx), meta.bonuses(), meta.heroKey(), System.nanoTime()); // a new run every time
         sim.sound = sound;
         input.clearMovement();
         phase = PH_PLAYING;
@@ -199,7 +199,7 @@ public final class Engine {
         resultLevel = s.level;
         resultNewBest = resultTime > meta.bestTimeSec;
         meta.addGold(resultGold);
-        meta.recordRun(resultTime, s.kills);
+        meta.recordRun(resultTime, s.kills, s.stage.key);
         phase = PH_RESULT;
         focus = 0;
         sound.emit(win ? SoundEvents.VICTORY : SoundEvents.GAME_OVER);
@@ -390,7 +390,7 @@ public final class Engine {
         Sim s = sim;
         if (s != null) {
             meta.addGold(s.gold);
-            meta.recordRun((int) s.time, s.kills);
+            meta.recordRun((int) s.time, s.kills, s.stage.key);
         }
         phase = PH_MENU;
         focus = 0;

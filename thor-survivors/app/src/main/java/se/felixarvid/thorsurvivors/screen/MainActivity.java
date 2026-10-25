@@ -38,6 +38,7 @@ public final class MainActivity extends Activity {
             }
         }
         if (!SpriteAtlas.get().isLoaded()) SpriteAtlas.get().load(getAssets()); // decodes ~50 MB of sheets once
+        se.felixarvid.thorsurvivors.ui.UiArt.get().ensure(getAssets()); // ASHFALL UI typeface and textures
         setVolumeControlStream(AudioManager.STREAM_MUSIC); // the hardware volume keys control the game's audio
         audio = new AudioEngine(this, eng);
         FrameLayout root = new FrameLayout(this);

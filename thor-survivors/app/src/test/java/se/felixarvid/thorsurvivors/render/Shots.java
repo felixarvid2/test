@@ -52,6 +52,7 @@ final class Shots {
         eng.init(d, mp);
         eng.meta = mp;
         SpriteAtlas.get().load(path -> new FileInputStream("src/main/assets/" + path));
+        se.felixarvid.thorsurvivors.ui.UiArt.get().ensure(new File("src/main/assets"));
         eng.input.clearMovement();
         eng.phase = Engine.PH_MENU;
         eng.focus = 0;

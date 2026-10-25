@@ -20,8 +20,7 @@ public class PickupPoolSaturationTest {
 
     private Sim sim() throws Exception {
         GameData d = TestData.load();
-        Sim s = new Sim(d, d.stages.get("FOREST"), "WHIP", new HashMap<String, Double>());
-        s.rng.setSeed(1);
+        Sim s = new Sim(d, d.stages.get("FOREST"), "WHIP", new HashMap<String, Double>(), null, 1L);
         return s;
     }
 
@@ -67,7 +66,7 @@ public class PickupPoolSaturationTest {
         Input in = new Input();
         Random rng = new Random(5);
         int levelAt9 = 0, levelAt10 = 0;
-        float maxNormal = 0;
+        float maxNormal = 0, needSeen = 0;
         int peak = 0;
         for (int step = 0; step < 12 * 60 * 60 && s.ended == 0; step++) {
             s.hp = s.maxHp;
@@ -82,16 +81,20 @@ public class PickupPoolSaturationTest {
             if (step == 10 * 3600) levelAt10 = s.level;
             if (step % 30 == 0) {
                 assertTrue("at most one red gem", reds(s) <= 1);
+                // gems merge up to 40-50 xp; only an elite's pile (five gems worth two levels together, so 0.4 of a
+                // level each) is bigger - judged against the largest xp need so far (it jumps at levels 20 and 40
+                // and drops again, while a pile can still lie on the ground)
+                needSeen = Math.max(needSeen, s.xpNeed);
+                float limit = Math.max(50f, 0.45f * needSeen);
                 for (int i = 0; i < s.pickN; i++) {
                     Entities.Pickup p = s.picks[i];
-                    if (p.kind == Entities.K_GEM && !p.red) maxNormal = Math.max(maxNormal, p.value);
+                    if (p.kind == Entities.K_GEM && !p.red) maxNormal = Math.max(maxNormal, p.value / limit);
                 }
             }
         }
         assertEquals("survived", 0, s.ended);
         assertTrue("level " + s.level + " vs " + levelAt9 + " at 9 min", s.level > levelAt9 && levelAt10 > levelAt9);
-        // gems merge up to 40-50 xp; only an elite's pile (five gems worth two levels together, so 0.4 of a level each) is bigger
-        assertTrue("normal gem holds " + maxNormal + " xp", maxNormal <= Math.max(50f, 0.45f * s.xpNeed));
+        assertTrue("a normal gem held " + maxNormal + "x the allowed xp", maxNormal <= 1f);
         assertTrue("pickN peaked at " + peak, peak < Sim.MAX_PICK);
     }
 

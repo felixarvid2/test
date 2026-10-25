@@ -382,6 +382,7 @@ Readability rules
 - Result screen: shows the hero, the final equipment and the branches picked.
 - Hero select and stage select: region painting as the card background (regions/*.webp at low resolution, 640x360); stage select shows "Cinder Flats" and "Deep Mines" with best time.
 - Memory: portraits and frames are decoded at the display size only when the screen opens (not at start).
+- **Implemented (phase 11):** `ui/Skin`, `ui/UiArt`, `ui/PanelRenderer`, `ui/TopOverlay`; typeface Barlow Condensed (OFL) in `assets/fonts/`; art from `tools/build_ui_assets.py` into `assets/ui/`. The status line and elite statuses use vector glyphs (no icon art for Burn/Slow/Decay or the six elite modifiers). Best time is kept per stage. See README "ASHFALL-skalet".
 
 ## 12. Audio direction
 

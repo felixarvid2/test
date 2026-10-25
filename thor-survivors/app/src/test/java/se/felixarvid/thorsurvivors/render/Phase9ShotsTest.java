@@ -117,7 +117,7 @@ public class Phase9ShotsTest {
             if (i == 0) {
                 Bitmap bot = h.renderBottom();
                 Shots.save(bot, "hud_elite.png");
-                assertTrue("the ELITE tag shows its colour dot on the bottom screen", near(bot, 30, 640, 1210, 790, col, 40) > 30);
+                assertTrue("the ELITE tag shows its colour dot on the bottom screen", near(bot, 640, 510, 1210, 620, col, 40) > 30);
             }
         }
     }
@@ -160,7 +160,7 @@ public class Phase9ShotsTest {
         step(h, 2);
         Bitmap bot = h.renderBottom().copy(Bitmap.Config.ARGB_8888, false);
         Shots.save(bot, "hud_equipment.png");
-        assertTrue("rarity frames on the strip", near(bot, 30, 640, 560, 780, 0xFFD84A, 45) > 40 || near(bot, 30, 640, 560, 780, 0x4FA8FF, 45) > 40);
+        assertTrue("rarity frames on the strip", near(bot, 30, 516, 600, 604, 0xFFD84A, 45) > 40 || near(bot, 30, 516, 600, 604, 0x4FA8FF, 45) > 40);
 
         // a better item for the Head slot (the helm is Common): the choice screen on the bottom screen, the top dims
         EquipDef lamp = h.eng.data.equipment.get("HEADLAMP");
@@ -170,7 +170,7 @@ public class Phase9ShotsTest {
         Bitmap choice = h.renderBottom().copy(Bitmap.Config.ARGB_8888, false);
         Shots.save(choice, "equip_choice_bottom.png");
         Shots.save(h.renderTop(), "equip_choice_top.png");
-        assertTrue("green stat difference on the Replace card", near(choice, 640, 560, 1240, 1000, 0x70E080, 40) > 60);
+        assertTrue("green stat difference on the Replace card", near(choice, 640, 560, 1240, 1000, 0x5CF08E, 40) > 60);
         h.eng.input.post(Input.CMD_NAV, Input.LEFT, 0, 0);
         h.eng.advance(1f / 60f);
         Shots.save(h.renderBottom(), "equip_choice_keep_focus.png");

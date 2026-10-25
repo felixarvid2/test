@@ -65,3 +65,11 @@ under ~70 MB now that the enemy action clips are in (68 MB), APK under ~30 MB).
 - Models are baked dark. Creatures are drawn with a brightening colour matrix (`ENEMY_GAIN`) so they stay readable on dark ground;
   bosses skip the gain.
 - Icon sources have white or black corner pixels: the build clips them to a rounded square.
+
+## UI art (phase 11, not in the atlas)
+
+The bottom-screen skin art lives outside `ashfall/`: `python3 tools/build_ui_assets.py` writes `app/src/main/assets/ui/` (stage paintings 640x360,
+title 960x540, hero cards 640x360, portraits 256x256, `stats.webp` = 14 stat icons in `UiArt.STAT_KEYS` order; `UiAssetsTest` checks the order against the
+script) and the font is `assets/fonts/BarlowCondensed-*.ttf` (OFL, licence next to it). These pictures are decoded lazily by `ui/UiArt` and released when
+a run starts, so a new menu picture goes through `UiArt.get(file, group, maxWidth)`, never into the atlas. Rarity frames, weapon/passive/branch icons and boss
+portraits stay in `icons.webp` (`ICONS`, `FRAMES`, `PORTRAITS` in `build_ashfall_assets.py`).
