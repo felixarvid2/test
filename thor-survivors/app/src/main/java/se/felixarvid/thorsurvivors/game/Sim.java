@@ -2,6 +2,7 @@ package se.felixarvid.thorsurvivors.game;
 
 import se.felixarvid.thorsurvivors.data.GameData;
 import se.felixarvid.thorsurvivors.data.StageDef;
+import se.felixarvid.thorsurvivors.data.Treasure;
 import se.felixarvid.thorsurvivors.data.WaveRow;
 import se.felixarvid.thorsurvivors.data.WeaponDef;
 import se.felixarvid.thorsurvivors.game.Entities.*;
@@ -110,6 +111,8 @@ public final class Sim {
 
     private int lastRow = -1;
     private float spawnTimer;
+    /** Fractional gold not yet paid out (Greed on 1-gold coins). */
+    private double goldFrac;
     private float regenAcc;
 
     public Sim(GameData data, StageDef stage, String starterKey, Map<String, Double> meta) {
@@ -406,8 +409,11 @@ public final class Sim {
         spawnTimer += dt * 1000f;
         if (spawnTimer >= row.frequencyMs) {
             spawnTimer = 0;
-            int n = WaveDirector.spawnCount(row, enemyN, time);
-            for (int i = 0; i < n; i++) {
+            // Vampire Survivors: each tick one of EACH enemy type of the row, then top the field up to `minimum`
+            int each = WaveDirector.eachCount(row, enemyN);
+            for (int i = 0; i < each; i++) spawnAtRing(type(row.enemies[i]), false, 0);
+            int extra = WaveDirector.topUpCount(row, enemyN);
+            for (int i = 0; i < extra; i++) {
                 spawnAtRing(type(row.enemies[rng.nextInt(row.enemies.length)]), false, 0);
             }
         }
@@ -453,7 +459,7 @@ public final class Sim {
         e.softFlash = false;
         e.textSlot = -1;
         e.anim = rng.nextFloat() * 6f;
-        java.util.Arrays.fill(e.hitUntil, 0f);
+        e.clearTicks();
         e.clearHits();
         double hp = t.def.maxHp * 10.0 * (t.def.hpTimesLevel ? t.def.level : 1) * stage.enemyHealth
                 * (1 + stats.curse) * (boss ? 3.0 : 1.0);
@@ -881,7 +887,11 @@ public final class Sim {
             case Entities.K_COIN:
             case Entities.K_COINBAG:
                 sound.emit(SoundEvents.COIN);
-                gold += Math.max(1, Math.round(p.value * (float) stage.goldMultiplier * (float) stats.greedMul));
+                // Greed gives fractions (1 gold x 1.2): carry the remainder so single coins still add up
+                goldFrac += p.value * stage.goldMultiplier * stats.greedMul;
+                int whole = (int) (goldFrac + 1e-6);
+                goldFrac -= whole;
+                gold += whole;
                 break;
             case Entities.K_ROAST:
                 sound.emit(SoundEvents.FOOD_HEAL);
@@ -956,27 +966,47 @@ public final class Sim {
         recomputeAll();
     }
 
-    /** Opens one pending chest: evolves a ready weapon, else grants upgrades. Returns text lines. */
+    /** Used when the stage has no treasure table at or before the current minute: one evolution, else one upgrade. */
+    private static final Treasure DEFAULT_TREASURE =
+            new Treasure(new double[]{0, 0, 100}, 1, new String[]{Treasure.EVOLUTION});
+
+    /** Opens one pending chest with the stage's treasure table for the current minute. Returns text lines. */
     public String[] openChest() {
+        Treasure t = stage.treasureAt(time);
+        return openChest(t != null ? t : DEFAULT_TREASURE);
+    }
+
+    /**
+     * Opens one pending chest after a treasure table (the latest minute row at or before now that has one).
+     * Item count: 5 with chance[0] percent, else 3 with chance[1] percent, else 1. chance[2] is the data's 1-item
+     * chance; a chest never comes up empty, so a failed roll still gives 1 item. Item slots are filled in
+     * prizeTypes order: EVOLUTION evolves a ready weapon (else acts as EXISTING_ANY), EXISTING_ANY levels a random
+     * owned weapon or passive that is not maxed, EXISTING_WEAPON the same among weapons only, anything else counts
+     * as EXISTING_ANY. When nothing can be levelled the slot is skipped; the gold bonus is always paid. The data's
+     * `level` and `fixedPrizes` are not used.
+     */
+    public String[] openChest(Treasure t) {
         pendingChests--;
         sound.emit(SoundEvents.CHEST_OPEN);
         java.util.ArrayList<String> lines = new java.util.ArrayList<>();
-        int slot = inv.firstEvolvable(data.weapons);
-        if (slot >= 0) {
-            String from = inv.weapons[slot].def.name;
-            WeaponDef to = inv.evolve(slot, data.weapons);
-            sound.emit(SoundEvents.EVOLUTION);
-            lines.add("EVOLUTION!");
-            lines.add(from + " -> " + to.name);
-        } else {
-            int r = rng.nextInt(100);
-            int n = r < 70 ? 1 : r < 95 ? 3 : 5;
-            for (int i = 0; i < n; i++) {
-                Inventory.Slot s = randomUpgradable();
-                if (s == null) break;
-                inv.levelUp(s.def.key);
-                lines.add(s.def.name + " -> Lv " + s.level);
+        int n = rng.nextDouble() * 100 < t.chances[0] ? 5 : rng.nextDouble() * 100 < t.chances[1] ? 3 : 1;
+        for (int i = 0; i < n; i++) {
+            String type = t.prizeAt(i);
+            if (Treasure.EVOLUTION.equals(type)) {
+                int slot = inv.firstEvolvable(data.weapons);
+                if (slot >= 0) {
+                    String from = inv.weapons[slot].def.name;
+                    WeaponDef to = inv.evolve(slot, data.weapons);
+                    sound.emit(SoundEvents.EVOLUTION);
+                    lines.add("EVOLUTION!");
+                    lines.add(from + " -> " + to.name);
+                    continue;
+                }
             }
+            Inventory.Slot s = randomUpgradable(Treasure.EXISTING_WEAPON.equals(type));
+            if (s == null) continue;
+            inv.levelUp(s.def.key);
+            lines.add(s.def.name + " -> Lv " + s.level);
         }
         int coins = Math.round((30 + rng.nextInt(60)) * (float) stage.goldMultiplier * (float) stats.greedMul);
         gold += coins;
@@ -985,11 +1015,13 @@ public final class Sim {
         return lines.toArray(new String[0]);
     }
 
-    private Inventory.Slot randomUpgradable() {
+    private Inventory.Slot randomUpgradable(boolean weaponsOnly) {
         Inventory.Slot[] pool = new Inventory.Slot[12];
         int n = 0;
         for (int i = 0; i < inv.weaponCount; i++) if (inv.weapons[i].level < inv.weapons[i].def.maxLevel()) pool[n++] = inv.weapons[i];
-        for (int i = 0; i < inv.passiveCount; i++) if (inv.passives[i].level < inv.passives[i].def.maxLevel()) pool[n++] = inv.passives[i];
+        if (!weaponsOnly) {
+            for (int i = 0; i < inv.passiveCount; i++) if (inv.passives[i].level < inv.passives[i].def.maxLevel()) pool[n++] = inv.passives[i];
+        }
         return n == 0 ? null : pool[rng.nextInt(n)];
     }
 
@@ -1433,8 +1465,7 @@ public final class Sim {
                 if (dx * dx + dy * dy >= rr * rr) continue;
                 float d = (float) Math.sqrt(dx * dx + dy * dy) + 0.01f;
                 if (p.kind == Entities.P_BOOK || p.kind == Entities.P_PUDDLE) {
-                    if (tNow < e.hitUntil[p.slot]) continue;
-                    e.hitUntil[p.slot] = tNow + p.hitDelay;
+                    if (!e.tryTick(p.stamp, tNow, p.hitDelay)) continue; // each book / puddle ticks on its own
                 } else {
                     if (e.hitBy(p.stamp)) continue;
                     e.markHit(p.stamp);

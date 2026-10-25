@@ -38,4 +38,10 @@ public final class StageDef {
     public WaveRow rowAt(double seconds) {
         return WaveSelector.rowAt(rows, seconds);
     }
+
+    /** The treasure table of the latest row (at or before the given time) that has one, or null. */
+    public Treasure treasureAt(double seconds) {
+        for (int i = WaveSelector.indexAt(rows, seconds); i >= 0; i--) if (rows.get(i).treasure != null) return rows.get(i).treasure;
+        return null;
+    }
 }

@@ -43,7 +43,10 @@ I emulatorn: WASD eller piltangenterna.
   - Lightning Ring → Thunder Loop
 - **Passiver:** 13.
 - **Fiender:** 42 typer, inklusive bossar.
-- **Kistor:** chests.
+- **Kistor:** följer stagens skattetabell (`treasure` i `game_data.json`, raden för aktuell eller senaste minut som har en). Antal föremål: 5 med `chances[0]` procent, annars 3 med `chances[1]` procent, annars 1 (en kista är aldrig tom, så `chances[2]` styr inget). Platserna fylls i ordningen `prizeTypes`: EVOLUTION utvecklar ett färdigt vapen (annars som EXISTING_ANY), EXISTING_ANY höjer ett slumpat vapen eller en passiv som inte är på max, EXISTING_WEAPON samma men bara vapen, okända typer räknas som EXISTING_ANY. Går inget att höja ges bara guld. `level` och `fixedPrizes` i datan används inte.
+- **Greed:** gäller även enstaka mynt; bråkdelen av guldet sparas (`Sim.goldFrac`), så 10 mynt med Greed 1,2 ger 12 guld.
+- **Böcker och pölar:** varje bok (King Bible, Unholy Vespers) och varje Santa Water-pöl träffar på egen hand med sin egen `hitBoxDelay` per fiende (`Enemy.tryTick`), så fler böcker (Amount) ger mer skada.
+- **Vågor:** varje `frequency` ms kommer en fiende av varje typ i minutens `enemies` (högst 300 på banan), och fältet fylls dessutom upp till `minimum` (`game/WaveDirector`). Dödzonen i XP runt minut 5 till 10 i Mad Forest är i huvudsak datan (en fiendetyp och `minimum` 10 till 30).
 - **PowerUp-butik:** köp med guld som sparas mellan körningar.
 
 Evolution: vapnet måste vara på maxnivå tillsammans med sin passiv. Öppna sedan en boss-kista. En körning vinns när timern når 30:00.
@@ -84,7 +87,7 @@ Kräver Android SDK (plattform 35, build-tools 35.0.0). Skapa `local.properties`
 ./gradlew assembleDebug testDebugUnitTest
 ```
 
-Det finns 134 JVM-enhetstester (inklusive Robolectric-skärmdumpar till `app/build/screenshots/`, eller `$SHOT_DIR`): statistikberäkning, level-up-erbjudanden, evolutioner, vågor, butik, headless-simuleringar, ljudhändelser (gräns, ringbuffert, manifest) och att atlasen är giltig. Vyn visar 560 världsenheter på höjden (`Sim.VIEW_H`).
+Det finns 147 JVM-enhetstester (inklusive Robolectric-skärmdumpar till `app/build/screenshots/`, eller `$SHOT_DIR`): statistikberäkning, level-up-erbjudanden, evolutioner, vågor, butik, headless-simuleringar, ljudhändelser (gräns, ringbuffert, manifest) och att atlasen är giltig. Vyn visar 560 världsenheter på höjden (`Sim.VIEW_H`).
 
 Kopiera sedan `app/build/outputs/apk/debug/app-debug.apk` till `dist/`.
 

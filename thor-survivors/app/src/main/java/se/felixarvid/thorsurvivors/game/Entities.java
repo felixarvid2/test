@@ -22,8 +22,34 @@ public final class Entities {
         public float stagger;
         /** Knockback multiplier, 1 by default; Garlic raises it (lowers the enemy's knockback resistance). */
         public float kbMul = 1f;
-        /** Absolute sim time before which the weapon in this slot cannot hit this enemy again. */
-        public final float[] hitUntil = new float[Inventory.MAX_WEAPONS];
+        /**
+         * Re-hit cooldowns of orbiting books and puddles: a ring of (projectile stamp, absolute time before which that
+         * projectile cannot hit this enemy again), so every book and every puddle ticks on its own.
+         */
+        private final int[] cdStamp = new int[COOLDOWNS];
+        private final float[] cdUntil = new float[COOLDOWNS];
+
+        /** True (and starts the cooldown) if the projectile with this stamp may hit now; allocation-free. */
+        public boolean tryTick(int stamp, float now, float delay) {
+            int free = 0;
+            for (int i = 0; i < COOLDOWNS; i++) {
+                if (cdStamp[i] == stamp) {
+                    if (now < cdUntil[i]) return false;
+                    cdUntil[i] = now + delay;
+                    return true;
+                }
+                // reuse an expired entry, else the one that expires first
+                if (cdUntil[i] < cdUntil[free]) free = i;
+            }
+            cdStamp[free] = stamp;
+            cdUntil[free] = now + delay;
+            return true;
+        }
+
+        public void clearTicks() {
+            java.util.Arrays.fill(cdStamp, 0);
+            java.util.Arrays.fill(cdUntil, 0f);
+        }
         /**
          * Stamps (Projectile.stamp, one per projectile and leg) of the last projectiles that hit this enemy, as a
          * ring; 0 is empty. Keeps "hit once per pass" exact however many enemies share the projectile's path.
@@ -49,6 +75,8 @@ public final class Entities {
 
     /** Distinct projectile passes an enemy remembers (the oldest is forgotten first). */
     public static final int HIT_STAMPS = 16;
+    /** Books and puddles an enemy keeps a re-hit cooldown for at once. */
+    public static final int COOLDOWNS = 12;
 
     public static final int P_WHIP = 0, P_MISSILE = 1, P_KNIFE = 2, P_AXE = 3, P_CROSS = 4, P_BOOK = 5,
             P_FIRE = 6, P_PUDDLE = 7;

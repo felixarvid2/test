@@ -10,12 +10,14 @@ public final class WaveDirector {
     private WaveDirector() {
     }
 
-    /** Below `minimum` alive: top up (bounded per tick); otherwise a small trickle that grows over time. */
-    public static int spawnCount(WaveRow row, int alive, double seconds) {
-        if (alive >= ENEMY_CAP || row.enemies.length == 0) return 0;
-        int n;
-        if (alive < row.minimum) n = Math.min(row.minimum - alive, MAX_PER_TICK);
-        else n = 1 + (int) (seconds / 360.0);
-        return Math.min(n, ENEMY_CAP - alive);
+    /** Enemies spawned per tick regardless of the field: one of each type in the row (Vampire Survivors), up to the cap. */
+    public static int eachCount(WaveRow row, int alive) {
+        return Math.max(0, Math.min(row.enemies.length, ENEMY_CAP - alive));
+    }
+
+    /** After the per-type spawns: how many more (random types) bring the field up to `minimum`, bounded per tick. */
+    public static int topUpCount(WaveRow row, int alive) {
+        if (alive >= ENEMY_CAP || row.enemies.length == 0 || alive >= row.minimum) return 0;
+        return Math.min(Math.min(row.minimum - alive, MAX_PER_TICK), ENEMY_CAP - alive);
     }
 }

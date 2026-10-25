@@ -13,7 +13,9 @@ public class EngineSoundTest {
     private Engine menu() throws Exception {
         Engine e = Engine.get();
         GameData d = TestData.load();
-        e.init(d, new MetaProgress(d, new MetaProgressTest.MemStore()));
+        MetaProgress fresh = new MetaProgress(d, new MetaProgressTest.MemStore());
+        e.init(d, fresh);
+        e.meta = fresh; // Engine is a JVM-wide singleton: don't inherit another test's gold or power-ups
         e.input.clearMovement();
         e.phase = Engine.PH_MENU;
         e.focus = 0;

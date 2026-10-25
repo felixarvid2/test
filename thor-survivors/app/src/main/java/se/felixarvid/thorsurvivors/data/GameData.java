@@ -96,7 +96,7 @@ public final class GameData {
                 JSONObject r = arr.getJSONObject(i);
                 rows.add(new WaveRow(r.optInt("minute", i), r.optInt("minimum", 0), r.optInt("frequency", 1000),
                         strings(r.optJSONArray("enemies")).toArray(new String[0]),
-                        strings(r.optJSONArray("bosses")).toArray(new String[0])));
+                        strings(r.optJSONArray("bosses")).toArray(new String[0]), treasure(r.optJSONObject("treasure"))));
             }
             stages.put(key, new StageDef(key, r0.optString("stageName", key), mods.optDouble("TimeLimit", 1800),
                     mods.optDouble("PlayerPxSpeed", 1), mods.optDouble("EnemySpeed", 1),
@@ -104,6 +104,14 @@ public final class GameData {
                     mods.optDouble("XPBonus", 1), r0.optInt("startingSpawns", 10),
                     "HORIZONTAL".equals(r0.optString("spawnType")), r0.optString("destructibleType", ""), rows));
         }
+    }
+
+    private static Treasure treasure(JSONObject t) {
+        if (t == null) return null;
+        JSONArray c = t.optJSONArray("chances");
+        double[] chances = {0, 0, 100};
+        if (c != null) for (int i = 0; i < 3 && i < c.length(); i++) chances[i] = c.optDouble(i, chances[i]);
+        return new Treasure(chances, t.optInt("level", 1), strings(t.optJSONArray("prizeTypes")).toArray(new String[0]));
     }
 
     private void parseEnemies(JSONObject o) throws JSONException {

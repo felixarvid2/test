@@ -756,8 +756,10 @@ public final class PanelRenderer {
         float x = (w - cw) / 2f;
         text(c, "TREASURE!", w / 2f, h * 0.2f, 80 * u, GOLD, Paint.Align.CENTER);
         String[] lines = eng.chestLines;
+        // a 5-item chest has up to 7 lines: squeeze the spacing so they stay above the OK button
+        float step = Math.min(56 * u, (h - 190 * u - h * 0.32f - 30 * u) / Math.max(1, lines.length));
         for (int i = 0; i < lines.length; i++) {
-            text(c, lines[i], w / 2f, h * 0.32f + i * 56 * u, 40 * u, i == 0 && lines[i].startsWith("EVO") ? 0xFFFF9AF0 : TEXT, Paint.Align.CENTER);
+            text(c, lines[i], w / 2f, h * 0.32f + i * step, Math.min(40 * u, step * 0.75f), lines[i].startsWith("EVO") ? 0xFFFF9AF0 : TEXT, Paint.Align.CENTER);
         }
         float by = h - 190 * u;
         button(c, x, by, x + cw, by + 110 * u, "OK", true);
