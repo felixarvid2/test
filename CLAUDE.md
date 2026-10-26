@@ -1,12 +1,15 @@
 # Working in this repository
 
-Several projects live here: `rune/`, `natverksspel/`, `cisco-analyzer/`, `tiny-dungeon/`, `thor-survivors/`, `vlan-tool-rs/`, and the
+Several projects live here: `rune/`, `natverksspel/`, `cisco-analyzer/`, `tiny-dungeon/`, `vlan-tool-rs/`, and the
 asset library in `assets/`.
 
 Ashfall (the TypeScript/Three.js action RPG) moved to https://github.com/felixarvid2/Ashfall.
 `assets/ashfall-ai/` stays here as its asset library.
 
 FamilyChat moved to https://github.com/felixarvid2/swahn-chatt and is now called Swahn Chat.
+
+Thor Survivors (ASHFALL: Lumen Tide) moved to https://github.com/felixarvid2/thor-survivors; its build tools
+read `assets/` here as the shared asset library.
 
 ## Who does what
 
@@ -21,10 +24,6 @@ Work is split by model; the subagents live in `.claude/agents/`.
 | Docs from a short summary: READMEs, notes, commit and PR bodies | `scribe` | Haiku |
 | Shipping: commit, push, PR (merge only after the user approves) | `shipper` | Haiku |
 | Architecture, trade-offs, hard bugs with an unknown cause, risk review | the main session, or `architect` when the main session runs a smaller model | Opus |
-| Game design: core loop, weapons, passives, evolutions, pacing; specs (VS as reference) | `game-designer` | Sonnet |
-| Formulas, curves, economy; balance modelling with headless Sim runs | `systems-designer` | Sonnet |
-| Frame time, allocation and memory analysis of Thor Survivors (headless measurements, device commands) | `performance-analyst` | Sonnet |
-| Test cases, bug reports, regression checklists | `qa-tester` | Haiku |
 
 - Delegate search and reading to `Explore` instead of reading many files yourself, and pass it the
   question, not a file list to dump.
