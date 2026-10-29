@@ -1,7 +1,10 @@
 # Working in this repository
 
-Several projects live here: `rune/`, `natverksspel/`, `cisco-analyzer/`, `tiny-dungeon/`, `vlan-tool-rs/`, and the
-asset library in `assets/`.
+Several projects live here: `rune/`, `natverksspel/`, `cisco-analyzer/`, `tiny-dungeon/`, `vlan-tool-rs/`, `and-code/`,
+and the asset library in `assets/`.
+
+`and-code/` is a copy of https://github.com/yuga-hashimoto/and-code (MIT, `main` at f0c0806), without its git history.
+Its `.github/workflows/` do not run from a subdirectory.
 
 Ashfall (the TypeScript/Three.js action RPG) moved to https://github.com/felixarvid2/Ashfall.
 `assets/ashfall-ai/` stays here as its asset library.
