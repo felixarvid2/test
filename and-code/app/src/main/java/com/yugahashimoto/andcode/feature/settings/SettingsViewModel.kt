@@ -121,6 +121,7 @@ class SettingsViewModel(
     private val customProviderFetchNeedsBaseUrlMessage: String = "Enter a base URL first",
     private val customProviderFetchEmptyMessage: String = "The endpoint returned no models",
     private val customProviderFetchFailedMessage: String = "Could not fetch the model list",
+    private val githubTokenInvalidMessage: String = "GitHub token could not be verified",
 ) : ViewModel() {
     private val settingsTick = MutableStateFlow(0)
     private val oauthState = MutableStateFlow(OAuthState())
@@ -369,6 +370,24 @@ class SettingsViewModel(
             }.onFailure { error ->
                 githubState.value = GitHubState(message = error.message ?: "GitHub authorization failed")
             }
+        }
+    }
+
+    /** Signs in with a personal access token the user created, so no OAuth app is involved. */
+    fun saveGitHubToken(token: String) {
+        val normalized = normalizeGitHubToken(token) ?: return
+        viewModelScope.launch {
+            // refreshAccount only writes the login once GitHub accepted the token, so a rejected
+            // one leaves nothing behind.
+            val account = runCatching { githubAuth.refreshAccount(normalized) }.getOrNull()
+            if (account == null) {
+                githubState.value = GitHubState(message = githubTokenInvalidMessage)
+                return@launch
+            }
+            githubAuth.saveToken(normalized)
+            githubState.value = GitHubState()
+            settingsTick.update { it + 1 }
+            onLocalRuntimeRestartNeeded?.invoke()
         }
     }
 

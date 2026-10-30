@@ -471,6 +471,7 @@ fun NavGraphBuilder.settingsNavGraph(
         GitHubSettingsScreen(
             state = settingsState,
             onConnect = settingsViewModel::beginGitHubDeviceFlow,
+            onSaveToken = settingsViewModel::saveGitHubToken,
             onDisconnect = settingsViewModel::disconnectGitHub,
             onOpenVerification = { url ->
                 if (!UrlLauncher.openUrl(context, url)) {

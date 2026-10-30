@@ -259,6 +259,7 @@ fun AndCodeApp(
                         customProviderFetchNeedsBaseUrlMessage = context.getString(R.string.provider_custom_fetch_needs_base_url),
                         customProviderFetchEmptyMessage = context.getString(R.string.provider_custom_fetch_empty),
                         customProviderFetchFailedMessage = context.getString(R.string.provider_custom_fetch_failed),
+                        githubTokenInvalidMessage = context.getString(R.string.github_token_invalid),
                     )
                 },
         )
@@ -1055,6 +1056,7 @@ fun AndCodeApp(
                             onRefreshClaudeState = workspaceViewModel::refreshClaudeCode,
                             onRefreshAntigravityState = app.antigravityController::refresh,
                             onConnectGitHub = { settingsViewModel.beginGitHubDeviceFlow() },
+                            onSaveGitHubToken = settingsViewModel::saveGitHubToken,
                             onOpenGitHubVerification = { url ->
                                 UrlLauncher.openUrl(context, url)
                             },
