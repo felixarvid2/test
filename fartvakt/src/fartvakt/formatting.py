@@ -70,15 +70,16 @@ def overview_state(cfg, ssid, daemon, alive, phase, now):
                      f"Mätningen tar upp till en halv minut{' på ' + ssid if ssid else ''}.", "accent", None)
     networks = cfg["networks"]
     watched = ", ".join(networks)
+    if not cfg["monitoring_enabled"]:
+        return State("media-playback-pause-symbolic", "Automatisk mätning är avstängd",
+                     "Slå på den i inställningarna för att mäta automatiskt"
+                     + (f" på {watched}." if watched else "."), "dim", None)
     if not networks:
         if ssid:
             return State("dialog-information-symbolic", "Inga nätverk valda",
                          f"Vill du att Fartvakt mäter automatiskt på {ssid}?", "warning", "watch")
         return State("dialog-information-symbolic", "Inga nätverk valda",
                      "Lägg till ett wifi-nätverk i inställningarna så mäter Fartvakt automatiskt där.", "warning", None)
-    if not cfg["monitoring_enabled"]:
-        return State("media-playback-pause-symbolic", "Automatisk mätning är avstängd",
-                     f"Slå på den i inställningarna för att mäta på {watched}.", "dim", None)
     if network.matches(ssid, networks):
         if not alive:
             return State("dialog-warning-symbolic", f"Ansluten till {ssid}",

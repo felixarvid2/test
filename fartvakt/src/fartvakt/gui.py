@@ -757,14 +757,24 @@ class Window(Adw.ApplicationWindow):
 
     def watch_network(self, ssid):
         """Lägger till nätverket bland de bevakade – valet sparas och gäller även bakgrundstjänsten."""
-        before = list(config.load()["networks"])
-        if not network.matches(ssid, before):
-            config.update(networks=before + [ssid])
+        try:
+            networks = config.load()["networks"]
+            if network.matches(ssid, networks):
+                return
+            config.update(networks=networks + [ssid])
+        except OSError as e:
+            self.toast(f"Kunde inte spara valet: {e.strerror or e}", timeout=8)
+            return
         self.preferences_changed()
-        self.toast(f"Fartvakt mäter nu automatiskt på {ssid}", "Ångra", lambda: self._unwatch(ssid, before), timeout=6)
+        self.toast(f"Fartvakt mäter nu automatiskt på {ssid}", "Ångra", lambda: self._unwatch(ssid), timeout=6)
 
-    def _unwatch(self, ssid, before):
-        config.update(networks=before)
+    def _unwatch(self, ssid):
+        """Ångrar bara det här tillägget; nätverk som lagts till under tiden får vara kvar."""
+        try:
+            config.update(networks=[n for n in config.load()["networks"] if n != ssid])
+        except OSError as e:
+            self.toast(f"Kunde inte spara valet: {e.strerror or e}", timeout=8)
+            return
         self.preferences_changed()
 
     def on_show_deviations(self, *_args):

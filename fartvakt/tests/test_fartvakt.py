@@ -659,6 +659,17 @@ class ReportTest(TempHome):
         self.assertNotIn("Per nätverk", html_one)
         self.assertIn(">12<", html_one)                              # antal mätningar
 
+    def test_slow_network_axis_and_network_case(self):
+        from fartvakt import report
+
+        points = [{"epoch": 1e9 + i * 300, "download_mbps": v} for i, v in enumerate((2.0, 1.8, 2.1))]
+        svg = report._hour_chart(points)
+        ticks = [t.split(">")[1].split("<")[0] for t in svg.split('class="tick"')[1:6]]
+        self.assertEqual(len(set(ticks)), 5, ticks)                    # inga upprepade axeltal
+        db = Storage(config.db_path())
+        db.add_measurement({"ts": "2026-10-30T10:00:00+01:00", "ssid": "Home", "source": "auto", **m(5)})
+        self.assertIn("<svg", report.build(db, config.load(), ssid="home"))
+
     def test_empty_report(self):
         from fartvakt import report
 
@@ -713,6 +724,8 @@ class FormattingTest(unittest.TestCase):
         self.assertEqual(formatting.overview_state(cfg, None, {}, True, "upp", now)[1], "Mäter uppladdning …")
         self.assertEqual(formatting.overview_state(dict(cfg, monitoring_enabled=False), None, {}, True, None, now)[1],
                          "Automatisk mätning är avstängd")
+        off = formatting.overview_state(dict(cfg, monitoring_enabled=False, networks=[]), "Hemma", {}, True, None, now)
+        self.assertEqual((off.title, off.action), ("Automatisk mätning är avstängd", None))
         self.assertEqual(formatting.overview_state(dict(cfg, networks=[]), None, {}, True, None, now)[1],
                          "Inga nätverk valda")
         self.assertEqual(formatting.overview_state(cfg, "Hemma", {}, True, None, now).action, "watch")

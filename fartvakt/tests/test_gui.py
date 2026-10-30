@@ -242,8 +242,9 @@ class WindowTest(unittest.TestCase):
         self.assertEqual(config.load()["networks"], ["Skolan", "JENSEN-Guest"])  # valet är sparat
         self.assertEqual(win.hero_title.get_text(), "Bevakar JENSEN-Guest")
         self.assertFalse(win.hero_button.get_visible())
-        win._unwatch("JENSEN-Guest", ["Skolan"])              # "Ångra" i notisen
-        self.assertEqual(config.load()["networks"], ["Skolan"])
+        config.update(networks=config.load()["networks"] + ["Biblioteket"])  # tillagt under tiden
+        win._unwatch("JENSEN-Guest")                          # "Ångra" i notisen
+        self.assertEqual(config.load()["networks"], ["Skolan", "Biblioteket"])
 
     def test_view_is_remembered(self):
         self.seed()

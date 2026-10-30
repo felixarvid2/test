@@ -106,6 +106,7 @@ def _hour_chart(points):
     hours = list(range(min(by_hour), max(by_hour) + 1))
     medians = {h: _median(by_hour.get(h, [])) for h in hours}
     ymax = nice_ceiling(max(v for v in medians.values() if v is not None))
+    decimals = 0 if ymax >= 10 else 1 if ymax >= 1 else 2
     pw, ph = W - LEFT - 16, H - TOP - BOTTOM
     slot = pw / len(hours)
     bar = max(4.0, min(36.0, slot - 6))
@@ -119,7 +120,7 @@ def _hour_chart(points):
         v = ymax * i / 4
         out.append(f'<line class="{"axis" if i == 0 else "grid"}" x1="{LEFT}" x2="{W - 16}" '
                    f'y1="{y(v):.1f}" y2="{y(v):.1f}"/>')
-        out.append(f'<text class="tick" x="{LEFT - 8}" y="{y(v) + 4:.1f}" text-anchor="end">{_n(v, 0)}</text>')
+        out.append(f'<text class="tick" x="{LEFT - 8}" y="{y(v) + 4:.1f}" text-anchor="end">{_n(v, decimals)}</text>')
     out.append(f'<text class="unit" x="{LEFT}" y="{TOP - 16}" text-anchor="start">Mbit/s</text>')
     base = y(0)
     for i, h in enumerate(hours):
