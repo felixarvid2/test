@@ -50,6 +50,15 @@ class NetworkTest(unittest.TestCase):
         self.assertIsNone(network.parse_nmcli_wifi("no:A\nno:B\n"))
         self.assertIsNone(network.parse_nmcli_wifi(""))
 
+    def test_connectivity(self):
+        with mock.patch.object(network, "_run", return_value="portal\n") as run:
+            self.assertEqual(network.connectivity(check=True), "portal")
+            self.assertEqual(run.call_args[0][0], ["nmcli", "-t", "networking", "connectivity", "check"])
+        with mock.patch.object(network, "_run", return_value=""):
+            self.assertIsNone(network.connectivity())
+        with mock.patch.object(network, "_run", side_effect=FileNotFoundError):
+            self.assertIsNone(network.connectivity())
+
     def test_matches_ignores_case_and_spaces(self):
         self.assertTrue(network.matches("jensen-guest", [" JENSEN-Guest "]))
         self.assertFalse(network.matches("JENSEN-Staff", ["JENSEN-Guest"]))
@@ -188,7 +197,7 @@ class MonitorTest(TempHome):
                                                    send_notification=lambda *a: notes.append(a))
         self.assertEqual(meas["error"], "nere")
         self.assertEqual(len(devs), 1)
-        self.assertEqual(len(notes), 1)
+        self.assertEqual(notes, [("Ingen internetanslutning på JENSEN-Guest", "Mätningen misslyckades: nere")])
         self.assertEqual(len(db.deviations()), 3)
 
     def test_progress_is_passed_on(self):
@@ -249,8 +258,17 @@ class WatcherTest(TempHome):
             self.calls.append((self.clock[0], s))
             return {"error": None, **m(50)}, []
 
+        self.conn = ["full"]
+        self.checks = []
+        self.notes = []
+
+        def connectivity(check=False):
+            self.checks.append(check)
+            return self.conn[0]
+
         w = daemon.Watcher(None, now=lambda: self.clock[0], current_ssid=lambda: self.ssid[0], measure=measure,
-                           publish=self.published.append)
+                           publish=self.published.append, connectivity=connectivity,
+                           notify=lambda *a: self.notes.append(a))
         patcher = mock.patch.object(daemon, "log")
         patcher.start()
         self.addCleanup(patcher.stop)
@@ -271,7 +289,7 @@ class WatcherTest(TempHome):
         w.tick(cfg)                                   # 5 min efter förra
         self.assertEqual([t for t, _ in self.calls], [1015.0, 1315.0])
         self.assertIn({"ssid": "JENSEN-Guest", "watched": "JENSEN-Guest", "enabled": True, "next_due": mock.ANY,
-                       "measuring": "ping"}, self.published)
+                       "measuring": "ping", "portal": False}, self.published)
 
     def test_leaving_and_pausing_stops_measurements(self):
         w, cfg = self.make("JENSEN-Guest"), config.load()
@@ -304,6 +322,34 @@ class WatcherTest(TempHome):
         self.clock[0] += daemon.SETTLE_SECONDS
         self.assertIsNone(w.tick(cfg))
         self.assertEqual(w.sleep_seconds(cfg), 1.0)  # försöker igen direkt nästa varv
+
+    def test_waits_for_login_on_captive_portal(self):
+        w, cfg = self.make("JENSEN-Guest"), config.load()
+        self.conn[0] = "portal"
+        w.tick(cfg)
+        self.clock[0] += daemon.SETTLE_SECONDS
+        for _ in range(3):                            # inloggningssida: ingen mätning, en notis
+            w.tick(cfg)
+            self.assertEqual(w.sleep_seconds(cfg), daemon.PORTAL_RETRY_SECONDS)
+            self.clock[0] += daemon.PORTAL_RETRY_SECONDS
+        self.assertEqual(self.calls, [])
+        self.assertEqual([n[0] for n in self.notes], ["Logga in på JENSEN-Guest"])
+        self.assertTrue(self.published[-1]["portal"])
+        self.assertEqual(self.checks, [False, True, True])  # ny kontroll medan man väntar på inloggning
+        self.conn[0] = "full"                         # inloggad: mäter direkt
+        w.tick(cfg)
+        self.assertEqual(len(self.calls), 1)
+        self.assertFalse(self.published[-1]["portal"])
+
+    def test_portal_found_by_measurement(self):
+        w, cfg = self.make("JENSEN-Guest"), config.load()
+        w.measure = lambda *a, **k: ({"error": "inloggning", "portal": True}, [])
+        self.conn[0] = "unknown"                      # NetworkManager kontrollerar inte anslutningen
+        w.tick(cfg)
+        self.clock[0] += daemon.SETTLE_SECONDS
+        w.tick(cfg)
+        self.assertTrue(self.published[-1]["portal"])
+        self.assertEqual(w.sleep_seconds(cfg), cfg["check_network_seconds"])
 
     def test_boot_clock_counts_suspend(self):
         self.assertGreater(daemon.boot_clock(), 0)
@@ -338,6 +384,8 @@ class FormattingTest(unittest.TestCase):
                          "Automatisk mätning är avstängd")
         self.assertEqual(formatting.overview_state(dict(cfg, networks=[]), None, {}, True, None, now)[1],
                          "Inga nätverk valda")
+        portal = formatting.overview_state(cfg, "JENSEN-Guest", dict(alive, portal=True), True, None, now)
+        self.assertEqual((portal.title, portal.action), ("Logga in på JENSEN-Guest", "login"))
 
 
 class PlottingTest(unittest.TestCase):
@@ -410,9 +458,26 @@ class SpeedTestTest(unittest.TestCase):
         class Portal(FakeSpeedServer):
             html = True
 
-        with self.assertRaises(speedtest.SpeedTestError) as ctx:
+        with self.assertRaises(speedtest.CaptivePortal) as ctx:
             speedtest.run(dict(config.DEFAULTS, server=self.serve(Portal)))
         self.assertIn("inloggning", str(ctx.exception))
+
+    def test_redirect_is_captive_portal(self):
+        class Redirect(FakeSpeedServer):
+            def do_GET(self):
+                self.send_response(302)
+                self.send_header("Location", "http://login.example/")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+
+        with self.assertRaises(speedtest.CaptivePortal):
+            speedtest.run(dict(config.DEFAULTS, server=self.serve(Redirect)))
+        db_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(db_dir.cleanup)
+        with mock.patch.dict(os.environ, {"XDG_DATA_HOME": db_dir.name}):
+            m, _ = monitor.measure_and_store(dict(config.DEFAULTS, server=self.serve(Redirect)), "X",
+                                             Storage(config.db_path()), send_notification=lambda *a: None)
+        self.assertTrue(m["portal"])
 
     def test_unreachable_server_gives_friendly_error(self):
         with self.assertRaises(speedtest.SpeedTestError) as ctx:

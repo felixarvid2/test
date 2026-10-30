@@ -1,3 +1,13 @@
+fartvakt (1.2.0) stable; urgency=medium
+
+  * Gästnätverk med inloggningssida: Fartvakt väntar med att mäta, visar en
+    notis och en knapp som öppnar inloggningssidan, och mäter direkt när man
+    har loggat in.
+  * Notisen vid avbrott säger varför mätningen misslyckades.
+  * run-tests.sh kör alla tester, även GUI-testerna i Xvfb.
+
+ -- Felix Arvid <felixarvid@gmail.com>  Fri, 30 Oct 2026 15:00:00 +0100
+
 fartvakt (1.1.0) stable; urgency=medium
 
   * Nytt gränssnitt i GTK 4 och libadwaita: översikt, graf med tidsaxel,

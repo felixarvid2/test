@@ -9,6 +9,8 @@ from .storage import Storage
 
 # Väntetid efter att man anslutit, så att DHCP, DNS och eventuell inloggningssida hinner bli klara.
 SETTLE_SECONDS = 15
+# Hur ofta det kontrolleras om man har loggat in, när nätverket kräver inloggning i webbläsaren.
+PORTAL_RETRY_SECONDS = 30
 
 
 def log(msg):
@@ -22,12 +24,16 @@ def boot_clock():
 
 class Watcher:
     def __init__(self, storage, now=boot_clock, current_ssid=network.current_ssid,
-                 measure=monitor.measure_and_store, publish=status.write):
+                 measure=monitor.measure_and_store, publish=status.write, connectivity=network.connectivity,
+                 notify=monitor.notify):
         self.storage = storage
         self.now = now
         self.current_ssid = current_ssid
         self.measure = measure
         self.publish = publish
+        self.connectivity = connectivity
+        self.notify = notify
+        self.portal = False
         self.ssid = None
         self.active_ssid = None
         self.next_due = None
@@ -43,6 +49,7 @@ class Watcher:
             "enabled": cfg["monitoring_enabled"],
             "next_due": next_due,
             "measuring": phase,
+            "portal": bool(self.active_ssid and self.portal),
         }
 
     def tick(self, cfg):
@@ -58,11 +65,25 @@ class Watcher:
                 log(f"Lämnade {self.active_ssid} – mätningarna pausas")
                 self.next_due = None
             self.last_run = None
+            self.portal = False
             self.active_ssid = watched
         if watched and self.last_run is not None:
             # ett ändrat intervall i inställningarna gäller direkt, räknat från förra mätningen
             self.next_due = self.last_run + cfg["interval_minutes"] * 60
         if not watched or self.now() < self.next_due:
+            self.publish(self.state(cfg))
+            return None
+        # Kräver nätverket inloggning i webbläsaren? Då väntar vi i stället för att fylla
+        # historiken med misslyckade mätningar, och mäter direkt när man har loggat in.
+        if self.connectivity(check=self.portal) == "portal":
+            if not self.portal:
+                log(f"{watched} kräver inloggning i webbläsaren – väntar med att mäta")
+                if cfg["notifications"]:
+                    self.notify(f"Logga in på {watched}",
+                                "Nätverket kräver inloggning i webbläsaren. Fartvakt mäter så fort du är inloggad.")
+            self.portal = True
+            self.last_run = None
+            self.next_due = self.now() + PORTAL_RETRY_SECONDS
             self.publish(self.state(cfg))
             return None
         try:
@@ -71,6 +92,7 @@ class Watcher:
         except monitor.Busy:
             self.publish(self.state(cfg))
             return None  # en mätning från appen pågår; försöker igen vid nästa varv
+        self.portal = bool(m.get("portal"))
         self.last_run = self.now()
         self.next_due = self.last_run + cfg["interval_minutes"] * 60
         self.publish(self.state(cfg))

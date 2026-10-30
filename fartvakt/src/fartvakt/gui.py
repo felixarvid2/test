@@ -14,7 +14,7 @@ from gi.repository import Adw, Gdk, Gio, GLib, GObject, Gtk, Pango  # noqa: E402
 
 from . import APP_ID, __version__, analysis, config, monitor, network, service, status  # noqa: E402
 from .chart import SpeedChart  # noqa: E402
-from .formatting import PHASES, fmt_table_time, fmt_when, overview_state  # noqa: E402
+from .formatting import LOGIN_URL, PHASES, fmt_table_time, fmt_when, overview_state  # noqa: E402
 from .storage import Storage  # noqa: E402
 
 PERIODS = [("24 timmar", 86400), ("7 dagar", 7 * 86400), ("30 dagar", 30 * 86400), ("Allt", None)]
@@ -354,6 +354,11 @@ class Window(Adw.ApplicationWindow):
         for w in (self.hero_title, self.hero_subtitle, self.hero_last):
             text.append(w)
         card.append(text)
+        self.login_button = Gtk.Button(label="Öppna inloggningssidan", valign=Gtk.Align.CENTER, visible=False,
+                                       css_classes=["pill", "suggested-action"],
+                                       tooltip_text="Öppnar webbläsaren så att nätverkets inloggningssida visas")
+        self.login_button.connect("clicked", self.on_login)
+        card.append(self.login_button)
         return card
 
     def _tile(self, key, title):
@@ -589,7 +594,8 @@ class Window(Adw.ApplicationWindow):
         now = time.time()
         phase = self.current_phase()
         ssid = self.ssid if self.ssid is not None else self.daemon.get("ssid")
-        icon, title, subtitle, style = overview_state(self.cfg, ssid, self.daemon, self.alive, phase, now)
+        icon, title, subtitle, style, action = overview_state(self.cfg, ssid, self.daemon, self.alive, phase, now)
+        self.login_button.set_visible(action == "login")
         self.hero_title.set_text(title)
         self.hero_subtitle.set_text(subtitle)
         for c in ("success", "accent", "warning", "dim"):
@@ -673,6 +679,9 @@ class Window(Adw.ApplicationWindow):
             self.toast(f"Klart: {analysis.fmt_number(m['download_mbps'])} Mbit/s ned, "
                        f"{analysis.fmt_number(m['upload_mbps'])} Mbit/s upp, ping {analysis.fmt_number(m['ping_ms'])} ms")
         return False
+
+    def on_login(self, *_args):
+        Gtk.UriLauncher(uri=LOGIN_URL).launch(self, None, None)
 
     def on_show_deviations(self, *_args):
         self.stack.set_visible_child_name("avvikelser")

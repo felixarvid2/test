@@ -152,6 +152,18 @@ class WindowTest(unittest.TestCase):
         win.reload()
         self.assertTrue(win.banner.get_revealed())
 
+    def test_login_button_on_captive_portal(self):
+        win = self.window()
+        self.assertFalse(win.login_button.get_visible())
+        status.write({"ssid": "JENSEN-Guest", "watched": "JENSEN-Guest", "enabled": True, "next_due": None,
+                      "measuring": None, "portal": True})
+        win.reload()
+        self.assertTrue(win.login_button.get_visible())
+        self.assertEqual(win.hero_title.get_text(), "Logga in på JENSEN-Guest")
+        with mock.patch.object(Gtk.UriLauncher, "launch") as launch:
+            win.login_button.emit("clicked")
+        launch.assert_called_once()
+
     def test_preferences_change_config(self):
         from fartvakt.preferences import PreferencesDialog
 

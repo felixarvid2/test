@@ -60,6 +60,7 @@ def measure_and_store(cfg, ssid, storage, source="auto", run_test=speedtest.run,
             m.update(run_test(cfg, progress))
         except speedtest.SpeedTestError as e:
             m["error"] = str(e)
+            m["portal"] = isinstance(e, speedtest.CaptivePortal)
         previous = storage.last(ssid)
         history = storage.history(ssid, cfg["baseline_count"])
         deviations = analysis.find_deviations(m, history, cfg["threshold_percent"], cfg["min_baseline"])
@@ -69,6 +70,10 @@ def measure_and_store(cfg, ssid, storage, source="auto", run_test=speedtest.run,
     # Ett avbrott aviseras bara första gången, inte vid varje misslyckad mätning i rad.
     repeated_failure = m.get("error") and previous and previous.get("error")
     if deviations and cfg["notifications"] and not repeated_failure:
-        title = f"Avvikande hastighet på {ssid}" if ssid else "Avvikande hastighet"
-        send_notification(title, "\n".join(analysis.describe(d) for d in deviations))
+        where = f" på {ssid}" if ssid else ""
+        if m.get("error"):
+            title, body = f"Ingen internetanslutning{where}", f"Mätningen misslyckades: {m['error']}"
+        else:
+            title, body = f"Avvikande hastighet{where}", "\n".join(analysis.describe(d) for d in deviations)
+        send_notification(title, body)
     return m, deviations

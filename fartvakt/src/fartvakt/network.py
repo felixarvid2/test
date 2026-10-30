@@ -56,6 +56,21 @@ def current_ssid():
     return None
 
 
+CONNECTIVITY_STATES = ("none", "portal", "limited", "full", "unknown")
+
+
+def connectivity(check=False):
+    """NetworkManagers bedömning av internetanslutningen: "full", "portal" (kräver
+    inloggning i webbläsaren), "limited", "none", "unknown" – eller None om det inte
+    går att fråga. `check=True` gör en ny kontroll i stället för att använda den senaste."""
+    try:
+        cmd = ["nmcli", "-t", "networking", "connectivity"] + (["check"] if check else [])
+        state = _run(cmd).strip().lower()
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return state if state in CONNECTIVITY_STATES else None
+
+
 def matches(ssid, networks) -> bool:
     if not ssid:
         return False

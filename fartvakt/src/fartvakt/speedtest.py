@@ -24,6 +24,10 @@ class SpeedTestError(Exception):
     pass
 
 
+class CaptivePortal(SpeedTestError):
+    """Nätverket släpper inte igenom trafik förrän man loggat in i webbläsaren."""
+
+
 def _proxy_for(scheme, host):
     """Proxy från miljövariablerna (http_proxy/https_proxy/no_proxy), om någon."""
     if urllib.request.proxy_bypass(host):
@@ -53,15 +57,17 @@ def _connect(server, timeout):
 
 
 def _check(resp):
+    if 300 <= resp.status < 400:
+        resp.read()
+        raise CaptivePortal(f"Servern skickade vidare ({resp.status}) – nätverket kräver troligen inloggning "
+                            "i webbläsaren")
     if resp.status != 200:
         resp.read()
-        raise SpeedTestError(
-            f"Servern svarade {resp.status} {resp.reason}"
-            + (" – nätverket kräver kanske inloggning i webbläsaren" if 300 <= resp.status < 400 else "")
-        )
+        raise SpeedTestError(f"Servern svarade {resp.status} {resp.reason}")
     if "text/html" in (resp.getheader("Content-Type") or ""):
         resp.read()
-        raise SpeedTestError("Fick en webbsida i stället för testdata – nätverket kräver kanske inloggning i webbläsaren")
+        raise CaptivePortal("Fick en webbsida i stället för testdata – nätverket kräver troligen inloggning "
+                            "i webbläsaren")
     return resp
 
 
@@ -278,7 +284,8 @@ def run(cfg, progress=None) -> dict:
         step("upp")
         up = measure_upload(server, cfg["upload_bytes"], streams, cfg["max_seconds"])
     except Exception as e:  # noqa: BLE001
-        raise SpeedTestError(friendly_error(e)) from e
+        portal = isinstance(e, (CaptivePortal, ssl.SSLCertVerificationError))
+        raise (CaptivePortal if portal else SpeedTestError)(friendly_error(e)) from e
     return {
         "ping_ms": round(ping, 1),
         "jitter_ms": round(jitter, 1),
