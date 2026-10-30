@@ -46,6 +46,12 @@
     <category>Monitor</category>
   </categories>
   <releases>
+    <release version="1.2.1" date="2026-10-30">
+      <description>
+        <p>Rättningar efter kodgranskning: säkrare hantering av inloggningssidor, skadade
+        databaser och en tjänst som stoppats mitt i en mätning.</p>
+      </description>
+    </release>
     <release version="1.2.0" date="2026-10-30">
       <description>
         <p>Stöd för gästnätverk med inloggningssida: Fartvakt väntar, visar en knapp till

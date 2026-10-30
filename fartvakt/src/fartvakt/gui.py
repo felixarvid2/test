@@ -15,12 +15,16 @@ from gi.repository import Adw, Gdk, Gio, GLib, GObject, Gtk, Pango  # noqa: E402
 from . import APP_ID, __version__, analysis, config, monitor, network, service, status  # noqa: E402
 from .chart import SpeedChart  # noqa: E402
 from .formatting import LOGIN_URL, PHASES, fmt_table_time, fmt_when, overview_state  # noqa: E402
-from .storage import Storage  # noqa: E402
+from .storage import Storage, open_storage  # noqa: E402
 
 PERIODS = [("24 timmar", 86400), ("7 dagar", 7 * 86400), ("30 dagar", 30 * 86400), ("Allt", None)]
 ALL_NETWORKS = "Alla nätverk"
 TICK_SECONDS = 2
-SERVICE_GRACE_SECONDS = 10
+# Så länge får tjänsten vara tyst innan appen säger att den inte kör (efter start eller viloläge
+# hinner den inte alltid höra av sig direkt).
+SERVICE_GRACE_SECONDS = 45
+# Perioden (24 timmar osv.) flyttas fram så här ofta även om inget nytt har mätts.
+PERIOD_REFRESH_TICKS = 30
 WEBSITE = "https://github.com/felixarvid2/test/tree/main/fartvakt"
 
 CSS = """
@@ -162,8 +166,8 @@ class Window(Adw.ApplicationWindow):
         super().__init__(application=app, title="Fartvakt", default_width=1120, default_height=800)
         self.set_size_request(360, 480)
         self.cfg = config.load()
-        self.db = Storage(config.db_path())
-        self.opened = time.monotonic()
+        self.db, moved_db = open_storage()
+        self.silent_since = time.monotonic()  # sedan när tjänsten inte har hört av sig
         self.ssid = None
         self.ssid_thread = None
         self.daemon = {}
@@ -176,6 +180,8 @@ class Window(Adw.ApplicationWindow):
 
         self._actions()
         self._build()
+        if moved_db:
+            self.toast(f"Databasen var skadad och har flyttats till {moved_db}. En ny har skapats.", timeout=0)
         self._read_ssid()
         self.reload(force=True)
         self.tick_id = GLib.timeout_add_seconds(TICK_SECONDS, self._tick)
@@ -461,7 +467,7 @@ class Window(Adw.ApplicationWindow):
         self.ticks += 1
         if self.ticks % 3 == 0:
             self._read_ssid()
-        self.reload()
+        self.reload(force=self.ticks % PERIOD_REFRESH_TICKS == 0)
         return True
 
     def _config_stamp(self):
@@ -478,7 +484,13 @@ class Window(Adw.ApplicationWindow):
             self.cfg_stamp = stamp
             self.cfg = config.load()
             force = True
-        self.alive = status.is_alive(self.daemon, self.cfg)
+        alive = status.is_alive(self.daemon, self.cfg)
+        if alive:
+            self.silent_since = None
+        elif self.silent_since is None:
+            self.silent_since = time.monotonic()
+        # visa "tjänsten kör inte" först när den varit tyst en stund (t.ex. direkt efter viloläge)
+        self.alive = alive or time.monotonic() - self.silent_since < SERVICE_GRACE_SECONDS
         signature = self.db.signature()
         if force or signature != self.signature:
             self.signature = signature
@@ -520,8 +532,8 @@ class Window(Adw.ApplicationWindow):
         self.overview_stack.set_visible_child_name("content" if has_any else "empty")
         self.filter_bar.set_visible(has_any)
         watched = ", ".join(self.cfg["networks"]) or "ett bevakat nätverk"
-        self.empty_page.set_description(
-            f"Fartvakt mäter automatiskt när datorn är ansluten till {watched}. Du kan också mäta direkt.")
+        self.empty_page.set_description(GLib.markup_escape_text(
+            f"Fartvakt mäter automatiskt när datorn är ansluten till {watched}. Du kan också mäta direkt."))
 
         ok = [m for m in measurements if not m.get("error")]
         self._update_tiles(ok[0] if ok else None)
@@ -532,8 +544,7 @@ class Window(Adw.ApplicationWindow):
 
         self.stats["count"].set_text(str(len(measurements)))
         self.stats["ok"].set_text(f"{round(100 * len(ok) / len(measurements))} %" if measurements else "–")
-        worse = sum(1 for m in measurements if any(d["direction"] != "bättre" for d in m["devs"]))
-        self.stats["deviations"].set_text(str(worse))
+        self.stats["deviations"].set_text(str(sum(1 for m in measurements if m["devs"])))
         median, _ = analysis.baseline(ok, "download_mbps")
         self.stats["median"].set_text(f"{analysis.fmt_number(median)} Mbit/s" if median is not None else "–")
         self._update_recent(deviations[:5])
@@ -586,14 +597,15 @@ class Window(Adw.ApplicationWindow):
     def current_phase(self):
         if self.own_phase:
             return self.own_phase
-        if self.alive and self.daemon.get("measuring"):
+        # lita bara på tjänstens "mäter" om en mätning faktiskt pågår (den kan ha stoppats mitt i)
+        if self.alive and self.daemon.get("measuring") and monitor.is_busy():
             return self.daemon["measuring"]
         return None
 
     def update_status(self):
         now = time.time()
         phase = self.current_phase()
-        ssid = self.ssid if self.ssid is not None else self.daemon.get("ssid")
+        ssid = self.ssid if self.ssid is not None or not self.alive else self.daemon.get("ssid")
         icon, title, subtitle, style, action = overview_state(self.cfg, ssid, self.daemon, self.alive, phase, now)
         self.login_button.set_visible(action == "login")
         self.hero_title.set_text(title)
@@ -619,8 +631,7 @@ class Window(Adw.ApplicationWindow):
         self.measure_spinner.set_spinning(bool(phase))
         self.measure_label.set_text("Mäter …" if phase else "Mät nu")
         self.measure_button.set_tooltip_text(PHASES.get(phase, "Mäter") if phase else "Mät hastigheten nu (Ctrl+M)")
-        grace_over = time.monotonic() - self.opened > SERVICE_GRACE_SECONDS
-        self.banner.set_revealed(grace_over and not self.alive and self.cfg["monitoring_enabled"])
+        self.banner.set_revealed(not self.alive and self.cfg["monitoring_enabled"])
 
     # ---------- handlingar ----------
 
@@ -698,7 +709,7 @@ class Window(Adw.ApplicationWindow):
 
     def _service_started(self, ok):
         if ok:
-            self.opened = time.monotonic()  # ge tjänsten tid att höra av sig
+            self.silent_since = time.monotonic()  # ge tjänsten tid att höra av sig
             self.banner.set_revealed(False)
             self.toast("Bakgrundsbevakningen är startad")
         else:
@@ -774,7 +785,12 @@ class Application(Adw.Application):
         self.set_accels_for_action("window.close", ["<Control>w"])
 
     def do_activate(self):
-        window = self.get_active_window() or Window(self)
+        window = self.get_active_window()
+        if window is None:
+            try:
+                window = Window(self)
+            except Exception as e:  # noqa: BLE001 – visa felet i stället för att bli en osynlig process
+                window = error_window(self, e)
         window.present()
 
     def on_about(self, *_args):
@@ -807,6 +823,17 @@ class Application(Adw.Application):
         toolbar.set_content(group)
         dialog.set_child(toolbar)
         dialog.present(self.get_active_window())
+
+
+def error_window(app, error):
+    window = Adw.ApplicationWindow(application=app, title="Fartvakt", default_width=520, default_height=420)
+    toolbar = Adw.ToolbarView()
+    toolbar.add_top_bar(Adw.HeaderBar())
+    toolbar.set_content(Adw.StatusPage(
+        icon_name="dialog-error-symbolic", title="Fartvakt kunde inte starta",
+        description=GLib.markup_escape_text(f"{error}\n\nMätningarna finns i {config.data_dir()}.")))
+    window.set_content(toolbar)
+    return window
 
 
 def main():

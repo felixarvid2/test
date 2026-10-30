@@ -6,7 +6,14 @@ import time
 
 from . import __version__, analysis, config, monitor, network, status
 from .formatting import PHASES, fmt_until
-from .storage import Storage
+from .storage import open_storage
+
+
+def _storage():
+    storage, moved = open_storage()
+    if moved:
+        print(f"Databasen var skadad och har flyttats till {moved}. En ny har skapats.", file=sys.stderr)
+    return storage
 
 
 def _row(m):
@@ -21,7 +28,7 @@ def cmd_measure(_args):
     cfg = config.load()
     ssid = network.current_ssid()
     print(f"Mäter på {ssid or 'okänt nätverk'} …", flush=True)
-    storage = Storage(config.db_path())
+    storage = _storage()
     try:
         m, deviations = monitor.measure_and_store(
             cfg, ssid, storage, "manuell", send_notification=lambda *_: None,
@@ -42,7 +49,7 @@ def cmd_measure(_args):
 def cmd_status(_args):
     cfg = config.load()
     ssid = network.current_ssid()
-    storage = Storage(config.db_path())
+    storage = _storage()
     print(f"Anslutet nätverk:  {ssid or 'inget wifi'}")
     print(f"Bevakade nätverk:  {', '.join(cfg['networks']) or '(inga)'}")
     daemon = status.read()
@@ -78,19 +85,19 @@ def cmd_status(_args):
 
 
 def cmd_history(args):
-    for m in reversed(Storage(config.db_path()).measurements(limit=args.antal)):
+    for m in reversed(_storage().measurements(limit=args.antal)):
         print(_row(m))
     return 0
 
 
 def cmd_deviations(args):
-    for d in reversed(Storage(config.db_path()).deviations(limit=args.antal)):
+    for d in reversed(_storage().deviations(limit=args.antal)):
         print(f"{d['ts'][:19].replace('T', ' ')}  {d['ssid'] or '–':<20} {analysis.describe(d)}")
     return 0
 
 
 def cmd_export(args):
-    n = Storage(config.db_path()).export_csv(args.fil)
+    n = _storage().export_csv(args.fil)
     print(f"Sparade {n} mätningar i {args.fil}")
     return 0
 

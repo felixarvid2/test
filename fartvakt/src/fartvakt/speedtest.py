@@ -270,6 +270,20 @@ def friendly_error(exc) -> str:
     return f"{exc.__class__.__name__}: {exc}"
 
 
+def probe(cfg, timeout=10):
+    """En liten förfrågan: kommer man ut på internet? Kastar CaptivePortal om nätverket
+    visar en inloggningssida och SpeedTestError vid andra fel."""
+    try:
+        conn, base = _connect(cfg["server"], timeout)
+        try:
+            _get(conn, base + "/__down?bytes=0").read()
+        finally:
+            conn.close()
+    except Exception as e:  # noqa: BLE001
+        portal = isinstance(e, (CaptivePortal, ssl.SSLCertVerificationError))
+        raise (CaptivePortal if portal else SpeedTestError)(friendly_error(e)) from e
+
+
 def run(cfg, progress=None) -> dict:
     """Gör en hel mätning. `progress(fas)` anropas med "ping", "ned" och "upp" när
     respektive del börjar. Kastar SpeedTestError med ett begripligt meddelande vid fel."""

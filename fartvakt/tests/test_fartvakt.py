@@ -216,6 +216,14 @@ class StorageTest(TempHome):
         self.assertEqual(rows[1][8], "download_mbps sämre")
         self.assertEqual((rows[2][5], rows[2][7]), ("", "nere"))
 
+    def test_export_csv_neutralises_formulas(self):
+        db = Storage(config.db_path())
+        self.add(db, "2026-10-30T10:00:00+01:00", ssid="=HYPERLINK(\"http://x\")")
+        out = Path(self.tmp.name) / "ut.csv"
+        db.export_csv(out)
+        rows = list(csv.reader(out.read_text(encoding="utf-8-sig").splitlines(), delimiter=";"))
+        self.assertTrue(rows[1][1].startswith("'="))
+
 
 class MonitorTest(TempHome):
     def test_measure_and_store_flags_slow_measurement(self):
@@ -259,6 +267,27 @@ class MonitorTest(TempHome):
         monitor.measure_and_store(config.load(), "JENSEN-Guest", db, run_test=ok(m(1)),
                                   current_ssid=lambda: "jensen-guest", send_notification=lambda *a: None)
         self.assertEqual(db.signature()[0], 1)
+
+    def test_portal_notification(self):
+        notes = []
+
+        def portal(_cfg, _progress):
+            raise speedtest.CaptivePortal("inloggning")
+
+        m_, _ = monitor.measure_and_store(config.load(), "JENSEN-Guest", Storage(config.db_path()),
+                                          run_test=portal, send_notification=lambda *a: notes.append(a))
+        self.assertTrue(m_["portal"])
+        self.assertEqual(notes[0][0], "Logga in på JENSEN-Guest")
+
+    def test_corrupt_database_is_moved_aside(self):
+        path = config.db_path()
+        path.parent.mkdir(parents=True)
+        path.write_bytes("skräp".encode() * 1000)
+        from fartvakt.storage import open_storage
+        db, moved = open_storage()
+        self.assertTrue(moved.exists())
+        self.assertEqual(moved.read_bytes(), "skräp".encode() * 1000)  # inget kastas bort
+        self.assertEqual(db.signature()[0], 0)
 
     def test_progress_is_passed_on(self):
         phases = []
@@ -417,6 +446,13 @@ class WatcherTest(TempHome):
         self.clock[0] += daemon.SETTLE_SECONDS
         self.assertIsNone(w.tick(cfg))
         self.assertEqual(w.measure.call_args.kwargs["current_ssid"](), "JENSEN-Guest")
+        # samma nätverk tillbaka direkt: väntar in det igen i stället för att mäta på en gång
+        self.clock[0] += 1
+        w.tick(cfg)
+        self.assertEqual(w.measure.call_count, 1)
+        self.clock[0] += daemon.SETTLE_SECONDS
+        w.tick(cfg)
+        self.assertEqual(w.measure.call_count, 2)
 
     def test_does_not_measure_via_cable_or_vpn(self):
         w, cfg = self.make("JENSEN-Guest"), config.load()
@@ -467,13 +503,61 @@ class WatcherTest(TempHome):
 
     def test_portal_found_by_measurement(self):
         w, cfg = self.make("JENSEN-Guest"), config.load()
-        w.measure = lambda *a, **k: ({"error": "inloggning", "portal": True}, [])
+        measured = []
+        w.measure = lambda *a, **k: measured.append(1) or ({"error": "inloggning", "portal": True}, [])
+        probes = []
+        logged_in = [False]
+
+        def probe(_cfg):
+            probes.append(1)
+            if not logged_in[0]:
+                raise speedtest.CaptivePortal("inloggning")
+
+        w.probe = probe
         self.conn[0] = "unknown"                      # NetworkManager kontrollerar inte anslutningen
         w.tick(cfg)
         self.clock[0] += daemon.SETTLE_SECONDS
+        for _ in range(240):                          # två timmar med varv var 30:e sekund
+            w.tick(cfg)
+            self.clock[0] += 30
+        self.assertEqual(len(measured), 1)            # bara den första mätningen (som upptäckte sidan)
+        self.assertGreater(len(probes), 200)          # sedan bara små kontroller
         w.tick(cfg)
         self.assertTrue(self.published[-1]["portal"])
-        self.assertEqual(w.sleep_seconds(cfg), cfg["check_network_seconds"])
+        self.assertEqual(w.sleep_seconds(cfg), daemon.PORTAL_RETRY_SECONDS)
+        self.clock[0] += daemon.PORTAL_RETRY_SECONDS
+        logged_in[0] = True                           # inloggad: hel mätning vid nästa kontroll
+        w.measure = lambda *a, **k: measured.append(1) or ({"error": None, **m(50)}, [])
+        w.tick(cfg)
+        self.assertEqual(len(measured), 2)
+        self.assertFalse(self.published[-1]["portal"])
+
+    def test_sigterm_clears_measuring_state(self):
+        import json
+        import signal
+        import subprocess
+
+        fake_bin = Path(self.tmp.name) / "bin"
+        fake_bin.mkdir()
+        (fake_bin / "nmcli").write_text("#!/bin/sh\nexit 0\n")
+        (fake_bin / "nmcli").chmod(0o755)
+        env = dict(os.environ, PATH=f"{fake_bin}:{os.environ['PATH']}",
+                   PYTHONPATH=str(Path(__file__).resolve().parents[1] / "src"))
+        proc = subprocess.Popen([sys.executable, "-m", "fartvakt", "daemon"], env=env,
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        try:
+            for _ in range(100):
+                if status.read():
+                    break
+                time.sleep(0.05)
+            # som om tjänsten hade varit mitt i en mätning
+            status.path().write_text(json.dumps(dict(status.read(), measuring="ned")))
+            proc.send_signal(signal.SIGTERM)
+            self.assertEqual(proc.wait(timeout=10), 0)
+        finally:
+            proc.kill()
+            proc.stdout.close()
+        self.assertIsNone(status.read()["measuring"])
 
     def test_boot_clock_counts_suspend(self):
         self.assertGreater(daemon.boot_clock(), 0)
@@ -641,6 +725,17 @@ class SpeedTestTest(unittest.TestCase):
         self.assertAlmostEqual(speedtest.throughput_mbps([(0.0, 0), (0.1, 5_000_000), (2.0, 5_000_000)]), 20.0)
         with self.assertRaises(speedtest.SpeedTestError):
             speedtest.throughput_mbps([(0.0, 0), (1.0, 0)])
+
+    def test_probe(self):
+        speedtest.probe(dict(config.DEFAULTS, server=self.serve()))
+
+        class Portal(FakeSpeedServer):
+            html = True
+
+        with self.assertRaises(speedtest.CaptivePortal):
+            speedtest.probe(dict(config.DEFAULTS, server=self.serve(Portal)))
+        with self.assertRaises(speedtest.SpeedTestError):
+            speedtest.probe(dict(config.DEFAULTS, server="http://127.0.0.1:1"))
 
     def test_server_time_header(self):
         resp = mock.Mock()

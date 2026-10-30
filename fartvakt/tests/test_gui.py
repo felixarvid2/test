@@ -85,6 +85,33 @@ class WindowTest(unittest.TestCase):
         spin(0.3)
         return win
 
+    def test_markup_characters_in_network_names(self):
+        cfg = config.load()
+        cfg["networks"] = ["Café & <Bar>"]
+        config.save(cfg)
+        win = self.window()
+        self.assertIn("Café & <Bar>", win.empty_page.get_description().replace("&amp;", "&")
+                      .replace("&lt;", "<").replace("&gt;", ">"))
+
+    def test_corrupt_database_is_moved_aside(self):
+        self.db.close()
+        for extra in ("-wal", "-shm"):
+            Path(str(config.db_path()) + extra).unlink(missing_ok=True)
+        config.db_path().write_bytes(b"inte en databas" * 100)
+        win = self.window()
+        self.assertEqual(win.overview_stack.get_visible_child_name(), "empty")
+        self.assertEqual(len(list(config.data_dir().glob("fartvakt.skadad-*.db"))), 1)
+
+    def test_period_moves_forward_while_open(self):
+        self.seed(count=2, hours_ago=23.95)
+        win = self.window()
+        self.assertEqual(win.meas_table.store.get_n_items(), 2)
+        real = time.time
+        with mock.patch.object(time, "time", lambda: real() + 3600):
+            for _ in range(self.gui.PERIOD_REFRESH_TICKS):
+                win._tick()
+        self.assertEqual(win.meas_table.store.get_n_items(), 0)
+
     def test_empty_state(self):
         win = self.window()
         self.assertEqual(win.overview_stack.get_visible_child_name(), "empty")
@@ -102,6 +129,7 @@ class WindowTest(unittest.TestCase):
         self.assertEqual(win.hero_title.get_text(), "Bevakar JENSEN-Guest")
         self.assertEqual(win.tiles["download_mbps"][0].get_text(), "57,0")
         self.assertEqual(win.stats["count"].get_text(), "8")
+        self.assertEqual(win.stats["deviations"].get_text(), "1")   # samma som fliken Avvikelser
         self.assertEqual(len(win.chart.points), 8)
         win._set_period(3)                                            # Allt
         self.assertEqual(win.meas_table.store.get_n_items(), 11)
@@ -146,9 +174,31 @@ class WindowTest(unittest.TestCase):
     def test_banner_when_service_is_down(self):
         status.path().unlink()
         win = self.window()
-        win.opened -= self.gui.SERVICE_GRACE_SECONDS + 1
+        self.assertFalse(win.banner.get_revealed())   # ger tjänsten tid att höra av sig först
+        win.silent_since -= self.gui.SERVICE_GRACE_SECONDS + 1
         win.reload()
         self.assertTrue(win.banner.get_revealed())
+        self.assertEqual(win.hero_title.get_text(), "Ansluten till JENSEN-Guest")
+
+    def test_stale_status_from_stopped_service(self):
+        # tjänsten stoppades mitt i en mätning för länge sedan, på ett annat nätverk
+        status.write({"ssid": "JENSEN-Guest", "watched": "JENSEN-Guest", "enabled": True, "next_due": None,
+                      "measuring": "ping"})
+        with mock.patch.object(network, "current_ssid", lambda: None):
+            win = self.window()
+            spin(0.2)
+            # "mäter" i statusfilen räknas inte när ingen mätning faktiskt pågår
+            self.assertTrue(win.measure_action.get_enabled())
+            self.assertEqual(win.measure_label.get_text(), "Mät nu")
+            state = status.read()
+            state["updated"] = time.time() - 3600
+            status.path().write_text(__import__("json").dumps(state))
+            win.silent_since = None
+            win.reload()
+            win.silent_since -= self.gui.SERVICE_GRACE_SECONDS + 1
+            win.reload()
+            # en gammal statusfil får inte visa nätverket som om datorn fortfarande vore ansluten
+            self.assertEqual(win.hero_title.get_text(), "Väntar på ett bevakat nätverk")
 
     def test_login_button_on_captive_portal(self):
         win = self.window()

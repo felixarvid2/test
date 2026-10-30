@@ -1,3 +1,20 @@
+fartvakt (1.2.1) stable; urgency=medium
+
+  * Upptäcks inloggningssidan först av mätningen (när NetworkManager inte
+    kontrollerar anslutningen) sparas bara den första misslyckade mätningen;
+    sedan görs små kontroller var 30:e sekund tills man är inloggad.
+  * Tjänsten lämnar inte "mäter" kvar i statusfilen när den stoppas, och
+    appen litar bara på det när en mätning faktiskt pågår.
+  * En skadad databasfil flyttas undan (raderas inte) och en ny skapas, i
+    stället för att appen startar osynligt och tjänsten startas om i en loop.
+  * Appen visar inte ett gammalt nätverk från en stoppad tjänst, flyttar
+    fram perioden även när inget nytt mäts och blinkar inte "tjänsten kör
+    inte" efter viloläge.
+  * Nätverksnamn med & och < visas rätt; CSV-exporten skyddar mot formler.
+  * "Med avvikelse" räknar samma avvikelser som fliken Avvikelser.
+
+ -- Felix Arvid <felixarvid@gmail.com>  Fri, 30 Oct 2026 18:00:00 +0100
+
 fartvakt (1.2.0) stable; urgency=medium
 
   * Gästnätverk med inloggningssida: Fartvakt väntar med att mäta, visar en
