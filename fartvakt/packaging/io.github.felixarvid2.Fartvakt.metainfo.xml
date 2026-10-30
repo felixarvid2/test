@@ -46,6 +46,12 @@
     <category>Monitor</category>
   </categories>
   <releases>
+    <release version="1.2.0" date="2026-10-30">
+      <description>
+        <p>Stöd för gästnätverk med inloggningssida: Fartvakt väntar, visar en knapp till
+        inloggningen och mäter direkt när du är inloggad.</p>
+      </description>
+    </release>
     <release version="1.1.0" date="2026-10-30">
       <description>
         <p>Nytt gränssnitt i GTK 4 och libadwaita med översikt, graf och mörkt läge.

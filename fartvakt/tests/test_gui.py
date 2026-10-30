@@ -22,7 +22,7 @@ try:
 except (ImportError, ValueError):
     HAVE_GTK = False
 
-from fartvakt import config, monitor, network, service, speedtest, status  # noqa: E402
+from fartvakt import config, network, service, speedtest, status  # noqa: E402
 from fartvakt.storage import Storage  # noqa: E402
 
 
@@ -134,9 +134,7 @@ class WindowTest(unittest.TestCase):
             time.sleep(0.3)
             return {"ping_ms": 18.0, "jitter_ms": 1.0, "download_mbps": 88.0, "upload_mbps": 11.0}
 
-        with mock.patch.object(speedtest, "run", fake_run), \
-                mock.patch.object(monitor.measure_and_store, "__defaults__",
-                                  ("auto", fake_run, monitor.notify, None)):
+        with mock.patch.object(speedtest, "run", fake_run):
             win.activate_action("win.measure", None)
             self.assertTrue(spin(2, until=lambda: win.measure_label.get_text() == "Mäter …"))
             self.assertFalse(win.measure_action.get_enabled())
@@ -151,6 +149,18 @@ class WindowTest(unittest.TestCase):
         win.opened -= self.gui.SERVICE_GRACE_SECONDS + 1
         win.reload()
         self.assertTrue(win.banner.get_revealed())
+
+    def test_login_button_on_captive_portal(self):
+        win = self.window()
+        self.assertFalse(win.login_button.get_visible())
+        status.write({"ssid": "JENSEN-Guest", "watched": "JENSEN-Guest", "enabled": True, "next_due": None,
+                      "measuring": None, "portal": True})
+        win.reload()
+        self.assertTrue(win.login_button.get_visible())
+        self.assertEqual(win.hero_title.get_text(), "Logga in på JENSEN-Guest")
+        with mock.patch.object(Gtk.UriLauncher, "launch") as launch:
+            win.login_button.emit("clicked")
+        launch.assert_called_once()
 
     def test_preferences_change_config(self):
         from fartvakt.preferences import PreferencesDialog

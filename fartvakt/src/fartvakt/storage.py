@@ -2,6 +2,7 @@
 
 import csv
 import sqlite3
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -46,24 +47,40 @@ class Storage:
         path.parent.mkdir(parents=True, exist_ok=True)
         self.conn = sqlite3.connect(str(path), timeout=30, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
-        self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.execute("PRAGMA foreign_keys=ON")
-        self.conn.executescript(SCHEMA)
-        self._migrate()
+        # Bytet till WAL och skapandet av tabellerna väntar inte alltid på låset när flera
+        # processer (tjänsten och appen) öppnar databasen samtidigt – försök då igen.
+        for attempt in range(50):
+            try:
+                self.conn.execute("PRAGMA journal_mode=WAL")
+                self.conn.executescript(SCHEMA)
+                self._migrate()
+                break
+            except sqlite3.OperationalError as e:
+                if "locked" not in str(e) or attempt == 49:
+                    raise
+                time.sleep(0.1)
 
     def _migrate(self):
-        columns = {r[1] for r in self.conn.execute("PRAGMA table_info(measurements)")}
-        with self.conn:
+        # BEGIN IMMEDIATE låser databasen, så att tjänsten och appen inte migrerar samtidigt.
+        self.conn.execute("BEGIN IMMEDIATE")
+        try:
+            columns = {r[1] for r in self.conn.execute("PRAGMA table_info(measurements)")}
             if "epoch" not in columns:  # databaser från version 1.0
                 self.conn.execute("ALTER TABLE measurements ADD COLUMN epoch REAL")
             for row_id, ts in self.conn.execute("SELECT id, ts FROM measurements WHERE epoch IS NULL").fetchall():
                 self.conn.execute("UPDATE measurements SET epoch = ? WHERE id = ?", (epoch_of(ts), row_id))
             self.conn.execute("CREATE INDEX IF NOT EXISTS measurements_epoch ON measurements(epoch)")
+            self.conn.commit()
+        except BaseException:
+            self.conn.rollback()
+            raise
 
     def close(self):
         self.conn.close()
 
-    def add_measurement(self, m: dict) -> int:
+    def add_measurement(self, m: dict, deviations=()) -> int:
+        """Sparar mätningen och dess avvikelser i en och samma transaktion."""
         values = dict(m, epoch=m.get("epoch") or epoch_of(m["ts"]))
         with self.conn:
             cur = self.conn.execute(
@@ -71,10 +88,15 @@ class Storage:
                 f"VALUES ({', '.join('?' * len(MEASUREMENT_FIELDS))})",
                 [values.get(f) for f in MEASUREMENT_FIELDS],
             )
+            self._insert_deviations(cur.lastrowid, m, deviations)
         return cur.lastrowid
 
     def add_deviations(self, measurement_id: int, m: dict, deviations) -> None:
         with self.conn:
+            self._insert_deviations(measurement_id, m, deviations)
+
+    def _insert_deviations(self, measurement_id, m, deviations):
+        if deviations:
             self.conn.executemany(
                 "INSERT INTO deviations (measurement_id, ts, ssid, metric, value, baseline, change_percent, direction) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -120,7 +142,8 @@ class Storage:
         return [
             dict(r)
             for r in self.conn.execute(
-                "SELECT * FROM measurements WHERE ssid IS ? AND error IS NULL ORDER BY id DESC LIMIT ?",
+                "SELECT * FROM measurements WHERE ssid IS ? COLLATE NOCASE AND error IS NULL "
+                "ORDER BY id DESC LIMIT ?",
                 (ssid, count),
             )
         ]

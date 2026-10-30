@@ -12,10 +12,10 @@ den uppmätta hastigheten, och en notis visas.
 Kräver Ubuntu 24.04 eller nyare, Debian 13 eller en annan distribution med GTK 4.12 och
 libadwaita 1.5 (till exempel Linux Mint 22 och Pop!_OS 24.04).
 
-Ladda ner [`dist/fartvakt_1.1.0_all.deb`](dist/fartvakt_1.1.0_all.deb) och installera den:
+Ladda ner [`dist/fartvakt_1.2.0_all.deb`](dist/fartvakt_1.2.0_all.deb) och installera den:
 
 ```bash
-sudo apt install ./fartvakt_1.1.0_all.deb
+sudo apt install ./fartvakt_1.2.0_all.deb
 ```
 
 Öppna sedan **Fartvakt** från appmenyn. Bevakningen sköts av en bakgrundstjänst som startar
@@ -31,7 +31,12 @@ Avinstallera med `sudo apt remove fartvakt`. Mätningarna ligger kvar i
   NetworkManager, annars `iwgetid`).
 - När du kommer in på ett bevakat nätverk väntar den 15 sekunder, så att anslutningen hinner
   bli klar, och mäter sedan direkt. Därefter mäter den var 5:e minut så länge du är kvar.
-  Lämnar du nätverket pausas mätningarna. Tiden räknas rätt även om datorn har legat i viloläge.
+  Lämnar du nätverket pausas mätningarna. Tiden räknas rätt även om datorn har legat i viloläge,
+  och efter viloläget väntar Fartvakt in nätverket innan den mäter igen.
+- Byter datorn nätverk mitt i en mätning sparas inte resultatet, så att det inte hamnar på fel
+  nätverk. Går internettrafiken via kabel eller VPN, fast datorn är ansluten till det bevakade
+  wifi-nätverket, mäter Fartvakt inte alls, eftersom resultatet då inte skulle visa
+  wifi-nätverkets hastighet.
 - En mätning består av ping (median av 8 förfrågningar, med serverns egen handläggningstid
   borträknad), nedladdning och uppladdning. Upp- och nedladdning görs med 4 parallella
   anslutningar mot Cloudflares hastighetsserver (speed.cloudflare.com). Varje del tar högst
@@ -41,9 +46,12 @@ Avinstallera med `sudo apt remove fartvakt`. Mätningarna ligger kvar i
   samma nätverk. Skiljer sig ned, upp eller ping mer än 30 % (och minst 1 Mbit/s respektive
   10 ms) sparas en avvikelse med uppmätt värde, normalvärde och förändring i procent, både när
   det blir sämre och när det blir bättre. Avvikelser börjar noteras efter 5 mätningar.
-- En misslyckad mätning sparas också som en avvikelse, *avbrott*. Det händer om anslutningen är
-  nere eller om nätverket kräver inloggning i webbläsaren. En notis visas bara för det första
-  avbrottet i en följd av avbrott.
+- En misslyckad mätning sparas också som en avvikelse, *avbrott*, med orsaken. En notis visas
+  bara för det första avbrottet i en följd av avbrott.
+- **Gästnätverk med inloggningssida:** om NetworkManager ser att nätverket kräver inloggning i
+  webbläsaren väntar Fartvakt i stället för att fylla historiken med misslyckade mätningar. Du
+  får en notis, och översikten får en knapp som öppnar inloggningssidan. Fartvakt kontrollerar
+  var 30:e sekund om du har loggat in och mäter direkt när du har gjort det.
 
 ## Appen
 
@@ -67,6 +75,8 @@ Avinstallera med `sudo apt remove fartvakt`. Mätningarna ligger kvar i
   `~/.config/fartvakt/config.json`.
 
 Appen följer systemets ljusa eller mörka tema och fungerar även i smala fönster.
+
+![Nätverket kräver inloggning](docs/portal.png)
 
 | Mörkt tema | Graf | Smalt fönster |
 |---|---|---|
@@ -102,16 +112,10 @@ Starta appen från källkoden:
 PYTHONPATH=src python3 -m fartvakt
 ```
 
-Kör testerna. GUI-testerna hoppas över om det inte finns någon skärm:
+Kör alla tester. Finns ingen skärm körs GUI-testerna i Xvfb (`sudo apt install xvfb`):
 
 ```bash
-python3 -m unittest discover -s tests
-```
-
-GUI-testerna går också att köra utan skärm:
-
-```bash
-xvfb-run -a dbus-run-session -- python3 -m unittest tests.test_gui
+./run-tests.sh
 ```
 
 Bygg paketet med:

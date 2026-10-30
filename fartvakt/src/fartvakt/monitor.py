@@ -12,6 +12,10 @@ class Busy(Exception):
     """En annan mätning pågår redan (t.ex. startad från appen)."""
 
 
+class NetworkChanged(Exception):
+    """Datorn bytte nätverk under mätningen, så resultatet hör inte till något nätverk."""
+
+
 @contextmanager
 def measurement_lock():
     path = config.data_dir() / "matning.lock"
@@ -51,24 +55,40 @@ def notify(title, body):
         pass
 
 
-def measure_and_store(cfg, ssid, storage, source="auto", run_test=speedtest.run, send_notification=notify,
-                      progress=None):
-    """Returnerar (mätning, avvikelser). Kastar Busy om en annan mätning pågår."""
+def same_network(a, b):
+    return (a or "").casefold() == (b or "").casefold()
+
+
+def measure_and_store(cfg, ssid, storage, source="auto", run_test=None, send_notification=None,
+                      progress=None, current_ssid=None):
+    """Returnerar (mätning, avvikelser). Kastar Busy om en annan mätning pågår och
+    NetworkChanged om `current_ssid()` visar att datorn bytt nätverk under mätningen
+    (då sparas ingenting)."""
+    run_test = run_test or speedtest.run
+    send_notification = send_notification or notify
     with measurement_lock():
         m = {"ts": datetime.now().astimezone().isoformat(timespec="seconds"), "ssid": ssid, "source": source}
         try:
             m.update(run_test(cfg, progress))
         except speedtest.SpeedTestError as e:
             m["error"] = str(e)
+            m["portal"] = isinstance(e, speedtest.CaptivePortal)
+        if current_ssid is not None:
+            now_on = current_ssid()
+            if not same_network(now_on, ssid):
+                raise NetworkChanged(now_on)
         previous = storage.last(ssid)
         history = storage.history(ssid, cfg["baseline_count"])
         deviations = analysis.find_deviations(m, history, cfg["threshold_percent"], cfg["min_baseline"])
-        m["id"] = storage.add_measurement(m)
-        storage.add_deviations(m["id"], m, deviations)
+        m["id"] = storage.add_measurement(m, deviations)
 
     # Ett avbrott aviseras bara första gången, inte vid varje misslyckad mätning i rad.
     repeated_failure = m.get("error") and previous and previous.get("error")
     if deviations and cfg["notifications"] and not repeated_failure:
-        title = f"Avvikande hastighet på {ssid}" if ssid else "Avvikande hastighet"
-        send_notification(title, "\n".join(analysis.describe(d) for d in deviations))
+        where = f" på {ssid}" if ssid else ""
+        if m.get("error"):
+            title, body = f"Ingen internetanslutning{where}", f"Mätningen misslyckades: {m['error']}"
+        else:
+            title, body = f"Avvikande hastighet{where}", "\n".join(analysis.describe(d) for d in deviations)
+        send_notification(title, body)
     return m, deviations
