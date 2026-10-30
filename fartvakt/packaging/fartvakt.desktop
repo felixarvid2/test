@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Fartvakt
+GenericName=Hastighetsbevakning
+Comment=Mäter internethastigheten automatiskt på utvalda wifi-nätverk och noterar avvikelser
+Exec=fartvakt
+Icon=fartvakt
+Terminal=false
+Categories=Network;Monitor;Utility;
+Keywords=speedtest;hastighet;wifi;internet;bandbredd;
+StartupWMClass=Tk
