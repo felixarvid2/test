@@ -4,6 +4,16 @@ fartvakt (1.2.0) stable; urgency=medium
     notis och en knapp som öppnar inloggningssidan, och mäter direkt när man
     har loggat in.
   * Notisen vid avbrott säger varför mätningen misslyckades.
+  * Byter datorn nätverk mitt i en mätning sparas inte resultatet. Går
+    trafiken via kabel eller VPN mäts inte wifi-nätverket.
+  * Efter viloläge väntar tjänsten in nätverket innan den mäter.
+  * Ett oväntat fel (t.ex. full disk) gör inte längre att tjänsten mäter om
+    varje sekund, och en mätning från appen räknas som periodens mätning.
+  * Handredigerade inställningar kontrolleras och hålls inom rimliga gränser.
+  * Tjänsten och appen kan öppna databasen samtidigt vid uppgradering.
+  * Inställningarna skrivs säkert till disk, och en mätning sparas med sina
+    avvikelser i en och samma transaktion.
+  * Tidsaxeln hanterar vårens sommartidsomställning och långa perioder.
   * run-tests.sh kör alla tester, även GUI-testerna i Xvfb.
 
  -- Felix Arvid <felixarvid@gmail.com>  Fri, 30 Oct 2026 15:00:00 +0100

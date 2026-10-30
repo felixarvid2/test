@@ -1,6 +1,7 @@
 """Inställningar och sökvägar (följer XDG-standarden)."""
 
 import json
+import math
 import os
 from pathlib import Path
 
@@ -46,6 +47,28 @@ def db_path() -> Path:
     return data_dir() / "fartvakt.db"
 
 
+# Tillåtna intervall för talen, så att en handredigerad fil inte kan få tjänsten att
+# mäta oavbrutet eller krascha.
+LIMITS = {
+    "interval_minutes": (1, 1440),
+    "check_network_seconds": (5, 3600),
+    "threshold_percent": (5, 95),
+    "baseline_count": (3, 500),
+    "min_baseline": (1, 100),
+    "download_bytes": (100_000, 1_000_000_000),
+    "upload_bytes": (100_000, 500_000_000),
+    "streams": (1, 16),
+    "max_seconds": (2, 60),
+}
+
+
+def _number(key, value):
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+        return DEFAULTS[key]
+    low, high = LIMITS[key]
+    return max(low, min(high, int(round(value))))
+
+
 def load() -> dict:
     cfg = dict(DEFAULTS)
     try:
@@ -53,19 +76,22 @@ def load() -> dict:
             stored = json.load(f)
     except (OSError, ValueError):
         stored = {}
-    if isinstance(stored, dict):
-        for key, default in DEFAULTS.items():
-            value = stored.get(key)
-            if value is None:
-                continue
-            if isinstance(default, bool):
-                cfg[key] = bool(value)
-            elif isinstance(default, (int, float)) and isinstance(value, (int, float)):
-                cfg[key] = type(default)(value) if value > 0 else default
-            elif isinstance(default, list) and isinstance(value, list):
-                cfg[key] = [str(v).strip() for v in value if str(v).strip()]
-            elif isinstance(default, str) and isinstance(value, str) and value.strip():
-                cfg[key] = value.strip()
+    if not isinstance(stored, dict):
+        stored = {}
+    for key, default in DEFAULTS.items():
+        value = stored.get(key)
+        if value is None:
+            continue
+        if isinstance(default, bool):
+            if isinstance(value, bool):
+                cfg[key] = value
+        elif key in LIMITS:
+            cfg[key] = _number(key, value)
+        elif isinstance(default, list) and isinstance(value, list):
+            cfg[key] = [str(v).strip() for v in value if isinstance(v, str) and v.strip()]
+        elif isinstance(default, str) and isinstance(value, str) and value.strip():
+            cfg[key] = value.strip()
+    cfg["min_baseline"] = min(cfg["min_baseline"], cfg["baseline_count"])
     return cfg
 
 
@@ -76,4 +102,6 @@ def save(cfg: dict) -> None:
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump({k: cfg.get(k, v) for k, v in DEFAULTS.items()}, f, indent=2, ensure_ascii=False)
         f.write("\n")
+        f.flush()
+        os.fsync(f.fileno())  # så att ett strömavbrott inte lämnar en tom fil efter sig
     os.replace(tmp, path)

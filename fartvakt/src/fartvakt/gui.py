@@ -649,11 +649,14 @@ class Window(Adw.ApplicationWindow):
                 result = monitor.measure_and_store(
                     config.load(), network.current_ssid(), storage, "manuell",
                     send_notification=lambda *_: None,
-                    progress=lambda phase: GLib.idle_add(self._set_phase, phase))
+                    progress=lambda phase: GLib.idle_add(self._set_phase, phase),
+                    current_ssid=network.current_ssid)
             finally:
                 storage.close()
         except monitor.Busy:
             problem = "En mätning pågår redan i bakgrunden"
+        except monitor.NetworkChanged:
+            problem = "Datorn bytte nätverk under mätningen, så resultatet sparades inte"
         except Exception as e:  # noqa: BLE001 – visas för användaren
             problem = f"Mätningen kunde inte göras: {e}"
         GLib.idle_add(self._measure_done, result, problem)

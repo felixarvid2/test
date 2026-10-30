@@ -25,9 +25,13 @@ def cmd_measure(_args):
     try:
         m, deviations = monitor.measure_and_store(
             cfg, ssid, storage, "manuell", send_notification=lambda *_: None,
-            progress=lambda phase: print(f"  {PHASES.get(phase, phase)} …", flush=True))
+            progress=lambda phase: print(f"  {PHASES.get(phase, phase)} …", flush=True),
+            current_ssid=network.current_ssid)
     except monitor.Busy:
         print("En annan mätning pågår redan – försök igen om en stund.", file=sys.stderr)
+        return 1
+    except monitor.NetworkChanged:
+        print("Datorn bytte nätverk under mätningen, så resultatet sparades inte.", file=sys.stderr)
         return 1
     print(_row(m))
     for d in deviations:
@@ -47,6 +51,10 @@ def cmd_status(_args):
         state = "bakgrundstjänsten kör inte (systemctl --user start fartvakt)"
     elif not cfg["monitoring_enabled"]:
         state = "avstängd i inställningarna"
+    elif daemon.get("portal"):
+        state = "väntar på att du loggar in på nätverket i webbläsaren"
+    elif daemon.get("other_route"):
+        state = f"mäter inte – internettrafiken går via {daemon['other_route']} i stället för wifi"
     elif daemon.get("measuring"):
         state = PHASES.get(daemon["measuring"], "mäter").lower()
     elif daemon.get("watched"):

@@ -5,9 +5,8 @@ from datetime import datetime, timedelta
 
 from . import network
 from .analysis import fmt_number
-from .plotting import WEEKDAYS
+from .plotting import MONTHS, WEEKDAYS
 
-MONTHS = ["jan", "feb", "mar", "apr", "maj", "jun", "jul", "aug", "sep", "okt", "nov", "dec"]
 PHASES = {"ping": "Mäter ping", "ned": "Mäter nedladdning", "upp": "Mäter uppladdning"}
 LOGIN_URL = "http://neverssl.com/"  # okrypterad sida, så att nätverkets inloggningssida kan visas
 
@@ -84,6 +83,10 @@ def overview_state(cfg, ssid, daemon, alive, phase, now):
             return State("dialog-password-symbolic", f"Logga in på {ssid}",
                          "Nätverket kräver inloggning i webbläsaren. Fartvakt mäter så fort du är inloggad.",
                          "warning", "login")
+        if daemon.get("other_route"):
+            return State("network-wired-symbolic", f"Ansluten till {ssid}, men trafiken går via {daemon['other_route']}",
+                         "Fartvakt mäter inte medan kabel eller VPN används, eftersom mätningen då inte "
+                         "skulle visa wifi-nätverkets hastighet.", "dim", None)
         due = daemon.get("next_due")
         when = (fmt_until(due - now) if due and due > now else "strax") if daemon.get("watched") else "strax"
         return State("network-wireless-signal-good-symbolic", f"Bevakar {ssid}",

@@ -30,6 +30,7 @@ def read() -> dict:
 
 
 def is_alive(state: dict, cfg: dict) -> bool:
-    """Har tjänsten hört av sig nyligen?"""
+    """Har tjänsten hört av sig nyligen? En mätningsfas kan ta flera minuter på ett dåligt nät."""
     updated = state.get("updated")
-    return isinstance(updated, (int, float)) and time.time() - updated < max(90, cfg["check_network_seconds"] * 3)
+    limit = max(90, cfg["check_network_seconds"] * 3) + (300 if state.get("measuring") else 0)
+    return isinstance(updated, (int, float)) and time.time() - updated < limit

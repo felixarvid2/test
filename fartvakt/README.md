@@ -31,7 +31,12 @@ Avinstallera med `sudo apt remove fartvakt`. Mätningarna ligger kvar i
   NetworkManager, annars `iwgetid`).
 - När du kommer in på ett bevakat nätverk väntar den 15 sekunder, så att anslutningen hinner
   bli klar, och mäter sedan direkt. Därefter mäter den var 5:e minut så länge du är kvar.
-  Lämnar du nätverket pausas mätningarna. Tiden räknas rätt även om datorn har legat i viloläge.
+  Lämnar du nätverket pausas mätningarna. Tiden räknas rätt även om datorn har legat i viloläge,
+  och efter viloläget väntar Fartvakt in nätverket innan den mäter igen.
+- Byter datorn nätverk mitt i en mätning sparas inte resultatet, så att det inte hamnar på fel
+  nätverk. Går internettrafiken via kabel eller VPN, fast datorn är ansluten till det bevakade
+  wifi-nätverket, mäter Fartvakt inte alls, eftersom resultatet då inte skulle visa
+  wifi-nätverkets hastighet.
 - En mätning består av ping (median av 8 förfrågningar, med serverns egen handläggningstid
   borträknad), nedladdning och uppladdning. Upp- och nedladdning görs med 4 parallella
   anslutningar mot Cloudflares hastighetsserver (speed.cloudflare.com). Varje del tar högst
