@@ -168,6 +168,7 @@ class Window(Adw.ApplicationWindow):
         self.cfg = config.load()
         self.db, moved_db = open_storage()
         self.silent_since = time.monotonic()  # sedan när tjänsten inte har hört av sig
+        self.start_requested = time.monotonic()  # tjänsten startas nedan om den inte redan kör
         self.ssid = None
         self.ssid_thread = None
         self.daemon = {}
@@ -506,7 +507,13 @@ class Window(Adw.ApplicationWindow):
             self.silent_since = time.monotonic()
         # visa "tjänsten kör inte" först när den varit tyst en stund (t.ex. direkt efter viloläge)
         grace = max(SERVICE_GRACE_SECONDS, self.cfg["check_network_seconds"] + 15)
-        self.alive = alive or (not self.daemon.get("stopped") and time.monotonic() - self.silent_since < grace)
+        if alive:
+            self.alive = True
+        else:
+            # en tjänst som stoppats räknas som stoppad direkt, om den inte nyss har ombetts starta
+            now = time.monotonic()
+            recently_started = now - self.start_requested < grace
+            self.alive = now - self.silent_since < grace and (recently_started or not self.daemon.get("stopped"))
         signature = self.db.signature()
         if force or signature != self.signature:
             self.signature = signature
@@ -718,6 +725,7 @@ class Window(Adw.ApplicationWindow):
         self.stack.set_visible_child_name("avvikelser")
 
     def on_start_service(self, *_args):
+        self.start_requested = time.monotonic()
         def work():
             ok = service.ensure_running()
             GLib.idle_add(self._service_started, ok)

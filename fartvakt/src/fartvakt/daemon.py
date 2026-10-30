@@ -34,12 +34,12 @@ class Watcher:
     def __init__(self, storage, now=boot_clock, awake=awake_clock, current_ssid=network.current_ssid,
                  measure=monitor.measure_and_store, publish=status.write, connectivity=network.connectivity,
                  traffic_device=network.traffic_device, notify=monitor.notify, probe=speedtest.probe):
+        self._publish = publish
         self.storage = storage
         self.now = now
         self.awake = awake
         self.current_ssid = current_ssid
         self.measure = measure
-        self.publish = publish
         self.connectivity = connectivity
         self.traffic_device = traffic_device
         self.notify = notify
@@ -132,8 +132,16 @@ class Watcher:
             # Pröva då med en liten förfrågan innan en hel mätning görs och sparas.
             try:
                 self.probe(cfg)
+            except speedtest.CaptivePortal:
+                return self._wait_for_login(cfg)  # fortfarande inte inloggad
             except speedtest.SpeedTestError:
-                return self._wait_for_login(cfg)  # fortfarande inte ute på internet
+                # något annat fel (t.ex. nätet är nere): sluta vänta på inloggning och mät
+                # som vanligt vid nästa intervall, så att ett riktigt avbrott syns i historiken
+                self.portal = False
+                self.last_run = self.now()
+                self.next_due = self.last_run + cfg["interval_minutes"] * 60
+                self.publish(self.state(cfg))
+                return None
 
         try:
             m, deviations = self.measure(cfg, watched, self.storage, "auto",
@@ -172,6 +180,13 @@ class Watcher:
             log(f"AVVIKELSE: {analysis.describe(d)}")
         return m
 
+    def publish(self, state):
+        """Skriver statusen till appen. Ett fel här (t.ex. full disk) får inte påverka mätningen."""
+        try:
+            self._publish(state)
+        except OSError as e:
+            log(f"Kunde inte skriva status: {e}")
+
     def _wait_for_login(self, cfg):
         self.portal = True
         self.last_run = None
@@ -186,6 +201,7 @@ class Watcher:
 
 
 def run():
+    status.clean_temp_files()
     storage, moved = open_storage()
     if moved:
         log(f"Databasen var skadad och har flyttats till {moved}; en ny har skapats")
