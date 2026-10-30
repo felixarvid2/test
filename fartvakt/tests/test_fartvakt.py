@@ -556,6 +556,27 @@ class WatcherTest(TempHome):
         self.assertEqual(len(measured), 2)
         self.assertFalse(self.published[-1]["portal"])
 
+    def test_portal_wait_needs_two_failures_in_a_row(self):
+        w, cfg = self.make("JENSEN-Guest"), config.load()
+        self.conn[0] = "unknown"
+        outcomes = iter(["fel", "ok", "fel", "fel"])
+
+        def probe(_cfg):
+            if next(outcomes) == "fel":
+                raise speedtest.SpeedTestError("tidsgräns")
+
+        measured = []
+        w.measure = lambda *a, **k: measured.append(1) or ({"error": "inloggning", "portal": True}, [])
+        w.probe = probe
+        w.tick(cfg)
+        self.clock[0] += daemon.SETTLE_SECONDS
+        w.tick(cfg)                                   # mätningen hittar inloggningssidan
+        for expected_portal in (True, True, True, False):
+            self.clock[0] += daemon.PORTAL_RETRY_SECONDS
+            w.tick(cfg)                               # fel, ok (mätning: sidan igen), fel, fel
+            self.assertEqual(self.published[-1]["portal"], expected_portal)
+        self.assertEqual(len(measured), 2)
+
     def test_status_write_error_does_not_stop_measuring(self):
         w, cfg = self.make("JENSEN-Guest"), config.load()
         w._publish = mock.Mock(side_effect=OSError(28, "No space left on device"))

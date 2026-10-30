@@ -127,6 +127,7 @@ class Watcher:
                 if cfg["notifications"]:
                     self.notify(f"Logga in på {watched}",
                                 "Nätverket kräver inloggning i webbläsaren. Fartvakt mäter så fort du är inloggad.")
+            self.probe_failures = 0
             return self._wait_for_login(cfg)
         if self.portal:
             # NetworkManager märker inte alltid inloggningssidan (kontrollen kan vara avstängd).
@@ -137,7 +138,7 @@ class Watcher:
                 self.probe_failures = 0
                 return self._wait_for_login(cfg)  # fortfarande inte inloggad
             except speedtest.SpeedTestError:
-                self.probe_failures += 1
+                self.probe_failures += 1  # fel i rad; nollställs av allt annat utfall
                 if self.probe_failures < 2:
                     return self._wait_for_login(cfg)  # kan vara tillfälligt (DNS precis efter inloggning)
                 # flera fel i rad (t.ex. nätet är nere): sluta vänta på inloggning och mät som
@@ -148,6 +149,8 @@ class Watcher:
                 self.next_due = self.last_run + cfg["interval_minutes"] * 60
                 self.publish(self.state(cfg))
                 return None
+            else:
+                self.probe_failures = 0
 
         try:
             m, deviations = self.measure(cfg, watched, self.storage, "auto",

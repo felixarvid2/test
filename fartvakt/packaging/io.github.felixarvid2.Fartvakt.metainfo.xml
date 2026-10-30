@@ -46,6 +46,11 @@
     <category>Monitor</category>
   </categories>
   <releases>
+    <release version="1.2.4" date="2026-10-30">
+      <description>
+        <p>Rättning i väntan på inloggning på gästnätverk.</p>
+      </description>
+    </release>
     <release version="1.2.3" date="2026-10-30">
       <description>
         <p>Snabbare första mätning efter inloggning på gästnätverk.</p>
