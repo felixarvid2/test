@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.felixarvid2.Fartvakt</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Fartvakt</name>
+  <summary>Mät internethastigheten automatiskt på utvalda wifi-nätverk</summary>
+  <developer id="io.github.felixarvid2">
+    <name>Felix Arvid</name>
+  </developer>
+  <description>
+    <p>
+      Fartvakt mäter ping, nedladdning och uppladdning automatiskt med jämna mellanrum
+      så länge datorn är ansluten till ett wifi-nätverk du har valt, till exempel skolans
+      gästnätverk. Alla mätningar sparas lokalt på datorn.
+    </p>
+    <p>
+      När en mätning avviker tydligt från det som är normalt för nätverket noteras
+      avvikelsen tillsammans med den uppmätta hastigheten, och en notis visas.
+    </p>
+    <ul>
+      <li>Mäter i bakgrunden, även när appen är stängd</li>
+      <li>Graf över hastigheten, med avvikelserna markerade</li>
+      <li>Export till CSV för Excel och LibreOffice</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">io.github.felixarvid2.Fartvakt.desktop</launchable>
+  <url type="homepage">https://github.com/felixarvid2/test/tree/main/fartvakt</url>
+  <url type="bugtracker">https://github.com/felixarvid2/test/issues</url>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Översikten</caption>
+      <image>https://raw.githubusercontent.com/felixarvid2/test/main/fartvakt/docs/oversikt.png</image>
+    </screenshot>
+  </screenshots>
+  <content_rating type="oars-1.1"/>
+  <requires>
+    <display_length compare="ge">360</display_length>
+  </requires>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+  <categories>
+    <category>Network</category>
+    <category>Monitor</category>
+  </categories>
+  <releases>
+    <release version="1.1.0" date="2026-10-30">
+      <description>
+        <p>Nytt gränssnitt i GTK 4 och libadwaita med översikt, graf och mörkt läge.
+        Säkrare mätning och smartare bakgrundsbevakning.</p>
+      </description>
+    </release>
+    <release version="1.0.0" date="2026-10-30"/>
+  </releases>
+</component>

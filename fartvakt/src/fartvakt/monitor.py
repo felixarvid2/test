@@ -5,7 +5,7 @@ import subprocess
 from contextlib import contextmanager
 from datetime import datetime
 
-from . import analysis, config, speedtest
+from . import APP_ID, analysis, config, speedtest
 
 
 class Busy(Exception):
@@ -27,20 +27,37 @@ def measurement_lock():
             fcntl.flock(f, fcntl.LOCK_UN)
 
 
+def is_busy() -> bool:
+    """Pågår en mätning just nu (i appen eller i bakgrunden)?"""
+    path = config.data_dir() / "matning.lock"
+    try:
+        with open(path) as f:
+            try:
+                fcntl.flock(f, fcntl.LOCK_SH | fcntl.LOCK_NB)
+            except BlockingIOError:
+                return True
+            fcntl.flock(f, fcntl.LOCK_UN)
+    except OSError:
+        pass
+    return False
+
+
 def notify(title, body):
     try:
-        subprocess.run(["notify-send", "-a", "Fartvakt", "-i", "fartvakt", title, body],
+        subprocess.run(["notify-send", "--app-name=Fartvakt", f"--icon={APP_ID}",
+                        f"--hint=string:desktop-entry:{APP_ID}", title, body],
                        capture_output=True, timeout=10)
     except (OSError, subprocess.SubprocessError):
         pass
 
 
-def measure_and_store(cfg, ssid, storage, source="auto", run_test=speedtest.run, send_notification=notify):
+def measure_and_store(cfg, ssid, storage, source="auto", run_test=speedtest.run, send_notification=notify,
+                      progress=None):
     """Returnerar (mätning, avvikelser). Kastar Busy om en annan mätning pågår."""
     with measurement_lock():
         m = {"ts": datetime.now().astimezone().isoformat(timespec="seconds"), "ssid": ssid, "source": source}
         try:
-            m.update(run_test(cfg))
+            m.update(run_test(cfg, progress))
         except speedtest.SpeedTestError as e:
             m["error"] = str(e)
         previous = storage.last(ssid)

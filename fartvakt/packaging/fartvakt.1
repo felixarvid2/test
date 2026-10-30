@@ -1,0 +1,51 @@
+.TH FARTVAKT 1 "2026-10-30" "fartvakt 1.1.0" "Användarkommandon"
+.SH NAMN
+fartvakt \- mät internethastigheten automatiskt på utvalda wifi-nätverk
+.SH SYNOPSIS
+.B fartvakt
+.RI [ kommando ]
+.SH BESKRIVNING
+.B fartvakt
+mäter ping, nedladdning och uppladdning med jämna mellanrum så länge datorn är
+ansluten till ett bevakat wifi-nätverk. Mätningarna sparas lokalt. En mätning som
+avviker tydligt från medianen av de senaste mätningarna på samma nätverk noteras
+som en avvikelse, och en notis visas.
+.PP
+Bevakningen sköts av användartjänsten
+.BR fartvakt.service ,
+som startar vid inloggning. Utan kommando öppnas appen.
+.SH KOMMANDON
+.TP
+.B gui
+Öppna appen.
+.TP
+.B mat
+Mät hastigheten nu och spara resultatet.
+.TP
+.B status
+Visa anslutet nätverk, bevakningens läge och normalvärden.
+.TP
+.BR historik " [" \-n " \fIantal\fR]"
+Lista de senaste mätningarna.
+.TP
+.BR avvikelser " [" \-n " \fIantal\fR]"
+Lista de senaste avvikelserna.
+.TP
+.BI export " fil"
+Spara alla mätningar som CSV (semikolon och decimalkomma).
+.TP
+.B daemon
+Kör bevakningen i förgrunden. Används av
+.BR fartvakt.service .
+.SH FILER
+.TP
+.I ~/.config/fartvakt/config.json
+Inställningar.
+.TP
+.I ~/.local/share/fartvakt/fartvakt.db
+Mätningar och avvikelser (SQLite).
+.SH EXEMPEL
+.EX
+systemctl \-\-user status fartvakt
+journalctl \-\-user \-u fartvakt \-f
+.EE

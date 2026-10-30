@@ -1,0 +1,17 @@
+fartvakt (1.1.0) stable; urgency=medium
+
+  * Nytt gränssnitt i GTK 4 och libadwaita: översikt, graf med tidsaxel,
+    mörkt läge, sorterbara tabeller och inställningar som gäller direkt.
+  * Bakgrundstjänsten väntar in nätverket innan första mätningen, räknar
+    tiden rätt efter viloläge och visar sitt läge i appen.
+  * Säkrare mätning: TCP-uppstart räknas bort, uppladdning räknas först när
+    servern tagit emot datan och serverns handläggningstid dras från pingen.
+  * CSV-export för svenska Excel och LibreOffice.
+
+ -- Felix Arvid <felixarvid@gmail.com>  Fri, 30 Oct 2026 12:00:00 +0100
+
+fartvakt (1.0.0) stable; urgency=medium
+
+  * Första versionen.
+
+ -- Felix Arvid <felixarvid@gmail.com>  Fri, 30 Oct 2026 09:00:00 +0100

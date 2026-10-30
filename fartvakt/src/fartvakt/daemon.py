@@ -4,42 +4,76 @@ import signal
 import sys
 import time
 
-from . import analysis, config, monitor, network
+from . import analysis, config, monitor, network, status
 from .storage import Storage
+
+# Väntetid efter att man anslutit, så att DHCP, DNS och eventuell inloggningssida hinner bli klara.
+SETTLE_SECONDS = 15
 
 
 def log(msg):
     print(msg, flush=True)
 
 
+def boot_clock():
+    """Sekunder sedan uppstart, inklusive viloläge (till skillnad från time.monotonic)."""
+    return time.clock_gettime(time.CLOCK_BOOTTIME)
+
+
 class Watcher:
-    def __init__(self, storage, now=time.monotonic, current_ssid=network.current_ssid,
-                 measure=monitor.measure_and_store):
+    def __init__(self, storage, now=boot_clock, current_ssid=network.current_ssid,
+                 measure=monitor.measure_and_store, publish=status.write):
         self.storage = storage
         self.now = now
         self.current_ssid = current_ssid
         self.measure = measure
+        self.publish = publish
+        self.ssid = None
         self.active_ssid = None
-        self.next_due = 0.0
+        self.next_due = None
+        self.last_run = None
+
+    def state(self, cfg, phase=None):
+        next_due = None
+        if self.active_ssid and self.next_due is not None:
+            next_due = time.time() + max(0.0, self.next_due - self.now())
+        return {
+            "ssid": self.ssid,
+            "watched": self.active_ssid,
+            "enabled": cfg["monitoring_enabled"],
+            "next_due": next_due,
+            "measuring": phase,
+        }
 
     def tick(self, cfg):
         """Ett varv i bevakningen. Returnerar mätningen om en gjordes, annars None."""
-        ssid = self.current_ssid() if cfg["monitoring_enabled"] else None
-        watched = ssid if network.matches(ssid, cfg["networks"]) else None
+        self.ssid = self.current_ssid()
+        watched = self.ssid if cfg["monitoring_enabled"] and network.matches(self.ssid, cfg["networks"]) else None
         if watched != self.active_ssid:
             if watched:
-                log(f"Ansluten till {watched} – börjar mäta var {cfg['interval_minutes']}:e minut")
-                self.next_due = 0.0  # mät direkt när man kommer in på nätverket
+                log(f"Ansluten till {watched} – mäter om {SETTLE_SECONDS} s och sedan var "
+                    f"{cfg['interval_minutes']}:e minut")
+                self.next_due = self.now() + SETTLE_SECONDS
             elif self.active_ssid:
                 log(f"Lämnade {self.active_ssid} – mätningarna pausas")
+                self.next_due = None
+            self.last_run = None
             self.active_ssid = watched
+        if watched and self.last_run is not None:
+            # ett ändrat intervall i inställningarna gäller direkt, räknat från förra mätningen
+            self.next_due = self.last_run + cfg["interval_minutes"] * 60
         if not watched or self.now() < self.next_due:
+            self.publish(self.state(cfg))
             return None
         try:
-            m, deviations = self.measure(cfg, watched, self.storage, "auto")
+            m, deviations = self.measure(cfg, watched, self.storage, "auto",
+                                         progress=lambda phase: self.publish(self.state(cfg, phase)))
         except monitor.Busy:
-            return None  # försöker igen vid nästa varv
-        self.next_due = self.now() + cfg["interval_minutes"] * 60
+            self.publish(self.state(cfg))
+            return None  # en mätning från appen pågår; försöker igen vid nästa varv
+        self.last_run = self.now()
+        self.next_due = self.last_run + cfg["interval_minutes"] * 60
+        self.publish(self.state(cfg))
         if m.get("error"):
             log(f"Mätning misslyckades: {m['error']}")
         else:
@@ -47,6 +81,12 @@ class Watcher:
         for d in deviations:
             log(f"AVVIKELSE: {analysis.describe(d)}")
         return m
+
+    def sleep_seconds(self, cfg):
+        wait = cfg["check_network_seconds"]
+        if self.active_ssid and self.next_due is not None:
+            wait = min(wait, max(1.0, self.next_due - self.now()))
+        return wait
 
 
 def run():
@@ -60,4 +100,4 @@ def run():
             watcher.tick(cfg)
         except Exception as e:  # noqa: BLE001 – tjänsten ska aldrig dö på ett enskilt fel
             log(f"Fel: {e!r}")
-        time.sleep(cfg["check_network_seconds"])
+        time.sleep(watcher.sleep_seconds(cfg))

@@ -1,16 +1,12 @@
 #!/bin/sh
 set -e
 
-if [ "$1" = "remove" ]; then
-    for dir in /run/user/*; do
-        [ -d "$dir" ] || continue
-        uid=$(basename "$dir")
-        [ "$uid" -ge 1000 ] 2>/dev/null || continue
-        user=$(getent passwd "$uid" | cut -d: -f1)
-        [ -n "$user" ] || continue
-        runuser -u "$user" -- env XDG_RUNTIME_DIR="$dir" DBUS_SESSION_BUS_ADDRESS="unix:path=$dir/bus" \
-            systemctl --user stop fartvakt.service >/dev/null 2>&1 || true
-    done
-    systemctl --global disable fartvakt.service >/dev/null 2>&1 || true
+if [ "$1" = "remove" ] && [ -d /run/systemd/system ]; then
+    deb-systemd-invoke --user stop 'fartvakt.service' >/dev/null 2>&1 || true
+fi
+if command -v py3clean >/dev/null 2>&1; then
+    py3clean -p fartvakt
+else
+    find /usr/lib/python3/dist-packages/fartvakt -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 fi
 exit 0
