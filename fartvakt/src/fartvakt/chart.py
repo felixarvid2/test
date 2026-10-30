@@ -43,6 +43,10 @@ class SpeedChart(Gtk.DrawingArea):
         self.hover = None
         self.queue_draw()
 
+    def set_range(self, start, end):
+        self.start, self.end = start, max(end, start + 60)
+        self.queue_draw()
+
     # ---------- geometri ----------
 
     def _frame(self, width, height):
@@ -119,7 +123,8 @@ class SpeedChart(Gtk.DrawingArea):
             cr.move_to(left, py)
             cr.line_to(left + w, py)
             cr.stroke()
-            self._text(cr, fmt_number(v, 0 if ymax >= 10 else 1), left - 8, py, dim, align="right")
+            decimals = 0 if ymax >= 10 else 1 if ymax >= 1 else 2
+            self._text(cr, fmt_number(v, decimals), left - 8, py, dim, align="right")
         ticks, step = time_ticks(self.start, self.end)
         for t in ticks:
             px = round(self._x(t, frame)) + 0.5

@@ -1,6 +1,8 @@
 """Sparar mätningar och avvikelser i en SQLite-databas."""
 
 import csv
+import fcntl
+import os
 import sqlite3
 import time
 from datetime import datetime
@@ -39,6 +41,41 @@ MEASUREMENT_FIELDS = ("ts", "epoch", "ssid", "source", "ping_ms", "jitter_ms", "
 
 def epoch_of(ts: str) -> float:
     return datetime.fromisoformat(ts).timestamp()
+
+
+def open_storage(path=None):
+    """Öppnar databasen. Är den skadad flyttas den undan (den raderas aldrig) och en ny
+    skapas. Returnerar (Storage, sökväg dit den skadade filen flyttades eller None)."""
+    from . import config
+
+    path = Path(path or config.db_path())
+    path.parent.mkdir(parents=True, exist_ok=True)
+    # Låset ser till att tjänsten och appen inte båda flyttar undan filen samtidigt.
+    with open(path.with_name(".oppna.lock"), "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        try:
+            return Storage(path), None
+        except sqlite3.OperationalError:
+            raise  # t.ex. låst eller full disk: inte skadad
+        except sqlite3.DatabaseError:
+            stamp = f"{datetime.now():%Y%m%d-%H%M%S}"
+            moved = path.with_name(f"{path.stem}.skadad-{stamp}{path.suffix}")
+            n = 1
+            while moved.exists():
+                n += 1
+                moved = path.with_name(f"{path.stem}.skadad-{stamp}-{n}{path.suffix}")
+            os.replace(path, moved)
+            for extra in ("-wal", "-shm"):
+                side = Path(str(path) + extra)
+                if side.exists():
+                    os.replace(side, Path(str(moved) + extra))
+            return Storage(path), moved
+
+
+def _cell(value):
+    """Text som börjar med =, +, - eller @ tolkas som formel av kalkylprogram – gör den till text."""
+    text = "" if value is None else str(value)
+    return "'" + text if text[:1] in ("=", "+", "-", "@", "\t", "\r") else text
 
 
 class Storage:
@@ -187,8 +224,8 @@ class Storage:
             w.writerow(["Tid", "Nätverk", "Källa", "Ping (ms)", "Jitter (ms)", "Nedladdning (Mbit/s)",
                         "Uppladdning (Mbit/s)", "Fel", "Avvikelser"])
             for r in self.conn.execute("SELECT * FROM measurements ORDER BY id"):
-                w.writerow([r["ts"][:19].replace("T", " "), r["ssid"] or "", r["source"], num(r["ping_ms"]),
-                            num(r["jitter_ms"]), num(r["download_mbps"]), num(r["upload_mbps"]), r["error"] or "",
+                w.writerow([r["ts"][:19].replace("T", " "), _cell(r["ssid"]), r["source"], num(r["ping_ms"]),
+                            num(r["jitter_ms"]), num(r["download_mbps"]), num(r["upload_mbps"]), _cell(r["error"]),
                             ", ".join(deviating.get(r["id"], []))])
                 count += 1
         return count

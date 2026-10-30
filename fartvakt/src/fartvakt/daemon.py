@@ -4,8 +4,8 @@ import signal
 import sys
 import time
 
-from . import analysis, config, monitor, network, status
-from .storage import Storage
+from . import analysis, config, monitor, network, speedtest, status
+from .storage import open_storage
 
 # Väntetid efter att man anslutit (eller väckt datorn), så att DHCP, DNS och eventuell
 # inloggningssida hinner bli klara.
@@ -33,7 +33,7 @@ def awake_clock():
 class Watcher:
     def __init__(self, storage, now=boot_clock, awake=awake_clock, current_ssid=network.current_ssid,
                  measure=monitor.measure_and_store, publish=status.write, connectivity=network.connectivity,
-                 traffic_device=network.traffic_device, notify=monitor.notify):
+                 traffic_device=network.traffic_device, notify=monitor.notify, probe=speedtest.probe):
         self.storage = storage
         self.now = now
         self.awake = awake
@@ -43,6 +43,7 @@ class Watcher:
         self.connectivity = connectivity
         self.traffic_device = traffic_device
         self.notify = notify
+        self.probe = probe
         self.ssid = None
         self.active_ssid = None
         self.next_due = None
@@ -125,9 +126,14 @@ class Watcher:
                 if cfg["notifications"]:
                     self.notify(f"Logga in på {watched}",
                                 "Nätverket kräver inloggning i webbläsaren. Fartvakt mäter så fort du är inloggad.")
-            self.portal = True
-            self.last_run = None
-            return self._wait(cfg, PORTAL_RETRY_SECONDS)
+            return self._wait_for_login(cfg)
+        if self.portal:
+            # NetworkManager märker inte alltid inloggningssidan (kontrollen kan vara avstängd).
+            # Pröva då med en liten förfrågan innan en hel mätning görs och sparas.
+            try:
+                self.probe(cfg)
+            except speedtest.SpeedTestError:
+                return self._wait_for_login(cfg)  # fortfarande inte ute på internet
 
         try:
             m, deviations = self.measure(cfg, watched, self.storage, "auto",
@@ -142,15 +148,18 @@ class Watcher:
             return None
         except monitor.NetworkChanged as e:
             log(f"Bytte nätverk under mätningen (till {e.args[0] or 'inget'}) – resultatet sparas inte")
-            self.publish(self.state(cfg))
-            return None
+            self.last_run = None
+            return self._wait(cfg, SETTLE_SECONDS)
         except Exception as e:  # noqa: BLE001 – t.ex. full disk eller låst databas
             log(f"Mätningen kunde inte sparas: {e!r} – försöker igen om {ERROR_RETRY_SECONDS // 60} min")
             self.last_run = self.now()
             self.hold_until = self.now() + ERROR_RETRY_SECONDS
             self._wait(cfg, ERROR_RETRY_SECONDS)
             return None
-        self.portal = bool(m.get("portal"))
+        if m.get("portal"):
+            log(f"{watched} kräver inloggning i webbläsaren – väntar med att mäta")
+            return self._wait_for_login(cfg)
+        self.portal = False
         self.last_run = self.now()
         self.hold_until = 0.0
         self.next_due = self.last_run + cfg["interval_minutes"] * 60
@@ -163,6 +172,12 @@ class Watcher:
             log(f"AVVIKELSE: {analysis.describe(d)}")
         return m
 
+    def _wait_for_login(self, cfg):
+        self.portal = True
+        self.last_run = None
+        self._wait(cfg, PORTAL_RETRY_SECONDS)
+        return None
+
     def sleep_seconds(self, cfg):
         wait = cfg["check_network_seconds"]
         if self.active_ssid and self.next_due is not None:
@@ -171,15 +186,22 @@ class Watcher:
 
 
 def run():
-    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
-    storage = Storage(config.db_path())
+    storage, moved = open_storage()
+    if moved:
+        log(f"Databasen var skadad och har flyttats till {moved}; en ny har skapats")
     watcher = Watcher(storage)
-    log(f"Fartvakt startad. Databas: {config.db_path()}")
     cfg = config.load()
-    while True:
-        try:
-            cfg = config.load()  # läses om varje varv så att ändringar i appen gäller direkt
-            watcher.tick(cfg)
-        except Exception as e:  # noqa: BLE001 – tjänsten ska aldrig dö på ett enskilt fel
-            log(f"Fel: {e!r}")
-        time.sleep(watcher.sleep_seconds(cfg))
+
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
+    log(f"Fartvakt startad. Databas: {config.db_path()}")
+    try:
+        while True:
+            try:
+                cfg = config.load()  # läses om varje varv så att ändringar i appen gäller direkt
+                watcher.tick(cfg)
+            except Exception as e:  # noqa: BLE001 – tjänsten ska aldrig dö på ett enskilt fel
+                log(f"Fel: {e!r}")
+            time.sleep(watcher.sleep_seconds(cfg))
+    finally:
+        # lämna inte "mäter" kvar i statusfilen, och tala om att tjänsten har stoppats
+        watcher.publish(dict(watcher.state(cfg), stopped=True))

@@ -86,7 +86,10 @@ def measure_and_store(cfg, ssid, storage, source="auto", run_test=None, send_not
     repeated_failure = m.get("error") and previous and previous.get("error")
     if deviations and cfg["notifications"] and not repeated_failure:
         where = f" på {ssid}" if ssid else ""
-        if m.get("error"):
+        if m.get("portal"):
+            title, body = (f"Logga in på {ssid}" if ssid else "Logga in på nätverket",
+                           "Nätverket kräver inloggning i webbläsaren. Fartvakt mäter så fort du är inloggad.")
+        elif m.get("error"):
             title, body = f"Ingen internetanslutning{where}", f"Mätningen misslyckades: {m['error']}"
         else:
             title, body = f"Avvikande hastighet{where}", "\n".join(analysis.describe(d) for d in deviations)
