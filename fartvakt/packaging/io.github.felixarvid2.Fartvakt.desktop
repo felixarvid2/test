@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Fartvakt
+GenericName=Hastighetsbevakning
+Comment=Mät internethastigheten automatiskt på utvalda wifi-nätverk
+Exec=fartvakt
+Icon=io.github.felixarvid2.Fartvakt
+Terminal=false
+Categories=Network;Monitor;GTK;
+Keywords=speedtest;hastighet;wifi;internet;bandbredd;nätverk;
+StartupNotify=true
+SingleMainWindow=true

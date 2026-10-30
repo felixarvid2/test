@@ -2,8 +2,10 @@
 
 import argparse
 import sys
+import time
 
-from . import __version__, analysis, config, monitor, network
+from . import __version__, analysis, config, monitor, network, status
+from .formatting import PHASES, fmt_until
 from .storage import Storage
 
 
@@ -21,7 +23,9 @@ def cmd_measure(_args):
     print(f"Mäter på {ssid or 'okänt nätverk'} …", flush=True)
     storage = Storage(config.db_path())
     try:
-        m, deviations = monitor.measure_and_store(cfg, ssid, storage, "manuell")
+        m, deviations = monitor.measure_and_store(
+            cfg, ssid, storage, "manuell", send_notification=lambda *_: None,
+            progress=lambda phase: print(f"  {PHASES.get(phase, phase)} …", flush=True))
     except monitor.Busy:
         print("En annan mätning pågår redan – försök igen om en stund.", file=sys.stderr)
         return 1
@@ -37,10 +41,18 @@ def cmd_status(_args):
     storage = Storage(config.db_path())
     print(f"Anslutet nätverk:  {ssid or 'inget wifi'}")
     print(f"Bevakade nätverk:  {', '.join(cfg['networks']) or '(inga)'}")
-    if not cfg["monitoring_enabled"]:
-        state = "pausad"
-    elif network.matches(ssid, cfg["networks"]):
-        state = f"aktiv – mäter var {cfg['interval_minutes']}:e minut"
+    daemon = status.read()
+    alive = status.is_alive(daemon, cfg)
+    if not alive:
+        state = "bakgrundstjänsten kör inte (systemctl --user start fartvakt)"
+    elif not cfg["monitoring_enabled"]:
+        state = "avstängd i inställningarna"
+    elif daemon.get("measuring"):
+        state = PHASES.get(daemon["measuring"], "mäter").lower()
+    elif daemon.get("watched"):
+        due = daemon.get("next_due")
+        when = fmt_until(due - time.time()) if due and due > time.time() else "strax"
+        state = f"aktiv – nästa mätning {when}, sedan var {cfg['interval_minutes']}:e minut"
     else:
         state = "väntar på ett bevakat nätverk"
     print(f"Bevakning:         {state}")
@@ -53,7 +65,7 @@ def cmd_status(_args):
             up, _ = analysis.baseline(history, "upload_mbps")
             ping, _ = analysis.baseline(history, "ping_ms")
             print(f"Normalt på {net}: ned {analysis.fmt_number(down)} Mbit/s, upp {analysis.fmt_number(up)} Mbit/s, "
-                  f"ping {analysis.fmt_number(ping)} ms (median av {n} mätningar)")
+                  f"ping {analysis.fmt_number(ping)} ms (median av {n} {'mätning' if n == 1 else 'mätningar'})")
     return 0
 
 
@@ -83,8 +95,12 @@ def cmd_daemon(_args):
 
 
 def cmd_gui(_args):
-    from . import gui
-
+    try:
+        from . import gui
+    except (ImportError, ValueError) as e:
+        print(f"Appen kunde inte starta: {e}\nInstallera gir1.2-adw-1 och gir1.2-gtk-4.0, "
+              "eller använd kommandoraden (se `fartvakt --help`).", file=sys.stderr)
+        return 1
     return gui.main()
 
 

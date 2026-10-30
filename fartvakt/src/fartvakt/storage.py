@@ -2,12 +2,14 @@
 
 import csv
 import sqlite3
+from datetime import datetime
 from pathlib import Path
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS measurements (
     id INTEGER PRIMARY KEY,
     ts TEXT NOT NULL,
+    epoch REAL,
     ssid TEXT,
     source TEXT NOT NULL DEFAULT 'auto',
     ping_ms REAL,
@@ -31,7 +33,11 @@ CREATE INDEX IF NOT EXISTS measurements_ssid ON measurements(ssid, id);
 CREATE INDEX IF NOT EXISTS deviations_measurement ON deviations(measurement_id);
 """
 
-MEASUREMENT_FIELDS = ("ts", "ssid", "source", "ping_ms", "jitter_ms", "download_mbps", "upload_mbps", "error")
+MEASUREMENT_FIELDS = ("ts", "epoch", "ssid", "source", "ping_ms", "jitter_ms", "download_mbps", "upload_mbps", "error")
+
+
+def epoch_of(ts: str) -> float:
+    return datetime.fromisoformat(ts).timestamp()
 
 
 class Storage:
@@ -43,16 +49,27 @@ class Storage:
         self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.execute("PRAGMA foreign_keys=ON")
         self.conn.executescript(SCHEMA)
+        self._migrate()
+
+    def _migrate(self):
+        columns = {r[1] for r in self.conn.execute("PRAGMA table_info(measurements)")}
+        with self.conn:
+            if "epoch" not in columns:  # databaser från version 1.0
+                self.conn.execute("ALTER TABLE measurements ADD COLUMN epoch REAL")
+            for row_id, ts in self.conn.execute("SELECT id, ts FROM measurements WHERE epoch IS NULL").fetchall():
+                self.conn.execute("UPDATE measurements SET epoch = ? WHERE id = ?", (epoch_of(ts), row_id))
+            self.conn.execute("CREATE INDEX IF NOT EXISTS measurements_epoch ON measurements(epoch)")
 
     def close(self):
         self.conn.close()
 
     def add_measurement(self, m: dict) -> int:
+        values = dict(m, epoch=m.get("epoch") or epoch_of(m["ts"]))
         with self.conn:
             cur = self.conn.execute(
                 f"INSERT INTO measurements ({', '.join(MEASUREMENT_FIELDS)}) "
                 f"VALUES ({', '.join('?' * len(MEASUREMENT_FIELDS))})",
-                [m.get(f) for f in MEASUREMENT_FIELDS],
+                [values.get(f) for f in MEASUREMENT_FIELDS],
             )
         return cur.lastrowid
 
@@ -68,23 +85,35 @@ class Storage:
                 ],
             )
 
-    def measurements(self, limit=1000, ssid=None):
-        """Nyaste först."""
-        sql = "SELECT * FROM measurements"
-        args = []
+    @staticmethod
+    def _filter(ssid, since, prefix):
+        where, args = [], []
         if ssid is not None:
-            sql += " WHERE ssid = ?"
+            where.append(f"{prefix}ssid = ?")
             args.append(ssid)
-        sql += " ORDER BY id DESC LIMIT ?"
-        args.append(limit)
+        if since is not None:
+            where.append("m.epoch >= ?")
+            args.append(since)
+        return (" WHERE " + " AND ".join(where)) if where else "", args
+
+    def measurements(self, ssid=None, since=None, limit=None):
+        """Nyaste först. `since` är en Unix-tid."""
+        where, args = self._filter(ssid, since, "m.")
+        sql = f"SELECT m.* FROM measurements m{where} ORDER BY m.id DESC"
+        if limit is not None:
+            sql += " LIMIT ?"
+            args.append(limit)
         return [dict(r) for r in self.conn.execute(sql, args)]
 
-    def deviations(self, limit=1000):
-        """Nyaste först."""
-        return [dict(r) for r in self.conn.execute("SELECT * FROM deviations ORDER BY id DESC LIMIT ?", (limit,))]
-
-    def deviating_ids(self):
-        return {r[0] for r in self.conn.execute("SELECT DISTINCT measurement_id FROM deviations")}
+    def deviations(self, ssid=None, since=None, limit=None):
+        """Nyaste först, med mätningens Unix-tid som `epoch`."""
+        where, args = self._filter(ssid, since, "d.")
+        sql = (f"SELECT d.*, m.epoch AS epoch FROM deviations d "
+               f"JOIN measurements m ON m.id = d.measurement_id{where} ORDER BY d.id DESC")
+        if limit is not None:
+            sql += " LIMIT ?"
+            args.append(limit)
+        return [dict(r) for r in self.conn.execute(sql, args)]
 
     def history(self, ssid, count):
         """De senaste lyckade mätningarna på ett nätverk – underlaget för vad som är normalt."""
@@ -97,30 +126,46 @@ class Storage:
         ]
 
     def last(self, ssid=None):
-        rows = self.measurements(limit=1, ssid=ssid)
+        rows = self.measurements(ssid=ssid, limit=1)
         return rows[0] if rows else None
 
     def networks(self):
         return [r[0] for r in self.conn.execute(
-            "SELECT ssid FROM measurements WHERE ssid IS NOT NULL GROUP BY ssid ORDER BY MAX(id) DESC")]
+            "SELECT ssid FROM measurements WHERE ssid IS NOT NULL GROUP BY ssid ORDER BY MAX(epoch) DESC")]
+
+    def signature(self):
+        """Ändras när något har lagts till eller tagits bort – för att veta när vyn ska ritas om."""
+        m = self.conn.execute("SELECT COUNT(*), MAX(id) FROM measurements").fetchone()
+        d = self.conn.execute("SELECT COUNT(*), MAX(id) FROM deviations").fetchone()
+        return tuple(m) + tuple(d)
+
+    def delete_measurement(self, measurement_id):
+        with self.conn:
+            self.conn.execute("DELETE FROM measurements WHERE id = ?", (measurement_id,))
 
     def clear(self):
         with self.conn:
             self.conn.execute("DELETE FROM deviations")
             self.conn.execute("DELETE FROM measurements")
+        self.conn.execute("VACUUM")
 
     def export_csv(self, path) -> int:
+        """Sparar alla mätningar som CSV för svenska Excel/LibreOffice (semikolon, decimalkomma)."""
         deviating = {}
-        for d in self.conn.execute("SELECT measurement_id, metric, direction FROM deviations"):
+        for d in self.conn.execute("SELECT measurement_id, metric, direction FROM deviations ORDER BY id"):
             deviating.setdefault(d[0], []).append(f"{d[1]} {d[2]}")
-        rows = self.conn.execute("SELECT * FROM measurements ORDER BY id")
+
+        def num(v):
+            return "" if v is None else f"{v}".replace(".", ",")
+
         count = 0
-        with open(path, "w", newline="", encoding="utf-8") as f:
-            w = csv.writer(f)
-            w.writerow(["tid", "natverk", "kalla", "ping_ms", "jitter_ms", "ned_mbps", "upp_mbps", "fel", "avvikelser"])
-            for r in rows:
-                w.writerow([r["ts"], r["ssid"] or "", r["source"], r["ping_ms"], r["jitter_ms"],
-                            r["download_mbps"], r["upload_mbps"], r["error"] or "",
-                            "; ".join(deviating.get(r["id"], []))])
+        with open(path, "w", newline="", encoding="utf-8-sig") as f:
+            w = csv.writer(f, delimiter=";")
+            w.writerow(["Tid", "Nätverk", "Källa", "Ping (ms)", "Jitter (ms)", "Nedladdning (Mbit/s)",
+                        "Uppladdning (Mbit/s)", "Fel", "Avvikelser"])
+            for r in self.conn.execute("SELECT * FROM measurements ORDER BY id"):
+                w.writerow([r["ts"][:19].replace("T", " "), r["ssid"] or "", r["source"], num(r["ping_ms"]),
+                            num(r["jitter_ms"]), num(r["download_mbps"]), num(r["upload_mbps"]), r["error"] or "",
+                            ", ".join(deviating.get(r["id"], []))])
                 count += 1
         return count
