@@ -60,7 +60,8 @@ def data_usage(cfg):
 
 def overview_state(cfg, ssid, daemon, alive, phase, now):
     """Rubriken överst i översikten: State(ikon, rubrik, underrubrik, stil, knapp).
-    `action` är "login" när nätverket kräver inloggning i webbläsaren, annars None.
+    `action` är "login" när nätverket kräver inloggning i webbläsaren, "watch" när datorn är
+    ansluten till ett wifi som inte bevakas (knappen lägger till det), annars None.
 
     `daemon` är bakgrundstjänstens status (se status.py), `alive` om den kör och
     `phase` en pågående mätning ("ping", "ned", "upp") eller None."""
@@ -69,12 +70,16 @@ def overview_state(cfg, ssid, daemon, alive, phase, now):
                      f"Mätningen tar upp till en halv minut{' på ' + ssid if ssid else ''}.", "accent", None)
     networks = cfg["networks"]
     watched = ", ".join(networks)
-    if not networks:
-        return State("dialog-information-symbolic", "Inga nätverk valda",
-                     "Lägg till ett wifi-nätverk i inställningarna så mäter Fartvakt automatiskt där.", "warning", None)
     if not cfg["monitoring_enabled"]:
         return State("media-playback-pause-symbolic", "Automatisk mätning är avstängd",
-                     f"Slå på den i inställningarna för att mäta på {watched}.", "dim", None)
+                     "Slå på den i inställningarna för att mäta automatiskt"
+                     + (f" på {watched}." if watched else "."), "dim", None)
+    if not networks:
+        if ssid:
+            return State("dialog-information-symbolic", "Inga nätverk valda",
+                         f"Vill du att Fartvakt mäter automatiskt på {ssid}?", "warning", "watch")
+        return State("dialog-information-symbolic", "Inga nätverk valda",
+                     "Lägg till ett wifi-nätverk i inställningarna så mäter Fartvakt automatiskt där.", "warning", None)
     if network.matches(ssid, networks):
         if not alive:
             return State("dialog-warning-symbolic", f"Ansluten till {ssid}",
@@ -93,4 +98,4 @@ def overview_state(cfg, ssid, daemon, alive, phase, now):
                      f"Nästa mätning {when} · var {cfg['interval_minutes']}:e minut", "success", None)
     where = f"Ansluten till {ssid}" if ssid else "Inte ansluten till något wifi"
     return State("network-wireless-offline-symbolic", "Väntar på ett bevakat nätverk",
-                 f"{where} · mäter automatiskt på {watched}", "dim", None)
+                 f"{where} · mäter automatiskt på {watched}", "dim", "watch" if ssid else None)

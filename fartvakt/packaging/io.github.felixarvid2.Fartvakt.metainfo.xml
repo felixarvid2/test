@@ -21,6 +21,7 @@
     <ul>
       <li>Mäter i bakgrunden, även när appen är stängd</li>
       <li>Graf över hastigheten, med avvikelserna markerade</li>
+      <li>Rapport med grafer och tabeller som kan skrivas ut som PDF</li>
       <li>Export till CSV för Excel och LibreOffice</li>
     </ul>
   </description>
@@ -46,6 +47,12 @@
     <category>Monitor</category>
   </categories>
   <releases>
+    <release version="1.3.0" date="2026-10-30">
+      <description>
+        <p>Exportera en rapport med nyckeltal, grafer och tabeller som går att skriva ut som PDF.
+        Bevaka nätverket du är ansluten till med en knapp, och appen kommer ihåg ditt val.</p>
+      </description>
+    </release>
     <release version="1.2.4" date="2026-10-30">
       <description>
         <p>Rättning i väntan på inloggning på gästnätverk.</p>

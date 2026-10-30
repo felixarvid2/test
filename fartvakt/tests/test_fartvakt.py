@@ -340,6 +340,8 @@ class ConfigAndStatusTest(TempHome):
         self.assertEqual((cfg["monitoring_enabled"], cfg["notifications"]), (True, False))
         self.assertEqual((cfg["min_baseline"], cfg["networks"]), (3, ["A"]))
         formatting.data_usage(cfg)  # får inte dela med noll
+        config.update(view_network="", view_period=9)
+        self.assertEqual((config.load()["view_network"], config.load()["view_period"]), ("", 3))
         config.config_path().write_text("inte json")
         self.assertEqual(config.load(), config.DEFAULTS)
 
@@ -628,6 +630,73 @@ class WatcherTest(TempHome):
         self.assertGreater(daemon.boot_clock(), 0)
 
 
+class ReportTest(TempHome):
+    def test_report_has_tables_and_charts(self):
+        from fartvakt import report
+
+        db = Storage(config.db_path())
+        cfg = config.load()
+        base = datetime(2026, 10, 29, 9, 0).timestamp()
+        for i in range(12):
+            ts = datetime.fromtimestamp(base + i * 300).astimezone().isoformat(timespec="seconds")
+            mid = db.add_measurement({"ts": ts, "ssid": "JENSEN-Guest", "source": "auto", **m(50 + i, 10, 20)})
+            if i == 11:
+                db.add_deviations(mid, {"ts": ts, "ssid": "JENSEN-Guest"},
+                                  [{"metric": "download_mbps", "value": 61, "baseline": 50, "change_percent": 22,
+                                    "direction": "bättre"}])
+        ts = datetime.fromtimestamp(base + 4000).astimezone().isoformat(timespec="seconds")
+        db.add_measurement({"ts": ts, "ssid": "<script>alert(1)</script>", "source": "manuell", "error": "nere"})
+        html_all = report.build(db, cfg, now=base + 5000)
+        self.assertIn("Hastighetsrapport – alla nätverk", html_all)
+        self.assertIn("Per nätverk", html_all)                       # flera nätverk: tabell per nätverk
+        self.assertNotIn("<script>", html_all)                       # namn escapas
+        self.assertIn("&lt;script&gt;", html_all)
+        self.assertEqual(html_all.count('<svg class="chart"'), 3)    # hastighet, ping, per timme
+        self.assertIn('class="deviation"', html_all)
+        self.assertIn("+22 %", html_all)
+        html_one = report.build(db, cfg, ssid="JENSEN-Guest", now=base + 5000)
+        self.assertIn("Hastighetsrapport – JENSEN-Guest", html_one)
+        self.assertNotIn("Per nätverk", html_one)
+        self.assertIn(">12<", html_one)                              # antal mätningar
+
+    def test_slow_network_axis_and_network_case(self):
+        from fartvakt import report
+
+        points = [{"epoch": 1e9 + i * 300, "download_mbps": v} for i, v in enumerate((2.0, 1.8, 2.1))]
+        svg = report._hour_chart(points)
+        ticks = [t.split(">")[1].split("<")[0] for t in svg.split('class="tick"')[1:6]]
+        self.assertEqual(len(set(ticks)), 5, ticks)                    # inga upprepade axeltal
+        db = Storage(config.db_path())
+        db.add_measurement({"ts": "2026-10-30T10:00:00+01:00", "ssid": "Home", "source": "auto", **m(5)})
+        self.assertIn("<svg", report.build(db, config.load(), ssid="home"))
+
+    def test_empty_report(self):
+        from fartvakt import report
+
+        html_text = report.build(Storage(config.db_path()), config.load(), since=time.time() - 86400)
+        self.assertIn("Inga mätningar under perioden", html_text)
+        self.assertNotIn('<svg class="chart"', html_text)
+
+    def test_many_measurements_are_capped(self):
+        from fartvakt import report
+
+        db = Storage(config.db_path())
+        base = datetime(2026, 10, 1).timestamp()
+        for i in range(report.MAX_ROWS + 5):
+            ts = datetime.fromtimestamp(base + i * 300).astimezone().isoformat(timespec="seconds")
+            db.add_measurement({"ts": ts, "ssid": "X", "source": "auto", **m(50)})
+        html_text = report.build(db, config.load())
+        self.assertIn(f"Visar de {report.MAX_ROWS} senaste av {report.MAX_ROWS + 5}", html_text)
+
+    def test_cli_report(self):
+        from fartvakt import cli
+
+        out = Path(self.tmp.name) / "r.html"
+        with mock.patch("sys.stdout"):
+            self.assertEqual(cli.main(["rapport", str(out), "--period", "allt"]), 0)
+        self.assertTrue(out.read_text(encoding="utf-8").startswith("<!doctype html>"))
+
+
 class FormattingTest(unittest.TestCase):
     def test_fmt_when(self):
         now = datetime(2026, 10, 30, 12, 0).timestamp()
@@ -655,8 +724,13 @@ class FormattingTest(unittest.TestCase):
         self.assertEqual(formatting.overview_state(cfg, None, {}, True, "upp", now)[1], "Mäter uppladdning …")
         self.assertEqual(formatting.overview_state(dict(cfg, monitoring_enabled=False), None, {}, True, None, now)[1],
                          "Automatisk mätning är avstängd")
+        off = formatting.overview_state(dict(cfg, monitoring_enabled=False, networks=[]), "Hemma", {}, True, None, now)
+        self.assertEqual((off.title, off.action), ("Automatisk mätning är avstängd", None))
         self.assertEqual(formatting.overview_state(dict(cfg, networks=[]), None, {}, True, None, now)[1],
                          "Inga nätverk valda")
+        self.assertEqual(formatting.overview_state(cfg, "Hemma", {}, True, None, now).action, "watch")
+        self.assertIsNone(formatting.overview_state(cfg, None, {}, True, None, now).action)
+        self.assertEqual(formatting.overview_state(dict(cfg, networks=[]), "Hemma", {}, True, None, now).action, "watch")
         portal = formatting.overview_state(cfg, "JENSEN-Guest", dict(alive, portal=True), True, None, now)
         self.assertEqual((portal.title, portal.action), ("Logga in på JENSEN-Guest", "login"))
         cable = formatting.overview_state(cfg, "JENSEN-Guest", dict(alive, other_route="enp3s0"), True, None, now)

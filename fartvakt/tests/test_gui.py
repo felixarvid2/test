@@ -221,15 +221,45 @@ class WindowTest(unittest.TestCase):
 
     def test_login_button_on_captive_portal(self):
         win = self.window()
-        self.assertFalse(win.login_button.get_visible())
+        self.assertFalse(win.hero_button.get_visible())
         status.write({"ssid": "JENSEN-Guest", "watched": "JENSEN-Guest", "enabled": True, "next_due": None,
                       "measuring": None, "portal": True})
         win.reload()
-        self.assertTrue(win.login_button.get_visible())
+        self.assertTrue(win.hero_button.get_visible())
         self.assertEqual(win.hero_title.get_text(), "Logga in på JENSEN-Guest")
         with mock.patch.object(Gtk.UriLauncher, "launch") as launch:
-            win.login_button.emit("clicked")
+            win.hero_button.emit("clicked")
         launch.assert_called_once()
+
+    def test_watch_current_network(self):
+        cfg = config.load()
+        cfg["networks"] = ["Skolan"]
+        config.save(cfg)
+        win = self.window()                                   # ansluten till JENSEN-Guest, som inte bevakas
+        self.assertTrue(win.hero_button.get_visible())
+        self.assertEqual(win.hero_button.get_label(), "Bevaka JENSEN-Guest")
+        win.hero_button.emit("clicked")
+        self.assertEqual(config.load()["networks"], ["Skolan", "JENSEN-Guest"])  # valet är sparat
+        self.assertEqual(win.hero_title.get_text(), "Bevakar JENSEN-Guest")
+        self.assertFalse(win.hero_button.get_visible())
+        config.update(networks=config.load()["networks"] + ["Biblioteket"])  # tillagt under tiden
+        win._unwatch("JENSEN-Guest")                          # "Ångra" i notisen
+        self.assertEqual(config.load()["networks"], ["Skolan", "Biblioteket"])
+
+    def test_view_is_remembered(self):
+        self.seed()
+        self.seed(ssid="Hemma", count=2)
+        win = self.window()
+        win.network_drop.set_selected(2)
+        win._set_period(2)
+        win.destroy()
+        self.assertEqual((config.load()["view_network"], config.load()["view_period"]), ("Hemma", 2))
+        again = self.window()
+        self.assertEqual(again.selected_network(), "Hemma")
+        self.assertEqual(again.period_index, 2)
+        self.assertTrue(again.period_buttons[2].get_active())
+        again.network_drop.set_selected(0)
+        self.assertEqual(config.load()["view_network"], "")
 
     def test_preferences_change_config(self):
         from fartvakt.preferences import PreferencesDialog
@@ -271,10 +301,17 @@ class WindowTest(unittest.TestCase):
         target = Path(self.tmp.name) / "ut.csv"
         dialog = mock.Mock()
         dialog.save_finish.return_value = Gio.File.new_for_path(str(target))
-        win._export_chosen(dialog, None)
+        win._export_chosen(dialog, None, win._write_csv)
         self.assertTrue(target.read_text(encoding="utf-8-sig").startswith("Tid;Nätverk"))
+        report_file = Path(self.tmp.name) / "rapport.html"
+        dialog.save_finish.return_value = Gio.File.new_for_path(str(report_file))
+        win.network_drop.set_selected(1)                  # rapporten följer valt nätverk
+        win._export_chosen(dialog, None, win._write_report)
+        text = report_file.read_text(encoding="utf-8")
+        self.assertIn("Hastighetsrapport – JENSEN-Guest", text)
+        self.assertIn("<svg", text)
         dialog.save_finish.side_effect = GLib.Error("avbrutet")
-        win._export_chosen(dialog, None)  # avbrutet: inget händer
+        win._export_chosen(dialog, None, win._write_report)  # avbrutet: inget händer
 
     def test_about_and_shortcuts_open(self):
         win = self.window()

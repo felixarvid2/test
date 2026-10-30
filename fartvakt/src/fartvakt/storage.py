@@ -148,7 +148,7 @@ class Storage:
     def _filter(ssid, since, prefix):
         where, args = [], []
         if ssid is not None:
-            where.append(f"{prefix}ssid = ?")
+            where.append(f"{prefix}ssid = ? COLLATE NOCASE")
             args.append(ssid)
         if since is not None:
             where.append("m.epoch >= ?")

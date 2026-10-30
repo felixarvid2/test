@@ -1,4 +1,4 @@
-.TH FARTVAKT 1 "2026-10-30" "fartvakt 1.2.4" "Användarkommandon"
+.TH FARTVAKT 1 "2026-10-30" "fartvakt 1.3.0" "Användarkommandon"
 .SH NAMN
 fartvakt \- mät internethastigheten automatiskt på utvalda wifi-nätverk
 .SH SYNOPSIS
@@ -30,6 +30,10 @@ Lista de senaste mätningarna.
 .TP
 .BR avvikelser " [" \-n " \fIantal\fR]"
 Lista de senaste avvikelserna.
+.TP
+.BI rapport " fil" " \fR[\fB\-\-natverk\fR \fInamn\fR] [\fB\-\-period\fR 24h|7d|30d|allt]"
+Spara en rapport med nyckeltal, grafer och tabeller som en HTML-sida, som också kan
+skrivas ut som PDF från webbläsaren. Standard är alla nätverk och de senaste 7 dagarna.
 .TP
 .BI export " fil"
 Spara alla mätningar som CSV (semikolon och decimalkomma).
