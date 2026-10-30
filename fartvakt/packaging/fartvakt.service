@@ -1,0 +1,12 @@
+[Unit]
+Description=Fartvakt – mäter internethastigheten på bevakade wifi-nätverk
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/fartvakt daemon
+Restart=on-failure
+RestartSec=30
+Nice=10
+
+[Install]
+WantedBy=default.target

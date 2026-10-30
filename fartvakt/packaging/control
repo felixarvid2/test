@@ -1,0 +1,16 @@
+Package: fartvakt
+Version: @VERSION@
+Section: net
+Priority: optional
+Architecture: all
+Depends: python3 (>= 3.8), python3-tk, network-manager | wireless-tools
+Recommends: libnotify-bin
+Installed-Size: @SIZE@
+Maintainer: Felix Arvid <felixarvid@gmail.com>
+Homepage: https://github.com/felixarvid2/test/tree/main/fartvakt
+Description: bevakar internethastigheten på utvalda wifi-nätverk
+ Fartvakt mäter ping, nedladdning och uppladdning automatiskt med jämna
+ mellanrum så länge datorn är ansluten till ett bevakat wifi-nätverk
+ (till exempel JENSEN-Guest). Alla mätningar sparas lokalt. När en mätning
+ avviker tydligt från det som är normalt för nätverket noteras avvikelsen
+ tillsammans med den uppmätta hastigheten, och en notis visas.

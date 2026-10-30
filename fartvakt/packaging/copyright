@@ -1,0 +1,7 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: fartvakt
+Source: https://github.com/felixarvid2/test/tree/main/fartvakt
+
+Files: *
+Copyright: 2026 Felix Arvid
+License: MIT

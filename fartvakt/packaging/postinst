@@ -1,0 +1,25 @@
+#!/bin/sh
+set -e
+
+# Kör över alla inloggade användares systemd-instanser.
+for_each_user() {
+    for dir in /run/user/*; do
+        [ -d "$dir" ] || continue
+        uid=$(basename "$dir")
+        [ "$uid" -ge 1000 ] 2>/dev/null || continue
+        user=$(getent passwd "$uid" | cut -d: -f1)
+        [ -n "$user" ] || continue
+        runuser -u "$user" -- env XDG_RUNTIME_DIR="$dir" DBUS_SESSION_BUS_ADDRESS="unix:path=$dir/bus" \
+            systemctl --user "$@" >/dev/null 2>&1 || true
+    done
+}
+
+if [ "$1" = "configure" ]; then
+    # Starta bevakningen automatiskt vid inloggning för alla användare …
+    systemctl --global enable fartvakt.service >/dev/null 2>&1 || true
+    # … och direkt för den som redan är inloggad.
+    for_each_user daemon-reload
+    for_each_user restart fartvakt.service
+    command -v gtk-update-icon-cache >/dev/null 2>&1 && gtk-update-icon-cache -q /usr/share/icons/hicolor || true
+fi
+exit 0
