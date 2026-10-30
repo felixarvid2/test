@@ -539,7 +539,11 @@ class WatcherTest(TempHome):
         self.clock[0] += daemon.PORTAL_RETRY_SECONDS
         w.probe = lambda _cfg: (_ for _ in ()).throw(speedtest.SpeedTestError("tidsgräns"))
         self.clock[0] += daemon.PORTAL_RETRY_SECONDS
-        w.tick(cfg)                                   # annat fel (nätet nere?): slutar vänta på inloggning
+        w.tick(cfg)                                   # ett enstaka fel: väntar kvar, kan vara tillfälligt
+        self.assertTrue(self.published[-1]["portal"])
+        self.assertEqual(w.sleep_seconds(cfg), daemon.PORTAL_RETRY_SECONDS)
+        self.clock[0] += daemon.PORTAL_RETRY_SECONDS
+        w.tick(cfg)                                   # fel igen (nätet nere?): slutar vänta på inloggning
         self.assertEqual(len(measured), 1)
         self.assertFalse(self.published[-1]["portal"])
         self.clock[0] += cfg["interval_minutes"] * 60 - 30

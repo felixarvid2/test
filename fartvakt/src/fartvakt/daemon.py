@@ -50,6 +50,7 @@ class Watcher:
         self.last_run = None
         self.hold_until = 0.0  # tidigast nästa mätning efter viloläge eller fel
         self.portal = False
+        self.probe_failures = 0
         self.other_route = None
         self.last_tick = None
 
@@ -133,10 +134,15 @@ class Watcher:
             try:
                 self.probe(cfg)
             except speedtest.CaptivePortal:
+                self.probe_failures = 0
                 return self._wait_for_login(cfg)  # fortfarande inte inloggad
             except speedtest.SpeedTestError:
-                # något annat fel (t.ex. nätet är nere): sluta vänta på inloggning och mät
-                # som vanligt vid nästa intervall, så att ett riktigt avbrott syns i historiken
+                self.probe_failures += 1
+                if self.probe_failures < 2:
+                    return self._wait_for_login(cfg)  # kan vara tillfälligt (DNS precis efter inloggning)
+                # flera fel i rad (t.ex. nätet är nere): sluta vänta på inloggning och mät som
+                # vanligt vid nästa intervall, så att ett riktigt avbrott syns i historiken
+                self.probe_failures = 0
                 self.portal = False
                 self.last_run = self.now()
                 self.next_due = self.last_run + cfg["interval_minutes"] * 60
@@ -188,6 +194,8 @@ class Watcher:
             log(f"Kunde inte skriva status: {e}")
 
     def _wait_for_login(self, cfg):
+        if not self.portal:
+            self.probe_failures = 0
         self.portal = True
         self.last_run = None
         self._wait(cfg, PORTAL_RETRY_SECONDS)
