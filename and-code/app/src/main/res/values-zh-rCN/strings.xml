@@ -493,6 +493,12 @@
     <string name="github_screen_title">GitHub / Git 操作</string>
     <string name="github_intro">连接 GitHub 以进行仓库、Git、拉取请求和 Actions 工作流操作。</string>
     <string name="github_client_id_missing">此版本未包含 GitHub 客户端 ID，因此无法开始登录。请设置 GITHUB_CLIENT_ID 后重新构建。</string>
+    <string name="github_token_label">个人访问令牌</string>
+    <string name="github_token_save">保存令牌</string>
+    <string name="github_token_create">在 GitHub 上创建令牌</string>
+    <string name="github_token_help">请在 github.com/settings/tokens 创建一个包含 repo、workflow、read:org 和 gist 权限范围的令牌，然后粘贴到此处。令牌会加密存储在此设备上。</string>
+    <string name="github_token_only_hint">此版本未配置 GitHub OAuth 应用，因此使用个人访问令牌登录。</string>
+    <string name="github_token_invalid">无法验证 GitHub 令牌</string>
     <string name="github_disconnect">断开 GitHub</string>
     <string name="github_verification_code">输入代码：%1$s</string>
     <string name="github_waiting_for_authorization">等待授权…</string>

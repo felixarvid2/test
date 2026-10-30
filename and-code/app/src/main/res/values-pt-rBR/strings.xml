@@ -497,6 +497,12 @@
     <string name="github_screen_title">GitHub / Operações Git</string>
     <string name="github_intro">Conecte o GitHub para operações de repositório, Git, pull requests e workflows do Actions.</string>
     <string name="github_client_id_missing">Esta compilação não tem um ID de cliente do GitHub, então não é possível iniciar o login. Recompile definindo GITHUB_CLIENT_ID.</string>
+    <string name="github_token_label">Token de acesso pessoal</string>
+    <string name="github_token_save">Salvar token</string>
+    <string name="github_token_create">Criar um token no GitHub</string>
+    <string name="github_token_help">Crie um token em github.com/settings/tokens com os escopos repo, workflow, read:org e gist e cole-o aqui. Ele é armazenado criptografado neste dispositivo.</string>
+    <string name="github_token_only_hint">Esta compilação não tem um app OAuth do GitHub configurado, então o login usa um token de acesso pessoal.</string>
+    <string name="github_token_invalid">Não foi possível verificar o token do GitHub</string>
     <string name="github_disconnect">Desconectar GitHub</string>
     <string name="github_verification_code">Insira o código: %1$s</string>
     <string name="github_waiting_for_authorization">Aguardando autorização…</string>

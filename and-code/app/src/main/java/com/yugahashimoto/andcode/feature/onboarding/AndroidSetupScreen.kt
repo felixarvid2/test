@@ -64,6 +64,7 @@ import com.yugahashimoto.andcode.core.UrlLauncher
 import com.yugahashimoto.andcode.core.api.OpenCodeProvider
 import com.yugahashimoto.andcode.core.api.ProviderAuthMethod
 import com.yugahashimoto.andcode.feature.settings.CodexSignInActions
+import com.yugahashimoto.andcode.feature.settings.GitHubSignInOptions
 import com.yugahashimoto.andcode.feature.settings.ProviderAuthDialog
 import com.yugahashimoto.andcode.feature.settings.ProviderAuthDialogState
 import com.yugahashimoto.andcode.feature.settings.SettingsUiState
@@ -136,6 +137,7 @@ fun AndroidSetupScreen(
     onRefreshClaudeState: () -> Unit,
     onRefreshAntigravityState: () -> Unit,
     onConnectGitHub: () -> Unit = {},
+    onSaveGitHubToken: (String) -> Unit = {},
     onOpenGitHubVerification: (String) -> Unit = {},
     onDisconnectGitHub: () -> Unit = {},
     onBack: () -> Unit,
@@ -404,6 +406,7 @@ fun AndroidSetupScreen(
                     GitHubConnectionStep(
                         settingsState = settingsState,
                         onConnect = onConnectGitHub,
+                        onSaveToken = onSaveGitHubToken,
                         onDisconnect = onDisconnectGitHub,
                         onOpenVerification = onOpenGitHubVerification,
                     )
@@ -445,6 +448,7 @@ fun AndroidSetupScreen(
 private fun GitHubConnectionStep(
     settingsState: SettingsUiState,
     onConnect: () -> Unit,
+    onSaveToken: (String) -> Unit,
     onDisconnect: () -> Unit,
     onOpenVerification: (String) -> Unit,
 ) {
@@ -460,20 +464,12 @@ private fun GitHubConnectionStep(
         settingsState.githubMessage?.let { message ->
             Text(message, color = MaterialTheme.colorScheme.error)
         }
-        Button(
-            onClick = if (settingsState.githubLogin == null) onConnect else onDisconnect,
-            enabled = settingsState.githubConfigured && !settingsState.githubPolling,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(
-                if (settingsState.githubPolling) {
-                    stringResource(R.string.github_waiting_for_authorization)
-                } else if (settingsState.githubLogin == null) {
-                    stringResource(R.string.github_connect)
-                } else {
-                    stringResource(R.string.github_disconnect)
-                },
-            )
+        if (settingsState.githubLogin == null) {
+            GitHubSignInOptions(settingsState, onConnect, onSaveToken, onOpenVerification)
+        } else {
+            OutlinedButton(onClick = onDisconnect, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.github_disconnect))
+            }
         }
         settingsState.githubVerificationUrl?.let { url ->
             OutlinedButton(onClick = { onOpenVerification(url) }, modifier = Modifier.fillMaxWidth()) {

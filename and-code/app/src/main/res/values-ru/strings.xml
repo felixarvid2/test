@@ -499,6 +499,12 @@
     <string name="github_screen_title">GitHub / Операции Git</string>
     <string name="github_intro">Подключите GitHub для работы с репозиториями, Git, пул-реквестами и рабочими процессами Actions.</string>
     <string name="github_client_id_missing">В этой сборке нет идентификатора клиента GitHub, поэтому вход невозможен. Пересоберите с заданным GITHUB_CLIENT_ID.</string>
+    <string name="github_token_label">Персональный токен доступа</string>
+    <string name="github_token_save">Сохранить токен</string>
+    <string name="github_token_create">Создать токен на GitHub</string>
+    <string name="github_token_help">Создайте токен на github.com/settings/tokens с правами repo, workflow, read:org и gist и вставьте его сюда. Он хранится на этом устройстве в зашифрованном виде.</string>
+    <string name="github_token_only_hint">В этой сборке не настроено OAuth-приложение GitHub, поэтому вход выполняется с помощью персонального токена доступа.</string>
+    <string name="github_token_invalid">Не удалось проверить токен GitHub</string>
     <string name="github_disconnect">Отключить GitHub</string>
     <string name="github_verification_code">Введите код: %1$s</string>
     <string name="github_waiting_for_authorization">Ожидание авторизации…</string>

@@ -483,6 +483,12 @@
     <string name="github_screen_title">GitHub / Git Operations</string>
     <string name="github_intro">Connect GitHub for repository, Git, pull request, and Actions workflow operations.</string>
     <string name="github_client_id_missing">This build has no GitHub client ID, so it cannot start the sign-in. Rebuild with GITHUB_CLIENT_ID set.</string>
+    <string name="github_token_label">Personal access token</string>
+    <string name="github_token_save">Save token</string>
+    <string name="github_token_create">Create a token on GitHub</string>
+    <string name="github_token_help">Create a token at github.com/settings/tokens with the scopes repo, workflow, read:org and gist, then paste it here. It is stored encrypted on this device.</string>
+    <string name="github_token_only_hint">No GitHub OAuth app is set up in this build, so signing in uses a personal access token.</string>
+    <string name="github_token_invalid">GitHub token could not be verified</string>
     <string name="github_disconnect">Disconnect GitHub</string>
     <string name="github_verification_code">Enter code: %1$s</string>
     <string name="github_waiting_for_authorization">Waiting for authorization…</string>

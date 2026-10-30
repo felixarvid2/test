@@ -68,6 +68,8 @@ val viewModelModule =
                 modelFetcher = CustomProviderModelFetcher(get()),
                 customProviderFetchNeedsBaseUrlMessage =
                     androidContext().getString(com.yugahashimoto.andcode.R.string.provider_custom_fetch_needs_base_url),
+                githubTokenInvalidMessage =
+                    androidContext().getString(com.yugahashimoto.andcode.R.string.github_token_invalid),
                 customProviderFetchEmptyMessage =
                     androidContext().getString(com.yugahashimoto.andcode.R.string.provider_custom_fetch_empty),
                 customProviderFetchFailedMessage =

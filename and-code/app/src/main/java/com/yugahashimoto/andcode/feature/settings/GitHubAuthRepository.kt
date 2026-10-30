@@ -66,6 +66,9 @@ data class GitHubRepo(
     @SerialName("updated_at") val updatedAt: String? = null,
 )
 
+/** The token as it will be stored, or null when nothing but whitespace was entered. */
+internal fun normalizeGitHubToken(raw: String): String? = raw.trim().takeIf { it.isNotEmpty() }
+
 class GitHubAuthRepository(
     private val settings: SecureSettingsRepository,
     private val client: OkHttpClient = OkHttpClient(),
@@ -171,7 +174,7 @@ class GitHubAuthRepository(
         }
 
     fun saveToken(value: String) {
-        val normalized = value.trim().takeIf { it.isNotEmpty() }
+        val normalized = normalizeGitHubToken(value)
         if (normalized != settings.githubToken) invalidateStarVerification()
         settings.githubToken = normalized
     }
