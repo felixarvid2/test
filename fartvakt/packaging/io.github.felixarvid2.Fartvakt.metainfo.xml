@@ -46,6 +46,11 @@
     <category>Monitor</category>
   </categories>
   <releases>
+    <release version="1.2.2" date="2026-10-30">
+      <description>
+        <p>Små rättningar efter en sista kodgranskning.</p>
+      </description>
+    </release>
     <release version="1.2.1" date="2026-10-30">
       <description>
         <p>Rättningar efter kodgranskning: säkrare hantering av inloggningssidor, skadade

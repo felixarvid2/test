@@ -194,7 +194,10 @@ class WindowTest(unittest.TestCase):
         state = status.read()
         status.write(dict(state, stopped=True))
         win = self.window()
-        self.assertTrue(win.banner.get_revealed())
+        self.assertFalse(win.banner.get_revealed())   # appen har just bett systemd starta tjänsten
+        win.start_requested -= self.gui.SERVICE_GRACE_SECONDS + 1
+        win.reload()
+        self.assertTrue(win.banner.get_revealed())    # stoppad, och ingen start på gång: syns direkt
 
     def test_stale_status_from_stopped_service(self):
         # tjänsten stoppades mitt i en mätning för länge sedan, på ett annat nätverk

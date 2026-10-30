@@ -12,10 +12,10 @@ den uppmätta hastigheten, och en notis visas.
 Kräver Ubuntu 24.04 eller nyare, Debian 13 eller en annan distribution med GTK 4.12 och
 libadwaita 1.5 (till exempel Linux Mint 22 och Pop!_OS 24.04).
 
-Ladda ner [`dist/fartvakt_1.2.1_all.deb`](dist/fartvakt_1.2.1_all.deb) och installera den:
+Ladda ner [`dist/fartvakt_1.2.2_all.deb`](dist/fartvakt_1.2.2_all.deb) och installera den:
 
 ```bash
-sudo apt install ./fartvakt_1.2.1_all.deb
+sudo apt install ./fartvakt_1.2.2_all.deb
 ```
 
 Öppna sedan **Fartvakt** från appmenyn. Bevakningen sköts av en bakgrundstjänst som startar

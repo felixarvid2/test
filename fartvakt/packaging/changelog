@@ -1,3 +1,13 @@
+fartvakt (1.2.2) stable; urgency=medium
+
+  * Ett riktigt avbrott medan Fartvakt väntar på inloggning visas inte
+    längre som "Logga in"; tjänsten mäter då som vanligt vid nästa intervall.
+  * Ett fel när statusen skrivs (t.ex. full disk) stoppar inte mätningen.
+  * Ingen kort blinkning av "tjänsten kör inte" när appen startar tjänsten.
+  * Tillfälliga statusfiler som blivit kvar städas bort.
+
+ -- Felix Arvid <felixarvid@gmail.com>  Fri, 30 Oct 2026 20:00:00 +0100
+
 fartvakt (1.2.1) stable; urgency=medium
 
   * Upptäcks inloggningssidan först av mätningen (när NetworkManager inte

@@ -28,6 +28,16 @@ def write(state: dict) -> None:
         raise
 
 
+def clean_temp_files(max_age=60):
+    """Tar bort tillfälliga filer som blivit kvar om tjänsten dödats mitt i en skrivning."""
+    for tmp in path().parent.glob(".status.*.tmp"):
+        try:
+            if time.time() - tmp.stat().st_mtime > max_age:
+                tmp.unlink()
+        except OSError:
+            pass
+
+
 def read() -> dict:
     try:
         with open(path(), encoding="utf-8") as f:

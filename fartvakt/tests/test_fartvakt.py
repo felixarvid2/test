@@ -539,15 +539,37 @@ class WatcherTest(TempHome):
         self.clock[0] += daemon.PORTAL_RETRY_SECONDS
         w.probe = lambda _cfg: (_ for _ in ()).throw(speedtest.SpeedTestError("tidsgräns"))
         self.clock[0] += daemon.PORTAL_RETRY_SECONDS
-        w.tick(cfg)                                   # annat fel medan man väntar: sparar inget
+        w.tick(cfg)                                   # annat fel (nätet nere?): slutar vänta på inloggning
         self.assertEqual(len(measured), 1)
-        w.probe = probe
-        self.clock[0] += daemon.PORTAL_RETRY_SECONDS
-        logged_in[0] = True                           # inloggad: hel mätning vid nästa kontroll
-        w.measure = lambda *a, **k: measured.append(1) or ({"error": None, **m(50)}, [])
+        self.assertFalse(self.published[-1]["portal"])
+        self.clock[0] += cfg["interval_minutes"] * 60 - 30
         w.tick(cfg)
+        self.assertEqual(len(measured), 1)            # inga täta mätningar
+        self.clock[0] += 30
+        logged_in[0] = True
+        w.measure = lambda *a, **k: measured.append(1) or ({"error": None, **m(50)}, [])
+        w.tick(cfg)                                   # vanlig mätning vid nästa intervall
         self.assertEqual(len(measured), 2)
         self.assertFalse(self.published[-1]["portal"])
+
+    def test_status_write_error_does_not_stop_measuring(self):
+        w, cfg = self.make("JENSEN-Guest"), config.load()
+        w._publish = mock.Mock(side_effect=OSError(28, "No space left on device"))
+        w.tick(cfg)
+        self.clock[0] += daemon.SETTLE_SECONDS
+        self.assertIsNotNone(w.tick(cfg))             # mätningen görs ändå
+        self.assertEqual(len(self.calls), 1)
+
+    def test_old_temp_files_are_cleaned(self):
+        status.write({})
+        old = status.path().parent / ".status.gammal.tmp"
+        old.write_text("{")
+        os.utime(old, (time.time() - 3600, time.time() - 3600))
+        fresh = status.path().parent / ".status.ny.tmp"
+        fresh.write_text("{")
+        status.clean_temp_files()
+        self.assertFalse(old.exists())
+        self.assertTrue(fresh.exists())
 
     def test_sigterm_clears_measuring_state(self):
         import json
