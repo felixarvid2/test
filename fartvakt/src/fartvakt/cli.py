@@ -102,6 +102,21 @@ def cmd_export(args):
     return 0
 
 
+PERIODS = {"24h": 86400, "7d": 7 * 86400, "30d": 30 * 86400, "allt": None}
+
+
+def cmd_report(args):
+    from . import report
+
+    seconds = PERIODS[args.period]
+    html = report.build(_storage(), config.load(), ssid=args.natverk,
+                        since=time.time() - seconds if seconds else None)
+    with open(args.fil, "w", encoding="utf-8") as f:
+        f.write(html)
+    print(f"Sparade rapporten i {args.fil}")
+    return 0
+
+
 def cmd_daemon(_args):
     from . import daemon
 
@@ -135,6 +150,11 @@ def main(argv=None):
     p = sub.add_parser("avvikelser", help="lista avvikelser")
     p.add_argument("-n", "--antal", type=int, default=30)
     p.set_defaults(func=cmd_deviations)
+    p = sub.add_parser("rapport", help="spara en rapport med grafer och tabeller (HTML)")
+    p.add_argument("fil")
+    p.add_argument("--natverk", help="bara det här nätverket (standard: alla)")
+    p.add_argument("--period", choices=list(PERIODS), default="7d", help="standard: 7d")
+    p.set_defaults(func=cmd_report)
     p = sub.add_parser("export", help="spara alla mätningar som CSV")
     p.add_argument("fil")
     p.set_defaults(func=cmd_export)

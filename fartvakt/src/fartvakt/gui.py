@@ -14,6 +14,7 @@ from gi.repository import Adw, Gdk, Gio, GLib, GObject, Gtk, Pango  # noqa: E402
 
 from . import APP_ID, __version__, analysis, config, monitor, network, service, status  # noqa: E402
 from .chart import SpeedChart  # noqa: E402
+from . import report  # noqa: E402
 from .formatting import LOGIN_URL, PHASES, fmt_table_time, fmt_when, overview_state  # noqa: E402
 from .storage import Storage, open_storage  # noqa: E402
 
@@ -177,6 +178,7 @@ class Window(Adw.ApplicationWindow):
         self.signature = None
         self.cfg_stamp = None
         self.networks = []
+        self.restoring_view = False
         self.ticks = 0
         self.oldest_shown = None
 
@@ -194,6 +196,7 @@ class Window(Adw.ApplicationWindow):
 
     def _actions(self):
         for name, callback in (("measure", self.on_measure), ("export", self.on_export),
+                               ("export-csv", self.on_export_csv),
                                ("preferences", self.on_preferences), ("show-deviations", self.on_show_deviations)):
             action = Gio.SimpleAction.new(name, None)
             action.connect("activate", callback)
@@ -223,7 +226,8 @@ class Window(Adw.ApplicationWindow):
 
         menu = Gio.Menu()
         section = Gio.Menu()
-        section.append("Exportera som CSV …", "win.export")
+        section.append("Exportera rapport …", "win.export")
+        section.append("Exportera data som CSV …", "win.export-csv")
         menu.append_section(None, section)
         section = Gio.Menu()
         section.append("Inställningar", "win.preferences")
@@ -262,15 +266,15 @@ class Window(Adw.ApplicationWindow):
         bar = Gtk.Box(spacing=12, margin_start=12, margin_end=12, margin_top=6, margin_bottom=6)
         self.network_model = Gtk.StringList.new([ALL_NETWORKS])
         self.network_drop = Gtk.DropDown(model=self.network_model, tooltip_text="Visa nätverk")
-        self.network_drop.connect("notify::selected", lambda *_: self.reload(force=True))
+        self.network_drop.connect("notify::selected", self._on_network_selected)
         bar.append(self.network_drop)
 
         # breda fönster: knappar; smala: en rullgardin (se brytpunkten i _build)
-        self.period_index = 0
+        self.period_index = self.cfg["view_period"]
         self.period_toggles = Gtk.Box(css_classes=["linked"])
         self.period_buttons = []
         for i, (title, _seconds) in enumerate(PERIODS):
-            button = Gtk.ToggleButton(label=title, active=i == 0)
+            button = Gtk.ToggleButton(label=title, active=i == self.period_index)
             if i:
                 button.set_group(self.period_buttons[0])
             button.connect("toggled", self._on_period_toggle, i)
@@ -279,6 +283,7 @@ class Window(Adw.ApplicationWindow):
         bar.append(self.period_toggles)
         self.period_drop = Gtk.DropDown.new_from_strings([title for title, _ in PERIODS])
         self.period_drop.set_visible(False)
+        self.period_drop.set_selected(self.period_index)
         self.period_drop.set_tooltip_text("Visa period")
         self.period_drop.connect("notify::selected", self._on_period_drop)
         bar.append(self.period_drop)
@@ -362,11 +367,11 @@ class Window(Adw.ApplicationWindow):
         for w in (self.hero_title, self.hero_subtitle, self.hero_last):
             text.append(w)
         card.append(text)
-        self.login_button = Gtk.Button(label="Öppna inloggningssidan", valign=Gtk.Align.CENTER, visible=False,
-                                       css_classes=["pill", "suggested-action"],
-                                       tooltip_text="Öppnar webbläsaren så att nätverkets inloggningssida visas")
-        self.login_button.connect("clicked", self.on_login)
-        card.append(self.login_button)
+        # "Öppna inloggningssidan" eller "Bevaka <nätverk>", beroende på läget
+        self.hero_action = None
+        self.hero_button = Gtk.Button(valign=Gtk.Align.CENTER, visible=False, css_classes=["pill", "suggested-action"])
+        self.hero_button.connect("clicked", self.on_hero_button)
+        card.append(self.hero_button)
         return card
 
     def _tile(self, key, title):
@@ -438,7 +443,20 @@ class Window(Adw.ApplicationWindow):
         self.period_index = index
         self.period_buttons[index].set_active(True)
         self.period_drop.set_selected(index)
+        self._save_view(view_period=index)
         self.reload(force=True)
+
+    def _on_network_selected(self, *_args):
+        if not self.restoring_view:
+            self._save_view(view_network=self.selected_network() or "")
+        self.reload(force=True)
+
+    def _save_view(self, **values):
+        try:
+            self.cfg = config.update(**values)
+            self.cfg_stamp = self._config_stamp()  # vår egen ändring: ingen omladdning för den
+        except OSError:
+            pass  # att valet inte sparas är inte värt att störa användaren för
 
     def _on_period_toggle(self, button, index):
         if button.get_active():
@@ -528,10 +546,15 @@ class Window(Adw.ApplicationWindow):
                 networks.append(net)
         if networks == self.networks:
             return
-        current = self.selected_network()
+        # första gången: välj det nätverk som visades sist appen var öppen
+        current = self.selected_network() if self.networks else (self.cfg["view_network"] or None)
         self.networks = networks
-        self.network_model.splice(0, self.network_model.get_n_items(), [ALL_NETWORKS] + networks)
-        self.network_drop.set_selected(networks.index(current) + 1 if current in networks else 0)
+        self.restoring_view = True
+        try:
+            self.network_model.splice(0, self.network_model.get_n_items(), [ALL_NETWORKS] + networks)
+            self.network_drop.set_selected(networks.index(current) + 1 if current in networks else 0)
+        finally:
+            self.restoring_view = False
 
     def _update_data(self):
         net = self.selected_network()
@@ -631,7 +654,14 @@ class Window(Adw.ApplicationWindow):
         phase = self.current_phase()
         ssid = self.ssid if self.ssid is not None or not self.alive else self.daemon.get("ssid")
         icon, title, subtitle, style, action = overview_state(self.cfg, ssid, self.daemon, self.alive, phase, now)
-        self.login_button.set_visible(action == "login")
+        self.hero_action = (action, ssid)
+        self.hero_button.set_visible(action in ("login", "watch"))
+        if action == "login":
+            self.hero_button.set_label("Öppna inloggningssidan")
+            self.hero_button.set_tooltip_text("Öppnar webbläsaren så att nätverkets inloggningssida visas")
+        elif action == "watch":
+            self.hero_button.set_label(f"Bevaka {ssid}")
+            self.hero_button.set_tooltip_text(f"Mät automatiskt varje gång datorn är ansluten till {ssid}")
         self.hero_title.set_text(title)
         self.hero_subtitle.set_text(subtitle)
         for c in ("success", "accent", "warning", "dim"):
@@ -718,8 +748,24 @@ class Window(Adw.ApplicationWindow):
                        f"{analysis.fmt_number(m['upload_mbps'])} Mbit/s upp, ping {analysis.fmt_number(m['ping_ms'])} ms")
         return False
 
-    def on_login(self, *_args):
-        Gtk.UriLauncher(uri=LOGIN_URL).launch(self, None, None)
+    def on_hero_button(self, *_args):
+        action, ssid = self.hero_action or (None, None)
+        if action == "login":
+            Gtk.UriLauncher(uri=LOGIN_URL).launch(self, None, None)
+        elif action == "watch" and ssid:
+            self.watch_network(ssid)
+
+    def watch_network(self, ssid):
+        """Lägger till nätverket bland de bevakade – valet sparas och gäller även bakgrundstjänsten."""
+        before = list(config.load()["networks"])
+        if not network.matches(ssid, before):
+            config.update(networks=before + [ssid])
+        self.preferences_changed()
+        self.toast(f"Fartvakt mäter nu automatiskt på {ssid}", "Ångra", lambda: self._unwatch(ssid, before), timeout=6)
+
+    def _unwatch(self, ssid, before):
+        config.update(networks=before)
+        self.preferences_changed()
 
     def on_show_deviations(self, *_args):
         self.stack.set_visible_child_name("avvikelser")
@@ -741,16 +787,37 @@ class Window(Adw.ApplicationWindow):
             self.toast("Kunde inte starta bakgrundsbevakningen (systemctl --user start fartvakt)", timeout=8)
         return False
 
-    def on_export(self, *_args):
-        dialog = Gtk.FileDialog(title="Exportera mätningar", initial_name="fartvakt-matningar.csv", modal=True)
-        csv_filter = Gtk.FileFilter(name="CSV-filer")
-        csv_filter.add_pattern("*.csv")
+    def _save_dialog(self, title, name, filter_name, pattern, on_chosen):
+        dialog = Gtk.FileDialog(title=title, initial_name=name, modal=True)
+        file_filter = Gtk.FileFilter(name=filter_name)
+        file_filter.add_pattern(pattern)
         filters = Gio.ListStore(item_type=Gtk.FileFilter)
-        filters.append(csv_filter)
+        filters.append(file_filter)
         dialog.set_filters(filters)
-        dialog.save(self, None, self._export_chosen)
+        dialog.save(self, None, lambda d, r: self._export_chosen(d, r, on_chosen))
 
-    def _export_chosen(self, dialog, result):
+    def on_export(self, *_args):
+        """Rapport med nyckeltal, grafer och tabeller för det nätverk och den period som visas."""
+        net = self.selected_network()
+        slug = "".join(c if c.isalnum() or c in "-_" else "-" for c in (net or "alla-natverk")).strip("-")
+        name = f"fartvakt-{slug}-{time.strftime('%Y-%m-%d')}.html"
+        self._save_dialog("Exportera rapport", name, "Rapporter (HTML)", "*.html", self._write_report)
+
+    def on_export_csv(self, *_args):
+        self._save_dialog("Exportera mätningar", "fartvakt-matningar.csv", "CSV-filer", "*.csv", self._write_csv)
+
+    def _write_report(self, path):
+        period = self.selected_period()
+        html = report.build(self.db, self.cfg, ssid=self.selected_network(),
+                            since=time.time() - period if period else None)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(html)
+        return "Rapporten är sparad"
+
+    def _write_csv(self, path):
+        return f"Exporterade {self.db.export_csv(path)} mätningar"
+
+    def _export_chosen(self, dialog, result, write):
         try:
             file = dialog.save_finish(result)
         except GLib.Error:
@@ -760,11 +827,11 @@ class Window(Adw.ApplicationWindow):
             self.toast("Välj en mapp på datorn", timeout=6)
             return
         try:
-            count = self.db.export_csv(path)
+            done = write(path)
         except OSError as e:
             self.toast(f"Kunde inte spara filen: {e.strerror or e}", timeout=8)
             return
-        self.toast(f"Exporterade {count} mätningar till {Path(path).name}", "Öppna",
+        self.toast(f"{done} i {Path(path).name}", "Öppna",
                    lambda: Gtk.FileLauncher(file=file).launch(self, None, None))
 
     def on_preferences(self, *_args):
@@ -839,7 +906,7 @@ class Application(Adw.Application):
         toolbar = Adw.ToolbarView()
         toolbar.add_top_bar(Adw.HeaderBar())
         group = Adw.PreferencesGroup(margin_top=12, margin_bottom=24, margin_start=24, margin_end=24)
-        for keys, text in (("Ctrl+M", "Mät nu"), ("Ctrl+E", "Exportera som CSV"), ("Ctrl+,", "Inställningar"),
+        for keys, text in (("Ctrl+M", "Mät nu"), ("Ctrl+E", "Exportera rapport"), ("Ctrl+,", "Inställningar"),
                            ("Ctrl+?", "Tangentbordsgenvägar"), ("Ctrl+W", "Stäng fönstret"),
                            ("Ctrl+Q", "Avsluta")):
             row = Adw.ActionRow(title=text)

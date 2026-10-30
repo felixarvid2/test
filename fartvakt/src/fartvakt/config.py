@@ -26,6 +26,9 @@ DEFAULTS = {
     "max_seconds": 10,
     "server": "https://speed.cloudflare.com",
     "notifications": True,
+    # Det som senast visades i appen (nätverk, "" = alla, och period), så att valet sparas.
+    "view_network": "",
+    "view_period": 0,
 }
 
 
@@ -59,6 +62,7 @@ LIMITS = {
     "upload_bytes": (100_000, 500_000_000),
     "streams": (1, 16),
     "max_seconds": (2, 60),
+    "view_period": (0, 3),
 }
 
 
@@ -89,9 +93,17 @@ def load() -> dict:
             cfg[key] = _number(key, value)
         elif isinstance(default, list) and isinstance(value, list):
             cfg[key] = [str(v).strip() for v in value if isinstance(v, str) and v.strip()]
-        elif isinstance(default, str) and isinstance(value, str) and value.strip():
+        elif isinstance(default, str) and isinstance(value, str) and (value.strip() or not default):
             cfg[key] = value.strip()
     cfg["min_baseline"] = min(cfg["min_baseline"], cfg["baseline_count"])
+    return cfg
+
+
+def update(**values) -> dict:
+    """Ändrar några inställningar och behåller resten som de är sparade nu."""
+    cfg = load()
+    cfg.update(values)
+    save(cfg)
     return cfg
 
 

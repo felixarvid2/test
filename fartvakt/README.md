@@ -12,10 +12,10 @@ den uppmätta hastigheten, och en notis visas.
 Kräver Ubuntu 24.04 eller nyare, Debian 13 eller en annan distribution med GTK 4.12 och
 libadwaita 1.5 (till exempel Linux Mint 22 och Pop!_OS 24.04).
 
-Ladda ner [`dist/fartvakt_1.2.4_all.deb`](dist/fartvakt_1.2.4_all.deb) och installera den:
+Ladda ner [`dist/fartvakt_1.3.0_all.deb`](dist/fartvakt_1.3.0_all.deb) och installera den:
 
 ```bash
-sudo apt install ./fartvakt_1.2.4_all.deb
+sudo apt install ./fartvakt_1.3.0_all.deb
 ```
 
 Öppna sedan **Fartvakt** från appmenyn. Bevakningen sköts av en bakgrundstjänst som startar
@@ -66,8 +66,13 @@ Avinstallera med `sudo apt remove fartvakt`. Mätningarna ligger kvar i
   lämnas tomma.
 - **Mätningar** och **Avvikelser** är tabeller som går att sortera på varje kolumn.
 - Välj nätverk och period (24 timmar, 7 dagar, 30 dagar eller allt) i raden under rubriken.
-- **Mät nu** (Ctrl+M) gör en mätning direkt, oavsett nätverk. Förloppet syns i appen.
-- **Exportera som CSV** (Ctrl+E) sparar alla mätningar i en fil som öppnas direkt i svenska
+  Appen kommer ihåg valet till nästa gång.
+- **Mät nu** (Ctrl+M) gör en mätning direkt, på vilket nätverk som helst. Förloppet syns i appen.
+- **Bevaka:** är datorn ansluten till ett wifi som inte bevakas visar översikten knappen
+  *Bevaka* följt av nätverkets namn. Ett klick, så mäter Fartvakt automatiskt där varje gång datorn är
+  ansluten. Valet sparas och kan ångras direkt, eller ändras senare under Inställningar.
+- **Exportera rapport** (Ctrl+E) sparar en rapport för valt nätverk och vald period, se nedan.
+- **Exportera data som CSV** sparar alla mätningar i en fil som öppnas direkt i svenska
   Excel och LibreOffice Calc (semikolon och decimalkomma).
 - **Inställningar** (Ctrl+,) styr vilka nätverk som bevakas, intervallet, gränsen för
   avvikelse, notiserna och datamängden. Där syns också hur mycket data mätningarna använder.
@@ -84,6 +89,25 @@ Appen följer systemets ljusa eller mörka tema och fungerar även i smala föns
 
 ![Inställningar](docs/installningar.png)
 
+## Rapporten
+
+Rapporten är en enda HTML-fil utan beroenden. Den öppnas i webbläsaren, fungerar offline och
+går att mejla. Den innehåller:
+
+- nyckeltal: median för ned- och uppladdning och ping, lägsta nedladdning, antal mätningar,
+  andel lyckade, avvikelser och avbrott
+- grafer över hastighet och ping över tid, med avvikelserna inringade (håll muspekaren över en
+  punkt för att se värdena), och nedladdning per timme på dygnet
+- tabeller per dag, per nätverk (när rapporten gäller alla nätverk), över avvikelser och över
+  alla mätningar
+
+Den följer ljust och mörkt tema, fungerar på mobilen och skrivs ut snyggt på A4. Välj
+*Skriv ut → Spara som PDF* i webbläsaren för att få en PDF.
+
+| I webbläsaren | Utskriven som PDF |
+|---|---|
+| ![Rapporten](docs/rapport.png) | ![Rapporten som PDF](docs/rapport-pdf.png) |
+
 ## Kommandoraden
 
 ```text
@@ -92,6 +116,8 @@ fartvakt mat             mät nu
 fartvakt status          anslutet nätverk, bevakningens läge och normalvärden
 fartvakt historik -n 50  de senaste mätningarna
 fartvakt avvikelser      de senaste avvikelserna
+fartvakt rapport fil.html --natverk JENSEN-Guest --period 30d
+                         rapport med grafer och tabeller (period: 24h, 7d, 30d, allt)
 fartvakt export fil.csv  alla mätningar som CSV
 ```
 
