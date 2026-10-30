@@ -1,6 +1,7 @@
 """Sparar mätningar och avvikelser i en SQLite-databas."""
 
 import csv
+import fcntl
 import os
 import sqlite3
 import time
@@ -48,18 +49,27 @@ def open_storage(path=None):
     from . import config
 
     path = Path(path or config.db_path())
-    try:
-        return Storage(path), None
-    except sqlite3.OperationalError:
-        raise  # t.ex. låst eller full disk: inte skadad
-    except sqlite3.DatabaseError:
-        moved = path.with_name(f"{path.stem}.skadad-{datetime.now():%Y%m%d-%H%M%S}{path.suffix}")
-        os.replace(path, moved)
-        for extra in ("-wal", "-shm"):
-            side = Path(str(path) + extra)
-            if side.exists():
-                os.replace(side, Path(str(moved) + extra))
-        return Storage(path), moved
+    path.parent.mkdir(parents=True, exist_ok=True)
+    # Låset ser till att tjänsten och appen inte båda flyttar undan filen samtidigt.
+    with open(path.with_name(".oppna.lock"), "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        try:
+            return Storage(path), None
+        except sqlite3.OperationalError:
+            raise  # t.ex. låst eller full disk: inte skadad
+        except sqlite3.DatabaseError:
+            stamp = f"{datetime.now():%Y%m%d-%H%M%S}"
+            moved = path.with_name(f"{path.stem}.skadad-{stamp}{path.suffix}")
+            n = 1
+            while moved.exists():
+                n += 1
+                moved = path.with_name(f"{path.stem}.skadad-{stamp}-{n}{path.suffix}")
+            os.replace(path, moved)
+            for extra in ("-wal", "-shm"):
+                side = Path(str(path) + extra)
+                if side.exists():
+                    os.replace(side, Path(str(moved) + extra))
+            return Storage(path), moved
 
 
 def _cell(value):

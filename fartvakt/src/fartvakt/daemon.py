@@ -132,10 +132,8 @@ class Watcher:
             # Pröva då med en liten förfrågan innan en hel mätning görs och sparas.
             try:
                 self.probe(cfg)
-            except speedtest.CaptivePortal:
-                return self._wait_for_login(cfg)
             except speedtest.SpeedTestError:
-                pass  # något annat fel: låt den vanliga mätningen notera det
+                return self._wait_for_login(cfg)  # fortfarande inte ute på internet
 
         try:
             m, deviations = self.measure(cfg, watched, self.storage, "auto",
@@ -194,19 +192,16 @@ def run():
     watcher = Watcher(storage)
     cfg = config.load()
 
-    def stop(*_args):
-        # lämna inte "mäter" kvar i statusfilen när tjänsten stoppas mitt i en mätning
-        try:
-            watcher.publish(watcher.state(cfg))
-        finally:
-            sys.exit(0)
-
-    signal.signal(signal.SIGTERM, stop)
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
     log(f"Fartvakt startad. Databas: {config.db_path()}")
-    while True:
-        try:
-            cfg = config.load()  # läses om varje varv så att ändringar i appen gäller direkt
-            watcher.tick(cfg)
-        except Exception as e:  # noqa: BLE001 – tjänsten ska aldrig dö på ett enskilt fel
-            log(f"Fel: {e!r}")
-        time.sleep(watcher.sleep_seconds(cfg))
+    try:
+        while True:
+            try:
+                cfg = config.load()  # läses om varje varv så att ändringar i appen gäller direkt
+                watcher.tick(cfg)
+            except Exception as e:  # noqa: BLE001 – tjänsten ska aldrig dö på ett enskilt fel
+                log(f"Fel: {e!r}")
+            time.sleep(watcher.sleep_seconds(cfg))
+    finally:
+        # lämna inte "mäter" kvar i statusfilen, och tala om att tjänsten har stoppats
+        watcher.publish(dict(watcher.state(cfg), stopped=True))

@@ -288,6 +288,15 @@ class MonitorTest(TempHome):
         self.assertTrue(moved.exists())
         self.assertEqual(moved.read_bytes(), "skräp".encode() * 1000)  # inget kastas bort
         self.assertEqual(db.signature()[0], 0)
+        db.close()
+        for extra in ("", "-wal", "-shm"):
+            Path(str(path) + extra).unlink(missing_ok=True)
+        path.write_bytes(b"mer skrap" * 1000)       # en till skadad fil i samma sekund: får eget namn
+        with mock.patch("fartvakt.storage.datetime") as fake:
+            fake.now.return_value = datetime.fromtimestamp(0)
+            _, first = open_storage()
+        self.assertNotEqual(first, moved)
+        self.assertTrue(first.exists() and moved.exists())
 
     def test_progress_is_passed_on(self):
         phases = []
@@ -346,6 +355,8 @@ class ConfigAndStatusTest(TempHome):
         # en långsam mätningsfas: tjänsten lever fast den inte hört av sig på ett par minuter
         self.assertTrue(status.is_alive(dict(state, updated=time.time() - 200), cfg))
         self.assertFalse(status.is_alive(dict(state, updated=time.time() - 200, measuring=None), cfg))
+        self.assertFalse(status.is_alive(dict(state, stopped=True), cfg))
+        self.assertEqual([p.name for p in status.path().parent.iterdir() if p.name.endswith(".tmp")], [])
 
 
 class WatcherTest(TempHome):
@@ -526,6 +537,12 @@ class WatcherTest(TempHome):
         self.assertTrue(self.published[-1]["portal"])
         self.assertEqual(w.sleep_seconds(cfg), daemon.PORTAL_RETRY_SECONDS)
         self.clock[0] += daemon.PORTAL_RETRY_SECONDS
+        w.probe = lambda _cfg: (_ for _ in ()).throw(speedtest.SpeedTestError("tidsgräns"))
+        self.clock[0] += daemon.PORTAL_RETRY_SECONDS
+        w.tick(cfg)                                   # annat fel medan man väntar: sparar inget
+        self.assertEqual(len(measured), 1)
+        w.probe = probe
+        self.clock[0] += daemon.PORTAL_RETRY_SECONDS
         logged_in[0] = True                           # inloggad: hel mätning vid nästa kontroll
         w.measure = lambda *a, **k: measured.append(1) or ({"error": None, **m(50)}, [])
         w.tick(cfg)
@@ -558,6 +575,7 @@ class WatcherTest(TempHome):
             proc.kill()
             proc.stdout.close()
         self.assertIsNone(status.read()["measuring"])
+        self.assertTrue(status.read()["stopped"])
 
     def test_boot_clock_counts_suspend(self):
         self.assertGreater(daemon.boot_clock(), 0)

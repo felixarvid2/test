@@ -177,6 +177,7 @@ class Window(Adw.ApplicationWindow):
         self.cfg_stamp = None
         self.networks = []
         self.ticks = 0
+        self.oldest_shown = None
 
         self._actions()
         self._build()
@@ -467,8 +468,22 @@ class Window(Adw.ApplicationWindow):
         self.ticks += 1
         if self.ticks % 3 == 0:
             self._read_ssid()
-        self.reload(force=self.ticks % PERIOD_REFRESH_TICKS == 0)
+        self.reload()
+        if self.ticks % PERIOD_REFRESH_TICKS == 0:
+            self._move_period()
         return True
+
+    def _move_period(self):
+        """Flyttar fram perioden (24 timmar osv.) fast inget nytt har mätts. Tabellerna läses
+        bara om när en rad har hamnat utanför perioden, så att man inte tappar sin plats i dem."""
+        period = self.selected_period()
+        if period is None:
+            return
+        since = time.time() - period
+        if self.oldest_shown is not None and self.oldest_shown < since:
+            self.reload(force=True)
+        else:
+            self.chart.set_range(since, time.time())
 
     def _config_stamp(self):
         try:
@@ -490,7 +505,8 @@ class Window(Adw.ApplicationWindow):
         elif self.silent_since is None:
             self.silent_since = time.monotonic()
         # visa "tjänsten kör inte" först när den varit tyst en stund (t.ex. direkt efter viloläge)
-        self.alive = alive or time.monotonic() - self.silent_since < SERVICE_GRACE_SECONDS
+        grace = max(SERVICE_GRACE_SECONDS, self.cfg["check_network_seconds"] + 15)
+        self.alive = alive or (not self.daemon.get("stopped") and time.monotonic() - self.silent_since < grace)
         signature = self.db.signature()
         if force or signature != self.signature:
             self.signature = signature
@@ -516,6 +532,7 @@ class Window(Adw.ApplicationWindow):
         now = time.time()
         since = now - period if period else None
         measurements = self.db.measurements(ssid=net, since=since)
+        self.oldest_shown = min((m["epoch"] for m in measurements), default=None)
         deviations = self.db.deviations(ssid=net, since=since)
         by_measurement = {}
         for d in deviations:

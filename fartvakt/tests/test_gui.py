@@ -90,8 +90,18 @@ class WindowTest(unittest.TestCase):
         cfg["networks"] = ["Café & <Bar>"]
         config.save(cfg)
         win = self.window()
-        self.assertIn("Café & <Bar>", win.empty_page.get_description().replace("&amp;", "&")
-                      .replace("&lt;", "<").replace("&gt;", ">"))
+        shown = []
+
+        def walk(widget):
+            if isinstance(widget, Gtk.Label):
+                shown.append(widget.get_text())  # texten som visas, efter tolkning av markup
+            child = widget.get_first_child()
+            while child:
+                walk(child)
+                child = child.get_next_sibling()
+
+        walk(win.empty_page)
+        self.assertTrue(any("Café & <Bar>" in text for text in shown), shown)
 
     def test_corrupt_database_is_moved_aside(self):
         self.db.close()
@@ -179,6 +189,12 @@ class WindowTest(unittest.TestCase):
         win.reload()
         self.assertTrue(win.banner.get_revealed())
         self.assertEqual(win.hero_title.get_text(), "Ansluten till JENSEN-Guest")
+
+    def test_stopped_service_is_shown_at_once(self):
+        state = status.read()
+        status.write(dict(state, stopped=True))
+        win = self.window()
+        self.assertTrue(win.banner.get_revealed())
 
     def test_stale_status_from_stopped_service(self):
         # tjänsten stoppades mitt i en mätning för länge sedan, på ett annat nätverk

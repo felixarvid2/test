@@ -12,6 +12,10 @@ fartvakt (1.2.1) stable; urgency=medium
     inte" efter viloläge.
   * Nätverksnamn med & och < visas rätt; CSV-exporten skyddar mot formler.
   * "Med avvikelse" räknar samma avvikelser som fliken Avvikelser.
+  * Statusfilen skrivs med unika tillfälliga filer, och när tjänsten stoppas
+    visar appen det direkt.
+  * Tabellerna behåller sin plats när perioden flyttas fram; bara grafen
+    ritas om tills en rad hamnat utanför perioden.
 
  -- Felix Arvid <felixarvid@gmail.com>  Fri, 30 Oct 2026 18:00:00 +0100
 
