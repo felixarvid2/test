@@ -163,7 +163,7 @@
   // Var i världen hör ett visst ärende hemma?
   G.taskSpot = function (t) {
     var A = this.world.builder.anchors, s = this.taskState[t.id];
-    var rackOf = { SW1: A.rackA, SW2: A.rackA, R1: A.rackA, WLC: A.rackA, LB: A.rackA, RB: A.borasRack, SWB: A.borasRack };
+    var rackOf = { SW1: A.rackA, SW2: A.rackA, R1: A.rackA, WLC: A.rackA, LB: A.rackA, RM: A.rackA, RB: A.borasRack, SWB: A.borasRack };
     if (!s.known) { var c = NV.people.CAST[t.npc]; if (c.desk) { var d = A.desks[c.desk]; return { x: d.x, z: d.z + 0.9 }; } return { x: c.stand.x, z: c.stand.z + 0.8 }; }
     if (rackOf[t.target]) return { x: rackOf[t.target].x + (rackOf[t.target].x > 50 ? 1 : 0), z: rackOf[t.target].z + (rackOf[t.target].x > 50 ? 0 : 1) };
     if (A.desks[t.target]) return { x: A.desks[t.target].x, z: A.desks[t.target].z - 0.6 };
@@ -451,7 +451,7 @@
     var A = this.world.builder.anchors;
     var cast = NV.people.CAST;
     var self = this;
-    var rackOf = { SW1: A.rackA, SW2: A.rackA, R1: A.rackA, WLC: A.rackA, LB: A.rackA, RB: A.borasRack, SWB: A.borasRack };
+    var rackOf = { SW1: A.rackA, SW2: A.rackA, R1: A.rackA, WLC: A.rackA, LB: A.rackA, RM: A.rackA, RB: A.borasRack, SWB: A.borasRack };
     var open = this.def.tasks.filter(function (t) { return !self.taskState[t.id].fixed; });
     if (!open.length) return null;
     var t = open[0];
@@ -742,7 +742,7 @@
   // Krabban gömmer sig nära ett av veckans fel – en liten ledtråd för den som hittar den
   G.crabSpot = function () {
     var A = this.world.builder.anchors, self = this;
-    var rackOf = { SW1: A.rackA, SW2: A.rackA, R1: A.rackA, WLC: A.rackA, LB: A.rackA, RB: A.borasRack, SWB: A.borasRack };
+    var rackOf = { SW1: A.rackA, SW2: A.rackA, R1: A.rackA, WLC: A.rackA, LB: A.rackA, RM: A.rackA, RB: A.borasRack, SWB: A.borasRack };
     var t = this.def ? this.def.tasks.filter(function (x) { return x.krabba && !self.taskState[x.id].fixed; })[0] : null;
     if (t && rackOf[t.target]) { var a = rackOf[t.target]; return a.x > 50 ? { x: a.x + 1.25, z: a.z + 0.6 } : { x: a.x + 0.3, z: a.z + 1.3 }; }
     if (t && A.desks[t.target]) { var d = A.desks[t.target]; return { x: d.x + 1.25, z: d.z }; }

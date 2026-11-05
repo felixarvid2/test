@@ -52,6 +52,8 @@ NV.UI = (function () {
       r.B.push({ type: 'server', units: 1, sticker: function () { return 'Tid-1'; }, bg: '#1d2024', led: 'Tid-1' });
       r.B.push({ type: 'server', units: 1, sticker: function () { return 'Tid-2'; }, bg: '#1d2024', led: 'Tid-2' });
     }
+    // Kurs 2: konsolservern i rack A ger konsolen till R-Molndal-1
+    if (game.state && game.state.devices.RM) r.A.push({ type: 'server', units: 1, devId: 'RM', sticker: function () { return 'Konsolserver > R-Molndal-1'; }, bg: '#2b2f36' });
     return r;
   }
   function rackSpecsBase(game) {
@@ -59,7 +61,7 @@ NV.UI = (function () {
       A: [
         { type: 'switch', units: 1, devId: 'SW1', brand: 'Catalyst 3560G', model: 'WS-C3560G-24PS', bg: '#4c5b6b', sticker: hostName(game, 'SW1') },
         { type: 'switch', units: 1, devId: 'SW2', brand: 'Catalyst 3750G', model: 'WS-C3750G-24PS', bg: '#4c5b6b', sticker: hostName(game, 'SW2') },
-        { type: 'router', units: 2, devId: 'R1', brand: 'CISCO 2951', bg: '#cfd2cf', text: '#1d2226', sticker: hostName(game, 'R1') },
+        { type: 'router', units: 2, devId: 'R1', brand: 'CISCO 2951', bg: '#cfd2cf', text: '#1d2226', sticker: hostName(game, 'R1'), serial: true, hasSerial: function () { return !!game.state.devices.R1.config.ifaces['Serial0/0/0']; } },
         { type: 'asa', units: 1, bg: '#30363d', sticker: function () { return 'ASA (ej i drift)'; } },
         { type: 'wlc', units: 1, devId: 'WLC', bg: '#b9bcbf', text: '#1d2226', sticker: function () { return 'WLC-Nordvik'; } },
       ],
@@ -71,7 +73,7 @@ NV.UI = (function () {
       ],
       BO: [
         { type: 'switch', units: 1, devId: 'SWB', brand: 'Catalyst 3560G', model: 'WS-C3560G-24PS', bg: '#4c5b6b', sticker: hostName(game, 'SWB') },
-        { type: 'router', units: 2, devId: 'RB', brand: 'CISCO 2951', bg: '#cfd2cf', text: '#1d2226', sticker: hostName(game, 'RB') },
+        { type: 'router', units: 2, devId: 'RB', brand: 'CISCO 2951', bg: '#cfd2cf', text: '#1d2226', sticker: hostName(game, 'RB'), serial: true, hasSerial: function () { return !!game.state.devices.RB.config.ifaces['Serial0/0/0']; } },
       ],
     };
   }
@@ -497,7 +499,7 @@ NV.UI = (function () {
   P.briefing = function (first) {
     var g = this.game;
     var def = g.def;
-    var html = def ? '<p class="brief">' + esc(def.intro).replace(/\n/g, '<br>') + '</p><p class="muted">Kapitel ' + def.chapter + ' i kursboken. ' + (def.build ? 'Allt görs i CLI:t – varje steg bockas av så fort nätet fungerar. Du tränar på:' : 'Den här veckan tränar du på:') + '</p><ul>' + def.learn.map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('') + '</ul>'
+    var html = def ? '<p class="brief">' + esc(def.intro).replace(/\n/g, '<br>') + '</p><p class="muted">' + (def.course ? esc(def.course) + '. ' : 'Kapitel ' + def.chapter + ' i kursboken. ') + (def.build ? 'Allt görs i CLI:t – varje steg bockas av så fort nätet fungerar. Du tränar på:' : 'Den här veckan tränar du på:') + '</p><ul>' + def.learn.map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('') + '</ul>'
       : '<p class="brief">Fri träning: Nordviks nät utan fel. Koppla in dig var du vill, bygg om och testa. Inget du gör här sparas.</p>';
     if (g.exam) html += '<div class="box fastnar"><div class="box-title">EXAMENSLÄGE</div>Inga ledtrådar och ingen guide. Tiden går från nu.</div>';
     var ch = def && !g.exam && NV.challenge ? NV.challenge.of(def.week) : null;
@@ -888,6 +890,8 @@ NV.UI = (function () {
     NV.levels.WEEKS.forEach(function (w) {
       var p = prog.weeks[w.week];
       var stars = p ? '★★★'.slice(0, p.stars) + '☆☆☆'.slice(p.stars) : '';
+      // Kurs 2 får en egen rubrik i menyn
+      if (w.kurs === 2 && !NV.levels.WEEKS.some(function (x) { return x.kurs === 2 && x.week < w.week; })) html += '</div><h2 class="menu-h">🛰️ Kurs 2: Routing och switching <small>– Mölndal, OSPF, BGP och VPN efter kursrepots labbar</small></h2><div class="weeks">';
       html += '<button class="week' + (p ? ' done' : '') + '" data-week="' + w.week + '"><span class="wn">Vecka ' + w.week + '</span><span class="wt">' + esc(w.title) + '</span><span class="wl">' + esc(w.learn.slice(0, 2).join(' · ')) + '</span><span class="ws">' + stars + (p && p.minutes ? ' <span class="muted">bästa ' + p.minutes + ' min</span>' : '') + (p && p.badges && p.badges.length ? ' <span class="muted">· ' + p.badges.length + ' utm.</span>' : '') + '</span></button>';
     });
     // Bygg från grunden: hela nätet via CLI, från fabriksinställda enheter
@@ -899,7 +903,7 @@ NV.UI = (function () {
     });
     html += '</div><div class="menu-row"><button data-week="0">Fri träning (inga fel)</button><button data-exam>Examen (slumpad vecka, inga ledtrådar)</button><button data-settings>Inställningar</button>' + (g.running ? '<button class="primary" data-resume>Tillbaka till spelet</button>' : '') + '</div>' +
       '<p class="tip">💡 ' + esc(TIPS[Math.floor(Math.random() * TIPS.length)]) + '</p>' +
-      '<p class="muted small">Byggt för kursen Nätverksteknik. Utrustningen och Nordviks adressplan följer kursboken; felen kommer från bokens avsnitt "Så ser det ut när det är trasigt". Spelet kräver tangentbord – och mus i 3D.</p></div>';
+      '<p class="muted small">Byggt för kurserna Nätverksteknik (vecka 1–10) och Routing och switching (vecka 11–14). Utrustningen och Nordviks adressplan följer kursboken och kursrepots labbar; felen kommer från bokens avsnitt "Så ser det ut när det är trasigt". Spelet kräver tangentbord – och mus i 3D.</p></div>';
     this.menu.innerHTML = html;
     this.menu.classList.remove('hidden');
     function start(n, opts) {

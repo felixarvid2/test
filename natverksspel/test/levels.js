@@ -56,7 +56,7 @@ const SOL = {
   v10k2: st => ios(st, 'RB', ['conf t', 'int gi0/1', 'ip tcp adjust-mss 1360', 'end', 'wr']),
   v10n1: st => { const s = new G.LbSession(st, 'LB'); s.handle('admin'); s.handle('x'); const r = s.handle('config pool TID-POOL monitor http'); if (/%/.test(r.out)) { console.log('   LB:', r.out); fails++; } },
 };
-for (const w of G.levels.WEEKS) {
+for (const w of G.levels.WEEKS.filter(x => !x.kurs)) { // kurs 2 testas i kurs2.js
   const { state: st, def } = G.levels.start(w.week);
   Object.keys(flags).forEach(k => delete flags[k]);
   tick(st, 3);

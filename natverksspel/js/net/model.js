@@ -58,12 +58,15 @@ NV.model = (function () {
     d.poeBudget = /PS$/.test(model) ? 370 : 0;
     return d;
   }
-  function makeRouter(id, model, site) {
+  function makeRouter(id, model, site, serial) {
     var d = baseIos(id, model, 'router', site);
     ['GigabitEthernet0/0', 'GigabitEthernet0/1', 'GigabitEthernet0/2'].forEach(function (n) {
       d.config.ifaces[n] = routerPort();
     });
+    // Kurs 2: ett HWIC-2T-kort med två seriella portar för hyrda förbindelser
+    if (serial) ['Serial0/0/0', 'Serial0/0/1'].forEach(function (n) { d.config.ifaces[n] = routerPort(); });
     d.config.ifaces['Embedded-Service-Engine0/0'] = { shutdown: true, ip: null, internal: true };
+    d.hwic = !!serial;
     return d;
   }
   function makeHost(id, os, opts) {
@@ -117,6 +120,9 @@ NV.model = (function () {
 
   function buildGolden(opts) {
     opts = opts || {};
+    // Vecka 10 och kursens vecka 12 (02B) går Borås över internet i en IPsec-tunnel.
+    // Kurs 2 (vecka 11–14, Routing och switching) lägger till Mölndal och operatörerna.
+    var W = opts.week || 0, VPN = W === 10 || W === 12, K2 = W >= 11;
     var devices = {};
     var links = [];
     function add(d) { devices[d.id] = d; return d; }
@@ -128,7 +134,7 @@ NV.model = (function () {
     }
 
     // ---------------- Göteborg ----------------
-    var R1 = add(makeRouter('R1', 'CISCO2951/K9', 'gbg'));
+    var R1 = add(makeRouter('R1', 'CISCO2951/K9', 'gbg', K2));
     var c = R1.config;
     commonMgmt(R1, '$9$nV3qL8sR2dF$h4Jk9Lm2Pq8rSt6Uv1Wx3Yz5Ab7Cd9Ef0Gh2Ij4K');
     c.hostname = 'R-Nordvik-1';
@@ -177,7 +183,8 @@ NV.model = (function () {
       statics: [{ local: '192.168.1.10', global: '203.0.113.11' }],
       dynamic: [{ acl: '1', iface: 'GigabitEthernet0/1', overload: true }],
     };
-    if (opts.week >= 10) {
+    if (W >= 10) c.hosts.tid = '192.168.1.13';
+    if (VPN) {
       // Kapitel 10: den hyrda linan är uppsagd. Borås når Göteborg med IPsec över internet.
       g2.shutdown = true; g2.ip = null; g2.natDir = null; g2.description = 'Hyrd lina uppsagd';
       c.routes = [{ net: '0.0.0.0', mask: '0.0.0.0', nh: '203.0.113.1' }];
@@ -192,10 +199,14 @@ NV.model = (function () {
         { seq: 20, action: 'permit', proto: 'ip', src: { ip: '192.168.1.192', wild: '0.0.0.63' }, dst: { ip: '192.168.2.192', wild: '0.0.0.63' } },
       ] };
       c.nat.dynamic = [{ acl: 'NAT-UT', iface: 'GigabitEthernet0/1', overload: true }];
-      c.crypto = vpnCrypto('203.0.113.20');
-      g1.cryptoMap = 'VPN-MAP';
+      c.crypto = vpnCrypto('203.0.113.20', W === 12);
+      g1.cryptoMap = W === 12 ? 'CMAP' : 'VPN-MAP';
       g1.adjustMss = 1360;
-      c.hosts.tid = '192.168.1.13';
+      if (W === 12) {
+        // Kursens 02B: samma tunnel med labbens namn (VPN-BORAS, TS-NORDVIK, CMAP)
+        c.acls['VPN-BORAS'] = c.acls['VPN-TRAFIK']; delete c.acls['VPN-TRAFIK'];
+        c.acls['NAT-UT'].rules.push({ seq: 40, action: 'permit', proto: 'ip', src: { ip: '192.168.3.0', wild: '0.0.0.63' }, dst: { any: true } });
+      }
     }
 
     var SW1 = add(makeSwitch('SW1', 'WS-C3560G-24PS', 'gbg'));
@@ -303,7 +314,7 @@ NV.model = (function () {
     link('R1', 'GigabitEthernet0/1', 'ISP', 'nic', 'fiber', { color: 'red' });
 
     // ---------------- Borås ----------------
-    var RB = add(makeRouter('RB', 'CISCO2951/K9', 'boras'));
+    var RB = add(makeRouter('RB', 'CISCO2951/K9', 'boras', K2 && !VPN));
     commonMgmt(RB, '$9$bR7aS2dF5gH$j3Kk7Ll1Zz5Xx9Cc3Vv7Bb1Nn5Mm9Qq3Ww7Ee1Rr5T');
     c = RB.config;
     c.hostname = 'R-Boras-1';
@@ -329,7 +340,7 @@ NV.model = (function () {
       ] },
     };
     c.ifaces['GigabitEthernet0/0.50'].aclIn = 'GAST-B';
-    if (opts.week >= 10) {
+    if (VPN) {
       b2.shutdown = true; b2.ip = null; b2.description = 'Hyrd lina uppsagd';
       var b1 = c.ifaces['GigabitEthernet0/1'];
       b1.shutdown = false; b1.ip = { addr: '203.0.113.20', mask: '255.255.255.0' }; b1.natDir = 'outside'; b1.description = 'Ut mot operatoren';
@@ -347,11 +358,12 @@ NV.model = (function () {
         { seq: 20, action: 'permit', proto: 'ip', src: { ip: '192.168.2.192', wild: '0.0.0.63' }, dst: { ip: '192.168.1.192', wild: '0.0.0.63' } },
       ] };
       c.nat = { statics: [], dynamic: [{ acl: 'NAT-UT', iface: 'GigabitEthernet0/1', overload: true }] };
-      c.crypto = vpnCrypto('203.0.113.10');
-      c.hosts.tid = '192.168.1.13';
+      c.crypto = vpnCrypto('203.0.113.10', W === 12);
+      if (W === 12) { c.acls['VPN-BORAS'] = c.acls['VPN-TRAFIK']; delete c.acls['VPN-TRAFIK']; b1.cryptoMap = 'CMAP'; }
       // Egen trafik från routern ska ha driftadressen som källa, annars krypteras den inte
       c.ntpSource = 'GigabitEthernet0/0.40';
     }
+    if (W >= 10) c.hosts.tid = '192.168.1.13';
 
     var SWB = add(makeSwitch('SWB', 'WS-C3560G-24PS', 'boras'));
     commonMgmt(SWB, '$9$mN8bV4cX6zL$k9Jj3Hh7Gg1Ff5Dd9Ss3Aa7Pp1Oo5Ii9Uu3Yy7Tt1R');
@@ -380,8 +392,10 @@ NV.model = (function () {
     link('SWB', 'GigabitEthernet0/2', 'AP-Lager-2', 'nic', 'copper', { color: 'white' });
     link('SWB', 'GigabitEthernet0/3', 'AP-Lager-3', 'nic', 'copper', { color: 'white' });
     link('SWB', 'GigabitEthernet0/5', 'PC-Lager', 'nic');
-    if (opts.week >= 10) link('RB', 'GigabitEthernet0/1', 'ISP', 'nic2', 'fiber', { color: 'red' });
+    if (VPN) link('RB', 'GigabitEthernet0/1', 'ISP', 'nic2', 'fiber', { color: 'red' });
     else link('R1', 'GigabitEthernet0/2', 'RB', 'GigabitEthernet0/2', 'wan', { color: 'red' });
+
+    if (K2) kurs2(W, VPN, add, link, devices);
 
     // Trådlösa controllern: AireOS-liknande konfiguration
     devices['WLC'].wlc = {
@@ -410,15 +424,109 @@ NV.model = (function () {
     return state;
   }
 
-  // IPsec site-to-site enligt kapitel 10 (samma nyckel och policy på båda sidor)
-  function vpnCrypto(peer) {
+  // IPsec site-to-site enligt kapitel 10 (samma nyckel och policy på båda sidor).
+  // Kurs 2 (labb 02B) använder labbens värden: DH-grupp 5, SHA och namnen TS-NORDVIK, CMAP och VPN-BORAS.
+  function vpnCrypto(peer, kurs) {
     var keys = {};
-    keys[peer] = 'Nordvik-VPN-2026';
+    keys[peer] = kurs ? 'NordvikLabb123' : 'Nordvik-VPN-2026';
+    if (kurs) {
+      return {
+        isakmp: { policies: { 10: { enc: 'aes 256', hash: 'sha', auth: 'pre-share', group: 5, lifetime: 86400 } }, keys: keys },
+        transformSets: { 'TS-NORDVIK': { transforms: ['esp-aes', '256', 'esp-sha-hmac'], mode: 'tunnel' } },
+        maps: { 'CMAP': { 10: { peer: peer, ts: 'TS-NORDVIK', acl: 'VPN-BORAS' } } },
+      };
+    }
     return {
       isakmp: { policies: { 10: { enc: 'aes 256', hash: 'sha256', auth: 'pre-share', group: 14, lifetime: 86400 } }, keys: keys },
       transformSets: { 'NORDVIK-TS': { transforms: ['esp-aes', '256', 'esp-sha256-hmac'], mode: 'tunnel' } },
       maps: { 'VPN-MAP': { 10: { peer: peer, ts: 'NORDVIK-TS', acl: 'VPN-TRAFIK' } } },
     };
+  }
+
+  // ---------------- Kurs 2: Routing och switching ----------------
+  // Kursrepots labbar (Packet Tracer 02A, 02B, 03A och 03B): Göteborg är navet, Borås och Mölndal ekrarna.
+  // Göteborg–Borås Gi0/2 10.0.0.0/30, Göteborg–Mölndal seriell 10.0.0.4/30 (hyrd förbindelse, 1544 kbit/s),
+  // Borås–Mölndal Gi0/1 10.0.0.8/30. Vecka 14 lägger till ISP-B på Göteborgs Se0/0/1 och BGP mot båda operatörerna.
+  function ospfConf(rid, networks, noPassive, extra) {
+    var o = { pid: 1, routerId: rid, networks: networks, passiveDefault: true, passive: [], noPassive: noPassive, refBw: 100, defaultOriginate: false, defaultAlways: false, logAdj: true };
+    for (var k in extra) o[k] = extra[k];
+    return o;
+  }
+  function net(n, w, a) { return { net: n, wild: w, area: a || 0 }; }
+  function kurs2(W, VPN, add, link, devices) {
+    var R1 = devices.R1, RB = devices.RB, c = R1.config;
+    var s0 = c.ifaces['Serial0/0/0'];
+    s0.shutdown = false; s0.ip = { addr: '10.0.0.5', mask: '255.255.255.252' }; s0.description = 'Hyrd forbindelse mot Molndal';
+    s0.natDir = 'inside'; s0.clockRate = 128000;
+    c.hosts['molndal-pc'] = '192.168.3.10';
+    if (!VPN) {
+      // Ny fiber till Borås: direktlänken är tillbaka, och Borås går ut på internet via Göteborg
+      var g2 = c.ifaces['GigabitEthernet0/2'];
+      g2.description = 'Lank mot Boras';
+      c.acls['1'].rules.push({ seq: 30, action: 'permit', src: { ip: '192.168.3.0', wild: '0.0.0.63' } });
+    }
+    // Navet: en rutt per kontor (vecka 11 och 12). Från vecka 13 sköter OSPF det.
+    if (W <= 12) {
+      c.routes = c.routes.filter(function (r) { return r.net === '0.0.0.0' || (!VPN && r.net === '192.168.2.0'); });
+      c.routes.push({ net: '192.168.3.0', mask: '255.255.255.192', nh: '10.0.0.6' });
+    } else {
+      c.routes = [{ net: '0.0.0.0', mask: '0.0.0.0', nh: '203.0.113.1' }];
+      c.ospf = ospfConf('1.1.1.1', [net('192.168.1.0', '0.0.0.255'), net('10.0.0.0', '0.0.0.3'), net('10.0.0.4', '0.0.0.3')],
+        ['GigabitEthernet0/2', 'Serial0/0/0'], { defaultOriginate: true });
+    }
+    if (!VPN) {
+      var rb = RB.config;
+      var b1 = rb.ifaces['GigabitEthernet0/1'];
+      b1.shutdown = false; b1.ip = { addr: '10.0.0.9', mask: '255.255.255.252' }; b1.description = 'Lank mot Molndal';
+      if (W >= 13) {
+        rb.routes = [];
+        rb.ospf = ospfConf('2.2.2.2', [net('192.168.2.0', '0.0.0.255'), net('10.0.0.0', '0.0.0.3'), net('10.0.0.8', '0.0.0.3')],
+          ['GigabitEthernet0/2', 'GigabitEthernet0/1']);
+      }
+    }
+
+    // R-Molndal-1 och datorn i Mölndal (kontoret som kom med uppköpet av Bergquist)
+    var RM = add(makeRouter('RM', 'CISCO2911/K9', 'molndal', true));
+    commonMgmt(RM, '$9$tY6uI2oP8aS$l4Kk8Jj2Hh6Gg0Ff4Dd8Ss2Aa6Zz0Xx4Cc8Vv2Bb6N');
+    var m = RM.config;
+    m.hostname = 'R-Molndal-1';
+    m.nameServers = ['9.9.9.9']; m.dnsServer = true;
+    m.hosts = { filserver: '192.168.1.10', ekonomi: '192.168.1.70' };
+    var mg0 = m.ifaces['GigabitEthernet0/0'];
+    mg0.shutdown = false; mg0.ip = { addr: '192.168.3.1', mask: '255.255.255.192' }; mg0.description = 'LAN Molndal';
+    var ms0 = m.ifaces['Serial0/0/0'];
+    ms0.shutdown = false; ms0.ip = { addr: '10.0.0.6', mask: '255.255.255.252' }; ms0.description = 'Hyrd forbindelse mot Goteborg';
+    if (!VPN) {
+      var mg1 = m.ifaces['GigabitEthernet0/1'];
+      mg1.shutdown = false; mg1.ip = { addr: '10.0.0.10', mask: '255.255.255.252' }; mg1.description = 'Lank mot Boras';
+    }
+    m.dhcpExcluded = [['192.168.3.1', '192.168.3.9']];
+    m.dhcpPools = { MOLNDAL: { network: '192.168.3.0', mask: '255.255.255.192', defaultRouter: ['192.168.3.1'], dns: ['192.168.3.1'], lease: 1 } };
+    if (W <= 12) m.routes = [{ net: '0.0.0.0', mask: '0.0.0.0', nh: '10.0.0.5' }];
+    else m.ospf = ospfConf('3.3.3.3', [net('192.168.3.0', '0.0.0.63'), net('10.0.0.4', '0.0.0.3'), net('10.0.0.8', '0.0.0.3')],
+      ['Serial0/0/0', 'GigabitEthernet0/1']);
+    add(makeHost('PC-Molndal', 'windows', { dhcp: true, site: 'molndal', label: 'Elins dator i Mölndal', user: 'Elin' }));
+    link('R1', 'Serial0/0/0', 'RM', 'Serial0/0/0', 'wan', { color: 'red', serial: true });
+    if (!VPN) link('RB', 'GigabitEthernet0/1', 'RM', 'GigabitEthernet0/1', 'wan', { color: 'red' });
+    link('RM', 'GigabitEthernet0/0', 'PC-Molndal', 'nic');
+
+    // Vecka 14 (labb 03B): BGP mot ISP-A (AS 64500) och en andra operatör, ISP-B (AS 64501), på Se0/0/1.
+    // ISP-A och ISP-B pratar redan BGP med varandra. ISP-B annonserar webbserverns nät 198.51.100.64/27.
+    if (W >= 14) {
+      var s1 = c.ifaces['Serial0/0/1'];
+      s1.shutdown = false; s1.ip = { addr: '198.51.100.2', mask: '255.255.255.252' }; s1.description = 'Ut mot ISP-B';
+      c.bgp = { as: 65010, routerId: '1.1.1.1', neighbors: { '203.0.113.1': { remoteAs: 64500 } }, networks: [], logChanges: true };
+      devices.ISP.label = 'ISP-A';
+      devices.ISP.bgp = { as: 64500, neighbors: { '203.0.113.10': { remoteAs: 65010 } },
+        advertise: [{ net: '203.0.113.0', mask: '255.255.255.0', path: [] }, { net: '198.51.100.64', mask: '255.255.255.224', path: [64501] }] };
+      devices['ISP-B'] = {
+        id: 'ISP-B', kind: 'isp', os: 'none', site: 'internet', powered: true, baseMac: mac('ISP-B'), label: 'ISP-B',
+        ip: '198.51.100.1', mask: '255.255.255.252',
+        bgp: { as: 64501, neighbors: { '198.51.100.2': { remoteAs: 65010 } },
+          advertise: [{ net: '198.51.100.64', mask: '255.255.255.224', path: [] }, { net: '203.0.113.0', mask: '255.255.255.0', path: [64500] }] },
+      };
+      link('R1', 'Serial0/0/1', 'ISP-B', 'nic', 'wan', { color: 'red', serial: true });
+    }
   }
 
   function linkAt(state, dev, port) {

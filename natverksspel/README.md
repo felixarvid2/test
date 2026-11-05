@@ -1,8 +1,8 @@
 # Krabba-passet
 
-Ett spel för kursen Nätverksteknik, i 3D eller 2D. Du är ny nätverkstekniker på Nordvik och går runt på huvudkontoret i Göteborg och på lagret i Borås. Varje vecka har "Krabban" gjort sönder två saker i racket, och en kollega har ett ärende till dig. Du kopplar in konsolkabeln i Cisco-utrustningen, felsöker med riktiga CLI-kommandon, rättar felet och skriver en felrapport.
+Ett spel för kurserna Nätverksteknik och Routing och switching, i 3D, HD-2D eller 2D. Du är ny nätverkstekniker på Nordvik och går runt på huvudkontoret i Göteborg och på lagret i Borås. Varje vecka har "Krabban" gjort sönder två saker i racket, och en kollega har ett ärende till dig. Du kopplar in konsolkabeln i Cisco-utrustningen, felsöker med riktiga CLI-kommandon, rättar felet och skriver en felrapport.
 
-Nätet, adressplanen, utrustningen och felen följer kursboken *Nätverksteknik – Från sladden och uppåt*: kapitel 1–10, bilaga D (felbiblioteket) och bilaga G (racket och Nordviks adressplan).
+Nätet, adressplanen, utrustningen och felen följer kursboken *Nätverksteknik – Från sladden och uppåt*: kapitel 1–10, bilaga D (felbiblioteket) och bilaga G (racket och Nordviks adressplan). Veckorna 11–14 är **kurs 2, Routing och switching**, och följer kursrepots Packet Tracer-labbar och CTF:er: nav och ekrar, VPN, OSPF och BGP med Mölndalskontoret och två internetoperatörer.
 
 ## Starta
 
@@ -103,12 +103,38 @@ Varje steg har tre ledtrådar med exakta kommandon, och handboken har fliken *By
 | 8 | Trådlöst (Borås) | PoE avstängt, SSID mappat mot fel VLAN, samma kanal |
 | 9 | Säkerhet och brandvägg | ACL i fel riktning, implicit deny, port security err-disabled |
 | 10 | VPN, SD-WAN och lastbalansering | Två samtidiga fel i IPsec-tunneln (crypto-ACL:er som inte speglar varandra + NAT före kryptering), MTU i tunneln (`ip tcp adjust-mss`), lastbalanserare med ping-hälsokontroll |
+| 11 | Kurs 2: Nav och ekrar | Mölndals defaultrutt pekar på ett nästa hopp utanför anslutna nät, navets rutt till Mölndal ger en routingloop, flytande statiska rutter som reservväg |
+| 12 | Kurs 2: Brandvägg och VPN | DH-gruppen skiljer i fas 1 (MM_NO_STATE), NAT-undantaget pekar på fel nät, ekonomisystemet nås från Mölndal (krav N-1) |
+| 13 | Kurs 2: OSPF | Borås i fel area och olika hello/dead mot Mölndal, `bandwidth` på serielänken lockar trafiken dit, nytt nät utan statiska rutter (N-2) |
+| 14 | Kurs 2: BGP, PAT och default | Fel `remote-as` mot ISP-A, `ip nat inside` saknas mot Borås, andra operatören ISP-B med PAT och reservdefault (N-3) |
 
 Datorerna beter sig som riktiga Windows-datorer: saknar de adress försöker de få en ny via DHCP var femte sekund, och flyttas deras port till ett annat VLAN ber de om en ny adress direkt. `ipconfig /renew` fungerar förstås också.
 
 När ett fel är löst skickar du in en felrapport med **F**. En gul ruta uppe till vänster visar hur många rapporter som saknas, och när alla Krabba-fel (eller alla fel) är lösta påminner spelet dig med en ruta där du kan skriva rapporterna direkt. Veckan är klar först när alla rapporter är inlämnade.
 
-Varje fel är simulerat på riktigt. Symptomen räknas fram ur konfigurationen: länkar, duplex, VLAN och trunkar, STP, routing, ARP, ACL, NAT, DHCP, DNS, PoE, port security, IPsec, MTU och lastbalansering. Ett fel försvinner därför bara när orsaken är rättad.
+Varje fel är simulerat på riktigt. Symptomen räknas fram ur konfigurationen: länkar, duplex, VLAN och trunkar, STP, routing, OSPF, BGP, ARP, ACL, NAT, DHCP, DNS, PoE, port security, IPsec, MTU och lastbalansering. Ett fel försvinner därför bara när orsaken är rättad.
+
+## Version 11: Kurs 2 – Routing och switching
+
+Spelet har fått fyra nya veckor för kursen *Routing och switching* (NVT26). De bygger på kursrepots labbar och CTF:er och använder samma Nordvik, nu med kontoret i Mölndal som kom med uppköpet av Bergquist och två internetoperatörer. Veckorna ligger under en egen rubrik i menyn.
+
+| Spelvecka | Kursens vecka och labb | Krabbans två fel | Kollegans ärende |
+|---|---|---|---|
+| 11 Nav och ekrar | 02, labb 02A | Mölndals defaultrutt pekar på 10.0.0.1, som inte ligger i något anslutet nät, så rutten installeras aldrig. Navets rutt till Mölndal pekar mot Borås, och Borås defaultrutt skickar tillbaka trafiken: en routingloop som syns i `traceroute`. | Reservväg Borås–Mölndal (10.0.0.8/30) med flytande statiska rutter. En flytande rutt ensam vinner på längsta prefix, så det behövs en vanlig rutt via navet också. |
+| 12 Brandvägg och VPN | 02, labb 02B och CTF 02 | DH-grupp 2 i Borås mot grupp 5 i Göteborg, så fas 1 blir aldrig klar (`MM_NO_STATE`). NAT-undantaget pekar på Mölndals nät i stället för lagrets, så svaren översätts före krypteringen. | Krav N-1: ekonomisystemet 192.168.1.70 får bara nås från VLAN 20, men Mölndal når det. |
+| 13 OSPF | 03, labb 03A och CTF 03 | Borås länkar ligger i area 1, och när det är rättat har Mölndals Gi0/1 hello 30 och dead 120. `bandwidth 100000` på Göteborgs serielänk ger den kostnad 1, så trafiken till Mölndal tar den långsamma linan. | Krav N-2: ett nytt nät i Mölndal (Loopback0 10.255.0.3/32) ska synas som en O-rad utan statiska rutter. |
+| 14 BGP, PAT och default | 03, labb 03B | `remote-as 64050` i stället för ISP-A:s 64500, så sessionen kommer aldrig upp (`%BGP-3-NOTIFICATION`). Gi0/2 mot Borås saknar `ip nat inside`, så Borås och Mölndal kommer inte ut. | Krav N-3: ISP-B på Se0/0/1 med BGP, egen PAT-regel och en flytande defaultrutt, så att internet fungerar när ISP-A ligger nere. |
+
+Adresserna är kursens: Göteborg–Borås Gi0/2 10.0.0.0/30, Göteborg–Mölndal Se0/0/0 10.0.0.4/30 (seriell hyrd förbindelse, `bandwidth` 1544), Borås–Mölndal Gi0/1 10.0.0.8/30, Mölndals LAN 192.168.3.0/26. Router-id 1.1.1.1, 2.2.2.2 och 3.3.3.3. Nordvik är AS 65010, ISP-A AS 64500 (203.0.113.1) och ISP-B AS 64501 (198.51.100.1/30). I vecka 12 har tunneln labbens värden: AES 256, SHA, DH-grupp 5, nyckeln `NordvikLabb123`, `TS-NORDVIK`, `CMAP` och `VPN-BORAS`.
+
+- **Mölndal:** R-Molndal-1 (2911 med HWIC-2T) och Elins dator. Mölndal har ingen egen tekniker, så konsolen når du via en **konsolserver** i rack A, i 3D, HD-2D och i frontpanelsvyn. R-Nordvik-1 och R-Boras-1 har fått ett HWIC-2T-kort med Serial0/0/0 och Serial0/0/1 när kursen använder dem.
+- **OSPF i simulatorn** (`js/net/dynroute.js`): grannskap kräver samma nät och mask, area, hello och dead, aktiva interface och olika router-id. Kostnaden är referensen (100 Mbit/s, `auto-cost reference-bandwidth`) delat med `bandwidth`, eller `ip ospf cost`. SPF räknas från varje router. `passive-interface` (även `default`), `default-information originate` (O*E2) och DR/BDR på Ethernet finns. Loopbacks annonseras som /32. Grannskap som kommer och går loggas med `%OSPF-5-ADJCHG`, fel area med `%OSPF-4-ERRRCV`.
+- **eBGP i simulatorn:** sessioner mellan direktanslutna grannar kommer upp när adress och AS stämmer åt båda hållen. Fel AS ger `%BGP-3-NOTIFICATION`. Bästa väg är kortast AS-väg, och vägar med det egna AS:et i vägen kastas. Operatörerna annonserar sina nät och varandras.
+- **Routingvalet** jämför nu längsta prefix och sedan administrativt avstånd mellan anslutna (0), statiska (1 eller det som står sist), eBGP (20) och OSPF (110).
+- **CLI** (`js/cli/ios_dyn.js`): `router ospf`, `router-id`, `network … area`, `passive-interface`, `auto-cost reference-bandwidth`, `default-information originate`, `ip ospf hello-interval|dead-interval|cost`, `bandwidth`, `clock rate`, `router bgp`, `neighbor … remote-as|shutdown|description`, `network … mask`, och `show ip ospf neighbor|interface [brief]|database`, `show ip ospf`, `show ip protocols`, `show ip route ospf|bgp`, `show ip bgp`, `show ip bgp summary` och `show ip bgp neighbors`, med utdata som i IOS 15. `show running-config` har `router ospf` och `router bgp`, och routingtabellen visar O-, O*E2- och B-rader med `[AD/metric]`.
+- **Quiz, utmaningar och handbok:** fem quizfrågor per vecka efter kursens koaner, självtester och övningsprov, en veckoutmaning per vecka och ett nytt handboksavsnitt om OSPF, BGP och statiska rutter. Adressplanen i handboken har Mölndal, serielänken, router-id och AS-numren.
+- **Tavlan i 3D** visar Mölndal på serielänken, triangeln och ISP-B.
+- **Tester:** `test/kurs2.js` kontrollerar att varje uppgift är olöst från start och löst med kommandona i ledtrådarna. Testet jämför också `show`-utdata med kursrepots facit, till exempel `O 192.168.3.0/26 [110/3] via 10.0.0.2`, kostnad 64 på serielänken, metric 65 när Gi0/2 är nere, `O*E2` på R-Boras-1 och AS-vägen `64500 64501`. `test/kurs2_ui.js` startar veckorna i alla tre visningslägena, kopplar konsolen via konsolservern och kör OSPF-kommandon i terminalen.
 
 ## Version 10.4: ingen mörk ruta i 2D
 
@@ -1961,11 +1987,12 @@ natverksspel/
   lib/fonts/                 VT323 och Press Start 2P (SIL Open Font License, se OFL-*.txt)
   assets3d/                  Kenney-figurer, möbler, bilar, fabriksdelar och fotsteg, Quaternius-figurer
                              (people/), ambientCG-texturer och himmel (CC0, licenserna i assets3d/LICENSES/)
-  js/net/                    nätverksmodell (model.js) och simulator (sim.js)
+  js/net/                    nätverksmodell (model.js), simulator (sim.js) och OSPF/BGP (dynroute.js)
   js/cli/                    Cisco IOS (ios.js, ios_show.js), Windows/Linux (host.js, fler kommandon
                              i host_more.js), WLC (wlc.js), lastbalanseraren (lb.js), fler WLC- och
-                             LB-kommandon (more7.js)
+                             LB-kommandon (more7.js), OSPF- och BGP-kommandon (ios_dyn.js)
   js/levels.js               veckorna, felen, kontrollerna och ledtrådarna
+  js/kurs2.js                kurs 2 (Routing och switching), vecka 11–14 med quiz och utmaningar
   js/world/                  3D-världen (world.js, efterbehandling i post.js, partiklar i fx.js,
                              detaljer i extras.js), 2D-världen (world2d.js, pixelkonst i art2d.js,
                              miljö, ljus och effekter i scene2d.js, djur och liv i life2d.js,
@@ -1984,8 +2011,9 @@ natverksspel/
 ```
 node natverksspel/test/levels.js   # varje fel syns från start och försvinner med rätt CLI-lösning
 node natverksspel/test/build.js    # varje byggsteg är olöst från start och byggs upp med CLI-kommandon
+node natverksspel/test/kurs2.js    # kurs 2: felen, lösningarna och show-utdata mot kursens facit
 node natverksspel/test/smoke.js    # DHCP, ping, NAT, DNS och STP i det felfria nätet
 node natverksspel/test/cli.js SW1 "show vlan brief" "show interfaces trunk"
 ```
 
-Webbläsartesterna `test/ui.js`, `test/flow.js`, `test/view.js`, `test/boot.js`, `test/features.js`, `test/v3.js`, `test/v4.js`, `test/v5.js`, `test/v8.js` (vägsökningen och aktiviteterna i 2D), `test/v9.js` (Kenney-modellerna i 3D), `test/hd2d.js` (HD-2D) och `test/v10.js` (förbättringarna i version 10, med en simulerad handkontroll) använder Playwright. Starta en webbserver på port 8765 i `natverksspel/` först.
+Webbläsartesterna `test/ui.js`, `test/flow.js`, `test/view.js`, `test/boot.js`, `test/features.js`, `test/v3.js`, `test/v4.js`, `test/v5.js`, `test/v8.js` (vägsökningen och aktiviteterna i 2D), `test/v9.js` (Kenney-modellerna i 3D), `test/hd2d.js` (HD-2D), `test/v10.js` (förbättringarna i version 10, med en simulerad handkontroll) och `test/kurs2_ui.js` (kurs 2 i alla visningslägen) använder Playwright. Starta en webbserver på port 8765 i `natverksspel/` först.

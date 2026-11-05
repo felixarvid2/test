@@ -1269,7 +1269,7 @@ NV.World2D = (function () {
   // Spelets anrop
   W.devPos2d = function (id) {
     var A = this.builder.anchors;
-    var rackOf = { SW1: A.rackA, SW2: A.rackA, R1: A.rackA, WLC: A.rackA, LB: A.rackA, RB: A.borasRack, SWB: A.borasRack };
+    var rackOf = { SW1: A.rackA, SW2: A.rackA, R1: A.rackA, WLC: A.rackA, LB: A.rackA, RM: A.rackA, RB: A.borasRack, SWB: A.borasRack };
     if (rackOf[id]) return { x: rackOf[id].x, z: rackOf[id].z + (rackOf[id].x > 50 ? 0 : 0.6), y: 1.6 };
     if (id === 'ISP' || String(id).indexOf('INTERNET') === 0) return { x: A.fiber.x, z: A.fiber.z + 0.2, y: 1.4 };
     if (A.desks[id]) return { x: A.desks[id].x + 0.1, z: A.desks[id].z - 0.2, y: 1.2 };

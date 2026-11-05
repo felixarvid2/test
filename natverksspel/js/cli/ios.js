@@ -179,6 +179,7 @@ NV.IosSession = (function () {
       case 'isakmp': return h + '(config-isakmp)#';
       case 'tset': return h + '(cfg-crypto-trans)#';
       case 'cmap': return h + '(config-crypto-map)#';
+      case 'ospf': case 'bgp': return h + '(config-router)#';
     }
     return h + '#';
   };
@@ -2461,6 +2462,8 @@ NV.IosSession = (function () {
 
   // Användarläget får inte konfigurera men ska känna igen show-grenen
   Session.TRIES = TRIES;
+  // För tillägg i egna filer (OSPF och BGP i ios_dyn.js)
+  Session.api = { def: def, showDef: showDef, invalidMarker: invalidMarker, eachIf: eachIf, HELP: HELP, SHOW_HELP: SHOW_HELP, PARAM_HELP: PARAM_HELP, result: result };
   Session.parseAce = parseAce;
   return Session;
 })();
