@@ -37,6 +37,8 @@ NV.devices3d = (function () {
         self.ports[n] = { x: x, y: 120, w: 52, h: 40, led: { x: x + 26, y: 106 } };
       });
       this.console = { x: 900, y: 120, w: 44, h: 38 };
+      // Kurs 2: HWIC-2T i första kortplatsen, två seriella portar (visas bara när routern har dem)
+      if (s.serial) ['Serial0/0/0', 'Serial0/0/1'].forEach(function (n, i) { self.ports[n] = { x: 66 + i * 72, y: 132, w: 56, h: 28, serial: true, led: { x: 94 + i * 72, y: 122 } }; });
     } else if (s.type === 'wlc') {
       ['nic', 'p2'].forEach(function (n, i) { var x = 760 + i * 60; self.ports[n] = { x: x, y: 38, w: 44, h: 34, led: { x: x + 22, y: 26 } }; });
       this.console = { x: 900, y: 38, w: 36, h: 32 };
@@ -79,6 +81,11 @@ NV.devices3d = (function () {
       // EHWIC-platser
       g.fillStyle = 'rgba(0,0,0,0.35)';
       [[50, 110], [230, 110], [410, 110]].forEach(function (p) { g.fillRect(p[0], p[1], 160, 60); });
+      if (s.hasSerial && s.hasSerial()) {
+        g.fillStyle = '#3a4048'; g.fillRect(52, 112, 156, 56);
+        g.fillStyle = '#cfd6dc'; g.font = 'bold 10px sans-serif'; g.fillText('HWIC-2T', 107, 125);
+        g.font = '9px sans-serif'; g.fillText('S0/0/0', 72, 170); g.fillText('S0/0/1', 144, 170);
+      }
       g.fillStyle = '#20252a'; g.fillRect(40, 186, 540, 4);
       ['SYS', 'ACT', 'POE'].forEach(function (n, i) {
         self.led(g, 620 + i * 26, 60, i === 0 ? '#3dff6a' : (i === 1 && Math.sin(t * 9) > 0 ? '#3dff6a' : '#23321f'), 5);
@@ -135,6 +142,14 @@ NV.devices3d = (function () {
     // Portar
     Object.keys(this.ports).forEach(function (n) {
       var p = self.ports[n];
+      if (p.serial && !(s.hasSerial && s.hasSerial())) return;
+      if (p.serial) {
+        g.fillStyle = '#15181c'; g.fillRect(p.x, p.y, p.w, p.h);
+        g.fillStyle = '#7d858d'; g.fillRect(p.x + 4, p.y + 8, p.w - 8, p.h - 16);
+        g.fillStyle = '#c9ccd0'; [p.x - 4, p.x + p.w + 1].forEach(function (sx) { g.fillRect(sx, p.y + p.h / 2 - 2, 3, 4); });
+        if (ledFn) self.led(g, p.led.x, p.led.y, ledFn(n, t), 4);
+        return;
+      }
       g.fillStyle = p.sfp ? '#111418' : '#0d0f11';
       g.fillRect(p.x, p.y, p.w, p.h);
       g.fillStyle = p.sfp ? '#555c63' : '#b9a36a';
@@ -270,7 +285,8 @@ NV.devices3d = (function () {
     out.entries.PP1 = ra.mount(8, { type: 'patch', units: 1, bg: '#15171a' });
     out.entries.SW1 = ra.mount(10, iosSpec('SW1', 'switch', 1, 'Catalyst 3560G', 'WS-C3560G-24PS', '#4c5b6b'));
     out.entries.SW2 = ra.mount(12, iosSpec('SW2', 'switch', 1, 'Catalyst 3750G', 'WS-C3750G-24PS', '#4c5b6b'));
-    out.entries.R1 = ra.mount(14, iosSpec('R1', 'router', 2, 'CISCO 2951', '', '#cfd2cf'));
+    function withSerial(spec, id) { spec.serial = true; spec.hasSerial = function () { var d = st().devices[id]; return !!(d && d.config.ifaces['Serial0/0/0']); }; return spec; }
+    out.entries.R1 = ra.mount(14, withSerial(iosSpec('R1', 'router', 2, 'CISCO 2951', '', '#cfd2cf'), 'R1'));
     out.entries.R1.spec.text = '#1d2226';
     out.entries.ASA = ra.mount(18, { type: 'asa', units: 1, bg: '#30363d', sticker: function () { return 'ASA (ej i drift)'; } });
     out.entries.WLC = ra.mount(20, { type: 'wlc', units: 1, bg: '#b9bcbf', text: '#1d2226', devId: 'WLC', sticker: function () { return 'WLC-Nordvik'; }, interact: { type: 'console', id: 'WLC' } });
@@ -278,7 +294,9 @@ NV.devices3d = (function () {
     // Lastbalanseraren (kapitel 10). Finns den inte i veckans nät är den bara en släckt låda.
     out.entries.LB = ra.mount(22, { type: 'lb', units: 1, bg: '#243447', sticker: function () { return st().devices.LB ? 'LB-Nordvik' : 'LB (ej i drift)'; }, health: function () { return NV.shared.lbHealth(st()); } });
     out.entries.LB.face.userData.interact = out.entries.LB.body.userData.interact = { type: 'console', id: 'LB' };
-    [24, 26, 28, 30, 32, 34].forEach(function (u) { ra.mount(u, { type: 'blank', units: 1, bg: '#1a1c1f' }); });
+    // Kurs 2: konsolservern ger konsolen till R-Molndal-1 (Mölndal saknar egen tekniker)
+    out.entries.KS = ra.mount(24, { type: 'server', units: 1, bg: '#2b2f36', sticker: function () { return st().devices.RM ? 'Konsolserver > R-Molndal-1' : 'Konsolserver'; }, interact: { type: 'console', id: 'RM' } });
+    [26, 28, 30, 32, 34].forEach(function (u) { ra.mount(u, { type: 'blank', units: 1, bg: '#1a1c1f' }); });
     // Rack B: servrar
     out.entries.Filserver = rb.mount(10, { type: 'server', units: 2, bg: '#1d2024', sticker: function () { return 'Filserver'; } });
     out.entries['NTP-server'] = rb.mount(14, { type: 'server', units: 1, bg: '#1d2024', sticker: function () { return 'NTP'; } });
@@ -317,7 +335,7 @@ NV.devices3d = (function () {
     // --- Borås: väggrack
     var rbo = new Rack(world, A.borasRack, 'LAGRETS RACK');
     out.racks.BO = rbo;
-    out.entries.RB = rbo.mount(12, iosSpec('RB', 'router', 2, 'CISCO 2951', '', '#cfd2cf'));
+    out.entries.RB = rbo.mount(12, withSerial(iosSpec('RB', 'router', 2, 'CISCO 2951', '', '#cfd2cf'), 'RB'));
     out.entries.RB.spec.text = '#1d2226';
     out.entries.SWB = rbo.mount(10, iosSpec('SWB', 'switch', 1, 'Catalyst 3560G', 'WS-C3560G-24PS', '#4c5b6b'));
     out.entries.PP2 = rbo.mount(8, { type: 'patch', units: 1, bg: '#15171a' });

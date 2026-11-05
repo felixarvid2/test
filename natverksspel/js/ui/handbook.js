@@ -90,6 +90,23 @@ NV.handbook = (function () {
         [c('ping 192.168.1.10 source gi0/0.40 size 1500 df-bit'), 'Testa tunneln från rätt källa och med stora paket'],
         [c('clear crypto sa'), 'Riv tunneln – den byggs igen vid nästa matchande paket'],
         [c('show pool') + ', ' + c('config pool TID-POOL monitor http') + ' (LB)', 'Lastbalanserarens servrar och hälsokontroll'],
+      ]) + '<h3>OSPF, BGP och statiska rutter (kurs 2)</h3>' + table(['Kommando', 'Svarar på'], [
+        [c('ip route 0.0.0.0 0.0.0.0 10.0.0.5'), 'Ekerns enda väg ut: en defaultrutt till navet'],
+        [c('ip route 192.168.3.0 255.255.255.192 10.0.0.10 200'), 'Flytande statisk rutt: AD 200 gör den till reserv. Längsta prefixet vinner ändå först'],
+        [c('router ospf 1') + ' → ' + c('router-id 1.1.1.1'), 'Starta OSPF och sätt router-id'],
+        [c('network 10.0.0.0 0.0.0.3 area 0'), 'Interface som täcks av raden är med i OSPF (wildcard: /30 = 0.0.0.3, /26 = 0.0.0.63)'],
+        [c('passive-interface default') + ', ' + c('no passive-interface gi0/2'), 'Inga hello på LAN-portarna, men näten annonseras ändå'],
+        [c('default-information originate'), 'Sprid routerns defaultrutt till de andra OSPF-routrarna (O*E2)'],
+        [c('auto-cost reference-bandwidth 10000'), 'Ändra referensen (samma på alla routrar!)'],
+        [c('ip ospf hello-interval') + ', ' + c('ip ospf dead-interval') + ', ' + c('bandwidth'), 'Under interfacet: timers (måste stämma med grannen) och bandbredd (ger kostnaden)'],
+        [c('show ip ospf neighbor'), 'Grannarna: FULL/DR, FULL/BDR eller FULL/ - på serielänkar'],
+        [c('show ip ospf interface brief'), 'Area, kostnad och antal grannar per interface'],
+        [c('show ip ospf interface gi0/1'), 'Timer intervals, nätverkstyp, DR och BDR'],
+        [c('show ip protocols') + ', ' + c('show ip route ospf'), 'Vilka nät processen annonserar och vilka O-rutter som finns'],
+        [c('router bgp 65010') + ' → ' + c('neighbor 203.0.113.1 remote-as 64500'), 'eBGP mot operatören: grannens adress och grannens AS'],
+        [c('show ip bgp summary'), 'Up/Down och PfxRcd – Active eller Idle betyder att sessionen inte är uppe'],
+        [c('show ip bgp'), 'Vägarna: > är bäst, Path är AS-vägen (kortast vinner)'],
+        [c('show ip nat statistics'), 'Vilka interface som är inside och outside'],
       ]) + '<h3>Laptopen (Linux)</h3>' + table(['Kommando', 'Vad det gör'], [
         [c('sudo screen /dev/ttyUSB0 9600'), 'Konsol mot enheten där den ljusblå kabeln sitter'],
         [c('ssh drift@192.168.1.193'), 'Logga in över nätet'],
@@ -161,7 +178,11 @@ NV.handbook = (function () {
         ['Nordviks utsida (PAT)', '203.0.113.10'], ['Filserverns utsida (statisk NAT)', '203.0.113.11'],
         ['Borås utsida (från vecka 10)', '203.0.113.20'], ['VPN-tunneln', '192.168.1.0/26 ↔ 192.168.2.0/26 och drift ↔ drift'],
         ['Lastbalanseraren LB-Nordvik (VIP)', '192.168.1.13 (tid.nordvik.example)'], ['Tidrapportservrarna', 'Tid-1 192.168.1.14 · Tid-2 192.168.1.15'],
-        ['Mölndal (planerat)', '192.168.3.0/26 – ännu utan förbindelse'],
+        ['Mölndal (kurs 2)', '192.168.3.0/26, R-Molndal-1 192.168.3.1 – konsol via konsolservern i rack A'],
+        ['Göteborg–Mölndal (seriell)', '10.0.0.4/30 (.5 Göteborg Se0/0/0, .6 Mölndal Se0/0/0), bandwidth 1544'],
+        ['Borås–Mölndal (kurs 2)', '10.0.0.8/30 (.9 Borås Gi0/1, .10 Mölndal Gi0/1)'],
+        ['OSPF router-id', 'Göteborg 1.1.1.1 · Borås 2.2.2.2 · Mölndal 3.3.3.3 (area 0, process 1)'],
+        ['BGP', 'Nordvik AS 65010 · ISP-A AS 64500 (203.0.113.1) · ISP-B AS 64501 (198.51.100.1/30 på Se0/0/1)'],
       ]) + '<h3>Racket</h3>' + table(['Enhet', 'Portar'], [
         ['R-Nordvik-1 (2951)', 'Gi0/0 trunk mot SW-Nordvik-1 Gi0/1 · Gi0/1 ut · Gi0/2 Borås'],
         ['SW-Nordvik-1 (3560G)', 'Gi0/5–6 kontor · Gi0/7–8 ekonomi · Gi0/9 gäst · Gi0/10 teknikerbänken · Gi0/11 skrivare · Gi0/12 Sara · Gi0/20 WLC · Gi0/24 trunk · Gi0/25 reservlänk'],
@@ -275,7 +296,7 @@ NV.handbook = (function () {
           ['Lager 4-balansering', 'Tittar på IP och port – snabb, vet inget om innehållet'], ['Lager 7-balansering', 'Tittar på HTTP (sökväg, cookies) – t.ex. NGINX, HAProxy, Traefik, F5'],
           ['Hälsokontroll', 'Ping säger bara att servern lever. Testa tjänsten: GET /status → 200 OK'],
         ]) +
-        '<h3>Tio veckor i repris</h3>' + table(['Vecka', 'Tema', 'Kommandot att komma ihåg'], NV.levels.WEEKS.map(function (w) { return [String(w.week), w.title, c((w.chips && w.chips[0]) || '')]; }));
+        '<h3>Veckorna i repris</h3>' + table(['Vecka', 'Tema', 'Kommandot att komma ihåg'], NV.levels.WEEKS.map(function (w) { return [String(w.week), w.title, c((w.chips && w.chips[0]) || '')]; }));
     },
     ord: function () {
       return table(['Svenska', 'Engelska', 'Kort förklaring'], [

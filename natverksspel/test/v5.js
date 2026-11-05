@@ -9,19 +9,19 @@ const { chromium } = require('playwright');
     const p = await ctx.newPage();
     p.on('pageerror', e => errs.push(mode + ' pageerror: ' + e.message + ' ' + (e.stack || '').split('\n').slice(0, 3).join(' | ')));
     p.on('console', m => { if (m.type() === 'error') errs.push(mode + ' console: ' + m.text()); });
-    await p.addInitScript((m) => { try { localStorage.setItem('krabba-passet.settings', JSON.stringify({ quality: 'medium', mode: m, modeChosen: true, tutorialDone: true, lastVersion: '10.4' })); } catch (e) {} }, mode);
+    await p.addInitScript((m) => { try { localStorage.setItem('krabba-passet.settings', JSON.stringify({ quality: 'medium', mode: m, modeChosen: true, tutorialDone: true, lastVersion: '11.0' })); } catch (e) {} }, mode);
     await p.goto('http://localhost:8765/index.html', { waitUntil: 'domcontentloaded' });
     await p.waitForTimeout(4500);
     return p;
   }
   const shot = async (p, n) => { await p.screenshot({ path: out + 'v5_' + n + '.png' }); };
 
-  // Menyn med vecka 10
+  // Menyn med vecka 1–14 (kurs 1 och 2)
   const p = await page('3d');
   await shot(p, 'menu');
   const menu = await p.evaluate(() => ({ weeks: document.querySelectorAll('#menu .week[data-week]:not(.build)').length, sum: (document.querySelector('.menu-sum') || {}).textContent, next: !!document.querySelector('.week.next') }));
   console.log('meny', JSON.stringify(menu));
-  if (menu.weeks !== 10) errs.push('menyn har ' + menu.weeks + ' veckor');
+  if (menu.weeks !== 14) errs.push('menyn har ' + menu.weeks + ' veckor');
 
   // Vecka 10 i 3D
   await p.evaluate(() => { NV.game.world.lock = () => {}; const st = document.createElement('style'); st.textContent = '#pause{display:none!important}'; document.head.appendChild(st); NV.game.ui.hideMenu(); NV.game.startWeek(10); NV.game.ui.closeDialog(); });

@@ -235,7 +235,7 @@ NV.World = (function () {
     // Konsolkabeln
     if (this.consoleMesh) { this.scene.remove(this.consoleMesh); this.consoleMesh = null; }
     if (this.consoleTarget) {
-      var c = this.portPoint(this.consoleTarget, 'console');
+      var c = this.portPoint(this.consoleTarget === 'RM' ? 'KS' : this.consoleTarget, 'console');
       if (c) {
         this.consoleMesh = NV.devices3d.cable(this, [c.clone(), c.clone().add(new THREE.Vector3(0, 0, 0.08)), c.clone().add(new THREE.Vector3(0.1, -0.35, 0.25)), c.clone().add(new THREE.Vector3(0.15, -0.8, 0.4))], 'console', 0.004);
       }
@@ -634,10 +634,10 @@ NV.World = (function () {
     g.fillStyle = '#2e7d32'; g.font = '28px "Segoe Print", "Comic Sans MS", cursive';
     g.fillText('Slå upp symptomet, inte kapitlet. (H = handbok)', 40, 590);
     // Veckans nätskiss: det som berörs av veckans tema ritas i rött
-    var hot = { 1: ['SW1'], 2: ['trunk', 'PC'], 3: ['PC', 'R1'], 4: ['trunk'], 5: ['WAN', 'RB'], 6: ['R1', 'ISP'], 7: ['SW2', 'trunk'], 8: ['AP', 'SWB'], 9: ['R1', 'SW1'], 10: ['VPN', 'RB', 'LB'] }[def ? def.week : 0] || [];
+    var hot = { 1: ['SW1'], 2: ['trunk', 'PC'], 3: ['PC', 'R1'], 4: ['trunk'], 5: ['WAN', 'RB'], 6: ['R1', 'ISP'], 7: ['SW2', 'trunk'], 8: ['AP', 'SWB'], 9: ['R1', 'SW1'], 10: ['VPN', 'RB', 'LB'], 11: ['RM', 'SER', 'R1'], 12: ['VPN', 'RB'], 13: ['SER', 'RB', 'TRI'], 14: ['ISP', 'ISPB', 'R1'] }[def ? def.week : 0] || [];
     function node(x, y, w, t, id) { g.strokeStyle = hot.indexOf(id) >= 0 ? '#c0392b' : '#1f4e79'; g.lineWidth = hot.indexOf(id) >= 0 ? 6 : 4; g.strokeRect(x, y, w, 46); g.fillStyle = g.strokeStyle; g.font = 'bold 22px "Segoe Print", "Comic Sans MS", cursive'; g.fillText(t, x + 10, y + 31); }
     function line(x1, y1, x2, y2, id, dash) { g.strokeStyle = hot.indexOf(id) >= 0 ? '#c0392b' : '#555'; g.lineWidth = hot.indexOf(id) >= 0 ? 6 : 3; g.setLineDash(dash ? [10, 8] : []); g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); g.setLineDash([]); }
-    var vpn10 = def && def.week >= 10;
+    var vpn10 = def && (def.week === 10 || def.week === 12);
     line(740, 238, 740, 290, 'ISP'); line(740, 336, 740, 390, 'R1'); if (!vpn10) line(790, 313, 900, 313, 'WAN', true); line(700, 413, 640, 470, 'trunk'); line(780, 413, 840, 470, 'trunk');
     if (vpn10) {
       // Vecka 10: Borås går till internet och en krypterad tunnel ritas ovanpå
@@ -651,6 +651,13 @@ NV.World = (function () {
     node(690, 192, 110, 'ISP', 'ISP'); node(690, 290, 110, 'R1', 'R1'); node(890, 290, 110, 'RB', 'RB');
     node(690, 390, 110, 'SW1', 'SW1'); node(590, 470, 110, 'SW2', 'SW2'); node(890, 390, 110, 'SWB', 'SWB'); node(890, 480, 110, 'AP', 'AP');
     g.fillStyle = '#555'; g.font = '20px "Segoe Print", "Comic Sans MS", cursive'; g.fillText('PC', 628, 585); if (!vpn10) g.fillText('WAN', 812, 305);
+    // Kurs 2: Mölndal på den seriella förbindelsen, triangeln och den andra operatören
+    if (def && def.week >= 11) {
+      line(800, 296, 890, 222, 'SER', true); node(890, 192, 110, 'RM', 'RM');
+      g.fillStyle = '#555'; g.font = '18px "Segoe Print", "Comic Sans MS", cursive'; g.fillText('Se', 830, 248);
+      if (!vpn10) line(945, 290, 945, 238, 'TRI');
+      if (def.week >= 14) { line(690, 300, 610, 238, 'ISPB'); node(500, 192, 110, 'ISP-B', 'ISPB'); }
+    }
     wb.tex.needsUpdate = true;
   };
 

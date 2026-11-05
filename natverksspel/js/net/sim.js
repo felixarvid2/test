@@ -383,9 +383,10 @@ NV.sim = (function () {
           D.eps[ek] = { key: ek, dev: id, iface: n, ip: i.ip.addr, mask: i.ip.mask, mac: d.baseMac, up: !!up && D.comp[ek] !== undefined };
         });
       } else if (d.kind === 'isp') {
-        var ek2 = 'E:ISP:nic';
-        var pp2 = D.ports[key('ISP', 'nic')];
-        D.eps[ek2] = { key: ek2, dev: 'ISP', iface: 'nic', ip: d.ip, mask: d.mask, mac: d.baseMac, up: !!(pp2 && pp2.up) };
+        // Operatörerna (ISP, och ISP-B i kurs 2) är förenklade enheter med en adress mot Nordvik
+        var ek2 = 'E:' + id + ':nic';
+        var pp2 = D.ports[key(id, 'nic')];
+        D.eps[ek2] = { key: ek2, dev: id, iface: 'nic', ip: d.ip, mask: d.mask, mac: d.baseMac, up: !!(pp2 && pp2.up) };
       } else if (d.nic) {
         var conf = hostIpConf(d);
         var ek3 = 'E:' + id + ':nic';
@@ -463,6 +464,8 @@ NV.sim = (function () {
     spanningTree(state, D);
     buildL2(state, D, 1);
     buildEndpoints(state, D);
+    // OSPF och BGP (kurs 2) behövs redan här: accesspunkterna i Borås når controllern via OSPF-rutter
+    if (NV.dyn) NV.dyn.compute(state, D, { quiet: true });
     // Accesspunkter ansluter till controllern
     Object.keys(state.devices).forEach(function (id) {
       var d = state.devices[id];
@@ -472,8 +475,10 @@ NV.sim = (function () {
     });
     buildL2(state, D, 2);
     buildEndpoints(state, D);
+    if (NV.dyn) NV.dyn.compute(state, D);
     state._D = D;
     state._dirty = false;
+    if (NV.dyn && D.dyn) NV.dyn.flush(state, D);
     return D;
   }
   function get(state) {
@@ -559,15 +564,19 @@ NV.sim = (function () {
         if (ep && ep.up) cand.push({ type: 'S', net: r.net, mask: r.mask, iface: r.iface, ep: ep, direct: true, ad: r.ad || 1 });
       }
     });
+    // OSPF- och BGP-rutter (kurs 2)
+    ((D.dyn && D.dyn.routes[dev]) || []).forEach(function (r) { if (r.ep && r.ep.up) cand.push(r); });
     cand.forEach(function (c) {
       if (U.inNet(dst, c.net, c.mask)) {
         var p = U.maskToPrefix(c.mask);
-        // Längsta prefix vinner; vid lika prefix vinner anslutet nät och sedan lägst administrativt avstånd (flytande statiska rutter)
-        if (!best || p > best.p || (p === best.p && c.type === 'C' && best.type !== 'C') || (p === best.p && c.type === 'S' && best.type === 'S' && c.ad < best.ad)) { best = c; best.p = p; }
+        // Längsta prefix vinner; vid lika prefix vinner lägst administrativt avstånd:
+        // anslutet 0, statiskt 1 (eller det som står sist i ip route), eBGP 20, OSPF 110
+        if (!best || p > best.p || (p === best.p && adOf(c) < adOf(best))) { best = c; best.p = p; }
       }
     });
     return best;
   }
+  function adOf(r) { return r.type === 'C' ? 0 : (r.ad || 1); }
   function installedRoutes(state, D, dev) {
     var d = state.devices[dev];
     var out = [];
@@ -587,6 +596,7 @@ NV.sim = (function () {
         if (ep && ep.up) st.push({ type: dflt ? 'S*' : 'S', net: r.net, mask: r.mask, iface: r.iface, ad: r.ad || 1 });
       }
     });
+    ((D.dyn && D.dyn.routes[dev]) || []).forEach(function (r) { if (r.ep && r.ep.up) st.push(r); });
     // Bara rutterna med lägst administrativt avstånd per nät installeras
     st.forEach(function (r) {
       var best = st.every(function (q) { return q.net !== r.net || q.mask !== r.mask || q.ad >= r.ad; });
@@ -838,12 +848,14 @@ NV.sim = (function () {
       if (d.kind === 'isp') {
         if (ingress && (pkt.dst === d.ip)) return { ok: true, at: dev, pkt: pkt, hops: hops, loss: loss };
         if (INTERNET[pkt.dst]) {
-          hops.push({ dev: 'ISP', ip: d.ip });
+          hops.push({ dev: dev, ip: d.ip });
           return { ok: true, at: 'INTERNET:' + pkt.dst, pkt: pkt, hops: hops, loss: loss };
         }
         if (U.isPrivate(pkt.dst)) return { ok: false, reason: 'drop', where: dev, hops: hops, loss: loss };
-        if (ingress) hops.push({ dev: 'ISP', ip: d.ip });
-        if (U.inNet(pkt.dst, '203.0.113.0', '255.255.255.0')) { egressEp = D.eps['E:ISP:nic']; nh = pkt.dst; }
+        if (ingress) hops.push({ dev: dev, ip: d.ip });
+        // Operatörens eget nät mot kunden, eller den andra operatörens (de är sammankopplade)
+        var ispOut = ispFor(state, pkt.dst, dev);
+        if (ispOut) { egressEp = D.eps['E:' + ispOut + ':nic']; nh = pkt.dst; }
         else return { ok: false, reason: 'drop', where: dev, hops: hops, loss: loss };
       } else if (isRouter(d)) {
         if (ingress) {
@@ -1089,11 +1101,17 @@ NV.sim = (function () {
     if (!r2.ok) { s.fail++; return { ok: false, code: 502, via: d.id, member: m, res: r }; }
     return { ok: true, code: 200, via: d.id, member: m, server: r2.at, res: r };
   }
+  // Vilken operatör äger nätet där adressen finns (ISP: 203.0.113.0/24, ISP-B: 198.51.100.0/30)
+  function ispFor(state, ip, prefer) {
+    var ids = Object.keys(state.devices).filter(function (id) { var d = state.devices[id]; return d.kind === 'isp' && d.ip && U.sameSubnet(ip, d.ip, d.mask); });
+    if (prefer && ids.indexOf(prefer) >= 0) return prefer;
+    return ids[0] || null;
+  }
   function sendFromInternet(state, D, src, dst, opts, natLocal) {
-    // Internet skickar tillbaka via operatören
+    // Internet skickar tillbaka via den operatör som äger adressen
     if (U.isPrivate(dst)) return { ok: false, reason: 'drop', loss: 0 };
-    var isp = state.devices['ISP'];
-    var ep = D.eps['E:ISP:nic'];
+    var ispId = ispFor(state, dst) || 'ISP';
+    var ep = D.eps['E:' + ispId + ':nic'];
     if (!ep || !ep.up) return { ok: false, reason: 'drop', loss: 0 };
     var seg = D.comp[ep.key];
     var owner = arpOwner(state, D, seg, dst, ep.key);

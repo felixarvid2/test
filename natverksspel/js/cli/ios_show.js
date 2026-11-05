@@ -10,6 +10,8 @@ NV.iosShow = (function () {
       if (/^Embedded/.test(n)) return [0, 0, 0];
       var m = /^GigabitEthernet0\/(\d+)(?:\.(\d+))?$/.exec(n);
       if (m) return [1, parseInt(m[1], 10), m[2] ? parseInt(m[2], 10) : -1];
+      var se = /^Serial0\/0\/(\d+)$/.exec(n);
+      if (se) return [1, 50 + parseInt(se[1], 10), -1];
       var lo = /^Loopback(\d+)$/.exec(n);
       if (lo) return [2, parseInt(lo[1], 10), 0];
       var v = /^Vlan(\d+)$/.exec(n);
@@ -118,15 +120,20 @@ NV.iosShow = (function () {
       if (i.portfast && i.mode !== 'trunk') o.push(' spanning-tree portfast');
       else if (i.portfast && i.mode === 'trunk') o.push(' spanning-tree portfast trunk');
     } else {
+      if (i.bandwidth) o.push(' bandwidth ' + i.bandwidth);
       if (i.ip) o.push(' ip address ' + i.ip.addr + ' ' + i.ip.mask);
       else if (!i.parent) o.push(' no ip address');
+      if (i.ospfHello) o.push(' ip ospf hello-interval ' + i.ospfHello);
+      if (i.ospfDead) o.push(' ip ospf dead-interval ' + i.ospfDead);
+      if (i.ospfCost) o.push(' ip ospf cost ' + i.ospfCost);
       if (i.aclIn) o.push(' ip access-group ' + i.aclIn + ' in');
       if (i.aclOut) o.push(' ip access-group ' + i.aclOut + ' out');
       if (i.natDir) o.push(' ip nat ' + i.natDir);
       if (i.mtu) o.push(' ip mtu ' + i.mtu);
       if (i.adjustMss) o.push(' ip tcp adjust-mss ' + i.adjustMss);
       if (i.cryptoMap) o.push(' crypto map ' + i.cryptoMap);
-      if (!i.svi && !i.parent && !i.internal && !i.loop) {
+      if (/^Serial/.test(n) && i.clockRate) o.push(' clock rate ' + i.clockRate);
+      if (!i.svi && !i.parent && !i.internal && !i.loop && !/^Serial/.test(n)) {
         if (d.kind === 'router') {
           o.push(i.duplex === 'auto' ? ' duplex auto' : ' duplex ' + i.duplex);
           o.push(i.speed === 'auto' ? ' speed auto' : ' speed ' + i.speed);
@@ -232,6 +239,7 @@ NV.iosShow = (function () {
       ifaceBlock(state, d, n, c).forEach(function (l) { o.push(l); });
       o.push('!');
     });
+    routerSections(c).forEach(function (l) { o.push(l); });
     if (!router && c.defaultGateway) o.push('ip default-gateway ' + c.defaultGateway);
     o.push('ip forward-protocol nd');
     o.push('!');
@@ -286,6 +294,40 @@ NV.iosShow = (function () {
   var ENC_TEXT = { 'des': 'DES - Data Encryption Standard (56 bit keys).', '3des': 'Three key triple DES', 'aes': 'AES - Advanced Encryption Standard (128 bit keys).', 'aes 192': 'AES - Advanced Encryption Standard (192 bit keys).', 'aes 256': 'AES - Advanced Encryption Standard (256 bit keys).' };
   var HASH_TEXT = { sha: 'Secure Hash Standard', sha256: 'Secure Hash Standard 2 (256 bit)', sha384: 'Secure Hash Standard 2 (384 bit)', md5: 'Message Digest 5' };
   var GROUP_BITS = { 1: 768, 2: 1024, 5: 1536, 14: 2048, 15: 3072, 16: 4096, 19: 256, 20: 384, 24: 2048 };
+  // router ospf och router bgp (kurs 2)
+  function routerSections(c) {
+    var o = [];
+    if (c.ospf) {
+      var q = c.ospf;
+      o.push('router ospf ' + q.pid);
+      if (q.routerId) o.push(' router-id ' + q.routerId);
+      if (q.logAdj === false) o.push(' no log-adjacency-changes');
+      if (q.refBw && q.refBw !== 100) o.push(' auto-cost reference-bandwidth ' + q.refBw);
+      if (q.passiveDefault) {
+        o.push(' passive-interface default');
+        (q.noPassive || []).forEach(function (n) { o.push(' no passive-interface ' + n); });
+      } else (q.passive || []).forEach(function (n) { o.push(' passive-interface ' + n); });
+      (q.networks || []).forEach(function (x) { o.push(' network ' + x.net + ' ' + x.wild + ' area ' + x.area); });
+      if (q.defaultOriginate) o.push(' default-information originate' + (q.defaultAlways ? ' always' : ''));
+      o.push('!');
+    }
+    if (c.bgp && c.bgp.as) {
+      var b = c.bgp;
+      o.push('router bgp ' + b.as);
+      if (b.routerId) o.push(' bgp router-id ' + b.routerId);
+      if (b.logChanges !== false) o.push(' bgp log-neighbor-changes');
+      Object.keys(b.neighbors || {}).forEach(function (ip) {
+        var nb = b.neighbors[ip];
+        if (nb.remoteAs) o.push(' neighbor ' + ip + ' remote-as ' + nb.remoteAs);
+        if (nb.description) o.push(' neighbor ' + ip + ' description ' + nb.description);
+        if (nb.shutdown) o.push(' neighbor ' + ip + ' shutdown');
+      });
+      (b.networks || []).forEach(function (n) { o.push(' network ' + n.net + ' mask ' + n.mask); });
+      o.push('!');
+    }
+    return o;
+  }
+
   function cryptoConfig(c) {
     var cr = c.crypto, o = [];
     if (!cr) return o;
@@ -870,6 +912,21 @@ NV.iosShow = (function () {
         lines.push('  Known via "connected", distance 0, metric 0 (connected, via interface)');
         lines.push('  Routing Descriptor Blocks:');
         lines.push('  * directly connected, via ' + r.iface);
+      } else if (r.type === 'O' || r.type === 'O*E2') {
+        lines.push('  Known via "ospf ' + ((d.config.ospf && d.config.ospf.pid) || 1) + '", distance 110, metric ' + r.metric + (r.type === 'O*E2' ? ', candidate default path' : '') + ', type ' + (r.type === 'O' ? 'intra area' : 'extern 2, forward metric ' + r.fwd));
+        lines.push('  Last update from ' + r.nh + ' on ' + r.iface + ', ' + routeAge(state, d, r) + ' ago');
+        lines.push('  Routing Descriptor Blocks:');
+        lines.push('  * ' + r.nh + ', from ' + (D.dyn && D.dyn.ospf[r.origin] ? D.dyn.ospf[r.origin].rid : r.nh) + ', ' + routeAge(state, d, r) + ' ago, via ' + r.iface);
+        lines.push('      Route metric is ' + r.metric + ', traffic share count is 1');
+      } else if (r.type === 'B') {
+        lines.push('  Known via "bgp ' + d.config.bgp.as + '", distance 20, metric 0');
+        lines.push('  Tag ' + r.path[0] + ', type external');
+        lines.push('  Last update from ' + r.nh + ' ' + routeAge(state, d, r) + ' ago');
+        lines.push('  Routing Descriptor Blocks:');
+        lines.push('  * ' + r.nh + ', from ' + r.nh + ', ' + routeAge(state, d, r) + ' ago');
+        lines.push('      Route metric is 0, traffic share count is 1');
+        lines.push('      AS Hops ' + r.path.length);
+        lines.push('      Route tag ' + r.path[0]);
       } else {
         lines.push('  Known via "static", distance 1, metric 0' + (r.net === '0.0.0.0' ? ', candidate default path' : ''));
         lines.push('  Routing Descriptor Blocks:');
@@ -878,9 +935,12 @@ NV.iosShow = (function () {
       }
       return lines.join('\n');
     }
+    var all = routes;
     if (filt === 'static') routes = routes.filter(function (r) { return r.type[0] === 'S'; });
     if (filt === 'connected') routes = routes.filter(function (r) { return r.type === 'C' || r.type === 'L'; });
-    var def = routes.filter(function (r) { return r.type === 'S*'; })[0];
+    if (filt === 'ospf') routes = routes.filter(function (r) { return r.type[0] === 'O'; });
+    if (filt === 'bgp') routes = routes.filter(function (r) { return r.type === 'B'; });
+    var def = all.filter(function (r) { return r.net === '0.0.0.0' && r.mask === '0.0.0.0'; })[0];
     var o = ['Codes: L - local, C - connected, S - static, R - RIP, M - mobile, B - BGP',
       '       D - EIGRP, EX - EIGRP external, O - OSPF, IA - OSPF inter area',
       '       N1 - OSPF NSSA external type 1, N2 - OSPF NSSA external type 2',
@@ -900,7 +960,11 @@ NV.iosShow = (function () {
     Object.keys(groups).sort(function (a, b) { return U.ipToInt(a.split('/')[0]) - U.ipToInt(b.split('/')[0]); }).forEach(function (g) {
       var rs = groups[g];
       if (g === '0.0.0.0/0') {
-        rs.forEach(function (r) { o.push(r.nh ? 'S*    0.0.0.0/0 [' + (r.ad || 1) + '/0] via ' + r.nh : 'S*    0.0.0.0/0 is directly connected, ' + r.iface); });
+        rs.forEach(function (r) {
+          if (r.type === 'O*E2') o.push('O*E2  0.0.0.0/0 [110/' + r.metric + '] via ' + r.nh + ', ' + routeAge(state, d, r) + ', ' + r.iface);
+          else if (r.type === 'B') o.push('B*    0.0.0.0/0 [20/0] via ' + r.nh + ', ' + routeAge(state, d, r));
+          else o.push(r.nh ? 'S*    0.0.0.0/0 [' + (r.ad || 1) + '/0] via ' + r.nh : 'S*    0.0.0.0/0 is directly connected, ' + r.iface);
+        });
         return;
       }
       var masks = {};
@@ -913,11 +977,26 @@ NV.iosShow = (function () {
         var pfx = r.net + '/' + U.maskToPrefix(r.mask);
         if (r.type === 'C') o.push('C        ' + pfx + ' is directly connected, ' + r.iface);
         else if (r.type === 'L') o.push('L        ' + pfx + ' is directly connected, ' + r.iface);
+        else if (r.type === 'O') o.push('O        ' + pfx + ' [110/' + r.metric + '] via ' + r.nh + ', ' + routeAge(state, d, r) + ', ' + r.iface);
+        else if (r.type === 'B') o.push('B        ' + pfx + ' [20/0] via ' + r.nh + ', ' + routeAge(state, d, r));
         else if (r.nh) o.push('S        ' + pfx + ' [' + (r.ad || 1) + '/0] via ' + r.nh);
         else o.push('S        ' + pfx + ' is directly connected, ' + r.iface);
       });
     });
     return o.join('\n');
+  }
+
+  // Hur länge en OSPF- eller BGP-rutt har funnits (sedan grannskapet eller sessionen kom upp)
+  function routeAge(state, d, r) {
+    var t0 = 0;
+    if (r.type === 'B') t0 = NV.dyn.since(state, 'b|' + d.id + '|' + r.nh);
+    else {
+      var D = S.get(state), R = D.dyn && D.dyn.ospf[d.id];
+      var nb = R && R.nbrs.filter(function (n) { return n.ip === r.nh; })[0];
+      if (nb) t0 = NV.dyn.since(state, d.id + '|' + nb.rid + '@' + nb.iface);
+    }
+    var sec = Math.max(0, Math.floor((state.time || 0) - t0));
+    return two(Math.floor(sec / 3600) % 24) + ':' + two(Math.floor(sec / 60) % 60) + ':' + two(sec % 60);
   }
 
   function dhcpBinding(state, d) {
@@ -1340,5 +1419,6 @@ NV.iosShow = (function () {
     hashSecret: hashSecret, aceText: aceText, ifaceNames: ifaceNames, physPorts: physPorts, portState: portState,
     showClockDetail: showClockDetail, ntpAssociations: ntpAssociations, ipCef: ipCef,
     cryptoIsakmpSa: cryptoIsakmpSa, cryptoIpsecSa: cryptoIpsecSa, cryptoMapShow: cryptoMapShow, cryptoIsakmpPolicy: cryptoIsakmpPolicy, cryptoSession: cryptoSession,
+    routeAge: routeAge, pad: pad, two: two,
   };
 })();

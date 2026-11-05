@@ -21,10 +21,12 @@ The owner writes in Swedish; answer in Swedish. Standing workflow for every requ
 
 ## Tests
 
-- Node: `node test/levels.js` ("Alla veckor OK"), `node test/build.js` ("Alla byggen OK").
+- Node: `node test/levels.js` ("Alla veckor OK"), `node test/build.js` ("Alla byggen OK"), `node test/kurs2.js`
+  ("Alla kurs 2-veckor OK", weeks 11–14 of course 2).
 - Browser (Playwright, server on port 8765 in `natverksspel/`, see the `playwright-webgl-testing` skill):
-  `v10 hd2d v9 boot ui flow features v3 v4 v5 v8 build_ui report`. Each must end with "inga fel" (flow prints
-  JSON) and have 0 `pageerror`. `test/view.js` is a screenshot tool that takes arguments, not a test.
+  `v10 hd2d v9 boot ui flow features v3 v4 v5 v8 build_ui report kurs2_ui`. Each must end with "inga fel" (flow prints
+  JSON) and have 0 `pageerror`. Run them one at a time: two browsers at once make the first SwiftShader frame so
+  slow that `page.screenshot` hits its 30 s timeout in ui, features, v3 and v4. `test/view.js` is a screenshot tool that takes arguments, not a test.
 - New behaviour gets a check in `test/v10.js` (latest feature test); prove it fails without the fix.
 
 ## Git and PR

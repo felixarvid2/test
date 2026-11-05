@@ -59,6 +59,7 @@ NV.util = (function () {
     { long: 'FastEthernet', short: 'Fa' },
     { long: 'Vlan', short: 'Vl' },
     { long: 'Loopback', short: 'Lo' },
+    { long: 'Serial', short: 'Se' },
     { long: 'Embedded-Service-Engine', short: 'Em' },
   ];
   function normIf(name) {

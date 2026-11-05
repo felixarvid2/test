@@ -19,7 +19,7 @@ NV.levels = (function () {
     st.devices['Gast-mobil'].ssid = 'Nordvik-Gast';
     st.devices['Lager-skanner'].ssid = 'Nordvik-Lager';
     S.refresh(st);
-    hostSetup(st, DHCP_HOSTS);
+    hostSetup(st, DHCP_HOSTS.filter(function (h) { return st.devices[h]; }).concat(st.devices['PC-Molndal'] ? ['PC-Molndal'] : []));
     S.refresh(st);
     return st;
   }
