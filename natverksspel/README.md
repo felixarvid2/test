@@ -6,10 +6,11 @@ Nätet, adressplanen, utrustningen och felen följer kursboken *Nätverksteknik 
 
 ## Starta
 
-Spelet är helt statiskt och behöver ingen installation eller internetuppkoppling (three.js ligger i `lib/`). De färdiga 3D-modellerna laddas bara via en webbserver; öppnas `index.html` direkt används spelets egna modeller.
+Spelet är helt statiskt och behöver ingen installation, webbserver eller internetuppkoppling (three.js ligger i `lib/`).
 
-- **Enklast:** öppna `index.html` i Chrome, Edge eller Firefox.
-- **Eller via en lokal webbserver:** `npx http-server natverksspel` och gå till `http://localhost:8080`.
+- **Enklast:** packa upp zip-filen från en release och dubbelklicka på `index.html`. Den öppnas i webbläsaren (Chrome, Edge eller Firefox) med allt: 3D-modeller, texturer och fotsteg.
+- **Från en klon av repot:** kör `node tools/offline.js` en gång i `natverksspel/` så att `assets3d/offline.js` finns, och öppna sedan `index.html`. Utan den filen fungerar spelet också, men 3D-läget visar spelets egna enklare modeller.
+- **Eller via en lokal webbserver:** `npx http-server natverksspel` och gå till `http://localhost:8080`. Då behövs inte `offline.js`.
 
 3D-läget kräver WebGL. 2D-läget fungerar i alla moderna webbläsare – saknas WebGL startar spelet i 2D.
 
@@ -113,6 +114,18 @@ Datorerna beter sig som riktiga Windows-datorer: saknar de adress försöker de 
 När ett fel är löst skickar du in en felrapport med **F**. En gul ruta uppe till vänster visar hur många rapporter som saknas, och när alla Krabba-fel (eller alla fel) är lösta påminner spelet dig med en ruta där du kan skriva rapporterna direkt. Veckan är klar först när alla rapporter är inlämnade.
 
 Varje fel är simulerat på riktigt. Symptomen räknas fram ur konfigurationen: länkar, duplex, VLAN och trunkar, STP, routing, OSPF, BGP, ARP, ACL, NAT, DHCP, DNS, PoE, port security, IPsec, MTU och lastbalansering. Ett fel försvinner därför bara när orsaken är rättad.
+
+## Version 11.1: ingen webbserver behövs
+
+Packa upp zip-filen och dubbelklicka på `index.html`, så startar spelet med allt.
+
+En webbläsare som öppnar en sida direkt från disken (`file://`) får inte läsa sidans andra filer med `fetch` eller använda bilder därifrån i WebGL. Därför laddade spelet förut inga 3D-modeller, texturer eller fotsteg från disken, och två ljuskartor i 3D blockerades. Skript får däremot laddas.
+
+- **`tools/offline.js`** packar alla 93 filer i `assets3d/` (8,3 MB) som data-URI:er i en enda skriptfil, `assets3d/offline.js` (11 MB). Filen byggs vid varje release och ligger i zip-filen men inte i git.
+- **`index.html`** laddar den filen bara när sidan öppnas från disken. Via en webbserver hämtas filerna som förut.
+- **`NV.assets3d`** byter varje adress under `assets3d/` mot sin data-URI. Det sker i three.js `DefaultLoadingManager`, så även texturerna som modellerna själva pekar på (`Textures/colormap.png`), ljuskartorna i 3D och effekterna i HD-2D tas från paketet. Bilderna och fotstegen gör samma byte.
+- Saknas `offline.js` startar spelet ändå, med spelets egna modeller som förut.
+- **Test:** `test/offline.js` kopierar spelet till en tillfällig mapp och öppnar det från disken, först utan paketet och sedan med det. Med paketet ska 3D, HD-2D och 2D starta utan en enda blockerad fil, och `test/v9.js` (modeller, texturer och fotsteg) ska gå igenom på `file://`. `test/v9.js` tar nu `GAME_URL`.
 
 ## Version 11: Kurs 2 – Routing och switching
 
@@ -1983,6 +1996,7 @@ Fokus på grafik och spelkänsla i 3D, med partiklar och efterbehandling, en sny
 natverksspel/
   index.html, css/style.css
   lib/three.min.js           three.js r158 (MIT, se lib/THREE-LICENSE)
+  tools/offline.js           bygger assets3d/offline.js, så att spelet går att öppna direkt från disken
   lib/GLTFLoader.js          GLTFLoader och SkeletonUtils från three.js r158 (MIT)
   lib/fonts/                 VT323 och Press Start 2P (SIL Open Font License, se OFL-*.txt)
   assets3d/                  Kenney-figurer, möbler, bilar, fabriksdelar och fotsteg, Quaternius-figurer
@@ -2016,4 +2030,4 @@ node natverksspel/test/smoke.js    # DHCP, ping, NAT, DNS och STP i det felfria 
 node natverksspel/test/cli.js SW1 "show vlan brief" "show interfaces trunk"
 ```
 
-Webbläsartesterna `test/ui.js`, `test/flow.js`, `test/view.js`, `test/boot.js`, `test/features.js`, `test/v3.js`, `test/v4.js`, `test/v5.js`, `test/v8.js` (vägsökningen och aktiviteterna i 2D), `test/v9.js` (Kenney-modellerna i 3D), `test/hd2d.js` (HD-2D), `test/v10.js` (förbättringarna i version 10, med en simulerad handkontroll) och `test/kurs2_ui.js` (kurs 2 i alla visningslägen) använder Playwright. Starta en webbserver på port 8765 i `natverksspel/` först.
+Webbläsartesterna `test/ui.js`, `test/flow.js`, `test/view.js`, `test/boot.js`, `test/features.js`, `test/v3.js`, `test/v4.js`, `test/v5.js`, `test/v8.js` (vägsökningen och aktiviteterna i 2D), `test/v9.js` (Kenney-modellerna i 3D), `test/hd2d.js` (HD-2D), `test/v10.js` (förbättringarna i version 10, med en simulerad handkontroll) och `test/kurs2_ui.js` (kurs 2 i alla visningslägen) använder Playwright. Starta en webbserver på port 8765 i `natverksspel/` först. `test/offline.js` behöver ingen webbserver: det öppnar spelet direkt från disken.

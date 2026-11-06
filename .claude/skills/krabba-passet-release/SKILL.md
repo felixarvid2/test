@@ -24,7 +24,7 @@ The owner writes in Swedish; answer in Swedish. Standing workflow for every requ
 - Node: `node test/levels.js` ("Alla veckor OK"), `node test/build.js` ("Alla byggen OK"), `node test/kurs2.js`
   ("Alla kurs 2-veckor OK", weeks 11–14 of course 2).
 - Browser (Playwright, server on port 8765 in `natverksspel/`, see the `playwright-webgl-testing` skill):
-  `v10 hd2d v9 boot ui flow features v3 v4 v5 v8 build_ui report kurs2_ui`. Each must end with "inga fel" (flow prints
+  `v10 hd2d v9 boot ui flow features v3 v4 v5 v8 build_ui report kurs2_ui offline`. Each must end with "inga fel" (flow prints
   JSON) and have 0 `pageerror`. Run them one at a time: two browsers at once make the first SwiftShader frame so
   slow that `page.screenshot` hits its 30 s timeout in ui, features, v3 and v4. `test/view.js` is a screenshot tool that takes arguments, not a test.
 - New behaviour gets a check in `test/v10.js` (latest feature test); prove it fails without the fix.
@@ -58,7 +58,9 @@ overwritten; diff it against git first. Artifacts cannot serve `.glb` (models ar
 
 1. Copy exactly the committed game: `git archive <commit> natverksspel | tar x` and copy its contents to the
    repo root. Fix README paths (`npx http-server natverksspel`, `node natverksspel/test/...`, the code tree).
-2. Zip for players, without `test/`, in a top folder `Krabba-passet-X.Y/`; unzip it into an empty folder,
+2. Zip for players, without `test/`, in a top folder `Krabba-passet-X.Y/`. Run `node tools/offline.js <folder>` on
+   that folder first so `assets3d/offline.js` (git-ignored, about 11 MB) is in the zip: it lets players double-click
+   `index.html` with no web server and still get the 3D models. Open the unzipped `index.html` over `file://` too; unzip it into an empty folder,
    serve it on another port and load it: 0 page errors, 0 HTTP 4xx, all three view modes start.
 3. Cloud sessions get HTTP 403 both for `POST /repos/.../releases` and for pushing tags. Do not retry; send the
    zip with SendUserFile and give the owner the steps: Releases -> Draft new release -> tag `vX.Y` (create on

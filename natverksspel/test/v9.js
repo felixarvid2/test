@@ -1,4 +1,5 @@
-// v9: färdiga modeller i 3D (Kenney och Quaternius) och ambientCG-texturerna. Kräver en webbserver på port 8765.
+// v9: färdiga modeller i 3D (Kenney och Quaternius) och ambientCG-texturerna. Kräver en webbserver på port 8765,
+// eller GAME_URL (test/offline.js kör testet på file:// med assets3d/offline.js).
 // Kontrollerar att figurer, möbler, rekvisita, texturer och fotsteg laddas, att kollegorna animeras,
 // att kaffemaskinen och kollegorna fortfarande går att använda och att spelet klarar sig utan modellerna.
 // Låg grafik ger Kenneys figurer, medelhög ger riktiga människor (Quaternius) med egna animationer.
@@ -7,8 +8,8 @@ async function run(b, models, quality) {
   const p = await b.newPage({ viewport: { width: 1100, height: 650 } });
   const errs = [];
   p.on('pageerror', e => errs.push('pageerror: ' + e.message + ' ' + (e.stack || '').split('\n').slice(0, 3).join(' | ')));
-  await p.addInitScript((m) => { localStorage.setItem('krabba-passet.settings', JSON.stringify({ quality: m[1], mode: '3d', modeChosen: true, tutorialDone: true, lastVersion: '11.0', models3d: m[0] })); }, [models, quality || 'low']);
-  await p.goto('http://localhost:8765/index.html', { waitUntil: 'domcontentloaded' });
+  await p.addInitScript((m) => { localStorage.setItem('krabba-passet.settings', JSON.stringify({ quality: m[1], mode: '3d', modeChosen: true, tutorialDone: true, lastVersion: '11.1', models3d: m[0] })); }, [models, quality || 'low']);
+  await p.goto(process.env.GAME_URL || 'http://localhost:8765/index.html', { waitUntil: 'domcontentloaded' });
   await p.waitForTimeout(5000);
   await p.evaluate(() => { const g = NV.game; g.ui.hideMenu(); g.startWeek(3); g.ui.closeDialog(); });
   if (models) await p.waitForFunction(() => NV.game.world.kenney, null, { timeout: 30000 }).catch(() => errs.push('modellerna laddades inte'));
