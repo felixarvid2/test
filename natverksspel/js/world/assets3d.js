@@ -3,9 +3,19 @@
 // Furniture Kit, lagret i Borås får en skåpbil, rullband och lådor, golven får fototexturer, fönstren
 // en riktig himmel och fotstegen spelas in. Version 9.1: på medelhög grafik och uppåt blir kollegorna
 // riktiga människor från Quaternius, och golv och väggar får ambientCG-texturer med normalkartor. Allt laddas i bakgrunden. Tills det är klart, eller om det
-// inte går (till exempel när sidan öppnas direkt från disken), syns spelets egna modeller som förut.
+// inte går, syns spelets egna modeller som förut. Version 11.1: öppnas sidan direkt från disken (file://) får den inte
+// läsa filerna, så då kommer allt från assets3d/offline.js, som tools/offline.js bygger och index.html laddar.
 NV.assets3d = (function () {
   var BASE = 'assets3d/';
+  // Från disken: varje adress under assets3d/ byts mot sin data-URI i NV_OFFLINE, även texturer som modellerna pekar på
+  var OFF = window.NV_OFFLINE || null;
+  function url(u) {
+    if (!OFF || typeof u !== 'string' || /^(data|blob):/.test(u)) return u;
+    var i = u.indexOf(BASE);
+    return (i >= 0 && OFF[u.slice(i).split('?')[0]]) || u;
+  }
+  if (OFF && window.THREE) THREE.DefaultLoadingManager.setURLModifier(url);
+  var blocked = location.protocol === 'file:' && !OFF; // från disken utan offline.js: spelets egna modeller
   // Vilken figur varje kollega får
   var CHARS = { Anna: 'female-f', Sara: 'female-b', Lisa: 'female-c', Maja: 'female-a', Linnea: 'female-e', Eva: 'female-d', Karim: 'male-a', Bo: 'male-d', Omar: 'male-f', Nils: 'male-e' };
   var FURN = ['chairDesk', 'chairCushion', 'loungeSofa', 'loungeDesignSofa', 'pottedPlant', 'plantSmall1', 'plantSmall2', 'plantSmall3', 'kitchenCoffeeMachine', 'kitchenFridge', 'kitchenMicrowave',
@@ -32,7 +42,7 @@ NV.assets3d = (function () {
 
   function load() {
     if (promise) return promise;
-    if (!enabled() || location.protocol === 'file:') { promise = Promise.resolve(false); return promise; }
+    if (!enabled() || blocked) { promise = Promise.resolve(false); return promise; }
     var L = new THREE.GLTFLoader(), jobs = [];
     // Där .glb inte kan serveras finns samma modell som glTF-JSON
     function glb(key, path) {
@@ -58,7 +68,7 @@ NV.assets3d = (function () {
         var f = TEX[n][k];
         if (!f || imgs[f]) return;
         imgs[f] = null;
-        jobs.push(new Promise(function (res) { var i = new Image(); i.onload = function () { imgs[f] = i; res(); }; i.onerror = function () { res(); }; i.src = BASE + f; }));
+        jobs.push(new Promise(function (res) { var i = new Image(); i.onload = function () { imgs[f] = i; res(); }; i.onerror = function () { res(); }; i.src = url(BASE + f); }));
       });
     });
     promise = Promise.all(jobs).then(function () { ready = true; return true; });
@@ -398,11 +408,11 @@ NV.assets3d = (function () {
   var steps = {}, stepsLoading = false;
   function loadSteps(ctx) {
     stepsLoading = true;
-    if (location.protocol === 'file:') return;
+    if (blocked) return;
     ['carpet', 'concrete', 'wood'].forEach(function (s) {
       steps[s] = [];
       for (var i = 0; i < 5; i++) {
-        fetch(BASE + 'sfx/footstep_' + s + '_' + i + '.ogg').then(function (r) { if (!r.ok) throw new Error('saknas'); return r.arrayBuffer(); })
+        fetch(url(BASE + 'sfx/footstep_' + s + '_' + i + '.ogg')).then(function (r) { if (!r.ok) throw new Error('saknas'); return r.arrayBuffer(); })
           .then(function (ab) { return new Promise(function (res, rej) { ctx.decodeAudioData(ab, res, rej); }); })
           .then(function (buf) { steps[s].push(buf); }, function () { /* syntetiskt ljud används */ });
       }
@@ -426,5 +436,5 @@ NV.assets3d = (function () {
     return origStep.apply(this, arguments);
   };
 
-  return { load: load, ready: function () { return ready; }, CHARS: CHARS, steps: steps };
+  return { load: load, ready: function () { return ready; }, offline: function () { return !!OFF; }, CHARS: CHARS, steps: steps };
 })();
