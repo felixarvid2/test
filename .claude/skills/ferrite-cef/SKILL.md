@@ -122,3 +122,11 @@ cargo test                                  # core unit tests + scheme guard tes
 ```
 UI-only edits (`ui/`): set `FERRITE_UI_DIR=ui` to serve from disk; embedded copy is `browser/assets.rs`.
 Verify behaviour changes in a real window (`scripts/run.sh`); unit tests cannot exercise CEF callbacks.
+
+## Default return values are not CEF's defaults
+
+cef-rs trait methods default to `Default::default()` (0/false/None), not to the
+C++ CEF defaults. Example: `WindowDelegate::can_resize/can_maximize/can_minimize`
+return 0 unless overridden, which made windows non-resizable
+(`browser/window.rs`, MainWindowDelegate). When adding a delegate, check every
+method whose C++ default is `true` and override it.
