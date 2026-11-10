@@ -1,10 +1,13 @@
 # Working in this repository
 
-Several projects live here: `rune/`, `natverksspel/`, `tiny-dungeon/`, `vlan-tool-rs/`, `fartvakt/`,
+Several projects live here: `rune/`, `tiny-dungeon/`, `vlan-tool-rs/`, `fartvakt/`,
 and the asset library in `assets/`.
 
 `and-code/` (a copy of https://github.com/yuga-hashimoto/and-code) and `cisco-analyzer/` moved to
 https://github.com/felixarvid2/eget-repo.
+
+Krabba-passet (the network-technician game, formerly `natverksspel/`) moved to
+https://github.com/felixarvid2/Krabba-passet.
 
 Ashfall (the TypeScript/Three.js action RPG) moved to https://github.com/felixarvid2/Ashfall.
 `assets/ashfall-ai/` stays here as its asset library.
