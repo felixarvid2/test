@@ -1,7 +1,8 @@
 # Working in this repository
 
 Several projects live here: `rune/`, `natverksspel/`, `cisco-analyzer/`, `tiny-dungeon/`, `vlan-tool-rs/`, `and-code/`,
-`fartvakt/`, and the asset library in `assets/`.
+`fartvakt/`, `browser/` (Ferrite, a Rust web browser on CEF/Chromium; see `browser/docs/STATUS.md`), and the asset
+library in `assets/`.
 
 `and-code/` is a copy of https://github.com/yuga-hashimoto/and-code (MIT, `main` at f0c0806), without its git history.
 Its `.github/workflows/` do not run from a subdirectory.
