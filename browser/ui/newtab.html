@@ -9,6 +9,7 @@
 <script src="ferrite://app/common.js"></script>
 </head>
 <body>
+<canvas id="field" aria-hidden="true"></canvas>
 <style>
   body { min-height: 100vh; background: var(--bg); }
   :root[data-private] { --accent: #b48cff; --accent-fg: #1a0c33; --accent-soft: rgba(180,140,255,.16); --accent-ring: rgba(180,140,255,.55); --bg: #14111b; --bg2: #1d1928; --bg3: #2a2438; --border: #302a40; --border-strong: #463e5e; --card-border: rgba(255,255,255,.07); }
@@ -37,13 +38,19 @@
   .tile .ic img.fav { width: 28px; height: 28px; border-radius: 6px; }
   .tile .ic .avatar { width: 56px; height: 56px; border-radius: 12px; font-size: 24px; }
   .tile span.name { font-size: 12.5px; line-height: 1.25; max-width: 100%; overflow: hidden; text-align: center; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-word; color: var(--tile-cap); }
-  .tile { height: auto; min-height: 96px; }
+  .tile { height: auto; min-height: 104px; justify-content: flex-start; padding-top: 10px; box-shadow: inset 0 0 0 1px var(--tile-line, transparent); }
+  .tile span.name { min-height: 2.5em; }
   .private { margin: 28px auto 0; max-width: 540px; padding: 18px 20px; text-align: left; color: var(--fg2); line-height: 1.6; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); }
   .private h2 { margin: 0 0 6px; font-size: 15px; text-transform: none; letter-spacing: 0; color: var(--fg); display: flex; gap: 8px; align-items: center; }
   .private h2 svg { color: var(--accent); }
   .nt { animation: rise .5s var(--ease) both; }
   @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
   @media (max-width: 560px) { .clock { font-size: 56px; } }
+  /* Ferrite's one signature: iron filings along a magnetic field, drawn
+     quietly behind the page and faded toward the edges. */
+  #field { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none;
+    mask-image: radial-gradient(ellipse 70% 65% at 50% 38%, #000 30%, transparent 78%); }
+  .nt { position: relative; z-index: 1; }
 </style>
 <div class="nt">
   <div class="badge" id="badge" hidden></div>

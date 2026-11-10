@@ -31,3 +31,69 @@ api("top_sites").then(r => {
     tiles.append(a);
   }
 });
+
+// Field lines of a magnetic dipole whose poles flank the clock, rendered as
+// short "iron filing" dashes. Static (no animation), redrawn on resize and
+// theme change.
+function drawField() {
+  const cv = document.getElementById("field");
+  if (!cv) return;
+  const dpr = window.devicePixelRatio || 1;
+  const w = innerWidth, h = innerHeight;
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  const g = cv.getContext("2d");
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, w, h);
+  const light = document.documentElement.dataset.theme === "light";
+  const priv = document.body.classList.contains("private") || document.documentElement.hasAttribute("data-private");
+  const rgb = priv ? "183,155,255" : light ? "65,87,230" : "124,140,255";
+  const clockEl = document.getElementById("clock");
+  const cr = clockEl ? clockEl.getBoundingClientRect() : null;
+  const cy = cr && cr.height ? cr.top + cr.height / 2 : Math.min(h * 0.3, 260);
+  const span = Math.min(w * 0.3, 400);
+  const poles = [{ x: w / 2 - span, y: cy, q: 1 }, { x: w / 2 + span, y: cy, q: -1 }];
+  const field = (x, y) => {
+    let fx = 0, fy = 0;
+    for (const p of poles) {
+      const dx = x - p.x, dy = y - p.y, r2 = dx * dx + dy * dy + 30, r3 = r2 * Math.sqrt(r2);
+      fx += p.q * dx / r3; fy += p.q * dy / r3;
+    }
+    const m = Math.hypot(fx, fy) || 1;
+    return [fx / m, fy / m];
+  };
+  g.lineCap = "round";
+  g.setLineDash([3, 7]);
+  // Seed lines on the mid-line between the poles and trace both ways, so
+  // both poles look the same (no starburst at the seeding pole).
+  const trace = (x, y, dir) => {
+    g.moveTo(x, y);
+    for (let step = 0; step < 900; step++) {
+      const [fx, fy] = field(x, y);
+      x += fx * 4 * dir; y += fy * 4 * dir;
+      g.lineTo(x, y);
+      const end = dir > 0 ? poles[1] : poles[0];
+      if (Math.hypot(x - end.x, y - end.y) < 22 || x < -50 || x > w + 50 || y < -50 || y > h + 50) break;
+    }
+  };
+  g.strokeStyle = `rgba(${rgb},${light ? 0.16 : 0.2})`;
+  g.lineWidth = 1.2;
+  // Keep the clock clear: seeds start above/below it and spread outward.
+  const clear = cr && cr.height ? cr.height / 2 + 28 : 70;
+  const range = Math.min(h, 900) * 0.55;
+  for (const side of [-1, 1]) {
+    for (let i = 0; i < 7; i++) {
+      const y = cy + side * (clear + Math.pow(i / 6, 1.5) * range);
+      g.beginPath(); trace(w / 2, y, 1); trace(w / 2, y, -1); g.stroke();
+    }
+  }
+  // Two faint pole glints.
+  for (const p of poles) {
+    const r = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, 64);
+    r.addColorStop(0, `rgba(${rgb},${light ? 0.12 : 0.17})`); r.addColorStop(1, `rgba(${rgb},0)`);
+    g.fillStyle = r; g.beginPath(); g.arc(p.x, p.y, 64, 0, Math.PI * 2); g.fill();
+  }
+}
+let fieldTimer = 0;
+addEventListener("resize", () => { clearTimeout(fieldTimer); fieldTimer = setTimeout(drawField, 120); });
+new MutationObserver(drawField).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-private"] });
+drawField();
