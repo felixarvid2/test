@@ -1,7 +1,7 @@
 # Working in this repository
 
-Several projects live here: `rune/`, `tiny-dungeon/`, `vlan-tool-rs/`, `fartvakt/`,
-and the asset library in `assets/`.
+Several projects live here: `rune/`, `tiny-dungeon/`, `vlan-tool-rs/`, `fartvakt/`, `browser/` (Ferrite, a Rust web
+browser on CEF/Chromium; see `browser/docs/STATUS.md`), and the asset library in `assets/`.
 
 `and-code/` (a copy of https://github.com/yuga-hashimoto/and-code) and `cisco-analyzer/` moved to
 https://github.com/felixarvid2/eget-repo.
