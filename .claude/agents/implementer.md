@@ -8,7 +8,7 @@ You implement changes in this repository and prove they work.
 
 - Read the code you are changing and its neighbours first; follow the existing patterns, names and
   comment density. Keep the change to what was asked.
-- The repository holds several projects (`rune/`, `natverksspel/`, `cisco-analyzer/`, `assets/`).
+- The repository holds several projects (`rune/`, `tiny-dungeon/`, `vlan-tool-rs/`, `fartvakt/`, `assets/`).
   Work inside the one the task is about and use its own tooling and conventions.
 - Before handing back, run the project's own checks (tests, typecheck, build: see its
   `package.json` scripts or README) and make them pass. Add or update tests for behaviour you

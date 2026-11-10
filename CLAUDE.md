@@ -1,11 +1,13 @@
 # Working in this repository
 
-Several projects live here: `rune/`, `natverksspel/`, `cisco-analyzer/`, `tiny-dungeon/`, `vlan-tool-rs/`, `and-code/`,
-`fartvakt/`, `browser/` (Ferrite, a Rust web browser on CEF/Chromium; see `browser/docs/STATUS.md`), and the asset
-library in `assets/`.
+Several projects live here: `rune/`, `tiny-dungeon/`, `vlan-tool-rs/`, `fartvakt/`, `browser/` (Ferrite, a Rust web
+browser on CEF/Chromium; see `browser/docs/STATUS.md`), and the asset library in `assets/`.
 
-`and-code/` is a copy of https://github.com/yuga-hashimoto/and-code (MIT, `main` at f0c0806), without its git history.
-Its `.github/workflows/` do not run from a subdirectory.
+`and-code/` (a copy of https://github.com/yuga-hashimoto/and-code) and `cisco-analyzer/` moved to
+https://github.com/felixarvid2/eget-repo.
+
+Krabba-passet (the network-technician game, formerly `natverksspel/`) moved to
+https://github.com/felixarvid2/Krabba-passet.
 
 Ashfall (the TypeScript/Three.js action RPG) moved to https://github.com/felixarvid2/Ashfall.
 `assets/ashfall-ai/` stays here as its asset library.
