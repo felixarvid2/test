@@ -154,7 +154,7 @@ pub fn open_window(s: &mut State, init: WindowInit) -> Option<WinId> {
         }),
         init.maximized,
         init.private,
-        !s.settings.system_titlebar,
+        (!s.settings.system_titlebar).then(|| theme::frame_color(&s.settings, init.private)),
     );
     let window = window_create_top_level(Some(&mut delegate));
     if let Some(w) = s.windows.get_mut(&id) {
@@ -299,7 +299,8 @@ wrap_window_delegate! {
         bounds: Rect,
         maximized: bool,
         private: bool,
-        frameless: bool,
+        // Some(frame colour) for a frameless window.
+        frameless: Option<u32>,
     }
 
     impl ViewDelegate {
@@ -330,11 +331,11 @@ wrap_window_delegate! {
             }
             let title = if self.private { "Ferrite (Private)" } else { "Ferrite" };
             window.set_title(Some(&cef_str(title)));
-            if self.frameless {
+            if let Some(frame_color) = self.frameless {
                 // Web content is a native child window that swallows mouse
                 // events, so leave a thin frame for resizing from the edges.
                 window.set_insets(Some(&Insets { top: 0, left: RESIZE_BORDER, bottom: RESIZE_BORDER, right: RESIZE_BORDER }));
-                window.set_background_color(0xFF1B1C20);
+                window.set_background_color(frame_color);
             }
             window.show();
             if self.maximized {
@@ -391,7 +392,7 @@ wrap_window_delegate! {
         fn is_frameless(&self, _window: Option<&mut Window>) -> ::std::os::raw::c_int {
             // The tab strip doubles as the title bar (drag regions come from
             // the UI page's `app-region: drag` CSS).
-            self.frameless as i32
+            self.frameless.is_some() as i32
         }
 
         fn window_runtime_style(&self) -> RuntimeStyle {
