@@ -46,9 +46,10 @@ jobs:
         # step limit, so a stuck mirror fails fast instead of blocking for hours.
         timeout-minutes: 15
         run: |
-          # Prefer Ubuntu's own archive; keep the runner's Azure mirror as fallback.
+          # The runner's Azure mirror (and plain-http archive) sometimes hang: try an
+          # https mirror first, then fall back to the defaults.
           if [ -f /etc/apt/apt-mirrors.txt ]; then
-            printf 'http://archive.ubuntu.com/ubuntu/\nhttp://azure.archive.ubuntu.com/ubuntu/\n' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+            printf 'https://mirrors.edge.kernel.org/ubuntu/\nhttp://archive.ubuntu.com/ubuntu/\nhttp://azure.archive.ubuntu.com/ubuntu/\n' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
           fi
           sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
           sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y cmake ninja-build g++ pkg-config \
