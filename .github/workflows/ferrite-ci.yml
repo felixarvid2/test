@@ -42,11 +42,22 @@ jobs:
         run: cargo fmt --all --check
 
       - name: Build dependencies
+        # The runner image already has most of these (it ships Chrome). Install
+        # only what is missing; GitHub's Ubuntu mirrors sometimes hang, so apt
+        # gets short timeouts and the step a time limit, and a failed install
+        # does not stop the build (a real missing library fails it later).
+        timeout-minutes: 6
+        continue-on-error: true
         run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake ninja-build g++ pkg-config \
-            libgtk-3-dev libx11-dev libnss3 libgbm1 libasound2t64
-
+          missing=""
+          for p in cmake ninja-build g++ pkg-config libnss3 libgbm1 libasound2t64; do
+            dpkg -s "$p" >/dev/null 2>&1 || missing="$missing $p"
+          done
+          echo "missing:${missing:- none}"
+          [ -z "$missing" ] && exit 0
+          APT="-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30"
+          sudo apt-get $APT update
+          sudo apt-get $APT install -y --no-install-recommends $missing
       - name: CEF version
         id: cef
         run: echo "version=$(grep -oP 'cef = \{ version = "=\K[^"]+' app/Cargo.toml)" >> "$GITHUB_OUTPUT"
