@@ -87,6 +87,30 @@ Network traffic went through an HTTPS-intercepting proxy.
   not visible in a normal window; no history entry is written.
 - A web page link to `ferrite://settings` is blocked.
 
+### Update check
+
+- `core/src/update.rs` parses `https://api.github.com/repos/felixarvid2/test/releases?per_page=20`
+  and picks the newest non-draft, non-prerelease `ferrite-v*` tag by semver
+  (other tags such as `assets-large-v1` are ignored). Nothing is downloaded or
+  installed; the deb needs root, so the user installs it.
+- `app/src/browser/updates.rs` runs it on a background thread (ureq, platform
+  verifier, 20 s timeout, 1 MB limit, user agent `Ferrite/<version>`). First
+  check 30 s after start, then via the 60 s housekeeping tick every 24 h, never
+  within 6 h of the last attempt. The last attempt time and the found update
+  are kept in `update.json` in the profile (not in settings). "Check now" is
+  not rate limited. Setting `check_for_updates` (default on) stops all
+  automatic requests.
+- UI: the main menu gets "Update available: x.y.z" (opens the release page in a
+  new tab) and ferrite://about/ shows the release and download links or "up to
+  date (checked ...)" with Check now (API `update_check`, `update_status`; the
+  page polls because API calls are synchronous on the UI thread).
+- `FERRITE_UPDATE_URL` (testing only) overrides the URL.
+- Verified in the real browser (e2e, local http server): menu item and its click,
+  about page links, Check now to "up to date", persisted update after restart
+  with no request within 6 h, no request at all with the setting off. The live
+  api.github.com response (ferrite-v0.1.1, ferrite-v0.1.0, assets-large-v1) is
+  parsed (ignored test `live_github` and a trimmed fixture test).
+
 ### Ad blocking (scriptlets and YouTube rules)
 
 - Local mock YouTube watch page (rules rewritten from youtube.com to
@@ -286,14 +310,14 @@ Network traffic went through an HTTPS-intercepting proxy.
   the payload is dropped in Rust there (logged at debug level). The prompt
   appears on submit, so it also appears after a failed login attempt.
 - Not offered: private windows, non-http(s) pages, sites on the never-list,
-  when a cached login for the site already has the same username (there is no
-  update/change-password flow in v1), empty or oversized values (password over
-  1000 chars, username over 500). Two or more filled password fields: the last
+  empty or oversized values (password over 1000 chars, username over 500).
+  When a cached login for the site already has the same username, the update
+  flow below applies instead. Two or more filled password fields: the last
   one is used (sign-up forms save the new account; change-password forms the
   new password).
 - The password lives only in Rust memory (`SavePrompt`), is dropped on any
   answer, after 2 minutes, when the tab closes or when the feature is turned
-  off; the UI gets `{id, site, username}`. One prompt per tab (a newer submit
+  off; the UI gets `{id, kind, site, username}`. One prompt per tab (a newer submit
   replaces it). The `pass_save_answer` command is UI-only and checks that the
   prompt belongs to the caller's window.
 - Saving runs `pass-cli item create login --share-id <vault> --from-template -`
@@ -307,6 +331,53 @@ Network traffic went through an HTTPS-intercepting proxy.
   password or username; failure path; "Never" and the disabled setting
   suppress the prompt). Rust memory is not zeroed on drop (a freed `String`
   may linger); not fixed.
+
+#### Updating a password ("Update password for <username> on <site>?")
+- Passwords are not cached, so when a captured sign-in matches a cached login
+  (same site, same username, case-insensitive) Ferrite fetches that item's
+  password in the background (`item view pass://S/I/password --output human`,
+  as the fill does) and compares in Rust; both strings are dropped right after.
+  Same password: nothing is shown. Different: the save bar asks "Update
+  password for <username> on <site> in Proton Pass?" with [Not now] [Update]
+  (the username is the stored login's spelling). A failed fetch shows nothing.
+  Same rules as saving: http(s) main frame, not in private windows, needs
+  "Offer to save passwords" and respects the never-list, one prompt per tab,
+  password only in Rust memory (random prompt id), dropped on answer, after
+  2 minutes, on tab close or when the feature is turned off. `pass_save_answer`
+  accepts `update`/`dismiss` for an update prompt only.
+- `pass-cli item update` only takes values in argv (visible in /proc for about
+  a second), so it is not used for passwords. Update **recreates the item**:
+  `item view --share-id S --item-id I --output json`, then `item create login
+  --share-id S --from-template -` (same vault, same `--folder-id` if the item
+  had one, JSON on stdin) with title, username, email, urls, TOTP URI and extra
+  fields (text, hidden, totp) copied and only the password replaced; only after
+  the create succeeded `item trash --share-id S --item-id I` moves the old item
+  to the trash (never deleted permanently). The item id therefore changes, and
+  creation/modification dates and pinned state of the original are not copied.
+  The cache refreshes afterwards. Toasts: "Password updated in Proton Pass",
+  "... (the old entry could not be moved to the trash)" if the trash call failed
+  (the item then exists twice), or a generic failure (create failed: the old
+  item is untouched and not trashed).
+- Blocked, not replaced silently: the create template has no field for a
+  **note**, attachments, passkeys, custom sections or field kinds other than
+  text/hidden/totp (anything unknown that holds data counts). Then the bar says
+  "This login has data Ferrite can't copy (attachments/passkeys). Update it in
+  the Proton Pass app." with [OK], and nothing is created or trashed. A login
+  with a note is therefore never updated by Ferrite.
+- Verified with the fake pass-cli (it logs argv of every call and the stdin of
+  create): update prompt and Update (stdin has the new password with quotes,
+  backslash, `</script>`, shell characters, and the same title, username, URLs,
+  TOTP URI and text/hidden/totp extra fields; argv never holds the password;
+  trash after create; no `item update`/`delete`), same password and private
+  window and offer off and never-list give no prompt, Not now does nothing,
+  a newer submit replaces the prompt, note and passkey/attachment items show
+  the blocked bar, create failure gives no trash call, trash failure toast, no
+  secrets in the log. Unit tests in `core/src/passcli.rs` cover both item JSON
+  shapes, TOTP, URLs and detection of uncopyable data. Not verified: the real
+  `item view --output json` shape (parser accepts the shapes of `item list`
+  plus the `{"item": ..., "attachments": ...}` wrapper from the source), real
+  template acceptance of every kind, and whether the real CLI lists the
+  attachments of an item in that output.
 
 #### 2FA codes
 
@@ -507,7 +578,7 @@ Network traffic went through an HTTPS-intercepting proxy.
 - Spell-check UI.
 - Reader mode.
 - Per-site zoom memory (Chromium may keep it).
-- Automatic updates.
+- Automatic download and installation of updates (only the check exists).
 - Overlay suggestions dropdown: the dropdown pushes the page down instead of
   overlaying it.
 - Download shelf.

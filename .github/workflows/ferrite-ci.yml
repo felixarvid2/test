@@ -1,0 +1,81 @@
+name: ferrite-ci
+
+# Checks every change to the Ferrite browser: formatting, clippy and tests.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "browser/**"
+      - ".github/workflows/ferrite-ci.yml"
+  pull_request:
+    paths:
+      - "browser/**"
+      - ".github/workflows/ferrite-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ferrite-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: browser
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Formatting
+        run: cargo fmt --all --check
+
+      - name: Build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++ pkg-config \
+            libgtk-3-dev libx11-dev libnss3 libgbm1 libasound2t64
+
+      - name: CEF version
+        id: cef
+        run: echo "version=$(grep -oP 'cef = \{ version = "=\K[^"]+' app/Cargo.toml)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.local/share/cef
+          key: cef-${{ steps.cef.outputs.version }}
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            ~/.cargo/bin/export-cef-dir
+          key: cargo-${{ runner.os }}-${{ hashFiles('browser/Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-
+
+      - name: Install CEF
+        run: |
+          if [ ! -f "$HOME/.local/share/cef/libcef.so" ]; then scripts/setup-cef.sh; fi
+
+      - name: Clippy
+        run: CEF_PATH=$HOME/.local/share/cef cargo clippy --release --workspace --all-targets -- -D warnings
+
+      - name: Tests
+        run: CEF_PATH=$HOME/.local/share/cef cargo test --release --workspace
+
+      - name: Adblock scriptlets file is valid
+        run: |
+          python3 -I -c "import json; d=json.load(open('resources/adblock/ubo-scriptlets.json')); assert len(d) > 100, len(d)"
