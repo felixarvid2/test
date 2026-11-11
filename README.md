@@ -17,7 +17,7 @@ Repot heter `test`, men fungerar mer som en verkstad: här byggs idéer klart, t
 | Projekt | Vad det är |
 |---|---|
 | [Ferrite](browser/) | En skrivbordswebbläsare för Linux, byggd i Rust. |
-| [Fartvakt](fartvakt/) | Mäter internethastigheten automatiskt och larmar när nätet avviker. |
+| [Fartvakt](fartvakt/) | Mäter internethastigheten automatiskt och larmar när hastigheten avviker. |
 | [VLAN-verktyget](vlan-tool-rs/) | Bygger och granskar Cisco-konfigurationer från CSV-filer. |
 
 ## Delade resurser
