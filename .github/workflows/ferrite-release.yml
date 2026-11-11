@@ -1,13 +1,20 @@
 name: ferrite-release
 
-# Builds Ferrite's Linux packages and publishes them as a GitHub release.
-# Push a tag like ferrite-v0.1.0 (the version must match browser/Cargo.toml).
+# Builds Ferrite's Linux packages and publishes them as a GitHub release
+# tagged ferrite-v<version> (version from browser/Cargo.toml). Run it by
+# pushing such a tag, or manually with publish=true (creates the tag on the
+# commit it runs on). A manual run with publish=false only uploads artifacts.
 
 on:
   push:
     tags:
       - "ferrite-v*"
   workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish a GitHub release (tag ferrite-v<version>)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -33,11 +40,14 @@ jobs:
           sudo apt-get install -y cmake ninja-build g++ pkg-config librsvg2-bin \
             libgtk-3-dev libx11-dev libnss3 libgbm1 libasound2t64
 
-      - name: Version check
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Version
+        id: version
         run: |
           VERSION="$(awk -F'"' '/^\[workspace.package\]/ {p=1} p && /^version/ {print $2; exit}' Cargo.toml)"
-          [ "${GITHUB_REF_NAME}" = "ferrite-v${VERSION}" ] || { echo "tag ${GITHUB_REF_NAME} does not match version ${VERSION}"; exit 1; }
+          echo "tag=ferrite-v${VERSION}" >> "$GITHUB_OUTPUT"
+          if [ "${GITHUB_REF_TYPE}" = tag ] && [ "${GITHUB_REF_NAME}" != "ferrite-v${VERSION}" ]; then
+            echo "tag ${GITHUB_REF_NAME} does not match version ${VERSION}"; exit 1
+          fi
 
       - name: Install CEF
         run: scripts/setup-cef.sh
@@ -53,10 +63,12 @@ jobs:
           cd dist && sha256sum ferrite_*_amd64.deb Ferrite-*-x86_64.AppImage > SHA256SUMS && cat SHA256SUMS
 
       - name: Publish release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') || inputs.publish
         uses: softprops/action-gh-release@v2
         with:
-          name: Ferrite ${{ github.ref_name }}
+          tag_name: ${{ steps.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: Ferrite ${{ steps.version.outputs.tag }}
           body_path: browser/packaging/RELEASE_NOTES.md
           files: |
             browser/dist/ferrite_*_amd64.deb
@@ -64,7 +76,7 @@ jobs:
             browser/dist/SHA256SUMS
 
       - name: Keep packages (manual runs)
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        if: ${{ !startsWith(github.ref, 'refs/tags/') && !inputs.publish }}
         uses: actions/upload-artifact@v4
         with:
           name: ferrite-packages
