@@ -130,3 +130,13 @@ C++ CEF defaults. Example: `WindowDelegate::can_resize/can_maximize/can_minimize
 return 0 unless overridden, which made windows non-resizable
 (`browser/window.rs`, MainWindowDelegate). When adding a delegate, check every
 method whose C++ default is `true` and override it.
+
+## Strings written into out-parameter structs are lost
+
+`impl From<CefStringUtf16> for _cef_string_utf16_t` only passes *borrowed*
+strings through; an owned `CefString` becomes an empty C string. So setting
+string fields of an out struct in a callback (e.g.
+`WindowDelegate::linux_window_properties` → `wm_class_class`) silently has no
+effect. Use another route (Ferrite sets WM_CLASS directly with Xlib in
+`browser::window::set_wm_class`; Chromium's `--class` switch does not reach
+Views windows).
