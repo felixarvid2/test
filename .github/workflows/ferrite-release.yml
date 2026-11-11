@@ -1,0 +1,74 @@
+name: ferrite-release
+
+# Builds Ferrite's Linux packages and publishes them as a GitHub release.
+# Push a tag like ferrite-v0.1.0 (the version must match browser/Cargo.toml).
+
+on:
+  push:
+    tags:
+      - "ferrite-v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: browser
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++ pkg-config librsvg2-bin \
+            libgtk-3-dev libx11-dev libnss3 libgbm1 libasound2t64
+
+      - name: Version check
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          VERSION="$(awk -F'"' '/^\[workspace.package\]/ {p=1} p && /^version/ {print $2; exit}' Cargo.toml)"
+          [ "${GITHUB_REF_NAME}" = "ferrite-v${VERSION}" ] || { echo "tag ${GITHUB_REF_NAME} does not match version ${VERSION}"; exit 1; }
+
+      - name: Install CEF
+        run: scripts/setup-cef.sh
+
+      - name: Test
+        run: CEF_PATH=$HOME/.local/share/cef cargo test --release --workspace
+
+      - name: Package (.deb and AppImage)
+        run: |
+          export CEF_PATH=$HOME/.local/share/cef
+          cargo build --release
+          scripts/package.sh
+          cd dist && sha256sum ferrite_*_amd64.deb Ferrite-*-x86_64.AppImage > SHA256SUMS && cat SHA256SUMS
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Ferrite ${{ github.ref_name }}
+          body_path: browser/packaging/RELEASE_NOTES.md
+          files: |
+            browser/dist/ferrite_*_amd64.deb
+            browser/dist/Ferrite-*-x86_64.AppImage
+            browser/dist/SHA256SUMS
+
+      - name: Keep packages (manual runs)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ferrite-packages
+          path: |
+            browser/dist/ferrite_*_amd64.deb
+            browser/dist/Ferrite-*-x86_64.AppImage
+            browser/dist/SHA256SUMS
