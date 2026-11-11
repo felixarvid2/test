@@ -1,7 +1,11 @@
 # Working in this repository
 
-Several projects live here: `rune/`, `tiny-dungeon/`, `vlan-tool-rs/`, `fartvakt/`, `browser/` (Ferrite, a Rust web
-browser on CEF/Chromium; see `browser/docs/STATUS.md`), and the asset library in `assets/`.
+Several projects live here: `rune/`, `tiny-dungeon/`, `vlan-tool-rs/`, `fartvakt/`, and the asset library in
+`assets/`.
+
+Ferrite (the Rust web browser on CEF/Chromium, formerly `browser/`, plus its Android app) moved to
+https://github.com/felixarvid2/Ferrite with its history, CI/release workflows and `ferrite-*` skills.
+Old releases (ferrite-v0.1.0–0.2.0, ferrite-android-v0.1.0) stay in this repository.
 
 `and-code/` (a copy of https://github.com/yuga-hashimoto/and-code) and `cisco-analyzer/` moved to
 https://github.com/felixarvid2/eget-repo.
