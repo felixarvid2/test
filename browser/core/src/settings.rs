@@ -34,6 +34,8 @@ pub struct Settings {
     pub show_bookmarks_bar: bool,
     pub tracking_protection: bool,
     pub adblock_enabled: bool,
+    /// Sites (lowercase hosts, no "www.") where ad blocking is switched off.
+    pub adblock_exceptions: Vec<String>,
     pub send_do_not_track: bool,
     pub restore_after_crash: bool,
     pub default_zoom_percent: u32,
@@ -47,6 +49,12 @@ pub struct Settings {
     pub proton_pass: bool,
     /// Path of `pass-cli`; empty = look in PATH, then ~/.local/bin.
     pub proton_pass_cli: String,
+    /// Offer to save a login to Proton Pass after signing in.
+    pub proton_pass_offer_save: bool,
+    /// Share id of the vault new logins go to; empty = the first vault.
+    pub proton_pass_vault: String,
+    /// Sites (site keys like `adblock_exceptions`) never offered for saving.
+    pub proton_pass_never_save: Vec<String>,
 }
 
 impl Default for Settings {
@@ -65,6 +73,7 @@ impl Default for Settings {
             show_bookmarks_bar: true,
             tracking_protection: false,
             adblock_enabled: true,
+            adblock_exceptions: Vec::new(),
             send_do_not_track: false,
             restore_after_crash: true,
             default_zoom_percent: 100,
@@ -73,6 +82,9 @@ impl Default for Settings {
             vertical_tabs: true,
             proton_pass: false,
             proton_pass_cli: String::new(),
+            proton_pass_offer_save: true,
+            proton_pass_vault: String::new(),
+            proton_pass_never_save: Vec::new(),
         }
     }
 }
@@ -107,7 +119,26 @@ impl Settings {
         for (k, v) in patch {
             obj.insert(k.clone(), v.clone());
         }
-        *self = serde_json::from_value(current).context("invalid settings patch")?;
+        let mut next: Settings =
+            serde_json::from_value(current).context("invalid settings patch")?;
+        // Exceptions are site keys: normalise, drop invalid, sort, dedupe.
+        let site_list = |list: &[String]| {
+            let mut sites: Vec<String> = list
+                .iter()
+                .filter_map(|s| crate::blocker::normalize_site(s))
+                .collect();
+            sites.sort();
+            sites.dedup();
+            sites
+        };
+        next.adblock_exceptions = site_list(&next.adblock_exceptions);
+        next.proton_pass_never_save = site_list(&next.proton_pass_never_save);
+        next.proton_pass_vault = next.proton_pass_vault.trim().to_string();
+        if !next.proton_pass_vault.is_empty() && !crate::passcli::valid_id(&next.proton_pass_vault)
+        {
+            bail!("invalid vault id");
+        }
+        *self = next;
         Ok(())
     }
 }
@@ -127,6 +158,21 @@ mod tests {
         assert_eq!(s.default_zoom_percent, 100);
         assert!(!s.proton_pass && s.proton_pass_cli.is_empty());
         assert!(!s.download_dir.is_empty());
+        assert!(s.proton_pass_offer_save);
+        assert!(s.proton_pass_vault.is_empty() && s.proton_pass_never_save.is_empty());
+    }
+
+    #[test]
+    fn never_save_sites_and_vault() {
+        let mut s = Settings::default();
+        s.apply_patch(&json!({"proton_pass_never_save":["WWW.Example.com","https://b.org/x","example.com","","http://"],
+            "proton_pass_vault":" abc_1= "}))
+            .unwrap();
+        assert_eq!(s.proton_pass_never_save, vec!["b.org", "example.com"]);
+        assert_eq!(s.proton_pass_vault, "abc_1=");
+        let before = s.clone();
+        assert!(s.apply_patch(&json!({"proton_pass_vault":"a/b"})).is_err());
+        assert_eq!(s, before);
     }
 
     #[test]
@@ -176,5 +222,17 @@ mod tests {
             .is_err());
         assert!(s.apply_patch(&json!([1, 2])).is_err());
         assert_eq!(s, before);
+    }
+
+    #[test]
+    fn adblock_exceptions_normalised_and_defaulted() {
+        let mut s = Settings::default();
+        assert!(s.adblock_exceptions.is_empty());
+        s.apply_patch(&json!({"adblock_exceptions":["WWW.B.com","a.com","b.com","ferrite://x"]}))
+            .unwrap();
+        assert_eq!(s.adblock_exceptions, vec!["a.com", "b.com"]);
+        // Old files without the field still load.
+        let old: Settings = serde_json::from_str(r#"{"theme":"light"}"#).unwrap();
+        assert!(old.adblock_exceptions.is_empty());
     }
 }

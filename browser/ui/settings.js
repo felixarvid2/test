@@ -9,10 +9,44 @@ async function load() {
     const v = settings[input.dataset.key];
     if (input.type === "checkbox") input.checked = !!v; else input.value = String(v);
   }
+  renderExceptions();
+  renderNeverSave();
   loadPerms();
   loadPass();
+  loadImport();
   const a = await api("about");
   document.getElementById("about").textContent = `Ferrite ${a.ferrite} · Chromium ${a.chromium} · CEF ${a.cef}` + (a.sandbox ? "" : " · sandbox disabled");
+}
+function renderExceptions() {
+  const box = document.getElementById("adblock-sites");
+  const sites = settings.adblock_exceptions || [];
+  box.replaceChildren(...(sites.length ? [el("div", { class: "row" }, el("div", { class: "grow" }, el("div", { text: "Sites where blocking is off" }), el("div", { class: "desc", text: "Ads and trackers are allowed on these sites and their subdomains." })))] : []),
+    ...sites.map(site => el("div", { class: "row hoverable" },
+      el("div", { class: "grow" }, el("div", { class: "title", text: site })),
+      el("button", { class: "icon-btn danger", title: "Turn blocking back on", "aria-label": "Remove " + site, onclick: async () => {
+        settings = await api("settings_set", { patch: { adblock_exceptions: sites.filter(x => x !== site) } });
+        renderExceptions();
+      } }, icon("close")))));
+}
+function renderNeverSave() {
+  const box = document.getElementById("pass-never");
+  const sites = settings.proton_pass_never_save || [];
+  box.replaceChildren(...(sites.length ? [el("div", { class: "row" }, el("div", { class: "grow" }, el("div", { text: "Never offer to save passwords for" }), el("div", { class: "desc", text: "These sites and their subdomains." })))] : []),
+    ...sites.map(site => el("div", { class: "row hoverable" },
+      el("div", { class: "grow" }, el("div", { class: "title", text: site })),
+      el("button", { class: "icon-btn danger", title: "Offer to save again", "aria-label": "Remove " + site, onclick: async () => {
+        settings = await api("settings_set", { patch: { proton_pass_never_save: sites.filter(x => x !== site) } });
+        renderNeverSave();
+      } }, icon("close")))));
+}
+async function loadVaults() {
+  const sel = document.getElementById("pass-vault");
+  let list = [];
+  try { list = await api("pass_vaults"); } catch (_) {}
+  const current = settings ? settings.proton_pass_vault : "";
+  sel.replaceChildren(el("option", { value: "", text: "First vault" }), ...list.map(v => el("option", { value: v.share_id, text: v.name || v.share_id })));
+  if (current && !list.some(v => v.share_id === current)) sel.append(el("option", { value: current, text: current }));
+  sel.value = current;
 }
 async function loadPerms() {
   const perms = await api("permissions_list");
@@ -36,6 +70,51 @@ async function loadPass(refresh) {
   box.style.color = r.status === "error" || r.status === "not_installed" ? "var(--danger)" : "";
   document.getElementById("pass-refresh").disabled = !r.enabled;
   if (r.status === "loading") passTimer = setTimeout(loadPass, 800);
+  loadVaults();
+}
+const fmtNum = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+async function loadImport() {
+  const box = document.getElementById("import-sources");
+  let list;
+  try { list = await api("import_sources"); } catch (e) { list = []; }
+  if (!list.length) {
+    box.replaceChildren(el("div", { class: "empty compact" }, el("div", { text: "No Chrome, Chromium, Brave, Edge, Vivaldi or Firefox profiles found." })));
+    return;
+  }
+  box.replaceChildren(...list.map(src => {
+    const bm = el("input", { type: "checkbox" });
+    const hi = el("input", { type: "checkbox" });
+    bm.checked = src.has_bookmarks; bm.disabled = !src.has_bookmarks;
+    hi.checked = src.has_history; hi.disabled = !src.has_history;
+    const result = el("div", { class: "desc", role: "status" });
+    const btn = el("button", { class: "btn sm", text: "Import" });
+    btn.onclick = async () => {
+      if (!bm.checked && !hi.checked) { result.textContent = "Choose bookmarks or history."; return; }
+      const all = document.querySelectorAll("#import-sources .btn");
+      all.forEach(b => b.disabled = true); result.textContent = "Importing…";
+      try {
+        await api("import_run", { source: src.id, bookmarks: bm.checked, history: hi.checked });
+        result.textContent = await pollImport();
+      } catch (e) { result.textContent = "Import failed: " + e.message; }
+      all.forEach(b => b.disabled = false);
+    };
+    return el("div", { class: "row", "data-source": src.id },
+      el("div", { class: "grow" }, el("div", { text: `${src.browser} · ${src.profile_name}` }), result),
+      el("label", {}, bm, "Bookmarks"), el("label", {}, hi, "History"), btn);
+  }));
+}
+async function pollImport() {
+  for (;;) {
+    const st = await api("import_status");
+    if (st.state === "done") {
+      const c = st.counts, parts = [];
+      if (c.bookmarks || !c.history) parts.push(`${fmtNum(c.bookmarks)} bookmarks`);
+      if (c.history) parts.push(`${fmtNum(c.history)} history entries`);
+      return `Imported ${parts.join(" and ")}` + (c.skipped ? ` (${fmtNum(c.skipped)} already present, skipped)` : "") + ".";
+    }
+    if (st.state === "error") return "Import failed: " + st.message;
+    await new Promise(r => setTimeout(r, 400));
+  }
 }
 document.getElementById("pass-refresh").onclick = () => loadPass(true);
 for (const input of document.querySelectorAll("[data-key]")) {

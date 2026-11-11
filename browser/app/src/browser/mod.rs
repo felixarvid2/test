@@ -12,6 +12,7 @@ pub mod commands;
 pub mod context_menu;
 pub mod downloads;
 pub mod handlers;
+pub mod import;
 pub mod inject;
 pub mod menu;
 pub mod passwords;
@@ -258,6 +259,9 @@ pub fn start() {
     };
     STATE.with(|cell| *cell.borrow_mut() = Some(state));
 
+    if let Some(list) = with_state(|s| s.settings.adblock_exceptions.clone()) {
+        handlers::set_exceptions(list);
+    }
     handlers::SEND_DNT.store(state_dnt(), std::sync::atomic::Ordering::Relaxed);
     if with_state(|s| s.settings.adblock_enabled).unwrap_or(false) {
         handlers::ADBLOCK.store(true, std::sync::atomic::Ordering::Relaxed);
@@ -267,6 +271,7 @@ pub fn start() {
     }
     schedule_housekeeping();
     with_state(|s| {
+        passwords::apply_capture_flag(s);
         if s.settings.proton_pass {
             passwords::tick(s);
         }

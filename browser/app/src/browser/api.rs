@@ -2,8 +2,8 @@
 //! Only reachable from ferrite:// documents (see `scheme`).
 
 use super::{
-    commands, downloads, menu, passwords, permissions, tabs, window, BrowserRef, State, WinId,
-    NEW_TAB_URL,
+    commands, downloads, import, menu, passwords, permissions, tabs, window, BrowserRef, State,
+    WinId, NEW_TAB_URL,
 };
 use anyhow::{anyhow, bail, Context, Result};
 use cef::*;
@@ -82,6 +82,16 @@ pub fn window_snapshot(s: &State, win: WinId) -> Value {
     } else {
         Value::Null
     };
+    let blocking = active.map(|t| {
+        let site = ferrite_core::blocker::site_key(&t.url);
+        let excepted = ferrite_core::blocker::is_exception(&s.settings.adblock_exceptions, &t.url);
+        json!({
+            "global": s.settings.adblock_enabled,
+            "enabled": s.settings.adblock_enabled && site.is_some() && !excepted,
+            "count": t.browser.as_ref().map_or(0, |b| super::handlers::blocked_count(b.identifier())),
+            "site": site,
+        })
+    });
     let prompts: Vec<Value> = w
         .prompts
         .iter()
@@ -97,11 +107,13 @@ pub fn window_snapshot(s: &State, win: WinId) -> Value {
         "nav": nav,
         "bookmarks_bar": bookmarks_bar,
         "prompts": prompts,
+        "blocking": blocking,
         "downloads": { "active": s.downloads.active_count(), "progress": s.downloads.progress() },
         "closed_tabs": w.closed_tabs.len(),
         "frameless": !s.settings.system_titlebar,
         "vertical_tabs": w.side_view.is_some(),
         "passwords": active.map_or(0, |t| s.passwords.count_for(&t.url)),
+        "pass_save": passwords::prompt_json(s, w.active),
         "maximized": w.window.as_ref().is_some_and(|w| w.is_maximized() != 0),
     })
 }
@@ -117,6 +129,8 @@ const UI_ONLY: &[&str] = &[
     "pin_tab",
     "permission",
     "password_menu",
+    "blocking_menu",
+    "pass_save_answer",
 ];
 
 /// Reject tab ids that belong to another window (or to no tab at all).
@@ -285,7 +299,21 @@ pub fn handle(s: &mut State, browser_id: i32, command: &str, args: Value) -> Res
             passwords::tick(s);
             Value::Null
         }
+        "blocking_menu" => {
+            menu::show_blocking_menu(
+                s,
+                win,
+                arg_i64(&args, "x")? as i32,
+                arg_i64(&args, "y")? as i32,
+            );
+            Value::Null
+        }
         "pass_status" => passwords::status_json(s),
+        "pass_vaults" => passwords::vaults_json(s),
+        "pass_save_answer" => {
+            passwords::save_answer(s, win, arg_str(&args, "id")?, arg_str(&args, "action")?)?;
+            Value::Null
+        }
         "pass_refresh" => {
             passwords::refresh(s, true);
             passwords::status_json(s)
@@ -432,6 +460,7 @@ pub fn handle(s: &mut State, browser_id: i32, command: &str, args: Value) -> Res
         }),
         "settings_set" => {
             let before_theme = s.settings.theme;
+            let before_exceptions = s.settings.adblock_exceptions.clone();
             let (was_pass, old_cli) = (s.settings.proton_pass, s.settings.proton_pass_cli.clone());
             s.settings
                 .apply_patch(args.get("patch").unwrap_or(&Value::Null))?;
@@ -456,6 +485,9 @@ pub fn handle(s: &mut State, browser_id: i32, command: &str, args: Value) -> Res
                     .collect();
                 super::inject::clear_all(|id| browsers.get(&id).cloned());
             }
+            if s.settings.adblock_exceptions != before_exceptions {
+                super::handlers::apply_exceptions(s);
+            }
             if s.settings.theme != before_theme {
                 super::theme::apply_to_context(s, None);
                 if let Some(ctx) = s.private_context.clone() {
@@ -465,6 +497,19 @@ pub fn handle(s: &mut State, browser_id: i32, command: &str, args: Value) -> Res
             passwords::settings_changed(s, was_pass, &old_cli);
             s.mark_all_dirty();
             serde_json::to_value(&s.settings)?
+        }
+        // ---- import from other browsers ---------------------------------
+        "import_sources" => import::sources()?,
+        "import_status" => import::status(),
+        "import_run" => {
+            if private {
+                bail!("Import is not available in private windows");
+            }
+            import::run(
+                arg_str(&args, "source")?,
+                arg_bool(&args, "bookmarks"),
+                arg_bool(&args, "history"),
+            )?
         }
         "permissions_list" => serde_json::to_value(s.db.list_permissions()?)?,
         "permission_remove" => {

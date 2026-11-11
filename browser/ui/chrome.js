@@ -141,6 +141,14 @@ function renderNav() {
   zoom.hidden = !nav.zoom || nav.zoom === 100;
   zoom.textContent = (nav.zoom || 100) + "%";
   $("star").classList.toggle("on", !!nav.bookmarked);
+  const bl = state.blocking || {};
+  const shield = $("shield");
+  shield.hidden = !(bl.global && bl.site);
+  shield.classList.toggle("off", !bl.enabled);
+  const badge = $("shield-badge");
+  badge.hidden = !bl.enabled || !(bl.count > 0);
+  badge.textContent = bl.count > 99 ? "99+" : String(bl.count || "");
+  shield.title = !bl.enabled ? `Ad blocking is off on ${bl.site || "this site"}` : bl.count ? `${bl.count} blocked on ${bl.site}` : "Ad blocking is on";
   $("pass").hidden = !state.passwords;
   $("star").hidden = state.private || !nav.url || nav.url.startsWith("ferrite:");
   const p = $("progress");
@@ -218,6 +226,25 @@ function renderPrompts() {
     row.append(text, label, block, allow);
     box.append(row);
   }
+  // "Save password to Proton Pass?" (the password itself never reaches this page).
+  const ps = state.pass_save;
+  if (ps) {
+    const row = el("div", "prompt");
+    row.id = "pass-save";
+    const text = el("div", "grow what");
+    const icon = el("span"); icon.innerHTML = '<svg viewBox="0 0 16 16"><circle cx="5.5" cy="8" r="2.6" fill="none" stroke="currentColor"/><path d="M8.1 8H14M12 8v2.5M14 8v1.5"/></svg>';
+    const words = el("span");
+    words.append("Save password for ", el("b", null, ps.site), " to Proton Pass?");
+    if (ps.username) words.append(" ", el("span", "muted", "(" + ps.username + ")"));
+    text.append(icon, words);
+    const answer = action => () => api("pass_save_answer", { id: ps.id, action });
+    const save = el("button", "pbtn primary", "Save");
+    const never = el("button", "pbtn", "Never for this site");
+    const later = el("button", "pbtn", "Not now");
+    save.onclick = answer("save"); never.onclick = answer("never"); later.onclick = answer("dismiss");
+    row.append(text, never, later, save);
+    box.append(row);
+  }
 }
 
 function renderDownloads() {
@@ -266,6 +293,7 @@ $("forward").onclick = () => cmd("forward");
 $("reload").onclick = e => cmd(state && state.nav && state.nav.loading ? "stop" : (e.shiftKey ? "hard_reload" : "reload"));
 $("home").onclick = () => cmd("home");
 $("star").onclick = () => api("toggle_bookmark").then(added => added != null && ferrite.toast(added ? "Bookmark added" : "Bookmark removed"));
+$("shield").onclick = () => { const r = $("shield").getBoundingClientRect(); api("blocking_menu", { x: Math.round(r.right), y: Math.round(r.bottom) }); };
 $("pass").onclick = () => { const r = $("pass").getBoundingClientRect(); api("password_menu", { x: Math.round(r.right), y: Math.round(r.bottom) }); };
 $("downloads").onclick = () => cmd("downloads");
 $("zoom").onclick = () => cmd("zoom_reset");
