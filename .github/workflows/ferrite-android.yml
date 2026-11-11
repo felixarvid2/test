@@ -139,7 +139,8 @@ jobs:
           mkdir -p "$RUNNER_TEMP/out"
           cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/out/Ferrite-$v.apk"
           cd "$RUNNER_TEMP/out"
-          "$ANDROID_HOME"/build-tools/*/apksigner verify --verbose --print-certs "Ferrite-$v.apk" | head -8
+          apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)"
+          "$apksigner" verify --verbose --print-certs "Ferrite-$v.apk"
           sha256sum "Ferrite-$v.apk" > SHA256SUMS
           size=$(stat -c %s "Ferrite-$v.apk")
           unzip -l "Ferrite-$v.apk" | grep -E "\.so$|classes|assets/" || true
