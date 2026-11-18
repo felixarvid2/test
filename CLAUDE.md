@@ -1,6 +1,6 @@
 # Working in this repository
 
-Several projects live here: `rune/`, `tiny-dungeon/`, `vlan-tool-rs/`, `fartvakt/`, and the asset library in
+Several projects live here: `rune/`, `tiny-dungeon/`, `vlan-tool-rs/`, `fartvakt/`, `xteink-epub/`, and the asset library in
 `assets/`.
 
 Ferrite (the Rust web browser on CEF/Chromium, formerly `browser/`, plus its Android app) moved to

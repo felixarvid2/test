@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xteink-epub"
+version = "0.1.0"
+description = "Anpassar EPUB-filer automatiskt för e-läsaren Xteink X4 Pro"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["Pillow", "lxml"]
+
+[project.scripts]
+xteink-epub = "xteink_epub.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
