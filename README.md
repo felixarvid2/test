@@ -19,6 +19,7 @@ Repot heter `test`, men fungerar mer som en verkstad: här byggs idéer klart, t
 | [Ferrite](https://github.com/felixarvid2/Ferrite) | Webbläsare i Rust för Linux och Android (eget repo). |
 | [Fartvakt](fartvakt/) | Mäter internethastigheten automatiskt och larmar när hastigheten avviker. |
 | [VLAN-verktyget](vlan-tool-rs/) | Bygger och granskar Cisco-konfigurationer från CSV-filer. |
+| [xteink-epub](xteink-epub/) | Anpassar EPUB-filer automatiskt för e-läsaren Xteink X4 Pro. |
 
 ## Delade resurser
 
