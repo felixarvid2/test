@@ -121,6 +121,13 @@ Avslutskod: 0 om allt gick bra, 1 om någon bok misslyckades, 2 vid fel användn
 - Boken kontrolleras inte mot EPUB-standarden (epubcheck). Verktyget ändrar bara det som beskrivs
   ovan och försöker lämna resten orört.
 
+## Android-app
+
+Samma omvandling finns som en Android-app med grafiskt gränssnitt: välj EPUB-filer (eller dela
+dem till appen), välj en mapp för resultatet och tryck *Konvertera*. Appen är en port av
+verktyget till Kotlin med samma standardvärden och bor i [`android/`](android/). Se
+[`android/README.md`](android/README.md) för installation, användning och hur APK:n byggs.
+
 ## Utveckla
 
 ```bash

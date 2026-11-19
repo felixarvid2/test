@@ -1,0 +1,93 @@
+name: xteink-epub-android
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "xteink-epub/android/**"
+      - ".github/workflows/xteink-epub-android.yml"
+  pull_request:
+    paths:
+      - "xteink-epub/android/**"
+      - ".github/workflows/xteink-epub-android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: xteink-epub-android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    defaults:
+      run:
+        working-directory: xteink-epub/android
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools platforms;android-35 build-tools;35.0.0"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Tester för kärnan (Kotlin/JVM) och den signerade APK:n. Nyckeln ligger i repot med avsikt,
+      # så varje bygge får samma signatur och uppdateringar kan installeras över varandra.
+      # :app:testDebugUnitTest kör Android-koden (bildkonvertering, skärmen, ViewModel) med Robolectric.
+      - name: Tester och APK
+        run: ./gradlew --no-daemon :core:test :app:testDebugUnitTest :app:assembleRelease
+
+      - name: Läs versionsnamnet
+        id: version
+        run: echo "version=$(./gradlew --no-daemon -q :app:printVersionName | tail -n 1)" >> "$GITHUB_OUTPUT"
+
+      - name: Kontrollera APK
+        run: |
+          APK="app/build/outputs/apk/release/xteink-epub-${{ steps.version.outputs.version }}.apk"
+          test -f "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$APK"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xteink-epub-apk
+          path: xteink-epub/android/app/build/outputs/apk/release/xteink-epub-${{ steps.version.outputs.version }}.apk
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    needs: build
+    # Bara på push till main: skapar eller uppdaterar releasen för versionen.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: xteink-epub-apk
+          path: dist
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: xteink-epub-android-v${{ needs.build.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          name: Xteink EPUB (Android) ${{ needs.build.outputs.version }}
+          body: |
+            Android-appen Xteink EPUB ${{ needs.build.outputs.version }}.
+            Ladda ner APK-filen och installera den (tillåt installation från okända källor).
+            Se [README](https://github.com/${{ github.repository }}/blob/main/xteink-epub/android/README.md).
+          files: dist/xteink-epub-${{ needs.build.outputs.version }}.apk
+          make_latest: "false"
+          fail_on_unmatched_files: true
