@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Xteink EPUB</string>
+
+    <!-- Böcker -->
+    <string name="section_books">Böcker</string>
+    <string name="pick_epubs">Välj EPUB-filer</string>
+    <string name="no_books_hint">Välj EPUB-filer här, eller dela dem till appen från en filhanterare eller webbläsare.</string>
+    <string name="remove_book">Ta bort från listan</string>
+    <string name="clear_finished">Rensa klara</string>
+    <string name="status_waiting">Väntar</string>
+    <string name="status_converting">Konverterar %1$d %%</string>
+    <string name="status_done">Klar: %1$s → %2$s (%3$s)</string>
+    <string name="status_failed">Fel: %1$s</string>
+    <string name="done_details">%1$d bilder konverterade, %2$d typsnitt borttagna</string>
+    <string name="saved_as">Sparad som %1$s</string>
+    <plurals name="warnings">
+        <item quantity="one">%d varning</item>
+        <item quantity="other">%d varningar</item>
+    </plurals>
+    <string name="share">Dela</string>
+    <string name="share_chooser">Dela färdig bok</string>
+    <string name="not_epub">%1$s hoppades över: ingen EPUB-fil</string>
+
+    <!-- Utmapp -->
+    <string name="section_output">Färdiga böcker</string>
+    <string name="pick_output_folder">Välj mapp för färdiga böcker</string>
+    <string name="change_output_folder">Byt mapp</string>
+    <string name="output_folder_none">Ingen mapp vald</string>
+    <string name="output_folder_current">Sparas i: %1$s</string>
+    <string name="output_folder_lost">Behörigheten till mappen har försvunnit. Välj mappen igen.</string>
+    <string name="output_file_hint">Filerna får namnet bokens-namn.xteink.epub</string>
+    <string name="name_conflict">Om filen redan finns</string>
+    <string name="conflict_number">Lägg till (2)</string>
+    <string name="conflict_overwrite">Skriv över</string>
+    <string name="folder_needed">Välj först en mapp där de färdiga böckerna ska sparas.</string>
+
+    <!-- Inställningar -->
+    <string name="section_settings">Inställningar</string>
+    <string name="gray_levels">Gråskala</string>
+    <string name="levels_256">256 nivåer</string>
+    <string name="levels_16">16 nivåer</string>
+    <string name="levels_4">4 nivåer</string>
+    <string name="dithering">Dithering</string>
+    <string name="dithering_hint">Jämnare toner med färre gråskalor</string>
+    <string name="keep_color">Behåll färg</string>
+    <string name="keep_color_hint">Bilderna blir annars svartvita</string>
+    <string name="rotate_landscape">Rotera liggande bilder</string>
+    <string name="rotate_landscape_hint">Liggande bilder vrids så att de fyller skärmen</string>
+    <string name="keep_fonts">Behåll typsnitt</string>
+    <string name="keep_fonts_hint">Inbäddade typsnitt gör läsaren långsam</string>
+    <string name="css">CSS</string>
+    <string name="css_simplify">Förenkla</string>
+    <string name="css_keep">Behåll</string>
+    <string name="css_strip">Ta bort all</string>
+    <string name="jpeg_quality">JPEG-kvalitet: %1$d</string>
+    <string name="auto_convert_shared">Konvertera direkt när böcker delas till appen</string>
+    <string name="advanced">Avancerat</string>
+    <string name="target_width">Bredd (px)</string>
+    <string name="target_height">Höjd (px)</string>
+    <string name="target_size_hint">Bilder skalas ned så att de ryms i rutan, men förstoras aldrig. Standard är 480×800 (Xteink X4 Pro).</string>
+
+    <!-- Konvertering -->
+    <string name="convert">Konvertera</string>
+    <string name="convert_count">Konvertera (%1$d)</string>
+    <string name="cancel">Avbryt</string>
+    <string name="converting_overall">Konverterar bok %1$d av %2$d</string>
+    <string name="nothing_to_convert">Inga böcker att konvertera. Välj EPUB-filer först.</string>
+    <string name="all_done">Alla böcker är klara</string>
+    <string name="some_failed">%1$d böcker kunde inte konverteras</string>
+
+    <!-- Fel -->
+    <string name="error_io">Filfel: %1$s</string>
+    <string name="error_cannot_read">Kunde inte läsa filen: %1$s</string>
+    <string name="error_out_of_memory">Boken är för stor för telefonens minne</string>
+    <string name="error_unexpected">Oväntat fel: %1$s</string>
+    <string name="error_folder">Kunde inte skriva till mappen: %1$s</string>
+</resources>
