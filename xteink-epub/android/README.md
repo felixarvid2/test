@@ -110,6 +110,11 @@ motsvarar Pythonverktygets tester (omdöpta bilder utan hängande hänvisningar,
 typsnitt, CSS, `mimetype` först och okomprimerad med mera), plus jsoup-lagrets hantering av
 namnrymder och trasig XHTML.
 
+`./gradlew :app:testDebugUnitTest` kör Android-koden på vanlig JVM med Robolectric (inbyggd
+grafik, sdk 35): `BitmapImageProcessor` på progressiv JPEG, PNG med alpha, GIF, WebP, stora och små
+bilder, EXIF-rotation, 4 nivåer, färg och rotation; huvudskärmen i Compose; och `MainViewModel`
+som konverterar en bok till en mapp via en testversion av lagringsåtkomstramverket (SAF).
+
 Test på riktiga böcker (hoppas över om sökvägen saknas, så CI behöver inga filer):
 
 ```bash
@@ -118,7 +123,8 @@ Test på riktiga böcker (hoppas över om sökvägen saknas, så CI behöver ing
   -Dxteink.e2e.out=/valfri/mapp/för/resultaten
 ```
 
-Testet kontrollerar att alla JPEG-filer är baslinje och högst 480×800, att alla XHTML-, OPF-
+Samma `-D`-flaggor gäller `:app:testDebugUnitTest`, som då även kör hela flödet med
+`BitmapImageProcessor`. Testet kontrollerar att alla JPEG-filer är baslinje och högst 480×800, att alla XHTML-, OPF-
 och NCX-filer går att tolka strikt, att inga typsnitt eller hängande hänvisningar finns kvar och
 att `mimetype` kommer först och är okomprimerad.
 

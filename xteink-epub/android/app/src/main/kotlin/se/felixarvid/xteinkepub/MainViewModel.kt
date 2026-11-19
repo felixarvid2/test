@@ -141,8 +141,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val result = withContext(Dispatchers.IO) {
             val ctx = getApplication<Application>()
             val uri = Uri.parse(uriString)
-            val persisted = ctx.contentResolver.persistedUriPermissions.any { it.uri == uri && it.isWritePermission }
-            val doc = if (persisted) DocumentFile.fromTreeUri(ctx, uri) else null
+            // exists()/canWrite() query the provider, which fails once the permission is gone
+            val doc = DocumentFile.fromTreeUri(ctx, uri)
             if (doc != null && doc.exists() && doc.canWrite()) doc.name ?: uri.lastPathSegment.orEmpty() else null
         }
         folderValid.value = uriString to result
@@ -155,8 +155,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             ctx.contentResolver.takePersistableUriPermission(
                 uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
             )
-        } catch (_: SecurityException) {
-            // still usable for this session
+        } catch (_: Exception) {
+            // not persistable (or not needed): still usable for this session
         }
         viewModelScope.launch {
             repo.update { it.copy(outputFolder = uri.toString()) }

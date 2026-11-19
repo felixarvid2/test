@@ -44,8 +44,9 @@ jobs:
 
       # Tester för kärnan (Kotlin/JVM) och den signerade APK:n. Nyckeln ligger i repot med avsikt,
       # så varje bygge får samma signatur och uppdateringar kan installeras över varandra.
+      # :app:testDebugUnitTest kör Android-koden (bildkonvertering, skärmen, ViewModel) med Robolectric.
       - name: Tester och APK
-        run: ./gradlew --no-daemon :core:test :app:assembleRelease
+        run: ./gradlew --no-daemon :core:test :app:testDebugUnitTest :app:assembleRelease
 
       - name: Läs versionsnamnet
         id: version
