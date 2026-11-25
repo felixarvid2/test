@@ -651,12 +651,12 @@ IP 10.10.110.10 &gt; 10.10.110.20: ICMP echo reply, id 3068, seq 1, length 64</p
   </div>
 
   <h3>Fönstret på 4 byte</h3>
-  <p>Med MTU 1500 i bos kom ett felbesked bara för IP-paket på 1451 till 1454 byte. Allt större försvann tyst. Två saker i Borås-värdens Linux-kärna samverkar.</p>
+  <p>Med MTU 1500 i bos kom ett felbesked bara för IP-paket på 1451 till 1454 byte. Allt större försvann tyst. Mätningen åt andra hållet, från fil till bos, gav ett felbesked från OVS för alla storlekar över gränsen. Två saker i Borås-värdens Linux-kärna samverkar.</p>
   <div class="duo">
     <div class="panel"><h4>Bryggan har 4 byte marginal</h4><p>Innan <code>br0</code> skickar en ram vidare kontrollerar kärnan att den inte är större än portens MTU plus 4 byte, plats för en VLAN-tagg. Med <code>vxlan0</code> på MTU 1450 kommer paket upp till 1454 byte igenom. Större slängs utan besked.</p></div>
     <div class="panel"><h4>vxlan0 svarar i fils namn</h4><p>Paket på 1451–1454 byte når <code>vxlan0</code>, som ser att de inte ryms. Gränssnittet tillverkar ett "Fragmentation needed" med fils IP- och MAC-adress och skickar tillbaka det. Fångsterna visade 0 paket i tunneln och 0 hos fil.</p></div>
   </div>
-  <div class="note good"><b>Därför MTU 1450 i maskinerna</b><p>Ett fullt paket på 1500 byte, till exempel ett vanligt TCP-segment, hamnar alltid utanför fönstret och försvinner tyst. Med MTU 1450 vet maskinen gränsen själv, och TCP väljer rätt segmentstorlek från början.</p></div>
+  <div class="note good"><b>Därför MTU 1450 i maskinerna</b><p>Ett fullt paket på 1500 byte från Borås, till exempel ett vanligt TCP-segment, hamnar alltid utanför fönstret och försvinner tyst. Åt andra hållet, från Göteborg, svarar OVS med ett felbesked för alla för stora paket. Men trafiken går åt båda hållen. Med MTU 1450 vet maskinen gränsen själv, och TCP väljer rätt segmentstorlek från början.</p></div>
 </section>
 
 <!-- ============================================================ MOLNET -->
